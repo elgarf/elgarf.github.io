@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- ... -->
+  <link rel="stylesheet" href="css/furtive.min.css">
+  <script src="js/konva.min.js"></script>
+  <script src="js/vine.min.js"></script>
+  <script src="js/HTML.min.js"></script>
+  <script src="js/tinycolor.min.js"></script>
+  <title>Генератор отстроечных таблиц</title>
+  <!-- ... -->
+</head>
+<body>
+    <div class="grid measure">
+        <div class="grid-row">
+            <div class="grid-row-col-6">
+                <form>
+                    <label for="text">Текст</label>
+                    <input id="text" value="Экран"/>
+                    <label for="width">Ширина</label>
+                    <input type="number" id="width" value="1024"/>
+                    <label for="height">Высота</label>
+                    <input type="number" id="height" value="768"/>
+                    <label for="color">Цвет</label>
+                    <input type="color" id="color" value="#0000FF" style="height: 50px"/>
+                    <input id="generate" type="button" value="Сгенерировать" />
+                </form>
+            </div>
+        </div>
+    </div>
+    <div id="canvas" style="display:none"/>
+  <!-- ... -->
+</body>
+<script>
+
+    function GeneratePixelMap(width, height, color, text)
+    {
+        var stage = new Konva.Stage({
+        container: 'canvas',
+        width: width,
+        height: height
+        });
+
+        //var color = tinycolor('blue');
+        var data = {width: width, height: height, text: text};
+        stage.add(DrawRectangle(color, 0, data));
+        stage.add(DrawGrid(stage, 32));
+        stage.add(DrawCheckerboard(stage, 32, color));
+        stage.add(DrawNumbers(stage, 32, color));
+        stage.add(DrawOverlay(color, 0, data));
+
+        return stage;
+    }
+    function InvertColor(color)
+    {
+        var rgb = color.toRgb();
+        return tinycolor({r: 255 - rgb.r, g: 255 - rgb.g, b: 255 - rgb.b});
+    }
+    function DrawRectangle(color, position, data)
+    {
+        const size = 32;
+        const d = 16;
+        
+        var inverted = InvertColor(color);
+
+        var layer = new Konva.Layer();
+
+        layer.add(new Konva.Rect({
+            x: position,
+            width: data.width,
+            height: data.height,
+            fill: color,
+            stroke: inverted,
+            strokeWidth: 8
+        }));
+
+        layer.add(new Konva.Rect({
+            x: position + d,
+            y: d,
+            width: size,
+            height: size,
+            fill: inverted
+        }));
+
+        layer.add(new Konva.Rect({
+            x: position + data.width - d - size,
+            y: d,
+            width: size,
+            height: size,
+            fill: inverted
+        }));
+
+        layer.add(new Konva.Rect({
+            x: position + data.width - d - size,
+            y: data.height - d - size,
+            width: size,
+            height: size,
+            fill: inverted
+        }));
+
+        layer.add(new Konva.Rect({
+            x: position + d,
+            y: data.height - d - size,
+            width: size,
+            height: size,
+            fill: inverted
+        }));
+
+        return layer;
+    }
+
+    function DrawOverlay(color, position, data)
+    {
+        const size = 32;
+        const d = 16;
+        
+        var inverted = InvertColor(color);
+
+        var layer = new Konva.Layer();
+
+        layer.add(new Konva.Line({
+            points: [position, 0, position + data.width, data.height],
+            stroke: inverted,
+            strokeWidth: 8
+        }));
+
+        layer.add(new Konva.Line({
+            points: [position, data.height, position + data.width, 0],
+            stroke: inverted,
+            strokeWidth: 8
+        }));
+
+        var radius = Math.min(data.width, data.height) / 2;
+
+        layer.add(new Konva.Circle({
+            x: position + data.width / 2,
+            y: data.height / 2,
+            radius: radius,
+            stroke: inverted,
+            strokeWidth: 8
+        }));
+
+        var text = new Konva.Text({
+            text: data.width + "x" + data.height + "\n" + data.text,
+            fontFamily: 'Calibri',
+            fontSize: 30,
+            fill: inverted,
+            x: 0,
+            y: 0,
+            align: 'center'
+        });
+
+        layer.add(new Konva.Rect({
+            width: text.width() * 1.25,
+            height: text.height() * 1.25,
+            x: position + data.width / 2 - (text.width() * 1.25) / 2,
+            y: data.height / 2 - (text.height() * 1.25) / 2,
+            fill: color
+        }));
+
+        //alert( data.height / 2 - text.height() / 2);
+        text.x(position + data.width / 2 - text.width() / 2);
+        text.y(data.height / 2 - text.height() / 2);
+
+        layer.add(text);
+
+
+        return layer;
+    }
+
+    function DrawGrid(stage, size)
+    {
+        var layer = new Konva.Layer();
+        var cx = stage.width() / 2;
+        var cy = stage.height() / 2;
+
+        var countx = Math.ceil((cx * 2) / size);
+        var county = Math.ceil((cy * 2) / size);
+
+        for (var i = 0; i < county; i++)
+        {
+            layer.add(new Konva.Line({
+                points: [0, cy - size * i, cx * 2, cy - size * i],
+                stroke: 'black',
+                strokeWidth: 2
+            }));
+            layer.add(new Konva.Line({
+                points: [0, cy + size * i, cx * 2, cy + size * i],
+                stroke: 'black',
+                strokeWidth: 2
+            }));
+        }
+
+        for (var i = 0; i < countx; i++)
+        {
+            layer.add(new Konva.Line({
+                points: [cx - size * i, 0, cx - size * i, cy * 2],
+                stroke: 'black',
+                strokeWidth: 2
+            }));
+            layer.add(new Konva.Line({
+                points: [cx + size * i, 0, cx + size * i, cy * 2],
+                stroke: 'black',
+                strokeWidth: 2
+            }));
+        }
+
+        return layer;
+    }
+
+    function DrawCheckerboard(stage, size, color)
+    {
+        var layer = new Konva.Layer();
+        var cx = stage.width() / 2;
+        var cy = stage.height() / 2;
+
+        var countx = Math.ceil((cx * 2) / size);
+        var county = Math.ceil((cy * 2) / size);
+
+        var color1 = color.clone().darken(20);
+        
+        for (var i = 0; i < county; i++)
+        for (var j = 0; j < countx; j++)
+            if (i % 2 == j % 2)
+            {
+                //var color = GetPixel(canvas, Math.abs(Math.floor((cx - size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy - size * i + size / 2) % stage.height()))).darken(20);
+                if (i != 0)
+                    layer.add(new Konva.Rect({
+                        x: cx - size * j,
+                        y: cy - size * i,
+                        width: size,
+                        height: size,
+                        fill: color1,
+                    }));
+                //color = GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy - size * i + size / 2) % stage.height()))).darken(20);
+                if (j != 0)
+                    layer.add(new Konva.Rect({
+                        x: cx + size * j,
+                        y: cy - size * i,
+                        width: size,
+                        height: size,
+                        fill: color1,
+                    }));
+                //color = GetPixel(canvas, Math.abs(Math.floor((cx - size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))).darken(20);
+                if (j != 0)
+                    layer.add(new Konva.Rect({
+                        x: cx - size * j,
+                        y: cy + size * i,
+                        width: size,
+                        height: size,
+                        fill: color1,
+                    }));
+                //var color = GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))).darken(20);
+                //if (i != 0)
+                    layer.add(new Konva.Rect({
+                        x: cx + size * j,
+                        y: cy + size * i,
+                        width: size,
+                        height: size,
+                        fill: color1,
+                    }));
+            }
+
+        return layer;
+    }
+
+    function DrawNumbers(stage, size, color)
+    {
+        var layer = new Konva.Layer();
+        var cx = stage.width() / 2;
+        var cy = stage.height() / 2;
+
+        var countx = Math.ceil((cx * 2) / size);
+        var county = Math.ceil((cy * 2) / size);
+
+        color = InvertColor(color);
+
+        for (var i = 0; i <= county; i++)
+            for (var j = 0; j <= countx; j++)
+            {
+                var idx = ((i + 1) * (j + 1)) % 512;
+                //var color = InvertColor(GetPixel(canvas, Math.abs(Math.floor((cx - size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy - size * i + size / 2) % stage.height()))));
+                if (i != 0)
+                {
+                    var text = new Konva.Text({
+                        x: cx - size * j,
+                        y: cy - size * i,
+                        width: size,
+                        //height: size,
+                        align: 'center',
+                        text: idx,
+                        fontFamily: 'Calibri',
+                        fill: color,
+                        fontSize: size / 2,
+                    });
+                    text.setOffset({
+                        y: text.height() / 2 - size / 2,
+                    });
+                    layer.add(text);
+                }
+                //color = InvertColor(GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy - size * i + size / 2) % stage.height()))));
+                if (j != 0)
+                {
+                    text = new Konva.Text({
+                        x: cx + size * j,
+                        y: cy - size * i,
+                        width: size,
+                        //height: size,
+                        align: 'center',
+                        text: idx,
+                        fontFamily: 'Calibri',
+                        fill: color,
+                        fontSize: size / 2,
+                    });
+                    text.setOffset({
+                        y: text.height() / 2 - size / 2,
+                    });
+                    layer.add(text);
+                }
+                //color = InvertColor(GetPixel(canvas, Math.abs(Math.floor((cx - size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))));
+                if (j != 0)
+                {
+                    text = new Konva.Text({
+                        x: cx - size * j,
+                        y: cy + size * i,
+                        width: size,
+                        //height: size,
+                        align: 'center',
+                        text: idx,
+                        fontFamily: 'Calibri',
+                        fill: color,
+                        fontSize: size / 2,
+                    });
+                    text.setOffset({
+                        y: text.height() / 2 - size / 2,
+                    });
+                    layer.add(text);
+                }
+                //var color = InvertColor(GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))));
+                //if (i != 0)
+                    text = new Konva.Text({
+                        x: cx + size * j,
+                        y: cy + size * i,
+                        width: size,
+                        //height: size,
+                        align: 'center',
+                        text: idx,
+                        fontFamily: 'Calibri',
+                        fill: color,
+                        fontSize: size / 2,
+                    });
+                    text.setOffset({
+                        y: text.height() / 2 - size / 2,
+                    });
+                    layer.add(text);
+                }
+        return layer;
+    }
+
+    vine.bind("generate", "click", function (e)
+    {
+        window.location = GeneratePixelMap(HTML.query("#width").value * 1, HTML.query("#height").value * 1, tinycolor(HTML.query("#color").value), HTML.query("#text").value).toDataURL({mimeType: "image/png"});
+
+    });
+</script>
+</html>
