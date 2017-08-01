@@ -81,7 +81,7 @@
             x: position,
             width: data.width,
             height: data.height,
-            fill: color,
+            fill: color.toHexString(),
             stroke: inverted,
             strokeWidth: 8
         }));
@@ -91,7 +91,7 @@
             y: d,
             width: size,
             height: size,
-            fill: inverted
+            fill: inverted.toHexString()
         }));
 
         layer.add(new Konva.Rect({
@@ -99,7 +99,7 @@
             y: d,
             width: size,
             height: size,
-            fill: inverted
+            fill: inverted.toHexString()
         }));
 
         layer.add(new Konva.Rect({
@@ -107,7 +107,7 @@
             y: data.height - d - size,
             width: size,
             height: size,
-            fill: inverted
+            fill: inverted.toHexString()
         }));
 
         layer.add(new Konva.Rect({
@@ -115,7 +115,7 @@
             y: data.height - d - size,
             width: size,
             height: size,
-            fill: inverted
+            fill: inverted.toHexString()
         }));
 
         return layer;
@@ -132,13 +132,13 @@
 
         layer.add(new Konva.Line({
             points: [position, 0, position + data.width, data.height],
-            stroke: inverted,
+            stroke: inverted.toHexString(),
             strokeWidth: 8
         }));
 
         layer.add(new Konva.Line({
             points: [position, data.height, position + data.width, 0],
-            stroke: inverted,
+            stroke: inverted.toHexString(),
             strokeWidth: 8
         }));
 
@@ -148,7 +148,7 @@
             x: position + data.width / 2,
             y: data.height / 2,
             radius: radius,
-            stroke: inverted,
+            stroke: inverted.toHexString(),
             strokeWidth: 8
         }));
 
@@ -156,7 +156,7 @@
             text: data.width + "x" + data.height + "\n" + data.text,
             fontFamily: 'Calibri',
             fontSize: 30,
-            fill: inverted,
+            fill: inverted.toHexString(),
             x: 0,
             y: 0,
             align: 'center'
@@ -167,7 +167,7 @@
             height: text.height() * 1.25,
             x: position + data.width / 2 - (text.width() * 1.25) / 2,
             y: data.height / 2 - (text.height() * 1.25) / 2,
-            fill: color
+            fill: color.toHexString()
         }));
 
         //alert( data.height / 2 - text.height() / 2);
@@ -242,7 +242,7 @@
                         y: cy - size * i,
                         width: size,
                         height: size,
-                        fill: color1,
+                        fill: color1.toHexString(),
                     }));
                 //color = GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy - size * i + size / 2) % stage.height()))).darken(20);
                 if (j != 0)
@@ -251,7 +251,7 @@
                         y: cy - size * i,
                         width: size,
                         height: size,
-                        fill: color1,
+                        fill: color1.toHexString(),
                     }));
                 //color = GetPixel(canvas, Math.abs(Math.floor((cx - size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))).darken(20);
                 if (j != 0)
@@ -260,7 +260,7 @@
                         y: cy + size * i,
                         width: size,
                         height: size,
-                        fill: color1,
+                        fill: color1.toHexString(),
                     }));
                 //var color = GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))).darken(20);
                 //if (i != 0)
@@ -269,7 +269,7 @@
                         y: cy + size * i,
                         width: size,
                         height: size,
-                        fill: color1,
+                        fill: color1.toHexString(),
                     }));
             }
 
@@ -302,7 +302,7 @@
                         align: 'center',
                         text: idx,
                         fontFamily: 'Calibri',
-                        fill: color,
+                        fill: color.toHexString(),
                         fontSize: size / 2,
                     });
                     text.setOffset({
@@ -321,7 +321,7 @@
                         align: 'center',
                         text: idx,
                         fontFamily: 'Calibri',
-                        fill: color,
+                        fill: color.toHexString(),
                         fontSize: size / 2,
                     });
                     text.setOffset({
@@ -340,7 +340,7 @@
                         align: 'center',
                         text: idx,
                         fontFamily: 'Calibri',
-                        fill: color,
+                        fill: color.toHexString(),
                         fontSize: size / 2,
                     });
                     text.setOffset({
@@ -358,7 +358,7 @@
                         align: 'center',
                         text: idx,
                         fontFamily: 'Calibri',
-                        fill: color,
+                        fill: color.toHexString(),
                         fontSize: size / 2,
                     });
                     text.setOffset({
