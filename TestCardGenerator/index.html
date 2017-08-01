@@ -370,7 +370,9 @@
 
     vine.bind("generate", "click", function (e)
     {
-        window.location = GeneratePixelMap(HTML.query("#width").value * 1, HTML.query("#height").value * 1, tinycolor(HTML.query("#color").value), HTML.query("#text").value).toDataURL({mimeType: "image/png"});
+        //window.location =
+        alert(tinycolor(HTML.query("#color").value));
+        GeneratePixelMap(HTML.query("#width").value * 1, HTML.query("#height").value * 1, tinycolor(HTML.query("#color").value), HTML.query("#text").value);//.toDataURL({mimeType: "image/png"});
 
     });
 </script>
