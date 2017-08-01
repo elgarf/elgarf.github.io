@@ -36,10 +36,11 @@
                     <input type="color" id="color" value="#0000FF" style="height: 50px"/>
                     <input class="btn--blue" id="generate" type="button" value="СГЕНЕРИРОВАТЬ" />
                 </form>
+                <div id="canvas" />
             </div>
         </div>
     </div>
-    <div id="canvas" />
+    
   <!-- ... -->
 </body>
 <script>
@@ -371,7 +372,6 @@
     vine.bind("generate", "click", function (e)
     {
         //window.location =
-        alert(tinycolor(HTML.query("#color").value));
         GeneratePixelMap(HTML.query("#width").value * 1, HTML.query("#height").value * 1, tinycolor(HTML.query("#color").value), HTML.query("#text").value);//.toDataURL({mimeType: "image/png"});
 
     });
