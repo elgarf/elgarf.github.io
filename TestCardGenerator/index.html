@@ -36,7 +36,7 @@
                     <input type="color" id="color" value="#0000FF" style="height: 50px"/>
                     <input class="btn--blue" id="generate" type="button" value="СГЕНЕРИРОВАТЬ" />
                 </form>
-                <div id="canvas" />
+                <div id="canvas" style="display: none" />
             </div>
         </div>
     </div>
@@ -371,8 +371,8 @@
 
     vine.bind("generate", "click", function (e)
     {
-        //window.location =
-        GeneratePixelMap(HTML.query("#width").value * 1, HTML.query("#height").value * 1, tinycolor(HTML.query("#color").value), HTML.query("#text").value);//.toDataURL({mimeType: "image/png"});
+        window.location =
+        GeneratePixelMap(HTML.query("#width").value * 1, HTML.query("#height").value * 1, tinycolor(HTML.query("#color").value), HTML.query("#text").value).toDataURL({mimeType: "image/png"});
 
     });
 </script>
