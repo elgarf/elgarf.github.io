@@ -49,6 +49,9 @@
             <div class="col-md-12">
                 <form class="form-group" id="genform">
                     <div class="col-md-4">
+                    <label for="gridSize">Размер сетки</label>
+                    <input type="number" class="form-control" name="gridSize" id="gridSize" value="32"/>
+                    <br/>
                     <button class="btn btn-success btn-block" id="addRect">ДОБАВИТЬ ЭКРАН</button>
                     <br/>
                     <input class="btn btn-primary btn-block" id="generate" type="submit" value="СГЕНЕРИРОВАТЬ" />
@@ -84,7 +87,7 @@
     var colors = ["Blue","Red","Lime","Magenta","Yellow","White","Black"];
     var font = 'Arial';
 
-    function GeneratePixelMap(width, height, data, rows, ww, hh)
+    function GeneratePixelMap(width, height, data, rows, ww, hh, size)
     {
         //alert(JSON.stringify(rows));
         var stage = new Konva.Stage({
@@ -108,9 +111,9 @@
             x += element.width * 1;
         }, this);
         
-        layer.add(DrawGrid(stage, 32, ww, hh));
-        layer.add(DrawCheckerboard(stage, 32, ww, hh));
-        layer.add(DrawNumbers(stage, 32, ww, hh));
+        layer.add(DrawGrid(stage, size, ww, hh));
+        layer.add(DrawCheckerboard(stage, size, ww, hh));
+        layer.add(DrawNumbers(stage, size, ww, hh));
 
         x = 0;
         data.forEach(function(element) {    
@@ -536,7 +539,7 @@
         });
         var maxHeight = rowHeights.reduce(function (sum, next) { return sum + (next.height > 0 ? next.height : 0)}, 0);
         window.location =
-        GeneratePixelMap(sumWidth, maxHeight, obj, rowHeights, maxWidth, Math.max.apply(null, $.map(rowHeights, function(e, i) { return e.height * 1 }))).toDataURL({mimeType: "image/png"});
+        GeneratePixelMap(sumWidth, maxHeight, obj, rowHeights, maxWidth, Math.max.apply(null, $.map(rowHeights, function(e, i) { return e.height * 1 })), $("#gridSize").val() * 1).toDataURL({mimeType: "image/png"});
     });
 </script>
 </html>
