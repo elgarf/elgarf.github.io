@@ -2,39 +2,73 @@
 <html>
 <head>
   <!-- ... -->
-  <link rel="stylesheet" href="css/furtive.min.css">
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/bootstrap-theme.min.css">
   <style>
     html
     {
         font-family: 'Calibri';
     }
+    body
+    {
+        margin: 1em;
+    }
     label
     {
         font-weight: bold;
         text-transform: uppercase;
+        font-family: 'Calibri';
+    }
+
+    .group {
+        margin-right: 0;
+        margin-left: 0;
+        background-color: #fff;
+        border: 1px solid gray;
+        padding: 1em;
+        -webkit-box-shadow: none;
+                box-shadow: none;
+    }
+
+    .panel
+    {
+        overflow: hidden;
     }
   </style>
   <script src="js/konva.min.js"></script>
-  <script src="js/vine.min.js"></script>
-  <script src="js/HTML.min.js"></script>
+  <script src="js/zepto.min.js"></script>
+  <script src="js/anime.min.js"></script>
   <script src="js/tinycolor.min.js"></script>
+  <script src="js/jquery.serialize-object.min.js"></script>
   <title>Генератор отстроечных таблиц</title>
   <!-- ... -->
 </head>
 <body>
-    <div class="grid measure">
-        <div class="grid-row">
-            <div class="grid-row-col-6">
-                <form>
-                    <label for="text">Текст</label>
-                    <input id="text" value="Экран"/>
-                    <label for="width">Ширина</label>
-                    <input type="number" id="width" value="1024"/>
-                    <label for="height">Высота</label>
-                    <input type="number" id="height" value="768"/>
-                    <label for="color">Цвет</label>
-                    <input type="color" id="color" value="#0000FF" style="height: 50px"/>
-                    <input class="btn--blue" id="generate" type="button" value="СГЕНЕРИРОВАТЬ" />
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <form class="form-group" id="genform">
+                    <div class="col-md-4">
+                    <button class="btn btn-success btn-block" id="addRect">ДОБАВИТЬ ЭКРАН</button>
+                    <br/>
+                    <input class="btn btn-primary btn-block" id="generate" type="submit" value="СГЕНЕРИРОВАТЬ" />
+                    </div>
+                    <div class="col-md-8">
+                    <div class="form-group panel panel-default">
+                        <div class="panel-heading">Экран №1</div>
+                        <div class="panel-body">
+                            <label for="text">Текст</label>
+                            <input class="form-control" name="rect[0][text]" id="text" value="Экран"/>
+                            <label for="width">Ширина</label>
+                            <input class="form-control" name="rect[0][width]" type="number" id="width" value="1024"/>
+                            <label for="height">Высота</label>
+                            <input class="form-control" name="rect[0][height]" type="number" id="height" value="768"/>
+                            <label for="color">Цвет</label>
+                            <input class="form-control" name="rect[0][color]" type="color" id="color" value="#0000FF" style="height: 50px"/>
+                        </div>
+                    </div>
+                    <div id="preRect"/>
+                    </div>
                 </form>
                 <div id="canvas" style="display: none" />
             </div>
@@ -44,8 +78,9 @@
   <!-- ... -->
 </body>
 <script>
-
-    function GeneratePixelMap(width, height, color, text)
+    var rectCount = 1;
+    var colors = ["Blue","Red","Lime","Magenta","Yellow","White","Black"];
+    function GeneratePixelMap(width, height, data)
     {
         var stage = new Konva.Stage({
         container: 'canvas',
@@ -53,14 +88,30 @@
         height: height
         });
 
+        var layer = new Konva.Layer();
+        layer.add(new Konva.Rect({
+            width: width,
+            height: height,
+            fill: 'black'
+        }));
         //var color = tinycolor('blue');
-        var data = {width: width, height: height, text: text};
-        stage.add(DrawRectangle(color, 0, data));
-        stage.add(DrawGrid(stage, 32));
-        stage.add(DrawCheckerboard(stage, 32, color));
-        stage.add(DrawNumbers(stage, 32, color));
-        stage.add(DrawOverlay(color, 0, data));
+        var x = 0;
+        data.forEach(function(element) {
+            layer.add(DrawRectangle(tinycolor(element.color), x, element));
+            x += element.width * 1;
+        }, this);
+        
+        layer.add(DrawGrid(stage, 32));
+        layer.add(DrawCheckerboard(stage, 32));
+        layer.add(DrawNumbers(stage, 32));
 
+        x = 0;
+        data.forEach(function(element) {    
+            layer.add(DrawOverlay(tinycolor(element.color), x, element));
+            x += element.width * 1;
+        }, this);
+
+        stage.add(layer);
         return stage;
     }
     function InvertColor(color)
@@ -75,7 +126,7 @@
         
         var inverted = InvertColor(color);
 
-        var layer = new Konva.Layer();
+        var layer = new Konva.Group();
 
         layer.add(new Konva.Rect({
             x: position,
@@ -128,16 +179,16 @@
         
         var inverted = InvertColor(color);
 
-        var layer = new Konva.Layer();
+        var layer = new Konva.Group();
 
         layer.add(new Konva.Line({
-            points: [position, 0, position + data.width, data.height],
+            points: [position, 0, position + data.width * 1, data.height * 1],
             stroke: inverted.toHexString(),
             strokeWidth: 8
         }));
 
         layer.add(new Konva.Line({
-            points: [position, data.height, position + data.width, 0],
+            points: [position, data.height * 1, position + data.width * 1, 0],
             stroke: inverted.toHexString(),
             strokeWidth: 8
         }));
@@ -182,7 +233,7 @@
 
     function DrawGrid(stage, size)
     {
-        var layer = new Konva.Layer();
+        var layer = new Konva.Group();
         var cx = stage.width() / 2;
         var cy = stage.height() / 2;
 
@@ -220,16 +271,16 @@
         return layer;
     }
 
-    function DrawCheckerboard(stage, size, color)
+    function DrawCheckerboard(stage, size)
     {
-        var layer = new Konva.Layer();
+        var layer = new Konva.Group();
         var cx = stage.width() / 2;
         var cy = stage.height() / 2;
 
         var countx = Math.ceil((cx * 2) / size);
         var county = Math.ceil((cy * 2) / size);
 
-        var color1 = color.clone().darken(20);
+        var color1 = tinycolor('gray');
         
         for (var i = 0; i < county; i++)
         for (var j = 0; j < countx; j++)
@@ -243,6 +294,7 @@
                         width: size,
                         height: size,
                         fill: color1.toHexString(),
+                        globalCompositeOperation: 'multiply'
                     }));
                 //color = GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy - size * i + size / 2) % stage.height()))).darken(20);
                 if (j != 0)
@@ -252,6 +304,7 @@
                         width: size,
                         height: size,
                         fill: color1.toHexString(),
+                        globalCompositeOperation: 'multiply'
                     }));
                 //color = GetPixel(canvas, Math.abs(Math.floor((cx - size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))).darken(20);
                 if (j != 0)
@@ -261,31 +314,34 @@
                         width: size,
                         height: size,
                         fill: color1.toHexString(),
+                        globalCompositeOperation: 'multiply'
                     }));
                 //var color = GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))).darken(20);
-                //if (i != 0)
+                if (i != 0)
                     layer.add(new Konva.Rect({
                         x: cx + size * j,
                         y: cy + size * i,
                         width: size,
                         height: size,
                         fill: color1.toHexString(),
+                        globalCompositeOperation: 'multiply'
                     }));
             }
 
         return layer;
     }
 
-    function DrawNumbers(stage, size, color)
+    function DrawNumbers(stage, size)
     {
-        var layer = new Konva.Layer();
+        var layer = new Konva.Group();
         var cx = stage.width() / 2;
         var cy = stage.height() / 2;
 
         var countx = Math.ceil((cx * 2) / size);
         var county = Math.ceil((cy * 2) / size);
 
-        color = InvertColor(color);
+        var color = tinycolor('white');
+        var stroke = tinycolor('black');
 
         for (var i = 0; i <= county; i++)
             for (var j = 0; j <= countx; j++)
@@ -302,8 +358,10 @@
                         align: 'center',
                         text: idx,
                         fontFamily: 'Calibri',
+                        fontWeight: 'bold',
                         fill: color.toHexString(),
                         fontSize: size / 2,
+                        globalCompositeOperation: 'difference',
                     });
                     text.setOffset({
                         y: text.height() / 2 - size / 2,
@@ -321,8 +379,10 @@
                         align: 'center',
                         text: idx,
                         fontFamily: 'Calibri',
+                        fontWeight: 'bold',
                         fill: color.toHexString(),
                         fontSize: size / 2,
+                        globalCompositeOperation: 'difference',
                     });
                     text.setOffset({
                         y: text.height() / 2 - size / 2,
@@ -340,8 +400,10 @@
                         align: 'center',
                         text: idx,
                         fontFamily: 'Calibri',
+                        fontWeight: 'bold',
                         fill: color.toHexString(),
                         fontSize: size / 2,
+                        globalCompositeOperation: 'difference',
                     });
                     text.setOffset({
                         y: text.height() / 2 - size / 2,
@@ -349,7 +411,8 @@
                     layer.add(text);
                 }
                 //var color = InvertColor(GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))));
-                //if (i != 0)
+                if (i != 0)
+                {
                     text = new Konva.Text({
                         x: cx + size * j,
                         y: cy + size * i,
@@ -358,22 +421,76 @@
                         align: 'center',
                         text: idx,
                         fontFamily: 'Calibri',
+                        fontWeight: 'bold',
                         fill: color.toHexString(),
                         fontSize: size / 2,
+                        globalCompositeOperation: 'difference',
                     });
                     text.setOffset({
                         y: text.height() / 2 - size / 2,
                     });
                     layer.add(text);
                 }
+                }
         return layer;
     }
 
-    vine.bind("generate", "click", function (e)
+    $("#addRect").on('click', function (e)
     {
-        window.location =
-        GeneratePixelMap(HTML.query("#width").value * 1, HTML.query("#height").value * 1, tinycolor(HTML.query("#color").value), HTML.query("#text").value).toDataURL({mimeType: "image/png"});
+        $("#preRect").before('<div style="display: collapsed" class="form-group panel panel-default" id="screen' + rectCount + '">\
+                        <div class="panel-heading">Экран №' + (rectCount + 1) + '</div>\
+                        <div class="panel-body">\
+                            <label for="text">Текст</label>\
+                            <input class="form-control" name="rect[' + rectCount + '][text]" id="text" value="Экран"/>\
+                            <label for="width">Ширина</label>\
+                            <input class="form-control" name="rect[' + rectCount + '][width]" type="number" id="width" value="1024"/>\
+                            <label for="height">Высота</label>\
+                            <input class="form-control" name="rect[' + rectCount + '][height]" type="number" id="height" value="768"/>\
+                            <label for="color">Цвет</label>\
+                            <input class="form-control" name="rect[' + rectCount + '][color]" type="color" id="color" value="' + tinycolor(colors[rectCount % colors.length]).toHexString() + '" style="height: 50px"/>\
+                            <br/>\
+                            <button id="removeScreen' + rectCount + '" data-rect="' + rectCount + '" class="form-control btn btn-danger btn-block">УДАЛИТЬ ЭКРАН</button>\
+                        </div>\
+                    </div>');
+        $("#removeScreen" + rectCount).on('click', function (e)
+        {
 
+            anime({
+            targets: "#screen" + $(this).data("rect"),
+            height: 0,
+            opacity: 0,
+            duration: 500,
+            complete: function () {
+                    $("#screen" + $(this).data("rect")).remove();
+                }.bind(this),
+            easing: 'linear'
+            });
+            
+            e.preventDefault();
+        });
+        var height = $("#screen" + rectCount).height();
+        $("#screen" + rectCount).css({height: 0, display: 'block'});
+        anime({
+            targets: "#screen" + rectCount,
+            height: [0, height],
+            opacity: [0, 1],
+            duration: 500,
+            easing: 'linear'
+        });
+        rectCount++;
+        e.preventDefault();
+        
+    });
+    $("#genform").on('submit', function (e)
+    {
+        e.preventDefault();
+        var obj = $("form").serializeObject().rect.filter(function(n){return n !== undefined});
+        var sumWidth = $.map(obj, function(el, idx) { return el.width}).reduce(function (sum, next) { return sum + next * 1 }, 0)
+        var maxHeight = Math.max.apply(null, $.map(obj, function(el, idx) { return el.height * 1 }));
+
+        window.location =
+        GeneratePixelMap(sumWidth, maxHeight, obj).toDataURL({mimeType: "image/png"});
+        
     });
 </script>
 </html>
