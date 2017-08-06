@@ -7,7 +7,7 @@
   <style>
     html
     {
-        font-family: 'Calibri';
+        font-family: 'Arial';
     }
     body
     {
@@ -17,7 +17,7 @@
     {
         font-weight: bold;
         text-transform: uppercase;
-        font-family: 'Calibri';
+        font-family: 'Arial';
     }
 
     .group {
@@ -55,7 +55,7 @@
                     </div>
                     <div class="col-md-8">
                     <div class="form-group panel panel-default">
-                        <div class="panel-heading">Экран №1</div>
+                        <div class="panel-heading">ЭКРАН №1</div>
                         <div class="panel-body">
                             <label for="text">Текст</label>
                             <input class="form-control" name="rect[0][text]" id="text" value="Экран"/>
@@ -65,6 +65,8 @@
                             <input class="form-control" name="rect[0][height]" type="number" id="height" value="768"/>
                             <label for="color">Цвет</label>
                             <input class="form-control" name="rect[0][color]" type="color" id="color" value="#0000FF" style="height: 50px"/>
+                            <label for="row">Строка</label>
+                            <input class="form-control" name="rect[0][row]" type="number" id="row" value="0"/>
                         </div>
                     </div>
                     <div id="preRect"/>
@@ -80,20 +82,25 @@
 <script>
     var rectCount = 1;
     var colors = ["Blue","Red","Lime","Magenta","Yellow","White","Black"];
-    function GeneratePixelMap(width, height, data)
+    var font = 'Arial';
+
+    function GeneratePixelMap(width, height, data, rows, ww, hh)
     {
+        //alert(JSON.stringify(rows));
         var stage = new Konva.Stage({
         container: 'canvas',
         width: width,
         height: height
         });
-
-        var layer = new Konva.Layer();
-        layer.add(new Konva.Rect({
+        bg = new Konva.Layer();
+        bg.add(new Konva.Rect({
             width: width,
             height: height,
             fill: 'black'
         }));
+        stage.add(bg);
+        var layer = new Konva.Group();
+        
         //var color = tinycolor('blue');
         var x = 0;
         data.forEach(function(element) {
@@ -101,9 +108,9 @@
             x += element.width * 1;
         }, this);
         
-        layer.add(DrawGrid(stage, 32));
-        layer.add(DrawCheckerboard(stage, 32));
-        layer.add(DrawNumbers(stage, 32));
+        layer.add(DrawGrid(stage, 32, ww, hh));
+        layer.add(DrawCheckerboard(stage, 32, ww, hh));
+        layer.add(DrawNumbers(stage, 32, ww, hh));
 
         x = 0;
         data.forEach(function(element) {    
@@ -111,7 +118,28 @@
             x += element.width * 1;
         }, this);
 
-        stage.add(layer);
+
+        x = 0;
+        i = 0;
+        data.forEach(function (element){
+            var l1 = layer.clone();
+            l1.clip({
+                x: x,
+                y: 0,
+                width: element.width * 1,
+                height: element.height * 1
+            });
+            l1.x(-x + rows[element.row * 1].x);
+            l1.y(rows[element.row * 1].y);
+            rows[element.row * 1].x += element.width * 1;
+            x += element.width * 1;
+            var ll = new Konva.Layer();
+            ll.add(l1);
+            stage.add(ll);
+            i++;
+        });
+
+        //stage.add(layer);
         return stage;
     }
     function InvertColor(color)
@@ -205,7 +233,7 @@
 
         var text = new Konva.Text({
             text: data.width + "x" + data.height + "\n" + data.text,
-            fontFamily: 'Calibri',
+            fontFamily: font,
             fontSize: 30,
             fill: inverted.toHexString(),
             x: 0,
@@ -231,11 +259,11 @@
         return layer;
     }
 
-    function DrawGrid(stage, size)
+    function DrawGrid(stage, size, ww, hh)
     {
         var layer = new Konva.Group();
-        var cx = stage.width() / 2;
-        var cy = stage.height() / 2;
+        var cx = ww / 2;
+        var cy = hh / 2;
 
         var countx = Math.ceil((cx * 2) / size);
         var county = Math.ceil((cy * 2) / size);
@@ -271,11 +299,11 @@
         return layer;
     }
 
-    function DrawCheckerboard(stage, size)
+    function DrawCheckerboard(stage, size, ww, hh)
     {
         var layer = new Konva.Group();
-        var cx = stage.width() / 2;
-        var cy = stage.height() / 2;
+        var cx = ww / 2;
+        var cy = hh / 2;
 
         var countx = Math.ceil((cx * 2) / size);
         var county = Math.ceil((cy * 2) / size);
@@ -331,11 +359,11 @@
         return layer;
     }
 
-    function DrawNumbers(stage, size)
+    function DrawNumbers(stage, size, ww, hh)
     {
         var layer = new Konva.Group();
-        var cx = stage.width() / 2;
-        var cy = stage.height() / 2;
+        var cx = ww / 2;
+        var cy = hh / 2;
 
         var countx = Math.ceil((cx * 2) / size);
         var county = Math.ceil((cy * 2) / size);
@@ -357,10 +385,10 @@
                         //height: size,
                         align: 'center',
                         text: idx,
-                        fontFamily: 'Calibri',
+                        fontFamily: font,
                         fontWeight: 'bold',
                         fill: color.toHexString(),
-                        fontSize: size / 2,
+                        fontSize: size / 2.5,
                         globalCompositeOperation: 'difference',
                     });
                     text.setOffset({
@@ -378,10 +406,10 @@
                         //height: size,
                         align: 'center',
                         text: idx,
-                        fontFamily: 'Calibri',
+                        fontFamily: font,
                         fontWeight: 'bold',
                         fill: color.toHexString(),
-                        fontSize: size / 2,
+                        fontSize: size / 2.5,
                         globalCompositeOperation: 'difference',
                     });
                     text.setOffset({
@@ -399,10 +427,10 @@
                         //height: size,
                         align: 'center',
                         text: idx,
-                        fontFamily: 'Calibri',
+                        fontFamily: font,
                         fontWeight: 'bold',
                         fill: color.toHexString(),
-                        fontSize: size / 2,
+                        fontSize: size / 2.5,
                         globalCompositeOperation: 'difference',
                     });
                     text.setOffset({
@@ -420,10 +448,10 @@
                         //height: size,
                         align: 'center',
                         text: idx,
-                        fontFamily: 'Calibri',
+                        fontFamily: font,
                         fontWeight: 'bold',
                         fill: color.toHexString(),
-                        fontSize: size / 2,
+                        fontSize: size / 2.5,
                         globalCompositeOperation: 'difference',
                     });
                     text.setOffset({
@@ -431,14 +459,14 @@
                     });
                     layer.add(text);
                 }
-                }
+            }
         return layer;
     }
 
     $("#addRect").on('click', function (e)
     {
         $("#preRect").before('<div style="display: collapsed" class="form-group panel panel-default" id="screen' + rectCount + '">\
-                        <div class="panel-heading">Экран №' + (rectCount + 1) + '</div>\
+                        <div class="panel-heading">ЭКРАН №' + (rectCount + 1) + '</div>\
                         <div class="panel-body">\
                             <label for="text">Текст</label>\
                             <input class="form-control" name="rect[' + rectCount + '][text]" id="text" value="Экран"/>\
@@ -448,6 +476,8 @@
                             <input class="form-control" name="rect[' + rectCount + '][height]" type="number" id="height" value="768"/>\
                             <label for="color">Цвет</label>\
                             <input class="form-control" name="rect[' + rectCount + '][color]" type="color" id="color" value="' + tinycolor(colors[rectCount % colors.length]).toHexString() + '" style="height: 50px"/>\
+                            <label for="row">Строка</label>\
+                            <input class="form-control" name="rect[' + rectCount + '][row]" type="number" id="row" value="0"/>\
                             <br/>\
                             <button id="removeScreen' + rectCount + '" data-rect="' + rectCount + '" class="form-control btn btn-danger btn-block">УДАЛИТЬ ЭКРАН</button>\
                         </div>\
@@ -485,12 +515,28 @@
     {
         e.preventDefault();
         var obj = $("form").serializeObject().rect.filter(function(n){return n !== undefined});
-        var sumWidth = $.map(obj, function(el, idx) { return el.width}).reduce(function (sum, next) { return sum + next * 1 }, 0)
-        var maxHeight = Math.max.apply(null, $.map(obj, function(el, idx) { return el.height * 1 }));
-
-        window.location =
-        GeneratePixelMap(sumWidth, maxHeight, obj).toDataURL({mimeType: "image/png"});
         
+        var rows = [];
+        obj.forEach(function (e)
+        {
+            if (!rows[e.row])
+                rows[e.row] = [];
+            rows[e.row] = rows[e.row].concat([e]);
+        });
+        
+        var sumWidth = Math.max.apply(null, $.map(rows, function (el, idx) { return $.map(el, function (el, idx) { return el.width * 1}).reduce(function (sum, next) { return sum + next * 1}, 0)}));
+        var maxWidth = $.map(obj, function(el, idx) { return el.width}).reduce(function (sum, next) { return sum + next * 1 }, 0)
+        var rowHeights = $.map(rows, function (el, idx) { return { height: Math.max.apply(null, $.map(el, function (el, idx) { return (el.height || 0) * 1}) || 0)}});
+        var y = 0;
+        rowHeights.forEach(function (el, idx)
+        {
+            el.y = y;
+            el.x = 0;
+            y+= el.height > 0 ? el.height : 0;
+        });
+        var maxHeight = rowHeights.reduce(function (sum, next) { return sum + (next.height > 0 ? next.height : 0)}, 0);
+        window.location =
+        GeneratePixelMap(sumWidth, maxHeight, obj, rowHeights, maxWidth, Math.max.apply(null, $.map(rowHeights, function(e, i) { return e.height * 1 }))).toDataURL({mimeType: "image/png"});
     });
 </script>
 </html>
