@@ -124,23 +124,32 @@
 
         x = 0;
         i = 0;
-        data.forEach(function (element){
-            var l1 = layer.clone();
-            l1.clip({
-                x: x,
-                y: 0,
-                width: element.width * 1,
-                height: element.height * 1
+        if (rows.length > 1)
+            data.forEach(function (element){
+                //layer.cache();
+                var l1 = layer.clone();
+                l1.clip({
+                    x: x,
+                    y: 0,
+                    width: element.width * 1,
+                    height: element.height * 1
+                });
+                l1.x(-x + rows[element.row * 1].x);
+                l1.y(rows[element.row * 1].y);
+                rows[element.row * 1].x += element.width * 1;
+                x += element.width * 1;
+                //l1.cache();
+                var ll = new Konva.Layer();
+                ll.add(l1);
+                stage.add(ll);
+                i++;
             });
-            l1.x(-x + rows[element.row * 1].x);
-            l1.y(rows[element.row * 1].y);
-            rows[element.row * 1].x += element.width * 1;
-            x += element.width * 1;
-            var ll = new Konva.Layer();
-            ll.add(l1);
-            stage.add(ll);
-            i++;
-        });
+        else
+            {
+                var ll = new Konva.Layer();
+                ll.add(layer);
+                stage.add(ll);
+            }
 
         //stage.add(layer);
         return stage;
