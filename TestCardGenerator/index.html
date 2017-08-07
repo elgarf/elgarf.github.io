@@ -90,12 +90,7 @@
     function GeneratePixelMap(width, height, data, rows, ww, hh, size)
     {
         //alert(JSON.stringify(rows));
-        var pixelRatio = window.devicePixelRatio || 1;
-        data.forEach(function e()
-        {
-            e.width = (e.width * 1) / pixelRatio;
-            e.height = (e.height * 1) / pixelRatio;
-        });
+        //var pixelRatio = window.devicePixelRatio || 1;
 
         var stage = new Konva.Stage({
         container: 'canvas',
@@ -251,7 +246,7 @@
         }));
 
         var text = new Konva.Text({
-            text: data.width + "x" + data.height + "\n" + data.text,
+            text: (data.width * pixelRatio) + "x" + (data.height * pixelRatio) + "\n" + data.text,
             fontFamily: font,
             fontSize: 30,
             fill: inverted.toHexString(),
@@ -535,6 +530,12 @@
         e.preventDefault();
         var obj = $("form").serializeObject().rect.filter(function(n){return n !== undefined});
         
+        obj.forEach(function (e)
+        {
+            e.width = (e.width * 1) / pixelRatio;
+            e.height = (e.height * 1) / pixelRatio;
+        });
+
         var rows = [];
         obj.forEach(function (e)
         {
@@ -542,10 +543,10 @@
                 rows[e.row] = [];
             rows[e.row] = rows[e.row].concat([e]);
         });
-        
+
         var sumWidth = Math.max.apply(null, $.map(rows, function (el, idx) { return $.map(el, function (el, idx) { return el.width * 1}).reduce(function (sum, next) { return sum + next * 1}, 0)}));
         var maxWidth = $.map(obj, function(el, idx) { return el.width}).reduce(function (sum, next) { return sum + next * 1 }, 0)
-        var rowHeights = $.map(rows, function (el, idx) { return { height: Math.max.apply(null, $.map(el, function (el, idx) { return (el.height || 0) * 1 / pixelRatio}) || 0)}});
+        var rowHeights = $.map(rows, function (el, idx) { return { height: Math.max.apply(null, $.map(el, function (el, idx) { return (el.height || 0) * 1}) || 0)}});
         var y = 0;
         rowHeights.forEach(function (el, idx)
         {
@@ -555,7 +556,7 @@
         });
         var maxHeight = rowHeights.reduce(function (sum, next) { return sum + (next.height > 0 ? next.height : 0)}, 0);
         window.location =
-        GeneratePixelMap(sumWidth / pixelRatio, maxHeight / pixelRatio, obj, rowHeights / pixelRatio, maxWidth / pixelRatio, Math.max.apply(null, $.map(rowHeights, function(e, i) { return e.height * 1 })) / pixelRatio, $("#gridSize").val() * 1).toDataURL({mimeType: "image/png"});
+        GeneratePixelMap(sumWidth, maxHeight, obj, rowHeights, maxWidth, Math.max.apply(null, $.map(rowHeights, function(e, i) { return e.height * 1 })), $("#gridSize").val() * 1).toDataURL({mimeType: "image/png"});
     });
 </script>
 </html>
