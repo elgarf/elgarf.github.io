@@ -207,7 +207,8 @@
             height: data.height,
             fill: color.toHexString(),
             stroke: inverted.toHexString(),
-            strokeWidth: 8
+            strokeWidth: 8,
+            perfectDrawEnabled : false
         }));
 
         layer.add(new Konva.Rect({
@@ -215,7 +216,8 @@
             y: d,
             width: size,
             height: size,
-            fill: inverted.toHexString()
+            fill: inverted.toHexString(),
+            perfectDrawEnabled : false
         }));
 
         layer.add(new Konva.Rect({
@@ -223,7 +225,8 @@
             y: d,
             width: size,
             height: size,
-            fill: inverted.toHexString()
+            fill: inverted.toHexString(),
+            perfectDrawEnabled : false
         }));
 
         layer.add(new Konva.Rect({
@@ -231,7 +234,8 @@
             y: data.height - d - size,
             width: size,
             height: size,
-            fill: inverted.toHexString()
+            fill: inverted.toHexString(),
+            perfectDrawEnabled : false
         }));
 
         layer.add(new Konva.Rect({
@@ -239,7 +243,8 @@
             y: data.height - d - size,
             width: size,
             height: size,
-            fill: inverted.toHexString()
+            fill: inverted.toHexString(),
+            perfectDrawEnabled : false
         }));
 
         return layer;
@@ -257,13 +262,15 @@
         layer.add(new Konva.Line({
             points: [position, 0, position + data.width * 1, data.height * 1],
             stroke: inverted.toHexString(),
-            strokeWidth: 8
+            strokeWidth: 8,
+            perfectDrawEnabled : false
         }));
 
         layer.add(new Konva.Line({
             points: [position, data.height * 1, position + data.width * 1, 0],
             stroke: inverted.toHexString(),
-            strokeWidth: 8
+            strokeWidth: 8,
+            perfectDrawEnabled : false
         }));
 
         var radius = Math.min(data.width, data.height) / 2;
@@ -273,7 +280,8 @@
             y: data.height / 2,
             radius: radius,
             stroke: inverted.toHexString(),
-            strokeWidth: 8
+            strokeWidth: 8,
+            perfectDrawEnabled : false
         }));
 
         var text = new Konva.Text({
@@ -283,7 +291,8 @@
             fill: inverted.toHexString(),
             x: 0,
             y: 0,
-            align: 'center'
+            align: 'center',
+            perfectDrawEnabled : false
         });
 
         layer.add(new Konva.Rect({
@@ -291,7 +300,8 @@
             height: text.height() * 1.25,
             x: position + data.width / 2 - (text.width() * 1.25) / 2,
             y: data.height / 2 - (text.height() * 1.25) / 2,
-            fill: color.toHexString()
+            fill: color.toHexString(),
+            perfectDrawEnabled : false
         }));
 
         //alert( data.height / 2 - text.height() / 2);
@@ -318,12 +328,14 @@
             layer.add(new Konva.Line({
                 points: [0, cy - size * i, cx * 2, cy - size * i],
                 stroke: 'black',
-                strokeWidth: 2
+                strokeWidth: 2,
+                perfectDrawEnabled : false
             }));
             layer.add(new Konva.Line({
                 points: [0, cy + size * i, cx * 2, cy + size * i],
                 stroke: 'black',
-                strokeWidth: 2
+                strokeWidth: 2,
+                perfectDrawEnabled : false
             }));
         }
 
@@ -332,12 +344,14 @@
             layer.add(new Konva.Line({
                 points: [cx - size * i, 0, cx - size * i, cy * 2],
                 stroke: 'black',
-                strokeWidth: 2
+                strokeWidth: 2,
+                perfectDrawEnabled : false
             }));
             layer.add(new Konva.Line({
                 points: [cx + size * i, 0, cx + size * i, cy * 2],
                 stroke: 'black',
-                strokeWidth: 2
+                strokeWidth: 2,
+                perfectDrawEnabled : false
             }));
         }
 
@@ -367,7 +381,8 @@
                         width: size,
                         height: size,
                         fill: color1.toHexString(),
-                        globalCompositeOperation: 'multiply'
+                        globalCompositeOperation: 'multiply',
+                        perfectDrawEnabled : false
                     }));
                 //color = GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy - size * i + size / 2) % stage.height()))).darken(20);
                 if (j != 0)
@@ -377,7 +392,8 @@
                         width: size,
                         height: size,
                         fill: color1.toHexString(),
-                        globalCompositeOperation: 'multiply'
+                        globalCompositeOperation: 'multiply',
+                        perfectDrawEnabled : false
                     }));
                 //color = GetPixel(canvas, Math.abs(Math.floor((cx - size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))).darken(20);
                 if (j != 0)
@@ -387,7 +403,8 @@
                         width: size,
                         height: size,
                         fill: color1.toHexString(),
-                        globalCompositeOperation: 'multiply'
+                        globalCompositeOperation: 'multiply',
+                        perfectDrawEnabled : false
                     }));
                 //var color = GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))).darken(20);
                 if (i != 0)
@@ -397,12 +414,15 @@
                         width: size,
                         height: size,
                         fill: color1.toHexString(),
-                        globalCompositeOperation: 'multiply'
+                        globalCompositeOperation: 'multiply',
+                        perfectDrawEnabled : false
                     }));
             }
 
         return layer;
     }
+
+    var texts = [];
 
     function DrawNumbers(stage, size, ww, hh)
     {
@@ -419,23 +439,32 @@
         for (var i = 0; i <= county; i++)
             for (var j = 0; j <= countx; j++)
             {
-                var idx = ((i + 1) * (j + 1)) % 512;
+                var idx = ((i + 1) * (j + 1)) % 512 + "";
                 //var color = InvertColor(GetPixel(canvas, Math.abs(Math.floor((cx - size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy - size * i + size / 2) % stage.height()))));
+                var text = null;
                 if (i != 0)
                 {
-                    var text = new Konva.Text({
-                        x: cx - size * j,
-                        y: cy - size * i,
-                        width: size,
-                        //height: size,
-                        align: 'center',
-                        text: idx,
-                        fontFamily: font,
-                        fontWeight: 'bold',
-                        fill: color.toHexString(),
-                        fontSize: size / 2.5,
-                        globalCompositeOperation: 'difference',
-                    });
+                    if (texts[idx])
+                        text = texts[idx].clone();
+                    else
+                    {
+                        text = new Konva.Text({
+                            width: size,
+                            //height: size,
+                            align: 'center',
+                            text: idx,
+                            fontFamily: font,
+                            fontWeight: 'bold',
+                            fill: color.toHexString(),
+                            fontSize: size / 2.5,
+                            globalCompositeOperation: 'difference',
+                            perfectDrawEnabled : false
+                        });
+                        text.cache();
+                        texts[idx] = text;
+                    }
+                    text.x(cx - size * j);
+                    text.y(cy - size * i);
                     text.setOffset({
                         y: text.height() / 2 - size / 2,
                     });
@@ -444,19 +473,27 @@
                 //color = InvertColor(GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy - size * i + size / 2) % stage.height()))));
                 if (j != 0)
                 {
-                    text = new Konva.Text({
-                        x: cx + size * j,
-                        y: cy - size * i,
-                        width: size,
-                        //height: size,
-                        align: 'center',
-                        text: idx,
-                        fontFamily: font,
-                        fontWeight: 'bold',
-                        fill: color.toHexString(),
-                        fontSize: size / 2.5,
-                        globalCompositeOperation: 'difference',
-                    });
+                    if (texts[idx])
+                        text = texts[idx].clone();
+                    else
+                    {
+                        text = new Konva.Text({
+                            width: size,
+                            //height: size,
+                            align: 'center',
+                            text: idx,
+                            fontFamily: font,
+                            fontWeight: 'bold',
+                            fill: color.toHexString(),
+                            fontSize: size / 2.5,
+                            globalCompositeOperation: 'difference',
+                            perfectDrawEnabled : false
+                        });
+                        text.cache();
+                        texts[idx] = text;
+                    }
+                    text.x(cx + size * j);
+                    text.y(cy - size * i);
                     text.setOffset({
                         y: text.height() / 2 - size / 2,
                     });
@@ -465,19 +502,29 @@
                 //color = InvertColor(GetPixel(canvas, Math.abs(Math.floor((cx - size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))));
                 if (j != 0)
                 {
-                    text = new Konva.Text({
-                        x: cx - size * j,
-                        y: cy + size * i,
-                        width: size,
-                        //height: size,
-                        align: 'center',
-                        text: idx,
-                        fontFamily: font,
-                        fontWeight: 'bold',
-                        fill: color.toHexString(),
-                        fontSize: size / 2.5,
-                        globalCompositeOperation: 'difference',
-                    });
+                    if (texts[idx])
+                        text = texts[idx].clone();
+                    else
+                    {
+                        text = new Konva.Text({
+                            x: cx - size * j,
+                            y: cy + size * i,
+                            width: size,
+                            //height: size,
+                            align: 'center',
+                            text: idx,
+                            fontFamily: font,
+                            fontWeight: 'bold',
+                            fill: color.toHexString(),
+                            fontSize: size / 2.5,
+                            globalCompositeOperation: 'difference',
+                            perfectDrawEnabled : false
+                        });
+                        text.cache();
+                        texts[idx] = text;
+                    }
+                    text.x(cx - size * j);
+                    text.y(cy + size * i);
                     text.setOffset({
                         y: text.height() / 2 - size / 2,
                     });
@@ -486,19 +533,29 @@
                 //var color = InvertColor(GetPixel(canvas, Math.abs(Math.floor((cx + size * j + size / 2) % stage.width())), Math.abs(Math.floor((cy + size * i + size / 2) % stage.height()))));
                 if (i != 0)
                 {
-                    text = new Konva.Text({
-                        x: cx + size * j,
-                        y: cy + size * i,
-                        width: size,
-                        //height: size,
-                        align: 'center',
-                        text: idx,
-                        fontFamily: font,
-                        fontWeight: 'bold',
-                        fill: color.toHexString(),
-                        fontSize: size / 2.5,
-                        globalCompositeOperation: 'difference',
-                    });
+                    if (texts[idx])
+                        text = texts[idx].clone();
+                    else
+                    {
+                        text = new Konva.Text({
+                            x: cx + size * j,
+                            y: cy + size * i,
+                            width: size,
+                            //height: size,
+                            align: 'center',
+                            text: idx,
+                            fontFamily: font,
+                            fontWeight: 'bold',
+                            fill: color.toHexString(),
+                            fontSize: size / 2.5,
+                            globalCompositeOperation: 'difference',
+                            perfectDrawEnabled : false
+                        });
+                        text.cache();
+                        texts[idx] = text;
+                    }
+                    text.x(cx + size * j);
+                    text.y(cy + size * i);
                     text.setOffset({
                         y: text.height() / 2 - size / 2,
                     });
