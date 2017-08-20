@@ -3,7 +3,7 @@
 <head>
   <!-- ... -->
   <link rel="stylesheet" href="../css/bootstrap.min.css">
-  <link rel="stylesheet" href="../css/bootstrap-theme.min.css">
+  
 
   <link rel="stylesheet" href="../css/vex.css">
   <link rel="stylesheet" href="../css/vex-theme-default.css">
@@ -15,6 +15,7 @@
     body
     {
         margin: 1em;
+        font-family: 'Arial';
     }
     label, .mylabel
     {
@@ -36,6 +37,11 @@
     .panel
     {
         overflow: hidden;
+    }
+
+    .glyphicon-move
+    {
+        cursor: move;
     }
   </style>
   <script src="../js/konva.min.js"></script>
@@ -72,20 +78,22 @@
                     <input class="btn btn-primary btn-block" id="generate" type="submit" value="СГЕНЕРИРОВАТЬ" />
                     </div>
                     <div class="col-md-8">
-                    <div class="form-group panel panel-default">
-                        <div class="panel-heading">ЭКРАН №1</div>
+                    <div draggable="true" id="screenDrag0" data-id="0">
+                    <div class="form-group panel panel-default" id="screen0">
+                        <div class="panel-heading"><span class="glyphicon glyphicon-move"></span> ЭКРАН №1</div>
                         <div class="panel-body">
                             <label for="text">Текст</label>
                             <input class="form-control" name="rect[0][text]" id="text" value="Экран"/>
                             <label for="width">Ширина</label>
-                            <input class="form-control" name="rect[0][width]" type="number" id="width" value="1024"/>
+                            <input class="form-control" name="rect[0][width]" type="number" id="width0" value="1024"/>
                             <label for="height">Высота</label>
-                            <input class="form-control" name="rect[0][height]" type="number" id="height" value="768"/>
+                            <input class="form-control" name="rect[0][height]" type="number" id="height0" value="768"/>
                             <label for="color">Цвет</label>
                             <input class="form-control" name="rect[0][color]" type="color" id="color" value="#0000FF" style="height: 50px"/>
                             <label for="row">Строка</label>
-                            <input class="form-control" name="rect[0][row]" type="number" id="row" value="0"/>
+                            <input class="form-control" name="rect[0][row]" type="number" id="row0" value="0"/>
                         </div>
+                    </div>
                     </div>
                     <div id="preRect"/>
                     </div>
@@ -494,8 +502,9 @@
 
     $("#addRect").on('click', function (e)
     {
-        $("#preRect").before('<div style="display: collapsed" class="form-group panel panel-default" id="screen' + rectCount + '">\
-                        <div class="panel-heading">ЭКРАН №' + (rectCount + 1) + '</div>\
+        $("#preRect").before('<div draggable="true" id="screenDrag' + rectCount + '" data-id="' + rectCount + '">\
+        <div style="display: collapsed" class="form-group panel panel-default" id="screen' + rectCount + '">\
+                        <div class="panel-heading"><span class="glyphicon glyphicon-move"></span> ЭКРАН №' + (rectCount + 1) + '</div>\
                         <div class="panel-body">\
                             <label for="text">Текст</label>\
                             <input class="form-control" name="rect[' + rectCount + '][text]" id="text" value="Экран"/>\
@@ -510,30 +519,12 @@
                             <br/>\
                             <button id="removeScreen' + rectCount + '" data-rect="' + rectCount + '" class="form-control btn btn-danger btn-block">УДАЛИТЬ ЭКРАН</button>\
                         </div>\
-                    </div>');
-        $("#width" + rectCount).on('change', updateSize);
-        $("#height" + rectCount).on('change', updateSize);
-        $("#row" + rectCount).on('change', updateSize);
+                    </div>\
+                </div>');
+        addUpdateSize(rectCount);
         updateSize();
-        $("#removeScreen" + rectCount).on('click', function (e)
-        {
-
-            anime({
-            targets: "#screen" + $(this).data("rect"),
-            height: 0,
-            opacity: 0,
-            duration: 500,
-            complete: function () {
-                    $("#screen" + $(this).data("rect")).remove();
-                }.bind(this),
-            easing: 'linear'
-            });
-            $("#width" + rectCount).off('change', updateSize);
-            $("#height" + rectCount).off('change', updateSize);
-            $("#row" + rectCount).off('change', updateSize);
-            updateSize();
-            e.preventDefault();
-        });
+        addDragEvents(rectCount);
+        
         var height = $("#screen" + rectCount).height();
         $("#screen" + rectCount).css({height: 0, display: 'block'});
         anime({
@@ -587,50 +578,14 @@
         $("#canvasHeight").text(params[1] * pixelRatio);
     }
 
-        $("#width").on('change', updateSize);
-        $("#height").on('change', updateSize);
-        $("#row").on('change', updateSize);
+    addUpdateSize(0);
 
     updateSize();
 
     $("#genform").on('submit', function (e)
     {
         e.preventDefault();
-        /*var obj = $("form").serializeObject().rect.filter(function(n){return n !== undefined});
-        
-        obj.forEach(function (e)
-        {
-            e.width = (e.width * 1) / pixelRatio;
-            e.height = (e.height * 1) / pixelRatio;
-        });
-
-        var rows = [];
-        obj.forEach(function (e)
-        {
-            if (!rows[e.row])
-                rows[e.row] = [];
-            rows[e.row] = rows[e.row].concat([e]);
-        });
-
-        var sumWidth = Math.max.apply(null, $.map(rows, function (el, idx) { return $.map(el, function (el, idx) { return el.width * 1}).reduce(function (sum, next) { return sum + next * 1}, 0)}));
-        var maxWidth = $.map(obj, function(el, idx) { return el.width}).reduce(function (sum, next) { return sum + next * 1 }, 0)
-        var rowHeights = $.map(rows, function (el, idx) { return { height: Math.max.apply(null, $.map(el, function (el, idx) { return (el.height || 0) * 1}) || 0)}});
-        var y = 0;
-        rowHeights.forEach(function (el, idx)
-        {
-            el.y = y;
-            el.x = 0;
-            y+= el.height > 0 ? el.height : 0;
-        });
-        var maxHeight = rowHeights.reduce(function (sum, next) { return sum + (next.height > 0 ? next.height : 0)}, 0);*/$
         var params = calculateForm();
-
-        /*$.pgwModal({
-            titleBar: false,
-            maxWidth: 1280 / 2,
-            content: '<p><center>СОХРАНИТЕ ИЗОБРАЖЕНИЕ</center></p>\
-            <img style="width: 100%;" src="' + GeneratePixelMap(params[0], params[1], params[2], params[3], params[4], Math.max.apply(null, $.map(params[3], function(e, i) { return e.height * 1 })), $("#gridSize").val() * 1).toDataURL({mimeType: "image/png"}) + '"/>'
-        });*/
         vex.defaultOptions.className = 'vex-theme-default';
         vex.dialog.buttons.YES.text = "ОК";
         vex.dialog.buttons.NO.text = "Отмена";
@@ -641,5 +596,90 @@
             }
             )
     });
+
+    var dragSrcEl = null;
+
+    function handleDragStart(e) {
+        // Target (this) element is the source node.
+
+        dragSrcEl = this;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.innerHTML);
+    }
+
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault(); // Necessary. Allows us to drop.
+        }
+
+        e.dataTransfer.dropEffect = 'move';  // See the section on the DataTransfer object.
+
+        return false;
+    }
+
+    function handleDragEnter(e) {
+    // this / e.target is the current hover target.
+        this.classList.add('over');
+    }
+
+    function handleDragLeave(e) {
+        this.classList.remove('over');  // this / e.target is previous target element.
+    }
+
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation(); // Stops some browsers from redirecting.
+          }
+        
+          // Don't do anything if dropping the same column we're dragging.
+          if (dragSrcEl != this) {
+            // Set the source column's HTML to the HTML of the column we dropped on.
+            dragSrcEl.innerHTML = this.innerHTML;
+            this.innerHTML = e.dataTransfer.getData('text/html');
+            addUpdateSize($(dragSrcEl).data("id"));
+          }
+        
+          return false;
+    }
+
+    function handleDragEnd(e) {
+        // this/e.target is the source node.
+    }
+    function addDragEvents(id)
+    {
+        $("#screenDrag"+id).on('dragstart', handleDragStart);
+        $("#screenDrag"+id).on('dragenter', handleDragEnter)
+        $("#screenDrag"+id).on('dragover', handleDragOver);
+        $("#screenDrag"+id).on('dragleave', handleDragLeave);
+        $("#screenDrag"+id).on('drop', handleDrop);
+        $("#screenDrag"+id).on('dragend', handleDragEnd);
+    }
+    function addUpdateSize(id)
+    {
+        $("#width" + id).on('change', updateSize);
+        $("#height" + id).on('change', updateSize);
+        $("#row" + id).on('change', updateSize);
+
+        $("#removeScreen" + id).on('click', function (e)
+        {
+            anime({
+            targets: "#screen" + $(this).data("rect"),
+            height: 0,
+            opacity: 0,
+            duration: 500,
+            complete: function () {
+                    $("#screen" + $(this).data("rect")).remove();
+                    updateSize();
+                }.bind(this),
+            easing: 'linear'
+            });
+            $("#width" + id).off('change', updateSize);
+            $("#height" + id).off('change', updateSize);
+            $("#row" + id).off('change', updateSize);
+            
+            e.preventDefault();
+        });
+    }
+    addDragEvents(0);
 </script>
 </html>
