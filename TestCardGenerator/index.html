@@ -65,12 +65,9 @@
             <div class="col-md-12">
                 <form class="form-group" id="genform">
                     <div class="col-md-4">
-                        <div class="row">
-                            <div class="col-md-12">
-                                <p class="mylabel">ИНФОРМАЦИЯ О РАЗМЕТКЕ</p>
-                            </div>
-                        </div>
-                        <div class="row">
+                        <div class="panel panel-default">
+                        <div class="panel-heading"><span class="mylabel">ИНФОРМАЦИЯ О РАЗМЕТКЕ</span></div>
+                        <div class="panel-body">
                             <div class="col-md-6">
                                 <p class="mylabel">ШИРИНА</p>
                                 <p class="mylabel">ВЫСОТА</p>
@@ -80,7 +77,7 @@
                                 <p id="canvasHeight"/>
                             </div>
                         </div>
-                    <hr/>
+                        </div>
                     <label for="gridSize">Размер сетки</label>
                     <input type="number" class="form-control" name="gridSize" id="gridSize" value="32"/>
                     <br/>
@@ -585,8 +582,8 @@
     function updateSize(e)
     {
         var params = calculateForm();
-        $("#canvasWidth").text(params[0] * pixelRatio);
-        $("#canvasHeight").text(params[1] * pixelRatio);
+        $("#canvasWidth").text(params[0] * pixelRatio + " px");
+        $("#canvasHeight").text(params[1] * pixelRatio + " px");
     }
 
     addUpdateSize(0);
