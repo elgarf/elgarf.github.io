@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- ... -->
+  <link rel="stylesheet" href="../css/bootstrap.min.css">
+  <link rel="stylesheet" href="../css/bootstrap-theme.min.css">
+  <style>
+    html
+    {
+        font-family: 'Arial';
+    }
+    body
+    {
+        margin: 1em;
+    }
+    label
+    {
+        font-weight: bold;
+        text-transform: uppercase;
+        font-family: 'Arial';
+    }
+
+    .group {
+        margin-right: 0;
+        margin-left: 0;
+        background-color: #fff;
+        border: 1px solid gray;
+        padding: 1em;
+        -webkit-box-shadow: none;
+                box-shadow: none;
+    }
+
+    .panel
+    {
+        overflow: hidden;
+    }
+  </style>
+  <script src="../js/konva.min.js"></script>
+  <script src="../js/zepto.min.js"></script>
+  <script src="../js/anime.min.js"></script>
+  <script src="../js/tinycolor.min.js"></script>
+  <script src="../js/jquery.serialize-object.min.js"></script>
+  <title>Генератор отстроечных таблиц</title>
+  <!-- ... -->
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <form class="form-group" id="genform">
+                    <div class="col-md-4">
+                    <label for="gridSize">Размер сетки</label>
+                    <input type="number" class="form-control" name="gridSize" id="gridSize" value="32"/>
+                    <br/>
+                    <button class="btn btn-success btn-block" id="addRect">ДОБАВИТЬ ЭКРАН</button>
+                    <br/>
+                    <input class="btn btn-primary btn-block" id="generate" type="submit" value="СГЕНЕРИРОВАТЬ" />
+                    </div>
+                    <div class="col-md-8">
+                    <div class="form-group panel panel-default">
+                        <div class="panel-heading">ЭКРАН №1</div>
+                        <div class="panel-body">
+                            <label for="text">Текст</label>
+                            <input class="form-control" name="rect[0][text]" id="text" value="Экран"/>
+                            <label for="width">Ширина</label>
+                            <input class="form-control" name="rect[0][width]" type="number" id="width" value="1024"/>
+                            <label for="height">Высота</label>
+                            <input class="form-control" name="rect[0][height]" type="number" id="height" value="768"/>
+                            <label for="color">Цвет</label>
+                            <input class="form-control" name="rect[0][color]" type="color" id="color" value="#0000FF" style="height: 50px"/>
+                            <label for="row">Строка</label>
+                            <input class="form-control" name="rect[0][row]" type="number" id="row" value="0"/>
+                        </div>
+                    </div>
+                    <div id="preRect"/>
+                    </div>
+                </form>
+                <div id="canvas" style="display: none" />
+            </div>
+        </div>
+    </div>
+    
+  <!-- ... -->
+</body>
+<script>
+    
+</script>
+</html>

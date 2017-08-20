@@ -2,8 +2,11 @@
 <html>
 <head>
   <!-- ... -->
-  <link rel="stylesheet" href="css/bootstrap.min.css">
-  <link rel="stylesheet" href="css/bootstrap-theme.min.css">
+  <link rel="stylesheet" href="../css/bootstrap.min.css">
+  <link rel="stylesheet" href="../css/bootstrap-theme.min.css">
+
+  <link rel="stylesheet" href="../css/vex.css">
+  <link rel="stylesheet" href="../css/vex-theme-default.css">
   <style>
     html
     {
@@ -13,7 +16,7 @@
     {
         margin: 1em;
     }
-    label
+    label, .mylabel
     {
         font-weight: bold;
         text-transform: uppercase;
@@ -35,11 +38,12 @@
         overflow: hidden;
     }
   </style>
-  <script src="js/konva.min.js"></script>
-  <script src="js/zepto.min.js"></script>
-  <script src="js/anime.min.js"></script>
-  <script src="js/tinycolor.min.js"></script>
-  <script src="js/jquery.serialize-object.min.js"></script>
+  <script src="../js/konva.min.js"></script>
+  <script src="../js/zepto.min.js"></script>
+  <script src="../js/anime.min.js"></script>
+  <script src="../js/tinycolor.min.js"></script>
+  <script src="../js/jquery.serialize-object.min.js"></script>
+  <script src="../js/vex.combined.min.js"></script>
   <title>Генератор отстроечных таблиц</title>
   <!-- ... -->
 </head>
@@ -49,6 +53,17 @@
             <div class="col-md-12">
                 <form class="form-group" id="genform">
                     <div class="col-md-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mylabel">ШИРИНА</p>
+                                <p class="mylabel">ВЫСОТА</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p id="canvasWidth"/>
+                                <p id="canvasHeight"/>
+                            </div>
+                        </div>
+                    <hr/>
                     <label for="gridSize">Размер сетки</label>
                     <input type="number" class="form-control" name="gridSize" id="gridSize" value="32"/>
                     <br/>
@@ -484,18 +499,22 @@
                         <div class="panel-body">\
                             <label for="text">Текст</label>\
                             <input class="form-control" name="rect[' + rectCount + '][text]" id="text" value="Экран"/>\
-                            <label for="width">Ширина</label>\
-                            <input class="form-control" name="rect[' + rectCount + '][width]" type="number" id="width" value="1024"/>\
-                            <label for="height">Высота</label>\
-                            <input class="form-control" name="rect[' + rectCount + '][height]" type="number" id="height" value="768"/>\
+                            <label for="width' + rectCount + '">Ширина</label>\
+                            <input class="form-control" name="rect[' + rectCount + '][width]" type="number" id="width' + rectCount + '" value="1024"/>\
+                            <label for="height' + rectCount + '">Высота</label>\
+                            <input class="form-control" name="rect[' + rectCount + '][height]" type="number" id="height' + rectCount + '" value="768"/>\
                             <label for="color">Цвет</label>\
                             <input class="form-control" name="rect[' + rectCount + '][color]" type="color" id="color" value="' + tinycolor(colors[rectCount % colors.length]).toHexString() + '" style="height: 50px"/>\
                             <label for="row">Строка</label>\
-                            <input class="form-control" name="rect[' + rectCount + '][row]" type="number" id="row" value="0"/>\
+                            <input class="form-control" name="rect[' + rectCount + '][row]" type="number" id="row' + rectCount + '" value="0"/>\
                             <br/>\
                             <button id="removeScreen' + rectCount + '" data-rect="' + rectCount + '" class="form-control btn btn-danger btn-block">УДАЛИТЬ ЭКРАН</button>\
                         </div>\
                     </div>');
+        $("#width" + rectCount).on('change', updateSize);
+        $("#height" + rectCount).on('change', updateSize);
+        $("#row" + rectCount).on('change', updateSize);
+        updateSize();
         $("#removeScreen" + rectCount).on('click', function (e)
         {
 
@@ -509,7 +528,10 @@
                 }.bind(this),
             easing: 'linear'
             });
-            
+            $("#width" + rectCount).off('change', updateSize);
+            $("#height" + rectCount).off('change', updateSize);
+            $("#row" + rectCount).off('change', updateSize);
+            updateSize();
             e.preventDefault();
         });
         var height = $("#screen" + rectCount).height();
@@ -525,11 +547,11 @@
         e.preventDefault();
         
     });
-    $("#genform").on('submit', function (e)
+
+    function calculateForm()
     {
-        e.preventDefault();
         var obj = $("form").serializeObject().rect.filter(function(n){return n !== undefined});
-        
+
         obj.forEach(function (e)
         {
             e.width = (e.width * 1) / pixelRatio;
@@ -555,8 +577,69 @@
             y+= el.height > 0 ? el.height : 0;
         });
         var maxHeight = rowHeights.reduce(function (sum, next) { return sum + (next.height > 0 ? next.height : 0)}, 0);
-        window.location =
-        GeneratePixelMap(sumWidth, maxHeight, obj, rowHeights, maxWidth, Math.max.apply(null, $.map(rowHeights, function(e, i) { return e.height * 1 })), $("#gridSize").val() * 1).toDataURL({mimeType: "image/png"});
+        return [sumWidth, maxHeight, obj, rowHeights, maxWidth, ]
+    }
+
+    function updateSize(e)
+    {
+        var params = calculateForm();
+        $("#canvasWidth").text(params[0] * pixelRatio);
+        $("#canvasHeight").text(params[1] * pixelRatio);
+    }
+
+        $("#width").on('change', updateSize);
+        $("#height").on('change', updateSize);
+        $("#row").on('change', updateSize);
+
+    updateSize();
+
+    $("#genform").on('submit', function (e)
+    {
+        e.preventDefault();
+        /*var obj = $("form").serializeObject().rect.filter(function(n){return n !== undefined});
+        
+        obj.forEach(function (e)
+        {
+            e.width = (e.width * 1) / pixelRatio;
+            e.height = (e.height * 1) / pixelRatio;
+        });
+
+        var rows = [];
+        obj.forEach(function (e)
+        {
+            if (!rows[e.row])
+                rows[e.row] = [];
+            rows[e.row] = rows[e.row].concat([e]);
+        });
+
+        var sumWidth = Math.max.apply(null, $.map(rows, function (el, idx) { return $.map(el, function (el, idx) { return el.width * 1}).reduce(function (sum, next) { return sum + next * 1}, 0)}));
+        var maxWidth = $.map(obj, function(el, idx) { return el.width}).reduce(function (sum, next) { return sum + next * 1 }, 0)
+        var rowHeights = $.map(rows, function (el, idx) { return { height: Math.max.apply(null, $.map(el, function (el, idx) { return (el.height || 0) * 1}) || 0)}});
+        var y = 0;
+        rowHeights.forEach(function (el, idx)
+        {
+            el.y = y;
+            el.x = 0;
+            y+= el.height > 0 ? el.height : 0;
+        });
+        var maxHeight = rowHeights.reduce(function (sum, next) { return sum + (next.height > 0 ? next.height : 0)}, 0);*/$
+        var params = calculateForm();
+
+        /*$.pgwModal({
+            titleBar: false,
+            maxWidth: 1280 / 2,
+            content: '<p><center>СОХРАНИТЕ ИЗОБРАЖЕНИЕ</center></p>\
+            <img style="width: 100%;" src="' + GeneratePixelMap(params[0], params[1], params[2], params[3], params[4], Math.max.apply(null, $.map(params[3], function(e, i) { return e.height * 1 })), $("#gridSize").val() * 1).toDataURL({mimeType: "image/png"}) + '"/>'
+        });*/
+        vex.defaultOptions.className = 'vex-theme-default';
+        vex.dialog.buttons.YES.text = "ОК";
+        vex.dialog.buttons.NO.text = "Отмена";
+        
+            vex.dialog.open({
+            input: '<p><center>СОХРАНИТЕ ИЗОБРАЖЕНИЕ</center></p>\
+            <img style="width: 100%;" src="' + GeneratePixelMap(params[0], params[1], params[2], params[3], params[4], Math.max.apply(null, $.map(params[3], function(e, i) { return e.height * 1 })), $("#gridSize").val() * 1).toDataURL({mimeType: "image/png"}) + '"/>'
+            }
+            )
     });
 </script>
 </html>
