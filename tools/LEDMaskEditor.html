@@ -3,7 +3,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Редактор масок LED экранов</title>
 <style>
-:root{--bg:#0f1318;--p:#1a2028;--p2:#242d37;--t:#e8edf3;--m:#9aabbe;--b:#324150;--cb:#0b1118;--f:"Segoe UI","Noto Sans",sans-serif}
+:root{--bg:#0f1318;--p:#1a2028;--p2:#242d37;--t:#e8edf3;--m:#9aabbe;--b:#324150;--cb:#0b1118;--f:"Segoe UI","Arial","Noto Sans",sans-serif}
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;font-family:var(--f);color:var(--t);background:var(--bg);user-select:none;-webkit-user-select:none}input,textarea{user-select:text;-webkit-user-select:text}
 .app{display:grid;grid-template-rows:auto 1fr;height:100%}.toolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:linear-gradient(180deg,#1b232c,#141b22);border-bottom:1px solid var(--b);flex-wrap:wrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .group{display:flex;gap:6px;align-items:center;padding-right:8px;margin-right:4px;border-right:1px solid var(--b)}.group:last-child{border-right:none}
@@ -23,9 +23,15 @@ button,input{font:inherit}button{border:1px solid var(--b);background:var(--p2);
 .install-banner.show{display:flex}
 .install-banner button{padding:6px 10px}
 .main{display:grid;grid-template-columns:1fr 320px;min-height:0}.canvas-wrap{position:relative;background:radial-gradient(circle at 15% 15%,rgba(43,196,160,.09),transparent 38%),radial-gradient(circle at 80% 10%,rgba(74,200,255,.08),transparent 35%),var(--cb);min-height:0}
-canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.canvas-wrap[data-mode="select"] canvas{cursor:default}.canvas-wrap[data-panning="1"] canvas{cursor:grabbing}
+canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.canvas-wrap[data-mode="select"] canvas,.canvas-wrap[data-mode="regions"] canvas{cursor:default}.canvas-wrap[data-panning="1"] canvas{cursor:grabbing}
 .side{border-left:1px solid var(--b);background:linear-gradient(180deg,#171f27,#121820);padding:12px;overflow:auto}.panel-title{margin:0 0 10px;font-size:15px}.hint{margin:0 0 12px;color:var(--m);font-size:12px;line-height:1.35}
-.field{margin-bottom:9px}.field label{display:block;margin-bottom:4px;font-size:12px;color:var(--m)}.field input{width:100%;border:1px solid var(--b);background:#0e151c;color:var(--t);border-radius:8px;padding:7px 8px}.field input[type="color"]{padding:2px;height:36px}
+.field{margin-bottom:9px}.field label{display:block;margin-bottom:4px;font-size:12px;color:var(--m)}.field input:not([type="checkbox"]){width:100%;border:1px solid var(--b);background:#0e151c;color:var(--t);border-radius:8px;padding:7px 8px}.field input[type="color"]{padding:2px;height:36px}
+.check-row{display:flex!important;align-items:center;gap:8px;margin-bottom:0!important;color:var(--t)!important;font-size:13px!important}
+.check-input{appearance:none;-webkit-appearance:none;width:16px!important;height:16px!important;margin:0!important;border:1px solid var(--b)!important;border-radius:0!important;background:#0e151c;display:inline-block;position:relative;cursor:pointer}
+.check-input::after{content:"";position:absolute;inset:3px;background:#8fd7ff;border-radius:0;transform:scale(0);transform-origin:center;transition:transform .12s ease}
+.check-input:checked{border-color:#5fa8d6;background:#12283a}
+.check-input:checked::after{transform:scale(1)}
+.check-input:disabled{opacity:.45;cursor:default}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rect-list{margin-top:14px;border-top:1px solid var(--b);padding-top:10px}.rect-item{border:1px solid var(--b);border-radius:8px;background:#0f1720;padding:8px;font-size:12px;margin-bottom:7px;cursor:pointer}.rect-item.active{border-color:#88a6c6;background:#1a2634}
 @media (max-width:900px){
   .main{grid-template-columns:1fr;grid-template-rows:1fr}
@@ -66,7 +72,10 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
     <svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M17 6h4"/></svg>
   </button>
   <button id="toolCellEdit" class="icon-btn" title="Объединение/деление клеток" aria-label="Клетки">
-    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M11 7h2M7 11v2M11 17h2M17 11v2"/></svg>
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="7" height="14" rx="1.5"/><rect x="14" y="5" width="7" height="14" rx="1.5"/><path d="M10 9h4M10 15h4"/><path d="M12 7v10"/></svg>
+  </button>
+  <button id="toolRegions" class="icon-btn" title="Подсветка областей" aria-label="Области">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
   </button>
 </div>
 <div class="group mobile-hide">
@@ -119,14 +128,15 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
 <p class="hint" style="margin-top:-6px">Инструменты «+ Маска» и «- Маска»: клики по узлам сетки, замкните полигон кликом по первой точке (или Enter). Esc очищает текущий контур.</p>
 <div style="margin:8px 0 10px;padding:8px;border:1px solid var(--b);border-radius:8px;background:#0f1720">
   <div style="font-size:12px;color:var(--m);margin-bottom:6px">Глобальные настройки текста (для всех прямоугольников)</div>
-  <div class="grid2"><div class="field"><label for="globalTextSize">Размер текста (px)</label><input id="globalTextSize" type="text" inputmode="decimal" spellcheck="false" value="12"></div><div class="field"><label for="globalFont">Шрифт</label><input id="globalFont" type="text" spellcheck="false" value="Segoe UI"></div></div>
+  <div class="grid2"><div class="field"><label for="globalTextSize">Размер текста (px)</label><input id="globalTextSize" type="text" inputmode="decimal" spellcheck="false" value="12"></div><div class="field"><label for="globalFont">Шрифт</label><input id="globalFont" type="text" spellcheck="false" value="Segoe UI, Arial"></div></div>
 </div>
 <div class="field"><label for="propName">Имя</label><input id="propName" type="text"></div>
 <div class="grid2"><div class="field"><label for="propX">X (px)</label><input id="propX" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propY">Y (px)</label><input id="propY" type="text" inputmode="decimal" spellcheck="false"></div></div>
 <div class="field"><label for="propRot">Поворот (°)</label><input id="propRot" type="text" inputmode="decimal" spellcheck="false" value="0"></div>
-<div class="grid2"><div class="field"><label for="propWm">Ширина (м)</label><input id="propWm" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propHm">Высота (м)</label><input id="propHm" type="text" inputmode="decimal" spellcheck="false"></div></div><div class="field"><label for="propScale">Коэффициент (px/м)</label><input id="propScale" type="text" inputmode="decimal" spellcheck="false" value="256"></div>
-<div class="grid2"><div class="field"><label for="propColorA">Основной цвет</label><input id="propColorA" type="color" value="#2fcaaf"></div><div class="field"><label for="propColorB">Контрастный</label><input id="propColorB" type="color" value="#1f3f7e"></div></div><div class="field"><button id="btnAutoContrast" type="button" style="width:100%">Авто контраст: вкл</button></div><div class="field"><button id="btnRandomColor" type="button" style="width:100%">Случайный цвет</button></div>
+<div class="grid2"><div class="field"><label for="propWm">Ширина (м)</label><input id="propWm" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propHm">Высота (м)</label><input id="propHm" type="text" inputmode="decimal" spellcheck="false"></div></div><div class="grid2"><div class="field"><label for="propScale">Коэффициент (px/м)</label><input id="propScale" type="text" inputmode="decimal" spellcheck="false" value="256"></div><div class="field"><label for="propAreaM2">Площадь 1м² (px²)</label><input id="propAreaM2" type="text" inputmode="decimal" spellcheck="false" value="256*256"></div></div>
+<div class="grid2"><div class="field"><label for="propColorA">Основной</label><input id="propColorA" type="color" value="#2fcaaf"></div><div class="field"><label for="propColorB">Дополнительный</label><input id="propColorB" type="color" value="#1f3f7e"></div></div><div class="field"><button id="btnAutoContrast" type="button" style="width:100%">Авто дополнительный: вкл</button></div><div class="field"><button id="btnRandomColor" type="button" style="width:100%">Случайный цвет</button></div>
 <div class="grid2"><div class="field"><label for="propCellX">Размер клетки X</label><input id="propCellX" type="text" inputmode="decimal" spellcheck="false" value="128"></div><div class="field"><label for="propCellY">Размер клетки Y</label><input id="propCellY" type="text" inputmode="decimal" spellcheck="false" value="128"></div></div>
+<div class="field"><label class="check-row"><input id="propNumberCells" class="check-input" type="checkbox">Нумеровать клетки</label></div>
 <div class="field"><button id="btnClearMasks" type="button" style="width:100%">Удалить все маски</button></div>
 <div class="rect-list" id="rectList"></div></aside></div></div>
 <div id="sideOverlay" class="side-overlay"></div>
@@ -142,7 +152,8 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   <button id="mToolDraw" class="icon-btn" title="Добавление" aria-label="Добавление"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
   <button id="mToolMaskAdd" class="icon-btn" title="+ Маска (скрыть)" aria-label="+ Маска"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M19 4v4M17 6h4"/></svg></button>
   <button id="mToolMaskSub" class="icon-btn" title="- Маска (показать)" aria-label="- Маска"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M17 6h4"/></svg></button>
-  <button id="mToolCellEdit" class="icon-btn" title="Объединение/деление клеток" aria-label="Клетки"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M11 7h2M7 11v2M11 17h2M17 11v2"/></svg></button>
+  <button id="mToolCellEdit" class="icon-btn" title="Объединение/деление клеток" aria-label="Клетки"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="7" height="14" rx="1.5"/><rect x="14" y="5" width="7" height="14" rx="1.5"/><path d="M10 9h4M10 15h4"/><path d="M12 7v10"/></svg></button>
+  <button id="mToolRegions" class="icon-btn" title="Подсветка областей" aria-label="Области"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg></button>
   <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="10" height="10" rx="2"/><path d="M5 15V5h10"/></svg></button>
   <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="7" height="12" rx="1.5"/><rect x="14" y="6" width="7" height="12" rx="1.5"/><path d="M12 4v16"/><path d="M11 9l-2 3 2 3M13 9l2 3-2 3"/></svg></button>
   <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 12h8l1-12"/><path d="M10 11v5M14 11v5"/></svg></button>
@@ -151,8 +162,8 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
 </div>
 <script>
 const $=id=>document.getElementById(id),cv=$("editorCanvas"),ctx=cv.getContext("2d"),wrap=$("canvasWrap");
-const el={project:$("projectName"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),side:$("sidePanel"),sideClose:$("sideClose"),overlay:$("sideOverlay"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),expSvg:$("exportSvg"),exp:$("exportPng"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),btnClearMasks:$("btnClearMasks"),list:$("rectList")};
-const st={rects:[],sel:null,mode:"select",camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Segoe UI",projectName:"project",maskPath:[],maskHover:null,cellHover:null};
+const el={project:$("projectName"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),side:$("sidePanel"),sideClose:$("sideClose"),overlay:$("sideOverlay"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),expSvg:$("exportSvg"),exp:$("exportPng"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),numCells:$("propNumberCells"),btnClearMasks:$("btnClearMasks"),list:$("rectList")};
+const st={rects:[],sel:null,hoverRect:null,mode:"select",camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Segoe UI, Arial",projectName:"project",maskPath:[],maskHover:null,cellHover:null};
 let deferredInstallPrompt=null;
 const INSTALL_HINT_KEY="led-mask-editor-install-hint-dismissed";
 const w2s=(x,y)=>({x:(x-st.camX)*st.zoom+cv.clientWidth/2,y:(y-st.camY)*st.zoom+cv.clientHeight/2});
@@ -165,7 +176,7 @@ const relLum=(r,g,b)=>{const f=v=>{const x=v/255;return x<=0.03928?x/12.92:Math.
 const contrastRatio=(a,b)=>{const l1=relLum(a.r,a.g,a.b),l2=relLum(b.r,b.g,b.b),mx=Math.max(l1,l2),mn=Math.min(l1,l2);return(mx+0.05)/(mn+0.05)};
 const rgbHex=({r,g,b})=>`#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`;
 const pickByContrast=(base,h,s,target)=>{let bestMeet=null,bestAny=null;for(let i=0;i<=100;i++){const l=i/100,cand=hslToRgb(h,s,l),cr=contrastRatio(base,cand),diff=Math.abs(cr-target);if(!bestAny||cr>bestAny.cr)bestAny={cand,cr};if(cr>=target&&(!bestMeet||diff<bestMeet.diff))bestMeet={cand,cr,diff}}return(bestMeet||bestAny).cand};
-const autoContrast=h=>{const target=4.5,base=hexRgb(h||"#2fcaaf"),hs=rgbToHsl(base.r,base.g,base.b),sat=Math.max(0.35,Math.min(0.9,0.6+hs.s*0.25));const hue1=hs.h+180,hue2=hs.h+150,hue3=hs.h+210;const c1=pickByContrast(base,hue1,sat,target),c2=pickByContrast(base,hue2,sat,target),c3=pickByContrast(base,hue3,sat,target);const d1=Math.abs(contrastRatio(base,c1)-target),d2=Math.abs(contrastRatio(base,c2)-target),d3=Math.abs(contrastRatio(base,c3)-target);const cand=d1<=d2&&d1<=d3?c1:(d2<=d3?c2:c3);return rgbHex(cand)};
+const autoContrast=h=>{const base=h||"#2fcaaf",{r,g,b}=hexRgb(base),lum=(r*299+g*587+b*114)/1000;return shadeHex(base,lum>127.5?-0.5:0.5)};
 const shadeHex=(h,amount)=>{const {r,g,b}=hexRgb(h||"#2fcaaf");const clamp=v=>Math.max(0,Math.min(255,Math.round(v)));const mix=(c,target)=>clamp(c+(target-c)*amount);const rr=mix(r,amount>=0?255:0),gg=mix(g,amount>=0?255:0),bb=mix(b,amount>=0?255:0);return`#${rr.toString(16).padStart(2,"0")}${gg.toString(16).padStart(2,"0")}${bb.toString(16).padStart(2,"0")}`};
 const getOrigin=()=>{if(!st.rects.length)return{x:0,y:0};let x=1e9,y=1e9;for(const r of st.rects){x=Math.min(x,r.x);y=Math.min(y,r.y)}return{x,y}};
 const normalizeHiddenCells=v=>{if(!Array.isArray(v))return[];const out=[];const seen=new Set();for(const it of v){const s=String(it||"").trim();if(!/^\d+,\d+$/.test(s))continue;if(seen.has(s))continue;seen.add(s);out.push(s)}return out};
@@ -183,7 +194,7 @@ const rads=deg=>deg*Math.PI/180;
 const rectCenter=r=>({x:r.x+r.width/2,y:r.y+r.height/2});
 const worldToRectUV=(r,wx,wy)=>{const a=rads(r.rotation||0),ca=Math.cos(a),sa=Math.sin(a),c=rectCenter(r),dx=wx-c.x,dy=wy-c.y,lx=dx*ca+dy*sa,ly=-dx*sa+dy*ca;return{u:lx+r.width/2,v:ly+r.height/2}};
 const rectUVToWorld=(r,u,v)=>{const a=rads(r.rotation||0),ca=Math.cos(a),sa=Math.sin(a),c=rectCenter(r),lx=u-r.width/2,ly=v-r.height/2;return{x:c.x+lx*ca-ly*sa,y:c.y+lx*sa+ly*ca}};
-const rectAABB=r=>{const p1=rectUVToWorld(r,0,0),p2=rectUVToWorld(r,r.width,0),p3=rectUVToWorld(r,r.width,r.height),p4=rectUVToWorld(r,0,r.height);return{minX:Math.min(p1.x,p2.x,p3.x,p4.x),minY:Math.min(p1.y,p2.y,p3.y,p4.y),maxX:Math.max(p1.x,p2.x,p3.x,p4.x),maxY:Math.max(p1.y,p2.y,p3.y,p4.y)}};
+const rectAABB=r=>{const p1=rectUVToWorld(r,0,0),p2=rectUVToWorld(r,r.width,0),p3=rectUVToWorld(r,r.width,r.height),p4=rectUVToWorld(r,0,r.height);return{minX:Math.min(p1.x,p2.x,p3.x,p4.x),minY:Math.min(p1.y,p2.y,p3.y,p4.y),maxX:Math.max(p1.x,p2.x,p3.x,p4.x),maxY:Math.max(p1.y,p2.y,p3.y,p4.y)}};const rectAABBMasked=r=>{const hs=getHiddenSet(r);if(!hs.size)return rectAABB(r);const cx=drawCellX(r),cy=drawCellY(r),cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy));let has=false,minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(let iy=0;iy<rows;iy++){for(let ix=0;ix<cols;ix++){if(hs.has(maskCellKey(ix,iy)))continue;const u=ix*cx,v=iy*cy,cw=Math.min(cx,r.width-u),ch=Math.min(cy,r.height-v),p1=rectUVToWorld(r,u,v),p2=rectUVToWorld(r,u+cw,v),p3=rectUVToWorld(r,u+cw,v+ch),p4=rectUVToWorld(r,u,v+ch);minX=Math.min(minX,p1.x,p2.x,p3.x,p4.x);minY=Math.min(minY,p1.y,p2.y,p3.y,p4.y);maxX=Math.max(maxX,p1.x,p2.x,p3.x,p4.x);maxY=Math.max(maxY,p1.y,p2.y,p3.y,p4.y);has=true}}return has?{minX,minY,maxX,maxY}:rectAABB(r)};
 const overlapArea=(a,b)=>{const x1=Math.max(a.x,b.x),y1=Math.max(a.y,b.y),x2=Math.min(a.x+a.w,b.x+b.w),y2=Math.min(a.y+a.h,b.y+b.h);if(x2<=x1||y2<=y1)return 0;return(x2-x1)*(y2-y1)};
 const hiddenCellBoxes=(r,cx,cy,hs)=>{if(!hs||!hs.size)return[];const arr=[];for(const key of hs){const p=String(key).split(",");if(p.length!==2)continue;const ix=+p[0],iy=+p[1];if(!(ix>=0&&iy>=0))continue;const x=ix*cx,y=iy*cy;if(x>=r.width||y>=r.height)continue;arr.push({x:r.x+x,y:r.y+y,w:Math.min(cx,r.width-x),h:Math.min(cy,r.height-y)})}return arr};
 const computeFreeRects=(r,cx,cy,hs)=>{
@@ -428,6 +439,52 @@ function chooseTextLayout(r,lines,measureFn,maxW,baseFs,hiddenBoxes,freeRects){
 }
 const mRound=v=>Math.round(v*10000)/10000;
 const mFmt=v=>{const n=mRound(v);return Number.isInteger(n)?`${n.toFixed(0)}`:`${n}`};
+const fillPercent=(wm,hm,areaM2Px)=>{const area=Math.max(0,(+wm||0)*(+hm||0)),base=Math.max(1,+areaM2Px||65536);return(100*(base*area))/655360};
+const pctFmt=v=>{const n=Number.isFinite(+v)?+v:0;const t=Math.trunc(n*100)/100;return t.toFixed(2)};
+const AREA_LIMIT_EPS=1e-6;
+const REGION_ZONE_COLORS=[[255,0,0],[0,255,0],[0,0,255],[255,255,0],[255,0,255],[0,255,255]];
+const toLetters=i=>{let n=Math.max(0,Math.floor(i))+1,s="";while(n>0){n--;s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)}return s};
+const splitIndicesBySize=(sizes,groups)=>{
+  const n=sizes.length,g=Math.max(1,Math.min(groups,n));if(g===1)return[0,n];
+  const pref=[0];for(let i=0;i<n;i++)pref.push(pref[i]+sizes[i]);const total=pref[n],cuts=[0];let prev=0;
+  for(let k=1;k<g;k++){
+    const target=(total*k)/g,minIdx=prev+1,maxIdx=n-(g-k);let best=minIdx,bestDiff=1e18;
+    for(let idx=minIdx;idx<=maxIdx;idx++){const diff=Math.abs(pref[idx]-target);if(diff<bestDiff){bestDiff=diff;best=idx}}
+    cuts.push(best);prev=best;
+  }
+  cuts.push(n);return cuts;
+};
+const planNumberRegions=(r,cx,cy,cols,rows)=>{
+  const colSizes=[];for(let x=0;x<r.width;x+=cx)colSizes.push(Math.min(cx,r.width-x));
+  const rowSizes=[];for(let y=0;y<r.height;y+=cy)rowSizes.push(Math.min(cy,r.height-y));
+  const prefSum=a=>{const p=[0];for(let i=0;i<a.length;i++)p.push(p[i]+a[i]);return p};
+  const colPref=prefSum(colSizes),rowPref=prefSum(rowSizes);
+  const maxAreaPx=(Math.max(1,r.scale||256)*Math.max(1,r.scale||256)*655360)/Math.max(1,r.areaM2Px||65536);
+  const build=(nx,ny)=>{
+    const xc=splitIndicesBySize(colSizes,nx),yc=splitIndicesBySize(rowSizes,ny),regions=[];let maxA=0;
+    for(let gy=0;gy<ny;gy++){for(let gx=0;gx<nx;gx++){
+      const c0=xc[gx],c1=xc[gx+1],r0=yc[gy],r1=yc[gy+1],w=colPref[c1]-colPref[c0],h=rowPref[r1]-rowPref[r0],a=w*h;
+      if(a>maxA)maxA=a;regions.push({gx,gy,c0,c1,r0,r1,w,h,label:toLetters(gy*nx+gx)});
+    }}
+    return{nx,ny,xc,yc,regions,maxA};
+  };
+  let nx=1,ny=1,b=build(1,1),guard=0;
+  while(b.maxA>maxAreaPx+AREA_LIMIT_EPS&&(nx<cols||ny<rows)&&guard<4096){
+    guard++;
+    const canX=nx<cols,canY=ny<rows;
+    const bx=canX?build(nx+1,ny):null,by=canY?build(nx,ny+1):null;
+    if(bx&&by){if(bx.maxA<=by.maxA){nx++;b=bx}else{ny++;b=by}}
+    else if(bx){nx++;b=bx}
+    else if(by){ny++;b=by}
+    else break;
+  }
+  const colToGroup=new Array(cols),rowToGroup=new Array(rows);
+  for(let gx=0;gx<b.nx;gx++)for(let c=b.xc[gx];c<b.xc[gx+1];c++)colToGroup[c]=gx;
+  for(let gy=0;gy<b.ny;gy++)for(let rr=b.yc[gy];rr<b.yc[gy+1];rr++)rowToGroup[rr]=gy;
+  const byId=new Map();for(const rg of b.regions)byId.set(rg.gy*b.nx+rg.gx,rg);
+  const xCutsPx=b.xc.map(i=>colPref[i]),yCutsPx=b.yc.map(i=>rowPref[i]);
+  return{nx:b.nx,ny:b.ny,colToGroup,rowToGroup,regionsById:byId,xCutsPx,yCutsPx};
+};
 const metricFromPx=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.width=Math.max(1,Math.round(+r.width||1));r.height=Math.max(1,Math.round(+r.height||1));r.widthM=Math.max(0.001,mRound(r.width/r.scale));r.heightM=Math.max(0.001,mRound(r.height/r.scale));};
 const pxFromMetric=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.widthM=Math.max(0.001,+r.widthM||0.001);r.heightM=Math.max(0.001,+r.heightM||0.001);r.width=Math.max(1,Math.round(r.widthM*r.scale));r.height=Math.max(1,Math.round(r.heightM*r.scale));};
 const AUTO_SAVE_KEY="led-mask-editor.autosave.v1";
@@ -435,11 +492,22 @@ let persistTimer=null;
 const buildProject=()=>({version:1,projectName:st.projectName,camera:{x:st.camX,y:st.camY,zoom:st.zoom},settings:{textSize:st.textSize,fontFamily:st.fontFamily},nextId:st.next,rectangles:st.rects});
 const schedulePersist=()=>{if(persistTimer)clearTimeout(persistTimer);persistTimer=setTimeout(()=>{try{localStorage.setItem(AUTO_SAVE_KEY,JSON.stringify(buildProject()))}catch(_e){}},150)};
 const evalExpr=(input,fallback)=>{const s=String(input??"").trim();if(!s)return fallback;const n=Number(s.replace(",","."));if(Number.isFinite(n))return n;const normalized=s.replace(/,/g,".").replace(/\s+/g,"");if(!/^[0-9+\-*/().]+$/.test(normalized))return fallback;try{const v=Function(`"use strict";return (${normalized});`)();return Number.isFinite(v)?v:fallback}catch(_e){return fallback}};
-const randomColor=()=>`#${Math.floor(Math.random()*16777215).toString(16).padStart(6,"0")}`;
+const randomColor=()=>{
+  const h=Math.random()*360,s=1,v=0.5,c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;
+  let r1=0,g1=0,b1=0;
+  if(h<60){r1=c;g1=x;b1=0}
+  else if(h<120){r1=x;g1=c;b1=0}
+  else if(h<180){r1=0;g1=c;b1=x}
+  else if(h<240){r1=0;g1=x;b1=c}
+  else if(h<300){r1=x;g1=0;b1=c}
+  else{r1=c;g1=0;b1=x}
+  const toHex=n=>Math.round((n+m)*255).toString(16).padStart(2,"0");
+  return`#${toHex(r1)}${toHex(g1)}${toHex(b1)}`;
+};
 const escXml=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
 const fontFamilyCss=(value)=>{
-  const parts=String(value||"Segoe UI").split(",").map(s=>s.trim()).filter(Boolean);
-  if(!parts.length) return "\"Segoe UI\"";
+  const parts=String(value||"Segoe UI, Arial").split(",").map(s=>s.trim()).filter(Boolean);
+  if(!parts.length) return "\"Segoe UI\", Arial";
   return parts.map(p=>{
     if((p.startsWith("\"")&&p.endsWith("\""))||(p.startsWith("'")&&p.endsWith("'"))) return p;
     return /\s/.test(p) ? `"${p.replace(/"/g,"\\\"")}"` : p;
@@ -452,7 +520,7 @@ const ensureFontReady=async()=>{
   try{ await document.fonts.load(`${size}px ${family}`); }catch(_e){}
   try{ await document.fonts.ready; }catch(_e){}
 };
-function buildSvgExport(){let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY),1),origin={x:minX,y:minY};const fs=Math.max(6,st.textSize),lh=Math.max(fs+2,st.textSize+2),family=escXml(String(st.fontFamily||"Segoe UI"));let defs="",body="";
+function buildSvgExport(){let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY),1),origin={x:minX,y:minY};const fs=Math.max(6,st.textSize),lh=Math.max(fs+2,st.textSize+2),family=escXml(String(st.fontFamily||"Segoe UI, Arial"));let defs="",body="";
 for(const r of st.rects){const x=r.x-minX,y=r.y-minY,id=`pat_${r.id}`,cx=drawCellX(r),cy=drawCellY(r),a=r.colorA,b=r.colorB,a2=shadeHex(a,((hexRgb(a).r*299+hexRgb(a).g*587+hexRgb(a).b*114)/1000)>140?-0.25:0.25),b2=shadeHex(b,((hexRgb(b).r*299+hexRgb(b).g*587+hexRgb(b).b*114)/1000)>140?-0.25:0.25);
 defs+=`<pattern id="${id}" patternUnits="userSpaceOnUse" width="${cx*2}" height="${cy*2}">`
   +`<rect x="0" y="0" width="${cx}" height="${cy}" fill="${a}"/><polygon points="0,0 ${cx},0 0,${cy}" fill="${a2}"/>`
@@ -461,7 +529,7 @@ defs+=`<pattern id="${id}" patternUnits="userSpaceOnUse" width="${cx*2}" height=
   +`<rect x="${cx}" y="${cy}" width="${cx}" height="${cy}" fill="${a}"/><polygon points="${cx},${cy} ${cx*2},${cy} ${cx},${cy*2}" fill="${a2}"/>`
   +`</pattern>`;
 const hidden=Array.isArray(r.hiddenCells)?r.hiddenCells:[];let maskAttr="";if(hidden.length){const mid=`mask_${r.id}`;let maskBody=`<rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill="white"/>`;for(const key of hidden){const parts=String(key).split(",");if(parts.length!==2)continue;const ix=+parts[0],iy=+parts[1];if(!(ix>=0&&iy>=0))continue;const ox=ix*cx,oy=iy*cy;if(ox>=r.width||oy>=r.height)continue;const cw=Math.min(cx,r.width-ox),ch=Math.min(cy,r.height-oy);maskBody+=`<rect x="${x+ox}" y="${y+oy}" width="${cw}" height="${ch}" fill="black"/>`}defs+=`<mask id="${mid}" maskUnits="userSpaceOnUse">${maskBody}</mask>`;maskAttr=` mask="url(#${mid})"`}
-const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256));const ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(r.width)} x ${Math.round(r.height)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`];const maxW=Math.max(20,r.width-6);const hset=new Set(hidden),localRect={x,y,width:r.width,height:r.height},hbs=hiddenCellBoxes(localRect,cx,cy,hset),freeRects=computeFreeRects(localRect,cx,cy,hset),layout=chooseTextLayout(localRect,ls,(t,f)=>String(t).length*f*0.58,maxW,fs,hbs,freeRects),rot=(r.rotation||0),rcx=x+r.width/2,rcy=y+r.height/2,tf=Math.abs(rot)>1e-6?` transform="rotate(${rot} ${rcx} ${rcy})"`:"";
+const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),pct=fillPercent(wm,hm,r.areaM2Px);const ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(r.width)} x ${Math.round(r.height)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`];const maxW=Math.max(20,r.width-6);const hset=new Set(hidden),localRect={x,y,width:r.width,height:r.height},hbs=hiddenCellBoxes(localRect,cx,cy,hset),freeRects=computeFreeRects(localRect,cx,cy,hset),layout=chooseTextLayout(localRect,ls,(t,f)=>String(t).length*f*0.58,maxW,fs,hbs,freeRects),rot=(r.rotation||0),rcx=x+r.width/2,rcy=y+r.height/2,tf=Math.abs(rot)>1e-6?` transform="rotate(${rot} ${rcx} ${rcy})"`:"";
   body+=`<g${tf}><g${maskAttr}><rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill="url(#${id})"/>`
     +`<line x1="${x}" y1="${y}" x2="${x+r.width}" y2="${y+r.height}" stroke="rgba(255,255,255,.36)" stroke-width="1"/>`
     +`<line x1="${x+r.width}" y1="${y}" x2="${x}" y2="${y+r.height}" stroke="rgba(255,255,255,.36)" stroke-width="1"/>`
@@ -472,11 +540,11 @@ body+=`</g><rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill=
 }
 return`<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${defs}</defs>${body}</svg>`;
 }
-function applyProjectData(d){const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Segoe UI").trim()||"Segoe UI"}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.maskPath=[];st.maskHover=null;selRect(st.rects[0]?st.rects[0].id:null);render();}
+function applyProjectData(d){const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=Math.max(1,evalExpr(d&&d.settings?d.settings.areaM2Px:null,65536));st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:Math.max(1,evalExpr(r.areaM2Px,legacyAreaM2)),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),numberCells:!!r.numberCells,cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Segoe UI, Arial").trim()||"Segoe UI, Arial"}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.maskPath=[];st.maskHover=null;selRect(st.rects[0]?st.rects[0].id:null);render();}
 function restoreAutoSave(){try{const rawSaved=localStorage.getItem(AUTO_SAVE_KEY);if(!rawSaved)return false;applyProjectData(JSON.parse(rawSaved));return true}catch(_e){return false}}
-function mk(x,y,w,h){const id=st.next++;const colorA="#2fcaaf";const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,cellLinks:[],hiddenCells:[]};metricFromPx(r);return r}
-function setMode(m){st.mode=m;el.toolSelect.classList.toggle("active",m==="select");el.toolDraw.classList.toggle("active",m==="draw");if(el.toolMaskAdd)el.toolMaskAdd.classList.toggle("active",m==="maskAdd");if(el.toolMaskSub)el.toolMaskSub.classList.toggle("active",m==="maskSub");if(el.toolCellEdit)el.toolCellEdit.classList.toggle("active",m==="cellEdit");if(el.mToolSelect)el.mToolSelect.classList.toggle("active",m==="select");if(el.mToolDraw)el.mToolDraw.classList.toggle("active",m==="draw");if(el.mToolMaskAdd)el.mToolMaskAdd.classList.toggle("active",m==="maskAdd");if(el.mToolMaskSub)el.mToolMaskSub.classList.toggle("active",m==="maskSub");if(el.mToolCellEdit)el.mToolCellEdit.classList.toggle("active",m==="cellEdit");if(!isMaskMode()){st.maskPath=[];st.maskHover=null}if(!isCellEditMode())st.cellHover=null;wrap.dataset.mode=m;st.draft=null;st.drag=null;render()}
-function selRect(id){st.sel=id;st.maskPath=[];st.maskHover=null;st.cellHover=null;syncProps();listRects();render()}
+function mk(x,y,w,h){const id=st.next++;const colorA="#2fcaaf";const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,areaM2Px:65536,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,numberCells:false,cellLinks:[],hiddenCells:[]};metricFromPx(r);return r}
+function setMode(m){st.mode=m;el.toolSelect.classList.toggle("active",m==="select");el.toolDraw.classList.toggle("active",m==="draw");if(el.toolMaskAdd)el.toolMaskAdd.classList.toggle("active",m==="maskAdd");if(el.toolMaskSub)el.toolMaskSub.classList.toggle("active",m==="maskSub");if(el.toolCellEdit)el.toolCellEdit.classList.toggle("active",m==="cellEdit");if(el.toolRegions)el.toolRegions.classList.toggle("active",m==="regions");if(el.mToolSelect)el.mToolSelect.classList.toggle("active",m==="select");if(el.mToolDraw)el.mToolDraw.classList.toggle("active",m==="draw");if(el.mToolMaskAdd)el.mToolMaskAdd.classList.toggle("active",m==="maskAdd");if(el.mToolMaskSub)el.mToolMaskSub.classList.toggle("active",m==="maskSub");if(el.mToolCellEdit)el.mToolCellEdit.classList.toggle("active",m==="cellEdit");if(el.mToolRegions)el.mToolRegions.classList.toggle("active",m==="regions");if(!isMaskMode()){st.maskPath=[];st.maskHover=null}if(!isCellEditMode())st.cellHover=null;if(m!=="regions")st.hoverRect=null;wrap.dataset.mode=m;st.draft=null;st.drag=null;render()}
+function selRect(id){st.sel=id;st.maskPath=[];st.maskHover=null;st.cellHover=null;if(st.mode!=="regions")st.hoverRect=null;syncProps();listRects();render()}
 const cur=()=>st.rects.find(r=>r.id===st.sel)||null;
 function hit(x,y){for(let i=st.rects.length-1;i>=0;i--){const r=st.rects[i],p=worldToRectUV(r,x,y);if(p.u>=0&&p.u<=r.width&&p.v>=0&&p.v<=r.height)return r}return null}
 function snapMaskNode(r,wx,wy){if(!r)return null;const p=worldToRectUV(r,wx,wy);if(p.u<0||p.u>r.width||p.v<0||p.v>r.height)return null;const u=Math.max(0,Math.min(r.width,p.u)),v=Math.max(0,Math.min(r.height,p.v)),axes=getMaskNodeAxes(r);let gu=axes.xs[0],gv=axes.ys[0],bdx=1e9,bdy=1e9;for(const x of axes.xs){const d=Math.abs(x-u);if(d<bdx){bdx=d;gu=x}}for(const y of axes.ys){const d=Math.abs(y-v);if(d<bdy){bdy=d;gv=y}}return rectUVToWorld(r,gu,gv)}
@@ -489,7 +557,7 @@ const next=new Set(arr);for(const k of cand.keys)next.add(k);r.cellLinks=[...nex
 function snap(x,y,id,w,h,off){
 if(off)return{x:Math.round(x),y:Math.round(y),gx:null,gy:null,dg:null};
 const self=st.rects.find(r=>r.id===id);if(!self)return{x:Math.round(x),y:Math.round(y),gx:null,gy:null,dg:null};
-const moving={...self,x,y},mb=rectAABB(moving),mw=mb.maxX-mb.minX,mh=mb.maxY-mb.minY,d=8/st.zoom,others=st.rects.filter(r=>r.id!==id).map(r=>({r,bb:rectAABB(r)}));let bx=null,by=null;
+const moving={...self,x,y},mb=rectAABBMasked(moving),mw=mb.maxX-mb.minX,mh=mb.maxY-mb.minY,d=8/st.zoom,others=st.rects.filter(r=>r.id!==id).map(r=>({r,bb:rectAABBMasked(r)}));let bx=null,by=null;
 const mx=[mb.minX,(mb.minX+mb.maxX)/2,mb.maxX],my=[mb.minY,(mb.minY+mb.maxY)/2,mb.maxY];
 for(const o of others){const ox=[o.bb.minX,(o.bb.minX+o.bb.maxX)/2,o.bb.maxX],oy=[o.bb.minY,(o.bb.minY+o.bb.maxY)/2,o.bb.maxY];for(const p of mx)for(const t of ox){const dd=t-p,ad=Math.abs(dd);if(ad<=d&&(!bx||ad<Math.abs(bx.d)))bx={d:dd,g:t}}for(const p of my)for(const t of oy){const dd=t-p,ad=Math.abs(dd);if(ad<=d&&(!by||ad<Math.abs(by.d)))by={d:dd,g:t}}}
 if(others.length){let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const o of others){minX=Math.min(minX,o.bb.minX);minY=Math.min(minY,o.bb.minY);maxX=Math.max(maxX,o.bb.maxX);maxY=Math.max(maxY,o.bb.maxY)}const bbCx=(minX+maxX)/2,bbCy=(minY+maxY)/2;for(const p of mx){const dd=bbCx-p,ad=Math.abs(dd);if(ad<=d&&(!bx||ad<Math.abs(bx.d)))bx={d:dd,g:bbCx}}for(const p of my){const dd=bbCy-p,ad=Math.abs(dd);if(ad<=d&&(!by||ad<Math.abs(by.d)))by={d:dd,g:bbCy}}}
@@ -511,7 +579,8 @@ return{x:Math.round(x+dx),y:Math.round(y+dy),gx,gy,dg}
 }
 function drawRect(c,r,sel,z,origin){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
 const topo=getCellTopology(r,cellX,cellY);
-let drawContent=true;if(hs.size){c.beginPath();let n=0;for(let y=0;y<h;y+=cellY){for(let x=0;x<w;x+=cellX){const ix=Math.floor(x/cellX),iy=Math.floor(y/cellY);if(hs.has(maskCellKey(ix,iy)))continue;const cw=Math.min(cellX,w-x),ch=Math.min(cellY,h-y);c.rect(-w/2+x,-h/2+y,cw,ch);n++}}if(n>0)c.clip();else drawContent=false}
+const regions=((sel||r.numberCells)?planNumberRegions(r,cellX,cellY,topo.cols,topo.rows):null);
+let drawContent=true,maskedClip=false;if(hs.size){c.save();maskedClip=true;c.beginPath();let n=0;for(let y=0;y<h;y+=cellY){for(let x=0;x<w;x+=cellX){const ix=Math.floor(x/cellX),iy=Math.floor(y/cellY);if(hs.has(maskCellKey(ix,iy)))continue;const cw=Math.min(cellX,w-x),ch=Math.min(cellY,h-y);c.rect(-w/2+x,-h/2+y,cw,ch);n++}}if(n>0)c.clip();else drawContent=false}
 if(drawContent){
 const comps=new Map();
 for(let y=0;y<h;y+=cellY){
@@ -537,20 +606,94 @@ for(const it of comps.values()){
   c.fillStyle=it.alt;c.beginPath();c.moveTo(it.minX,it.minY);c.lineTo(it.minX+bw,it.minY);c.lineTo(it.minX,it.minY+bh);c.closePath();c.fill();
   c.restore();
 }
+if(r.numberCells&&regions){
+  const nfs=9,pad=2.5;
+  c.font=`${nfs}px ${fontFamilyCss(st.fontFamily)}`;
+  c.textAlign="left";c.textBaseline="top";
+  for(const it of comps.values()){
+    let hasVisible=false;
+    for(const cl of it.cells){
+      const ix=Math.floor((cl.x+w/2)/cellX),iy=Math.floor((cl.y+h/2)/cellY);
+      if(!hs.has(maskCellKey(ix,iy))){hasVisible=true;break}
+    }
+    if(!hasVisible)continue;
+    let minCol=1e9,minRow=1e9;
+    for(const cl of it.cells){
+      const ix=Math.floor((cl.x+w/2)/cellX),iy=Math.floor((cl.y+h/2)/cellY);
+      minCol=Math.min(minCol,ix);minRow=Math.min(minRow,iy);
+    }
+    const gx=regions.colToGroup[minCol]||0,gy=regions.rowToGroup[minRow]||0,region=regions.regionsById.get(gy*regions.nx+gx)||{label:"A",c0:0,r0:0};
+    const text=`${region.label} ${Math.max(0,minCol-region.c0)}, ${Math.max(0,minRow-region.r0)}`,tx=it.minX+pad,ty=it.minY+pad,tw=c.measureText(text).width+4,th=nfs+3;
+    c.fillStyle="rgba(11,17,24,.65)";c.fillRect(tx-1.5,ty-1,tw,th);
+    c.fillStyle="rgba(255,255,255,.92)";c.fillText(text,tx,ty);
+  }
+}
 c.strokeStyle="rgba(255,255,255,.36)";c.lineWidth=1/z;c.beginPath();c.moveTo(-w/2,-h/2);c.lineTo(w/2,h/2);c.moveTo(w/2,-h/2);c.lineTo(-w/2,h/2);c.stroke();
 c.strokeStyle="rgba(255,255,255,.75)";c.lineWidth=1.2/z;c.beginPath();c.arc(0,0,Math.max(0,Math.min(w,h)/2-(2/z)),0,Math.PI*2);c.stroke();
 if(!((isMaskMode()||isCellEditMode())&&sel)){
-const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),baseFs=Math.max(6,st.textSize),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(w)} x ${Math.round(h)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`],maxW=Math.max(20,w-6),localRect={x:-w/2,y:-h/2,width:w,height:h},hbs=hiddenCellBoxes(localRect,cellX,cellY,hs),freeRects=computeFreeRects(localRect,cellX,cellY,hs),layout=chooseTextLayout(localRect,ls,(t,fs)=>{c.font=`${fs}px ${fontFamilyCss(st.fontFamily)}`;return c.measureText(t).width},maxW,baseFs,hbs,freeRects);
+const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),baseFs=Math.max(6,st.textSize),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),pct=fillPercent(wm,hm,r.areaM2Px),ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(w)} x ${Math.round(h)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`],maxW=Math.max(20,w-6),localRect={x:-w/2,y:-h/2,width:w,height:h},hbs=hiddenCellBoxes(localRect,cellX,cellY,hs),freeRects=computeFreeRects(localRect,cellX,cellY,hs),layout=chooseTextLayout(localRect,ls,(t,fs)=>{c.font=`${fs}px ${fontFamilyCss(st.fontFamily)}`;return c.measureText(t).width},maxW,baseFs,hbs,freeRects);
 c.textAlign="center";c.textBaseline="middle";c.font=`${layout.fs}px ${fontFamilyCss(st.fontFamily)}`;
 c.fillStyle="rgba(11,17,24,.6)";c.fillRect(layout.textLeft,layout.textTop,layout.tw,layout.th);c.fillStyle="rgba(255,255,255,.95)";for(let i=0;i<ls.length;i++)c.fillText(ls[i],layout.textX,layout.sy+i*layout.lh,maxW);
 }
 }
+if(maskedClip)c.restore();
+const showRegionsOverlay=!!(regions&&st.mode==="regions"&&r.id===st.hoverRect);
+if(showRegionsOverlay){
+    const regionLabelFs=9;
+    c.save();
+    for(const rg of regions.regionsById.values()){
+      const ci=(rg.gy*regions.nx+rg.gx)%REGION_ZONE_COLORS.length,col=REGION_ZONE_COLORS[ci];
+      const x0=-w/2+regions.xCutsPx[rg.gx],x1=-w/2+regions.xCutsPx[rg.gx+1],y0=-h/2+regions.yCutsPx[rg.gy],y1=-h/2+regions.yCutsPx[rg.gy+1];
+      c.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},.16)`;
+      c.fillRect(x0,y0,Math.max(0,x1-x0),Math.max(0,y1-y0));
+    }
+    c.restore();
+    c.save();
+    c.strokeStyle="rgba(113,215,255,.85)";
+    c.lineWidth=Math.max(1,1.2/z);
+    c.setLineDash([5/z,4/z]);
+    c.beginPath();
+    for(let i=1;i<regions.xCutsPx.length-1;i++){const u=regions.xCutsPx[i];c.moveTo(-w/2+u,-h/2);c.lineTo(-w/2+u,h/2)}
+    for(let i=1;i<regions.yCutsPx.length-1;i++){const v=regions.yCutsPx[i];c.moveTo(-w/2,-h/2+v);c.lineTo(w/2,-h/2+v)}
+    c.stroke();
+    c.setLineDash([]);
+    c.restore();
+    c.save();
+    c.font=`${Math.max(8,regionLabelFs)}px ${fontFamilyCss(st.fontFamily)}`;
+    c.textAlign="left";c.textBaseline="top";
+    for(const rg of regions.regionsById.values()){
+      const tx=-w/2+Math.max(2,regions.xCutsPx[rg.gx]+2),ty=-h/2+Math.max(2,regions.yCutsPx[rg.gy]+2),tw=c.measureText(rg.label).width+4,th=Math.max(10,regionLabelFs+2);
+      c.fillStyle="rgba(11,17,24,.72)";c.fillRect(tx-1,ty-1,tw,th);
+      c.fillStyle="rgba(113,215,255,.96)";c.fillText(rg.label,tx,ty);
+    }
+    c.restore();
+}
 c.strokeStyle=sel?"#ffe08a":"rgba(255,255,255,.85)";c.lineWidth=sel?7/z:1/z;
+c.lineCap="butt";
+c.lineJoin="miter";
 const borderSegs=getVisibleBoundarySegmentsLocal(w,h,cellX,cellY,hs);
 if(borderSegs.length){
-  c.beginPath();
-  for(const s of borderSegs){c.moveTo(s.x1,s.y1);c.lineTo(s.x2,s.y2)}
-  c.stroke();
+  if(sel){
+    const eps=0.001,outer=[],inner=[];
+    for(const s of borderSegs){
+      const left=Math.abs(s.x1+w/2)<eps&&Math.abs(s.x2+w/2)<eps,right=Math.abs(s.x1-w/2)<eps&&Math.abs(s.x2-w/2)<eps,top=Math.abs(s.y1+h/2)<eps&&Math.abs(s.y2+h/2)<eps,bottom=Math.abs(s.y1-h/2)<eps&&Math.abs(s.y2-h/2)<eps;
+      (left||right||top||bottom?outer:inner).push(s);
+    }
+    if(inner.length){
+      c.save();c.strokeStyle="rgba(255,224,138,.95)";c.lineWidth=(sel?7/z:1/z)/2;c.lineCap="square";c.lineJoin="miter";c.beginPath();
+      for(const s of inner){c.moveTo(s.x1,s.y1);c.lineTo(s.x2,s.y2)}
+      c.stroke();c.restore();
+    }
+    if(outer.length){
+      c.beginPath();
+      for(const s of outer){c.moveTo(s.x1,s.y1);c.lineTo(s.x2,s.y2)}
+      c.stroke();
+    }
+  }else{
+    c.beginPath();
+    for(const s of borderSegs){c.moveTo(s.x1,s.y1);c.lineTo(s.x2,s.y2)}
+    c.stroke();
+  }
 }
 c.restore();}
 function drawMaskOverlay(c,z){if(!isMaskMode())return;const r=cur();if(!r)return;const axes=getMaskNodeAxes(r),dot=Math.max(1.8,2.6/z);
@@ -564,7 +707,7 @@ const bounds=getComponentBoundarySegments(r,cx,cy,topo);c.strokeStyle="rgba(255,
 for(const s of bounds){c.beginPath();c.moveTo(s.p1.x,s.p1.y);c.lineTo(s.p2.x,s.p2.y);c.stroke()}
 if(st.cellHover&&st.cellHover.p1&&st.cellHover.p2){c.strokeStyle=st.cellHover.canToggle?(st.cellHover.exists?"rgba(255,205,92,.95)":"rgba(94,220,143,.95)"):"rgba(255,106,106,.95)";c.lineWidth=Math.max(2.4,3.4/z);c.beginPath();c.moveTo(st.cellHover.p1.x,st.cellHover.p1.y);c.lineTo(st.cellHover.p2.x,st.cellHover.p2.y);c.stroke()}
 c.restore()}
-function drawContentBounds(c,z){if(!st.rects.length)return;let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.round(maxX-minX),h=Math.round(maxY-minY);c.save();c.strokeStyle="rgba(255,255,255,.5)";c.lineWidth=1.5/z;c.setLineDash([]);c.strokeRect(minX,minY,w,h);const label=`${w} x ${h} px`;c.font=`${Math.max(10,12/z)}px Segoe UI`;const tw=c.measureText(label).width+10;const th=Math.max(16,16/z);c.fillStyle="rgba(15,19,24,.85)";c.fillRect(minX,minY-th-4/z,tw,th);c.fillStyle="rgba(255,255,255,.92)";c.textAlign="left";c.textBaseline="middle";c.fillText(label,minX+5,minY-th/2-4/z);c.restore()}
+function drawContentBounds(c,z){if(!st.rects.length)return;let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABBMasked(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.round(maxX-minX),h=Math.round(maxY-minY);c.save();c.strokeStyle="rgba(255,255,255,.5)";c.lineWidth=1.5/z;c.setLineDash([]);c.strokeRect(minX,minY,w,h);const label=`${w} x ${h} px`;c.font=`${Math.max(10,12/z)}px \"Segoe UI\", Arial`;const tw=c.measureText(label).width+10;const th=Math.max(16,16/z);c.fillStyle="rgba(15,19,24,.85)";c.fillRect(minX,minY-th-4/z,tw,th);c.fillStyle="rgba(255,255,255,.92)";c.textAlign="left";c.textBaseline="middle";c.fillText(label,minX+5,minY-th/2-4/z);c.restore()}
 function drawGrid(){const step=64,lt=s2w(0,0),rb=s2w(cv.clientWidth,cv.clientHeight),sx=Math.floor(lt.x/step)*step,ex=Math.ceil(rb.x/step)*step,sy=Math.floor(lt.y/step)*step,ey=Math.ceil(rb.y/step)*step;
 ctx.save();ctx.strokeStyle="rgba(147,177,207,.09)";ctx.lineWidth=1;for(let x=sx;x<=ex;x+=step){const px=w2s(x,0).x;ctx.beginPath();ctx.moveTo(Math.round(px)+.5,0);ctx.lineTo(Math.round(px)+.5,cv.clientHeight);ctx.stroke()}
 for(let y=sy;y<=ey;y+=step){const py=w2s(0,y).y;ctx.beginPath();ctx.moveTo(0,Math.round(py)+.5);ctx.lineTo(cv.clientWidth,Math.round(py)+.5);ctx.stroke()}ctx.restore()}
@@ -574,7 +717,7 @@ function drawDistanceGuide(){if(!st.dg)return;
 const drawDim=(g,color,labelShift)=>{
   let{x1,y1,x2,y2,v,axis}=g;const p1=w2s(x1,y1),p2=w2s(x2,y2),t=`${Math.round(v)} px`;
   ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
-  ctx.font="12px Segoe UI";const tw=ctx.measureText(t).width+10;ctx.fillStyle="rgba(15,19,24,.85)";
+  ctx.font="12px \"Segoe UI\", Arial";const tw=ctx.measureText(t).width+10;ctx.fillStyle="rgba(15,19,24,.85)";
   if(axis==="y"){const m=(p1.y+p2.y)/2;ctx.beginPath();ctx.moveTo(p1.x-7,p1.y);ctx.lineTo(p1.x+7,p1.y);ctx.moveTo(p2.x-7,p2.y);ctx.lineTo(p2.x+7,p2.y);ctx.stroke();ctx.fillRect(p1.x+8+labelShift,m-8,tw,16);ctx.fillStyle=color;ctx.textAlign="left";ctx.textBaseline="middle";ctx.fillText(t,p1.x+13+labelShift,m);}
   else{if(p1.x>p2.x){const tx=p1.x;p1.x=p2.x;p2.x=tx}const m=(p1.x+p2.x)/2;ctx.beginPath();ctx.moveTo(p1.x,p1.y-7);ctx.lineTo(p1.x,p1.y+7);ctx.moveTo(p2.x,p2.y-7);ctx.lineTo(p2.x,p2.y+7);ctx.stroke();ctx.fillRect(m-tw/2,p1.y-24-labelShift,tw,16);ctx.fillStyle=color;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(t,m,p1.y-16-labelShift);}
   ctx.restore();
@@ -599,8 +742,10 @@ window.addEventListener("mousemove",e=>{const b=cv.getBoundingClientRect(),sx=e.
 if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();return}
 if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();listRects()}const r=h||cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();return}
 if(isCellEditMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();listRects()}const r=h||cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();return}
+if(st.mode==="regions"){const h=hit(p.x,p.y),hid=h?h.id:null;if(st.hoverRect!==hid){st.hoverRect=hid;render()}}
 if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.width=Math.abs(p.x-d.sx);d.height=Math.abs(p.y-d.sy);render();return}
 if(st.drag){const r=st.rects.find(v=>v.id===st.drag.id);if(!r)return;const nx=st.drag.rx+(p.x-st.drag.sx),ny=st.drag.ry+(p.y-st.drag.sy),sn=snap(nx,ny,r.id,r.width,r.height,e.ctrlKey||st.keys.ctrl);r.x=sn.x;r.y=sn.y;st.g.x=sn.gx;st.g.y=sn.gy;st.dg=sn.dg;syncProps();listRects();render()}});
+cv.addEventListener("mouseleave",()=>{if(st.mode==="regions"&&st.hoverRect!=null){st.hoverRect=null;render()}});
 window.addEventListener("mouseup",()=>{if(st.pan){st.pan=false;st.panS=null}let created=null;if(st.draft){const d=st.draft;if(d.width>=1&&d.height>=1){created=mk(d.x,d.y,d.width,d.height);st.rects.push(created)}st.draft=null}st.drag=null;st.g.x=null;st.g.y=null;st.dg=null;if(created){setMode("select");selRect(created.id)}render()});
 cv.addEventListener("wheel",e=>{e.preventDefault();const b=cv.getBoundingClientRect();zoomAt(e.clientX-b.left,e.clientY-b.top,st.zoom*(e.deltaY<0?1.1:.9))},{passive:false});
 const touchDist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
@@ -625,21 +770,24 @@ const linkSrc=Array.isArray(r.cellLinks)?r.cellLinks:[],linkSet=new Set();
 for(const k of linkSrc){const p=parseLinkKey(k);if(!p)continue;const a2=mapIndex(p.a),b2=mapIndex(p.b);if(a2<0||b2<0||a2===b2)continue;linkSet.add(mkLinkKey(a2,b2))}
 const c={...r,id:st.next++,name:`${r.name} mirror`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,cellLinks:[...linkSet],hiddenCells:[...hiddenSet]};
 st.rects.push(c);selRect(c.id)}
-function fit(){if(!st.rects.length){st.camX=0;st.camY=0;st.zoom=1;render();return}let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
+function fit(){if(!st.rects.length){st.camX=0;st.camY=0;st.zoom=1;render();return}let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABBMasked(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
 const w=Math.max(1,maxX-minX),h=Math.max(1,maxY-minY),pad=80;st.zoom=zc(Math.min((cv.clientWidth-pad)/w,(cv.clientHeight-pad)/h));st.camX=(minX+maxX)/2;st.camY=(minY+maxY)/2;render()}
-function syncProps(){const r=cur(),on=!!r;[el.name,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy].forEach(v=>v.disabled=!on);el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(!r){el.name.value="";el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто контраст: вкл";el.cx.value=el.cy.value="128";return}
-metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто контраст: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
+function syncProps(){const r=cur(),on=!!r;[el.name,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.numCells].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){el.name.value="";el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.numCells.checked=false;if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
+metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;el.numCells.checked=!!r.numberCells;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
 function listRects(){if(!st.rects.length){el.list.innerHTML="<p class='hint' style='margin:0'>Прямоугольников пока нет.</p>";return}el.list.innerHTML="";for(const r of st.rects){const d=document.createElement("div");d.className="rect-item"+(r.id===st.sel?" active":"");d.innerHTML=`<strong>${r.name}</strong><br>${r.width}x${r.height} @ (${r.x}, ${r.y})`;d.onclick=()=>selRect(r.id);el.list.appendChild(d)}}
-function applyProps(){const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто контраст: ${r.autoContrastB!==false?"вкл":"выкл"}`;listRects();render()}
+function applyProps(){const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));r.areaM2Px=Math.max(1,evalExpr(el.areaM2.value,r.areaM2Px||65536));pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));r.numberCells=!!el.numCells.checked;el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;listRects();render()}
 [el.name,el.x,el.y,el.rot,el.scale,el.a,el.cx,el.cy].forEach(v=>v.addEventListener("input",applyProps));
-el.b.addEventListener("input",()=>{const r=cur();if(!r)return;r.autoContrastB=false;r.colorB=el.b.value||r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто контраст: выкл";listRects();render()});
+el.b.addEventListener("input",()=>{const r=cur();if(!r)return;r.autoContrastB=false;r.colorB=el.b.value||r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: выкл";listRects();render()});
+[el.numCells].forEach(v=>v.addEventListener("change",applyProps));
 [el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.cx,el.cy].forEach(v=>{v.addEventListener("change",()=>{applyProps();syncProps()});v.addEventListener("keydown",e=>{if(e.key==="Enter"){applyProps();syncProps()}})});
-const applyTextSettings=()=>{st.textSize=Math.max(6,evalExpr(el.textSize.value,st.textSize||12));st.fontFamily=(el.font.value||"Segoe UI").trim()||"Segoe UI";render()};
+const applyTextSettings=()=>{st.textSize=Math.max(6,evalExpr(el.textSize.value,st.textSize||12));st.fontFamily=(el.font.value||"Segoe UI, Arial").trim()||"Segoe UI, Arial";render()};
 [el.textSize,el.font].forEach(v=>v.addEventListener("input",applyTextSettings));
+const applyAreaM2Settings=()=>{const r=cur();if(!r)return;r.areaM2Px=Math.max(1,evalExpr(el.areaM2.value,r.areaM2Px||65536));render()};
+if(el.areaM2){el.areaM2.addEventListener("change",()=>{applyAreaM2Settings();syncProps()});el.areaM2.addEventListener("keydown",e=>{if(e.key==="Enter"){applyAreaM2Settings();syncProps()}})}
 el.textSize.addEventListener("change",()=>{applyTextSettings();syncProps()});
 el.textSize.addEventListener("keydown",e=>{if(e.key==="Enter"){applyTextSettings();syncProps()}});
 el.font.addEventListener("change",()=>{applyTextSettings();syncProps()});
-el.toolSelect.onclick=()=>setMode("select");el.toolDraw.onclick=()=>setMode("draw");if(el.toolMaskAdd)el.toolMaskAdd.onclick=()=>setMode("maskAdd");if(el.toolMaskSub)el.toolMaskSub.onclick=()=>setMode("maskSub");if(el.toolCellEdit)el.toolCellEdit.onclick=()=>setMode("cellEdit");if(el.newProject)el.newProject.onclick=newProject;el.btnCopy.onclick=dupSel;if(el.btnCopyMirror)el.btnCopyMirror.onclick=dupMirrorSel;el.btnDelete.onclick=delSel;if(el.btnAutoContrast)el.btnAutoContrast.onclick=()=>{const r=cur();if(!r)return;r.autoContrastB=!(r.autoContrastB!==false);if(r.autoContrastB)r.colorB=autoContrast(r.colorA);syncProps();listRects();render()};el.randColor.onclick=()=>{const r=cur();if(!r)return;r.colorA=randomColor();if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);syncProps();listRects();render()};el.zoomIn.onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,st.zoom*1.2);el.zoomOut.onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,st.zoom/1.2);el.zoomReset.onclick=()=>{st.zoom=1;render()};el.zoomFit.onclick=fit;
+el.toolSelect.onclick=()=>setMode("select");el.toolDraw.onclick=()=>setMode("draw");if(el.toolMaskAdd)el.toolMaskAdd.onclick=()=>setMode("maskAdd");if(el.toolMaskSub)el.toolMaskSub.onclick=()=>setMode("maskSub");if(el.toolCellEdit)el.toolCellEdit.onclick=()=>setMode("cellEdit");if(el.toolRegions)el.toolRegions.onclick=()=>setMode("regions");if(el.newProject)el.newProject.onclick=newProject;el.btnCopy.onclick=dupSel;if(el.btnCopyMirror)el.btnCopyMirror.onclick=dupMirrorSel;el.btnDelete.onclick=delSel;if(el.btnAutoContrast)el.btnAutoContrast.onclick=()=>{const r=cur();if(!r)return;r.autoContrastB=!(r.autoContrastB!==false);if(r.autoContrastB)r.colorB=autoContrast(r.colorA);syncProps();listRects();render()};el.randColor.onclick=()=>{const r=cur();if(!r)return;r.colorA=randomColor();if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);syncProps();listRects();render()};el.zoomIn.onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,st.zoom*1.2);el.zoomOut.onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,st.zoom/1.2);el.zoomReset.onclick=()=>{st.zoom=1;render()};el.zoomFit.onclick=fit;
 const isMobile=()=>window.matchMedia("(max-width:900px)").matches;
 const setSideOpen=open=>{if(!isMobile())return;el.side.classList.toggle("open",open);el.overlay.classList.toggle("open",open)};
 el.mobileMenu.onclick=()=>setSideOpen(!el.side.classList.contains("open"));
@@ -651,6 +799,7 @@ el.mToolDraw.onclick=()=>el.toolDraw.click();
 if(el.mToolMaskAdd)el.mToolMaskAdd.onclick=()=>el.toolMaskAdd.click();
 if(el.mToolMaskSub)el.mToolMaskSub.onclick=()=>el.toolMaskSub.click();
 if(el.mToolCellEdit)el.mToolCellEdit.onclick=()=>el.toolCellEdit.click();
+if(el.mToolRegions)el.mToolRegions.onclick=()=>el.toolRegions.click();
 el.mCopy.onclick=()=>el.btnCopy.click();
 if(el.mCopyMirror)el.mCopyMirror.onclick=()=>el.btnCopyMirror.click();
 el.mDelete.onclick=()=>el.btnDelete.click();
@@ -768,6 +917,7 @@ window.addEventListener("keyup",e=>{if(e.key===" ")st.keys.space=false;if(e.key=
 setMode(st.mode);
 if(!restoreAutoSave()){const a=mk(-180,-90,260,180);a.name="Main";const b=mk(180,-30,220,160);b.name="Side";b.colorA="#db8f37";b.colorB=autoContrast(b.colorA);st.rects.push(a,b);selRect(a.id);resize();listRects();syncProps();fit()}else{resize();listRects();syncProps();}
 </script></body></html>
+
 
 
 
