@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Редактор масок LED экранов</title>
+<style>
+:root{--bg:#0f1318;--p:#1a2028;--p2:#242d37;--t:#e8edf3;--m:#9aabbe;--b:#324150;--cb:#0b1118;--f:"Segoe UI","Noto Sans",sans-serif}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;font-family:var(--f);color:var(--t);background:var(--bg);user-select:none;-webkit-user-select:none}input,textarea{user-select:text;-webkit-user-select:text}
+.app{display:grid;grid-template-rows:auto 1fr;height:100%}.toolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:linear-gradient(180deg,#1b232c,#141b22);border-bottom:1px solid var(--b);flex-wrap:wrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.group{display:flex;gap:6px;align-items:center;padding-right:8px;margin-right:4px;border-right:1px solid var(--b)}.group:last-child{border-right:none}
+button,input{font:inherit}button{border:1px solid var(--b);background:var(--p2);color:var(--t);padding:7px 10px;border-radius:8px;cursor:pointer}button.active{background:#184238;border-color:#2a8a72}button.danger{background:#4b2525;border-color:#9d5050}
+.icon-btn{width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.icon-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.toolbar-input{min-width:170px;border:1px solid var(--b);background:#0e151c;color:var(--t);border-radius:8px;padding:7px 8px}
+.mobile-only{display:none}
+.install-btn{display:none}
+.mobile-menu-group{margin-left:auto;padding-right:0;margin-right:0;border-right:none}
+.mobile-hide{display:flex}
+.side-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.side-close{display:none}
+.mobile-dock{display:none}
+.side-overlay{display:none}
+.install-banner{position:fixed;left:10px;right:10px;bottom:70px;z-index:40;display:none;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--b);border-radius:12px;background:rgba(20,27,35,.96);font-size:12px;color:var(--t)}
+.install-banner.show{display:flex}
+.install-banner button{padding:6px 10px}
+.main{display:grid;grid-template-columns:1fr 320px;min-height:0}.canvas-wrap{position:relative;background:radial-gradient(circle at 15% 15%,rgba(43,196,160,.09),transparent 38%),radial-gradient(circle at 80% 10%,rgba(74,200,255,.08),transparent 35%),var(--cb);min-height:0}
+canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.canvas-wrap[data-mode="select"] canvas{cursor:default}.canvas-wrap[data-panning="1"] canvas{cursor:grabbing}
+.side{border-left:1px solid var(--b);background:linear-gradient(180deg,#171f27,#121820);padding:12px;overflow:auto}.panel-title{margin:0 0 10px;font-size:15px}.hint{margin:0 0 12px;color:var(--m);font-size:12px;line-height:1.35}
+.field{margin-bottom:9px}.field label{display:block;margin-bottom:4px;font-size:12px;color:var(--m)}.field input{width:100%;border:1px solid var(--b);background:#0e151c;color:var(--t);border-radius:8px;padding:7px 8px}.field input[type="color"]{padding:2px;height:36px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rect-list{margin-top:14px;border-top:1px solid var(--b);padding-top:10px}.rect-item{border:1px solid var(--b);border-radius:8px;background:#0f1720;padding:8px;font-size:12px;margin-bottom:7px;cursor:pointer}.rect-item.active{border-color:#88a6c6;background:#1a2634}
+@media (max-width:900px){
+  .main{grid-template-columns:1fr;grid-template-rows:1fr}
+  .group{padding-right:6px;margin-right:2px}
+  .mobile-hide{display:none!important}
+  .icon-btn{width:42px;height:42px}
+  .toolbar button{min-height:42px}
+  .toolbar-input{min-width:140px}
+  .mobile-only{display:inline-flex}
+  .install-btn{display:inline-flex}
+  .side{position:fixed;top:0;right:0;bottom:0;width:min(88vw,360px);max-height:none;border-left:1px solid var(--b);border-top:none;z-index:30;transform:translateX(105%);transition:transform .2s ease}
+  .side.open{transform:translateX(0)}
+  .side-close{display:inline-flex}
+  .side-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:25}
+  .side-overlay.open{display:block}
+  .mobile-dock{display:flex;position:fixed;z-index:35;background:rgba(20,27,35,.94);border:1px solid var(--b);border-radius:14px;padding:6px;gap:6px;backdrop-filter:blur(6px)}
+}
+@media (max-width:900px) and (orientation:portrait){
+  .mobile-dock{left:10px;top:50%;bottom:auto;transform:translateY(-50%);flex-direction:column;max-height:calc(100vh - 24px);overflow-y:auto;overflow-x:hidden}
+}
+@media (max-width:900px) and (orientation:landscape){
+  .mobile-dock{left:50%;top:auto;bottom:10px;transform:translateX(-50%);flex-direction:row;max-width:calc(100vw - 20px);overflow-x:auto;overflow-y:hidden}
+}
+</style></head><body>
+<div class="app"><div class="toolbar">
+<div class="group"><span style="font-size:12px;color:var(--m)">Проект</span><input id="projectName" class="toolbar-input" type="text" value="project"></div>
+<div class="group mobile-hide">
+  <button id="toolSelect" class="active icon-btn" title="Выделение" aria-label="Выделение">
+    <svg viewBox="0 0 24 24"><path d="M4 4l7 16 2-7 7-2z"/></svg>
+  </button>
+  <button id="toolDraw" class="icon-btn" title="Добавление" aria-label="Добавление">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+  <button id="toolMaskAdd" class="icon-btn" title="+ Маска (скрыть)" aria-label="+ Маска">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M19 4v4M17 6h4"/></svg>
+  </button>
+  <button id="toolMaskSub" class="icon-btn" title="- Маска (показать)" aria-label="- Маска">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M17 6h4"/></svg>
+  </button>
+  <button id="toolCellEdit" class="icon-btn" title="Объединение/деление клеток" aria-label="Клетки">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M11 7h2M7 11v2M11 17h2M17 11v2"/></svg>
+  </button>
+</div>
+<div class="group mobile-hide">
+  <button id="btnCopy" class="icon-btn" title="Копировать" aria-label="Копировать">
+    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="10" height="10" rx="2"/><path d="M5 15V5h10"/></svg>
+  </button>
+  <button id="btnCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить">
+    <svg viewBox="0 0 24 24"><rect x="3" y="6" width="7" height="12" rx="1.5"/><rect x="14" y="6" width="7" height="12" rx="1.5"/><path d="M12 4v16"/><path d="M11 9l-2 3 2 3M13 9l2 3-2 3"/></svg>
+  </button>
+  <button id="btnDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить">
+    <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 12h8l1-12"/><path d="M10 11v5M14 11v5"/></svg>
+  </button>
+</div>
+<div class="group mobile-hide">
+  <button id="zoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить">
+    <svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L20 20"/><path d="M7 10h6"/></svg>
+  </button>
+  <button id="zoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить">
+    <svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L20 20"/><path d="M10 7v6M7 10h6"/></svg>
+  </button>
+  <button id="zoomReset">100%</button>
+  <button id="zoomFit" class="icon-btn" title="Вписать" aria-label="Вписать">
+    <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  </button>
+  <span id="zoomLabel" style="font-size:12px;color:var(--m)">100%</span>
+</div>
+<div class="group">
+  <button id="newProject" class="icon-btn" title="Новый проект (очистить поле)" aria-label="Новый проект">
+    <svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></svg>
+  </button>
+  <button id="saveProject" class="icon-btn" title="Сохранить JSON" aria-label="Сохранить JSON">
+    <svg viewBox="0 0 24 24"><path d="M5 4h12l2 2v14H5z"/><path d="M8 4v6h8V4"/><path d="M9 17h6"/></svg>
+  </button>
+  <button id="loadProject" class="icon-btn" title="Загрузить JSON" aria-label="Загрузить JSON">
+    <svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 16V11"/><path d="M10 13l2-2 2 2"/></svg>
+  </button>
+  <button id="exportSvg" class="icon-btn" title="Экспорт SVG" aria-label="Экспорт SVG">
+    <svg viewBox="0 0 24 24"><text x="12" y="11.8" text-anchor="middle" font-size="12.8" font-weight="700" font-family="Segoe UI, Arial, sans-serif" fill="currentColor" stroke="none">SVG</text><path d="M12 14.2v6"/><path d="M9.2 17.5L12 20.3l2.8-2.8"/></svg>
+  </button>
+  <button id="exportPng" class="icon-btn" title="Экспорт PNG" aria-label="Экспорт PNG">
+    <svg viewBox="0 0 24 24"><text x="12" y="11.8" text-anchor="middle" font-size="12.8" font-weight="700" font-family="Segoe UI, Arial, sans-serif" fill="currentColor" stroke="none">PNG</text><path d="M12 14.2v6"/><path d="M9.2 17.5L12 20.3l2.8-2.8"/></svg>
+  </button>
+</div>
+<div class="group mobile-only mobile-menu-group"><button id="mobileMenu" class="icon-btn" title="Панель свойств" aria-label="Панель свойств"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div>
+<div class="group mobile-only"><button id="installApp" class="icon-btn install-btn" title="Установить приложение" aria-label="Установить приложение"><svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="M8.5 9.5L12 13l3.5-3.5"/><path d="M5 15v4h14v-4"/></svg></button></div>
+<input id="fileInput" type="file" accept="application/json" style="display:none"></div>
+<div class="main"><div id="canvasWrap" class="canvas-wrap" data-mode="select"><canvas id="editorCanvas"></canvas></div>
+<aside id="sidePanel" class="side"><div class="side-head"><h2 class="panel-title">Свойства прямоугольника</h2><button id="sideClose" class="icon-btn side-close" title="Закрыть" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+<p class="hint">Ctrl отключает магнит. ПКМ или Space+ЛКМ панорамируют. На тач: 1 палец — объект/пан, 2 пальца — масштаб и пан.</p>
+<p class="hint" style="margin-top:-6px">Инструменты «+ Маска» и «- Маска»: клики по узлам сетки, замкните полигон кликом по первой точке (или Enter). Esc очищает текущий контур.</p>
+<div style="margin:8px 0 10px;padding:8px;border:1px solid var(--b);border-radius:8px;background:#0f1720">
+  <div style="font-size:12px;color:var(--m);margin-bottom:6px">Глобальные настройки текста (для всех прямоугольников)</div>
+  <div class="grid2"><div class="field"><label for="globalTextSize">Размер текста (px)</label><input id="globalTextSize" type="text" inputmode="decimal" spellcheck="false" value="12"></div><div class="field"><label for="globalFont">Шрифт</label><input id="globalFont" type="text" spellcheck="false" value="Segoe UI"></div></div>
+</div>
+<div class="field"><label for="propName">Имя</label><input id="propName" type="text"></div>
+<div class="grid2"><div class="field"><label for="propX">X (px)</label><input id="propX" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propY">Y (px)</label><input id="propY" type="text" inputmode="decimal" spellcheck="false"></div></div>
+<div class="field"><label for="propRot">Поворот (°)</label><input id="propRot" type="text" inputmode="decimal" spellcheck="false" value="0"></div>
+<div class="grid2"><div class="field"><label for="propWm">Ширина (м)</label><input id="propWm" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propHm">Высота (м)</label><input id="propHm" type="text" inputmode="decimal" spellcheck="false"></div></div><div class="field"><label for="propScale">Коэффициент (px/м)</label><input id="propScale" type="text" inputmode="decimal" spellcheck="false" value="256"></div>
+<div class="grid2"><div class="field"><label for="propColorA">Основной цвет</label><input id="propColorA" type="color" value="#2fcaaf"></div><div class="field"><label for="propColorB">Контрастный</label><input id="propColorB" type="color" value="#1f3f7e"></div></div><div class="field"><button id="btnAutoContrast" type="button" style="width:100%">Авто контраст: вкл</button></div><div class="field"><button id="btnRandomColor" type="button" style="width:100%">Случайный цвет</button></div>
+<div class="grid2"><div class="field"><label for="propCellX">Размер клетки X</label><input id="propCellX" type="text" inputmode="decimal" spellcheck="false" value="128"></div><div class="field"><label for="propCellY">Размер клетки Y</label><input id="propCellY" type="text" inputmode="decimal" spellcheck="false" value="128"></div></div>
+<div class="field"><button id="btnClearMasks" type="button" style="width:100%">Удалить все маски</button></div>
+<div class="rect-list" id="rectList"></div></aside></div></div>
+<div id="sideOverlay" class="side-overlay"></div>
+<div id="installBanner" class="install-banner">
+  <span id="installBannerText">Установить приложение на главный экран?</span>
+  <div style="display:flex;gap:6px">
+    <button id="installBannerAction" type="button">Установить</button>
+    <button id="installBannerClose" type="button">Позже</button>
+  </div>
+</div>
+<div class="mobile-dock">
+  <button id="mToolSelect" class="icon-btn" title="Выделение" aria-label="Выделение"><svg viewBox="0 0 24 24"><path d="M4 4l7 16 2-7 7-2z"/></svg></button>
+  <button id="mToolDraw" class="icon-btn" title="Добавление" aria-label="Добавление"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button id="mToolMaskAdd" class="icon-btn" title="+ Маска (скрыть)" aria-label="+ Маска"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M19 4v4M17 6h4"/></svg></button>
+  <button id="mToolMaskSub" class="icon-btn" title="- Маска (показать)" aria-label="- Маска"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M17 6h4"/></svg></button>
+  <button id="mToolCellEdit" class="icon-btn" title="Объединение/деление клеток" aria-label="Клетки"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M11 7h2M7 11v2M11 17h2M17 11v2"/></svg></button>
+  <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="10" height="10" rx="2"/><path d="M5 15V5h10"/></svg></button>
+  <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="7" height="12" rx="1.5"/><rect x="14" y="6" width="7" height="12" rx="1.5"/><path d="M12 4v16"/><path d="M11 9l-2 3 2 3M13 9l2 3-2 3"/></svg></button>
+  <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 12h8l1-12"/><path d="M10 11v5M14 11v5"/></svg></button>
+  <button id="mZoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L20 20"/><path d="M7 10h6"/></svg></button>
+  <button id="mZoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L20 20"/><path d="M10 7v6M7 10h6"/></svg></button>
+</div>
+<script>
+const $=id=>document.getElementById(id),cv=$("editorCanvas"),ctx=cv.getContext("2d"),wrap=$("canvasWrap");
+const el={project:$("projectName"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),side:$("sidePanel"),sideClose:$("sideClose"),overlay:$("sideOverlay"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),expSvg:$("exportSvg"),exp:$("exportPng"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),btnClearMasks:$("btnClearMasks"),list:$("rectList")};
+const st={rects:[],sel:null,mode:"select",camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Segoe UI",projectName:"project",maskPath:[],maskHover:null,cellHover:null};
+let deferredInstallPrompt=null;
+const INSTALL_HINT_KEY="led-mask-editor-install-hint-dismissed";
+const w2s=(x,y)=>({x:(x-st.camX)*st.zoom+cv.clientWidth/2,y:(y-st.camY)*st.zoom+cv.clientHeight/2});
+const s2w=(x,y)=>({x:(x-cv.clientWidth/2)/st.zoom+st.camX,y:(y-cv.clientHeight/2)/st.zoom+st.camY});
+const zc=v=>Math.min(8,Math.max(window.matchMedia("(max-width:900px)").matches?0.01:0.1,v));
+const hexRgb=h=>{const n=h.replace("#","");const v=n.length===3?n.split("").map(x=>x+x).join(""):n;const num=parseInt(v,16);return{r:(num>>16)&255,g:(num>>8)&255,b:num&255}};
+const rgbToHsl=(r,g,b)=>{const rn=r/255,gn=g/255,bn=b/255,max=Math.max(rn,gn,bn),min=Math.min(rn,gn,bn),d=max-min;let h=0,s=0,l=(max+min)/2;if(d!==0){s=l>0.5?d/(2-max-min):d/(max+min);switch(max){case rn:h=((gn-bn)/d+(gn<bn?6:0));break;case gn:h=((bn-rn)/d+2);break;default:h=((rn-gn)/d+4);break}h*=60}return{h,s,l}};
+const hslToRgb=(h,s,l)=>{const c=(1-Math.abs(2*l-1))*s,hh=((h%360)+360)%360/60,x=c*(1-Math.abs(hh%2-1));let r1=0,g1=0,b1=0;if(hh<1){r1=c;g1=x}else if(hh<2){r1=x;g1=c}else if(hh<3){g1=c;b1=x}else if(hh<4){g1=x;b1=c}else if(hh<5){r1=x;b1=c}else{r1=c;b1=x}const m=l-c/2,to255=v=>Math.max(0,Math.min(255,Math.round((v+m)*255)));return{r:to255(r1),g:to255(g1),b:to255(b1)}};
+const relLum=(r,g,b)=>{const f=v=>{const x=v/255;return x<=0.03928?x/12.92:Math.pow((x+0.055)/1.055,2.4)};return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b)};
+const contrastRatio=(a,b)=>{const l1=relLum(a.r,a.g,a.b),l2=relLum(b.r,b.g,b.b),mx=Math.max(l1,l2),mn=Math.min(l1,l2);return(mx+0.05)/(mn+0.05)};
+const rgbHex=({r,g,b})=>`#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`;
+const pickByContrast=(base,h,s,target)=>{let bestMeet=null,bestAny=null;for(let i=0;i<=100;i++){const l=i/100,cand=hslToRgb(h,s,l),cr=contrastRatio(base,cand),diff=Math.abs(cr-target);if(!bestAny||cr>bestAny.cr)bestAny={cand,cr};if(cr>=target&&(!bestMeet||diff<bestMeet.diff))bestMeet={cand,cr,diff}}return(bestMeet||bestAny).cand};
+const autoContrast=h=>{const target=4.5,base=hexRgb(h||"#2fcaaf"),hs=rgbToHsl(base.r,base.g,base.b),sat=Math.max(0.35,Math.min(0.9,0.6+hs.s*0.25));const hue1=hs.h+180,hue2=hs.h+150,hue3=hs.h+210;const c1=pickByContrast(base,hue1,sat,target),c2=pickByContrast(base,hue2,sat,target),c3=pickByContrast(base,hue3,sat,target);const d1=Math.abs(contrastRatio(base,c1)-target),d2=Math.abs(contrastRatio(base,c2)-target),d3=Math.abs(contrastRatio(base,c3)-target);const cand=d1<=d2&&d1<=d3?c1:(d2<=d3?c2:c3);return rgbHex(cand)};
+const shadeHex=(h,amount)=>{const {r,g,b}=hexRgb(h||"#2fcaaf");const clamp=v=>Math.max(0,Math.min(255,Math.round(v)));const mix=(c,target)=>clamp(c+(target-c)*amount);const rr=mix(r,amount>=0?255:0),gg=mix(g,amount>=0?255:0),bb=mix(b,amount>=0?255:0);return`#${rr.toString(16).padStart(2,"0")}${gg.toString(16).padStart(2,"0")}${bb.toString(16).padStart(2,"0")}`};
+const getOrigin=()=>{if(!st.rects.length)return{x:0,y:0};let x=1e9,y=1e9;for(const r of st.rects){x=Math.min(x,r.x);y=Math.min(y,r.y)}return{x,y}};
+const normalizeHiddenCells=v=>{if(!Array.isArray(v))return[];const out=[];const seen=new Set();for(const it of v){const s=String(it||"").trim();if(!/^\d+,\d+$/.test(s))continue;if(seen.has(s))continue;seen.add(s);out.push(s)}return out};
+const hiddenCache=new WeakMap();
+const getHiddenSet=r=>{if(!r)return new Set();const rec=hiddenCache.get(r);if(!rec||rec.src!==r.hiddenCells){const next={src:r.hiddenCells,set:new Set(Array.isArray(r.hiddenCells)?r.hiddenCells:[])};hiddenCache.set(r,next);return next.set}return rec.set};
+const setHiddenSet=r=>{const src=[...getHiddenSet(r)];r.hiddenCells=src;hiddenCache.set(r,{src:r.hiddenCells,set:new Set(src)});};
+const maskCellKey=(ix,iy)=>`${ix},${iy}`;
+const pointInPoly=(x,y,poly)=>{let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;const inter=((yi>y)!==(yj>y))&&(x<((xj-xi)*(y-yi))/((yj-yi)||1e-9)+xi);if(inter)inside=!inside}return inside};
+const isMaskMode=()=>st.mode==="maskAdd"||st.mode==="maskSub";
+const isCellEditMode=()=>st.mode==="cellEdit";
+const drawCellX=r=>Math.max(32,Math.max(1,Math.round(r.cellX||128)));
+const drawCellY=r=>Math.max(32,Math.max(1,Math.round(r.cellY||128)));
+const getMaskNodeAxes=r=>{const cx=drawCellX(r),cy=drawCellY(r),xs=[],ys=[];for(let x=0;x<=r.width;x+=cx)xs.push(x);if(xs[xs.length-1]!==r.width)xs.push(r.width);for(let y=0;y<=r.height;y+=cy)ys.push(y);if(ys[ys.length-1]!==r.height)ys.push(r.height);return{xs,ys}};
+const rads=deg=>deg*Math.PI/180;
+const rectCenter=r=>({x:r.x+r.width/2,y:r.y+r.height/2});
+const worldToRectUV=(r,wx,wy)=>{const a=rads(r.rotation||0),ca=Math.cos(a),sa=Math.sin(a),c=rectCenter(r),dx=wx-c.x,dy=wy-c.y,lx=dx*ca+dy*sa,ly=-dx*sa+dy*ca;return{u:lx+r.width/2,v:ly+r.height/2}};
+const rectUVToWorld=(r,u,v)=>{const a=rads(r.rotation||0),ca=Math.cos(a),sa=Math.sin(a),c=rectCenter(r),lx=u-r.width/2,ly=v-r.height/2;return{x:c.x+lx*ca-ly*sa,y:c.y+lx*sa+ly*ca}};
+const rectAABB=r=>{const p1=rectUVToWorld(r,0,0),p2=rectUVToWorld(r,r.width,0),p3=rectUVToWorld(r,r.width,r.height),p4=rectUVToWorld(r,0,r.height);return{minX:Math.min(p1.x,p2.x,p3.x,p4.x),minY:Math.min(p1.y,p2.y,p3.y,p4.y),maxX:Math.max(p1.x,p2.x,p3.x,p4.x),maxY:Math.max(p1.y,p2.y,p3.y,p4.y)}};
+const overlapArea=(a,b)=>{const x1=Math.max(a.x,b.x),y1=Math.max(a.y,b.y),x2=Math.min(a.x+a.w,b.x+b.w),y2=Math.min(a.y+a.h,b.y+b.h);if(x2<=x1||y2<=y1)return 0;return(x2-x1)*(y2-y1)};
+const hiddenCellBoxes=(r,cx,cy,hs)=>{if(!hs||!hs.size)return[];const arr=[];for(const key of hs){const p=String(key).split(",");if(p.length!==2)continue;const ix=+p[0],iy=+p[1];if(!(ix>=0&&iy>=0))continue;const x=ix*cx,y=iy*cy;if(x>=r.width||y>=r.height)continue;arr.push({x:r.x+x,y:r.y+y,w:Math.min(cx,r.width-x),h:Math.min(cy,r.height-y)})}return arr};
+const computeFreeRects=(r,cx,cy,hs)=>{
+  const cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy));
+  const heights=new Array(cols).fill(0),out=[],seen=new Set();
+  const mkRect=(l,rt,top,btm)=>{
+    const x0=l*cx,y0=top*cy,x1=Math.min(r.width,(rt+1)*cx),y1=Math.min(r.height,(btm+1)*cy);
+    return{x:r.x+x0,y:r.y+y0,w:Math.max(0,x1-x0),h:Math.max(0,y1-y0)};
+  };
+  for(let row=0;row<rows;row++){
+    for(let col=0;col<cols;col++){heights[col]=hs.has(maskCellKey(col,row))?0:heights[col]+1}
+    for(let right=0;right<cols;right++){
+      if(!heights[right])continue;
+      let minH=1e9;
+      for(let left=right;left>=0;left--){
+        if(!heights[left])break;
+        minH=Math.min(minH,heights[left]);
+        const top=row-minH+1,rect=mkRect(left,right,top,row),k=`${Math.round(rect.x)}:${Math.round(rect.y)}:${Math.round(rect.w)}:${Math.round(rect.h)}`;
+        if(rect.w<=0||rect.h<=0||seen.has(k))continue;
+        seen.add(k);out.push(rect);
+      }
+    }
+  }
+  if(!out.length)return[{x:r.x,y:r.y,w:r.width,h:r.height}];
+  out.sort((a,b)=>(b.w*b.h)-(a.w*a.h));
+  return out.slice(0,120);
+};
+const parseLinkKey=k=>{const p=String(k||"").split("-");if(p.length!==2)return null;const a=+p[0],b=+p[1];if(!(a>=0&&b>=0&&a!==b))return null;return a<b?{a,b}:{a:b,b:a}};
+const mkLinkKey=(a,b)=>a<b?`${a}-${b}`:`${b}-${a}`;
+function getCellTopology(r,cx,cy){
+  const cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy)),count=cols*rows,linksRaw=Array.isArray(r.cellLinks)?r.cellLinks:[],links=new Set();
+  for(const raw of linksRaw){const p=parseLinkKey(raw);if(!p)continue;if(p.a>=count||p.b>=count)continue;const ax=p.a%cols,ay=Math.floor(p.a/cols),bx=p.b%cols,by=Math.floor(p.b/cols);if(Math.abs(ax-bx)+Math.abs(ay-by)!==1)continue;links.add(mkLinkKey(p.a,p.b))}
+  if(!Array.isArray(r.cellLinks)||r.cellLinks.length!==links.size||r.cellLinks.some(k=>!links.has(k))){r.cellLinks=[...links]}
+  const comp=new Array(count).fill(-1),seed=[];let ci=0;
+  const neigh=i=>{const x=i%cols,y=Math.floor(i/cols),out=[];if(x>0)out.push(i-1);if(x<cols-1)out.push(i+1);if(y>0)out.push(i-cols);if(y<rows-1)out.push(i+cols);return out};
+  for(let i=0;i<count;i++){if(comp[i]!==-1)continue;const stack=[i];comp[i]=ci;let bestX=i%cols,bestY=Math.floor(i/cols);while(stack.length){const v=stack.pop(),vx=v%cols,vy=Math.floor(v/cols);if(vy<bestY||(vy===bestY&&vx<bestX)){bestX=vx;bestY=vy}for(const n of neigh(v)){if(comp[n]!==-1)continue;if(!links.has(mkLinkKey(v,n)))continue;comp[n]=ci;stack.push(n)}}seed[ci]={col:bestX,row:bestY};ci++}
+  const adj=Array.from({length:ci},()=>new Set());
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      const i=y*cols+x,ci0=comp[i];
+      if(x+1<cols){const j=i+1,cj=comp[j];if(ci0!==cj){adj[ci0].add(cj);adj[cj].add(ci0)}}
+      if(y+1<rows){const j=i+cols,cj=comp[j];if(ci0!==cj){adj[ci0].add(cj);adj[cj].add(ci0)}}
+    }
+  }
+  const color=new Array(ci).fill(-1);
+  for(let c0=0;c0<ci;c0++){
+    if(color[c0]!==-1)continue;
+    color[c0]=0;
+    const q=[c0];
+    while(q.length){
+      const v=q.shift();
+      for(const n of adj[v]){
+        if(color[n]===-1){color[n]=1-color[v];q.push(n)}
+      }
+    }
+  }
+  return{cols,rows,count,links,comp,seed,color};
+}
+function componentsAreRectangles(topo){
+  const stat=new Map();
+  for(let i=0;i<topo.count;i++){
+    const c=topo.comp[i],x=i%topo.cols,y=Math.floor(i/topo.cols);
+    let s=stat.get(c);
+    if(!s){s={minX:x,maxX:x,minY:y,maxY:y,count:0};stat.set(c,s)}
+    s.minX=Math.min(s.minX,x);s.maxX=Math.max(s.maxX,x);s.minY=Math.min(s.minY,y);s.maxY=Math.max(s.maxY,y);s.count++;
+  }
+  for(const s of stat.values()){
+    const area=(s.maxX-s.minX+1)*(s.maxY-s.minY+1);
+    if(s.count!==area)return false;
+  }
+  return true;
+}
+function getCellToggleSegments(r,cx,cy,topo){
+  const segUnits=[];
+  const cols=topo.cols,rows=topo.rows;
+  const cid=(x,y)=>topo.comp[y*cols+x];
+  const mkCompPair=(a,b)=>a<b?`${a}:${b}`:`${b}:${a}`;
+  for(let y=1;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      const a=(y-1)*cols+x,b=y*cols+x,key=mkLinkKey(a,b),exists=topo.links.has(key),ca=cid(x,y-1),cb=cid(x,y);
+      if(exists)segUnits.push({o:"h",line:y,pos:x,key,exists:true,group:`h:${y}:split:${ca}`});
+      else if(ca!==cb)segUnits.push({o:"h",line:y,pos:x,key,exists:false,group:`h:${y}:merge:${mkCompPair(ca,cb)}`});
+    }
+  }
+  for(let x=1;x<cols;x++){
+    for(let y=0;y<rows;y++){
+      const a=y*cols+(x-1),b=y*cols+x,key=mkLinkKey(a,b),exists=topo.links.has(key),ca=cid(x-1,y),cb=cid(x,y);
+      if(exists)segUnits.push({o:"v",line:x,pos:y,key,exists:true,group:`v:${x}:split:${ca}`});
+      else if(ca!==cb)segUnits.push({o:"v",line:x,pos:y,key,exists:false,group:`v:${x}:merge:${mkCompPair(ca,cb)}`});
+    }
+  }
+  const byGroup=new Map();
+  for(const u of segUnits){const arr=byGroup.get(u.group)||[];arr.push(u);byGroup.set(u.group,arr)}
+  const out=[];
+  for(const units of byGroup.values()){
+    units.sort((a,b)=>a.pos-b.pos);
+    let run=[units[0]];
+    const flush=()=>{
+      if(!run.length)return;
+      const first=run[0],last=run[run.length-1],keys=run.map(v=>v.key),exists=first.exists;
+      let u1=0,v1=0,u2=0,v2=0;
+      if(first.o==="h"){u1=first.pos*cx;u2=Math.min(r.width,(last.pos+1)*cx);v1=Math.min(r.height,first.line*cy);v2=v1}
+      else{u1=Math.min(r.width,first.line*cx);u2=u1;v1=first.pos*cy;v2=Math.min(r.height,(last.pos+1)*cy)}
+      const p1=rectUVToWorld(r,u1,v1),p2=rectUVToWorld(r,u2,v2);
+      out.push({keys,exists,p1,p2});
+      run=[];
+    };
+    for(let i=1;i<units.length;i++){if(units[i].pos===units[i-1].pos+1)run.push(units[i]);else{flush();run=[units[i]]}}
+    flush();
+  }
+  for(const s of out){
+    if(s.exists){s.canToggle=true;continue}
+    const next={...r,cellLinks:[...(Array.isArray(r.cellLinks)?r.cellLinks:[]),...s.keys]};
+    const topoNext=getCellTopology(next,cx,cy);
+    s.canToggle=componentsAreRectangles(topoNext);
+  }
+  return out;
+}
+function pointToSegmentDistance(px,py,x1,y1,x2,y2){
+  const vx=x2-x1,vy=y2-y1,wx=px-x1,wy=py-y1,den=vx*vx+vy*vy;
+  const t=den>0?Math.max(0,Math.min(1,(wx*vx+wy*vy)/den)):0;
+  const cx=x1+t*vx,cy=y1+t*vy;
+  return Math.hypot(px-cx,py-cy);
+}
+function getCellLinkCandidateAtPoint(r,wx,wy){
+  const cx=drawCellX(r),cy=drawCellY(r),topo=getCellTopology(r,cx,cy),segs=getCellToggleSegments(r,cx,cy,topo),thr=Math.max(6,8/st.zoom);
+  let best=null;
+  for(const s of segs){
+    const d=pointToSegmentDistance(wx,wy,s.p1.x,s.p1.y,s.p2.x,s.p2.y);
+    if(d>thr)continue;
+    if(!best||d<best.d)best={...s,d};
+  }
+  return best;
+}
+function getComponentBoundarySegments(r,cx,cy,topo){
+  const segs=[];
+  const compAt=(x,y)=>topo.comp[y*topo.cols+x];
+  for(let ky=0;ky<=topo.rows;ky++){
+    let run=-1;
+    const isBoundary=(x)=>{
+      if(ky===0||ky===topo.rows)return true;
+      return compAt(x,ky-1)!==compAt(x,ky);
+    };
+    for(let x=0;x<=topo.cols;x++){
+      const on=x<topo.cols&&isBoundary(x);
+      if(on&&run<0)run=x;
+      if((!on||x===topo.cols)&&run>=0){
+        const u1=run*cx,u2=Math.min(r.width,x*cx),v=Math.min(r.height,ky*cy),p1=rectUVToWorld(r,u1,v),p2=rectUVToWorld(r,u2,v);
+        segs.push({p1,p2});run=-1;
+      }
+    }
+  }
+  for(let kx=0;kx<=topo.cols;kx++){
+    let run=-1;
+    const isBoundary=(y)=>{
+      if(kx===0||kx===topo.cols)return true;
+      return compAt(kx-1,y)!==compAt(kx,y);
+    };
+    for(let y=0;y<=topo.rows;y++){
+      const on=y<topo.rows&&isBoundary(y);
+      if(on&&run<0)run=y;
+      if((!on||y===topo.rows)&&run>=0){
+        const v1=run*cy,v2=Math.min(r.height,y*cy),u=Math.min(r.width,kx*cx),p1=rectUVToWorld(r,u,v1),p2=rectUVToWorld(r,u,v2);
+        segs.push({p1,p2});run=-1;
+      }
+    }
+  }
+  return segs;
+}
+function getVisibleBoundarySegmentsLocal(w,h,cx,cy,hs){
+  const cols=Math.max(1,Math.ceil(w/cx)),rows=Math.max(1,Math.ceil(h/cy)),vis=(x,y)=>x>=0&&x<cols&&y>=0&&y<rows&&!hs.has(maskCellKey(x,y)),segs=[];
+  for(let ky=0;ky<=rows;ky++){
+    let run=-1;
+    for(let x=0;x<=cols;x++){
+      const on=x<cols&&((ky>0?vis(x,ky-1):false)!==(ky<rows?vis(x,ky):false));
+      if(on&&run<0)run=x;
+      if((!on||x===cols)&&run>=0){
+        const u1=Math.min(w,run*cx),u2=Math.min(w,x*cx),v=Math.min(h,ky*cy);
+        segs.push({x1:-w/2+u1,y1:-h/2+v,x2:-w/2+u2,y2:-h/2+v});run=-1;
+      }
+    }
+  }
+  for(let kx=0;kx<=cols;kx++){
+    let run=-1;
+    for(let y=0;y<=rows;y++){
+      const on=y<rows&&((kx>0?vis(kx-1,y):false)!==(kx<cols?vis(kx,y):false));
+      if(on&&run<0)run=y;
+      if((!on||y===rows)&&run>=0){
+        const v1=Math.min(h,run*cy),v2=Math.min(h,y*cy),u=Math.min(w,kx*cx);
+        segs.push({x1:-w/2+u,y1:-h/2+v1,x2:-w/2+u,y2:-h/2+v2});run=-1;
+      }
+    }
+  }
+  return segs;
+}
+function chooseTextLayout(r,lines,measureFn,maxW,baseFs,hiddenBoxes,freeRects){
+  const scales=[1,0.93,0.86],inset=3,padY=4,minLongSide=256;
+  const score=(box)=>{let oa=0;for(const hb of hiddenBoxes)oa+=overlapArea(box,hb);return oa};
+  const candidates=[];
+  const rects=(Array.isArray(freeRects)&&freeRects.length?freeRects:[{x:r.x,y:r.y,w:r.width,h:r.height}]);
+  const bigRects=rects.filter(rr=>Math.max(rr.w,rr.h)>=minLongSide);
+  const usedRects=bigRects.length?bigRects:rects;
+  const bigOnly=bigRects.length>0;
+  for(const sc of scales){
+    const fs=Math.max(6,Math.round(baseFs*sc*100)/100),lh=Math.max(fs+2,baseFs+2),est=Math.max(...lines.map(t=>measureFn(t,fs)))+14,tw=Math.min(maxW,est),th=lines.length*lh+8;
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const seen=new Set();
+    for(const rr of usedRects){
+      const minX=rr.x+inset,maxX=rr.x+rr.w-inset-tw,minY=rr.y+inset,maxY=rr.y+rr.h-inset-th;
+      if(maxX<minX||maxY<minY)continue;
+      const cx=clamp(rr.x+rr.w/2-tw/2,minX,maxX),cy=clamp(rr.y+rr.h/2-th/2,minY,maxY);
+      const cands=[
+        {kind:"center",x:cx,y:cy},
+        {kind:"top",x:cx,y:minY},{kind:"bottom",x:cx,y:maxY},
+        {kind:"left",x:minX,y:cy},{kind:"right",x:maxX,y:cy},
+        {kind:"tl",x:minX,y:minY},{kind:"tr",x:maxX,y:minY},
+        {kind:"bl",x:minX,y:maxY},{kind:"br",x:maxX,y:maxY},
+      ];
+      for(const c of cands){
+        const k=`${Math.round(c.x*100)/100},${Math.round(c.y*100)/100},${c.kind}`;if(seen.has(k))continue;seen.add(k);
+        const box={x:c.x,y:c.y,w:tw,h:th},ov=score(box),dist=Math.hypot((c.x+tw/2)-(r.x+r.width/2),(c.y+th/2)-(r.y+r.height/2)),fitArea=rr.w*rr.h,rectPriority=(bigOnly?0:(Math.max(rr.w,rr.h)>=minLongSide?0:1));
+        candidates.push({...c,fs,lh,tw,th,ov,dist,fitArea,rectPriority});
+      }
+    }
+  }
+  let picked=null;
+  for(const it of candidates){
+    if(!picked){picked=it;continue}
+    if(it.rectPriority!==picked.rectPriority){if(it.rectPriority<picked.rectPriority)picked=it;continue}
+    if(it.ov!==picked.ov){if(it.ov<picked.ov)picked=it;continue}
+    if(it.ov===0&&it.fs!==picked.fs){if(it.fs>picked.fs)picked=it;continue}
+    if(it.dist!==picked.dist){if(it.dist<picked.dist)picked=it;continue}
+    if(it.fitArea!==picked.fitArea){if(it.fitArea>picked.fitArea)picked=it;continue}
+  }
+  if(!picked){
+    const fs=Math.max(6,baseFs*0.86),lh=Math.max(fs+2,baseFs+2),est=Math.max(...lines.map(t=>measureFn(t,fs)))+14,tw=Math.min(maxW,est),th=lines.length*lh+8;
+    const x=r.x+Math.max(0,(r.width-tw)/2),y=r.y+Math.max(0,(r.height-th)/2);
+    picked={fs,lh,tw,th,x,y};
+  }
+  const sy=picked.y+padY+picked.lh/2;
+  return{fs:picked.fs,lh:picked.lh,tw:picked.tw,th:picked.th,textLeft:picked.x,textX:picked.x+picked.tw/2,textTop:picked.y,sy};
+}
+const mRound=v=>Math.round(v*10000)/10000;
+const mFmt=v=>{const n=mRound(v);return Number.isInteger(n)?`${n.toFixed(0)}`:`${n}`};
+const metricFromPx=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.width=Math.max(1,Math.round(+r.width||1));r.height=Math.max(1,Math.round(+r.height||1));r.widthM=Math.max(0.001,mRound(r.width/r.scale));r.heightM=Math.max(0.001,mRound(r.height/r.scale));};
+const pxFromMetric=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.widthM=Math.max(0.001,+r.widthM||0.001);r.heightM=Math.max(0.001,+r.heightM||0.001);r.width=Math.max(1,Math.round(r.widthM*r.scale));r.height=Math.max(1,Math.round(r.heightM*r.scale));};
+const AUTO_SAVE_KEY="led-mask-editor.autosave.v1";
+let persistTimer=null;
+const buildProject=()=>({version:1,projectName:st.projectName,camera:{x:st.camX,y:st.camY,zoom:st.zoom},settings:{textSize:st.textSize,fontFamily:st.fontFamily},nextId:st.next,rectangles:st.rects});
+const schedulePersist=()=>{if(persistTimer)clearTimeout(persistTimer);persistTimer=setTimeout(()=>{try{localStorage.setItem(AUTO_SAVE_KEY,JSON.stringify(buildProject()))}catch(_e){}},150)};
+const evalExpr=(input,fallback)=>{const s=String(input??"").trim();if(!s)return fallback;const n=Number(s.replace(",","."));if(Number.isFinite(n))return n;const normalized=s.replace(/,/g,".").replace(/\s+/g,"");if(!/^[0-9+\-*/().]+$/.test(normalized))return fallback;try{const v=Function(`"use strict";return (${normalized});`)();return Number.isFinite(v)?v:fallback}catch(_e){return fallback}};
+const randomColor=()=>`#${Math.floor(Math.random()*16777215).toString(16).padStart(6,"0")}`;
+const escXml=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+const fontFamilyCss=(value)=>{
+  const parts=String(value||"Segoe UI").split(",").map(s=>s.trim()).filter(Boolean);
+  if(!parts.length) return "\"Segoe UI\"";
+  return parts.map(p=>{
+    if((p.startsWith("\"")&&p.endsWith("\""))||(p.startsWith("'")&&p.endsWith("'"))) return p;
+    return /\s/.test(p) ? `"${p.replace(/"/g,"\\\"")}"` : p;
+  }).join(", ");
+};
+const ensureFontReady=async()=>{
+  if(!document.fonts||!document.fonts.ready) return;
+  const size=Math.max(6,st.textSize||12);
+  const family=fontFamilyCss(st.fontFamily);
+  try{ await document.fonts.load(`${size}px ${family}`); }catch(_e){}
+  try{ await document.fonts.ready; }catch(_e){}
+};
+function buildSvgExport(){let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY),1),origin={x:minX,y:minY};const fs=Math.max(6,st.textSize),lh=Math.max(fs+2,st.textSize+2),family=escXml(String(st.fontFamily||"Segoe UI"));let defs="",body="";
+for(const r of st.rects){const x=r.x-minX,y=r.y-minY,id=`pat_${r.id}`,cx=drawCellX(r),cy=drawCellY(r),a=r.colorA,b=r.colorB,a2=shadeHex(a,((hexRgb(a).r*299+hexRgb(a).g*587+hexRgb(a).b*114)/1000)>140?-0.25:0.25),b2=shadeHex(b,((hexRgb(b).r*299+hexRgb(b).g*587+hexRgb(b).b*114)/1000)>140?-0.25:0.25);
+defs+=`<pattern id="${id}" patternUnits="userSpaceOnUse" width="${cx*2}" height="${cy*2}">`
+  +`<rect x="0" y="0" width="${cx}" height="${cy}" fill="${a}"/><polygon points="0,0 ${cx},0 0,${cy}" fill="${a2}"/>`
+  +`<rect x="${cx}" y="0" width="${cx}" height="${cy}" fill="${b}"/><polygon points="${cx},0 ${cx*2},0 ${cx},${cy}" fill="${b2}"/>`
+  +`<rect x="0" y="${cy}" width="${cx}" height="${cy}" fill="${b}"/><polygon points="0,${cy} ${cx},${cy} 0,${cy*2}" fill="${b2}"/>`
+  +`<rect x="${cx}" y="${cy}" width="${cx}" height="${cy}" fill="${a}"/><polygon points="${cx},${cy} ${cx*2},${cy} ${cx},${cy*2}" fill="${a2}"/>`
+  +`</pattern>`;
+const hidden=Array.isArray(r.hiddenCells)?r.hiddenCells:[];let maskAttr="";if(hidden.length){const mid=`mask_${r.id}`;let maskBody=`<rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill="white"/>`;for(const key of hidden){const parts=String(key).split(",");if(parts.length!==2)continue;const ix=+parts[0],iy=+parts[1];if(!(ix>=0&&iy>=0))continue;const ox=ix*cx,oy=iy*cy;if(ox>=r.width||oy>=r.height)continue;const cw=Math.min(cx,r.width-ox),ch=Math.min(cy,r.height-oy);maskBody+=`<rect x="${x+ox}" y="${y+oy}" width="${cw}" height="${ch}" fill="black"/>`}defs+=`<mask id="${mid}" maskUnits="userSpaceOnUse">${maskBody}</mask>`;maskAttr=` mask="url(#${mid})"`}
+const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256));const ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(r.width)} x ${Math.round(r.height)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`];const maxW=Math.max(20,r.width-6);const hset=new Set(hidden),localRect={x,y,width:r.width,height:r.height},hbs=hiddenCellBoxes(localRect,cx,cy,hset),freeRects=computeFreeRects(localRect,cx,cy,hset),layout=chooseTextLayout(localRect,ls,(t,f)=>String(t).length*f*0.58,maxW,fs,hbs,freeRects),rot=(r.rotation||0),rcx=x+r.width/2,rcy=y+r.height/2,tf=Math.abs(rot)>1e-6?` transform="rotate(${rot} ${rcx} ${rcy})"`:"";
+  body+=`<g${tf}><g${maskAttr}><rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill="url(#${id})"/>`
+    +`<line x1="${x}" y1="${y}" x2="${x+r.width}" y2="${y+r.height}" stroke="rgba(255,255,255,.36)" stroke-width="1"/>`
+    +`<line x1="${x+r.width}" y1="${y}" x2="${x}" y2="${y+r.height}" stroke="rgba(255,255,255,.36)" stroke-width="1"/>`
+    +`<circle cx="${x+r.width/2}" cy="${y+r.height/2}" r="${Math.max(0,Math.min(r.width,r.height)/2-2)}" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.2"/>`
+  +`<rect x="${layout.textLeft}" y="${layout.textTop}" width="${layout.tw}" height="${layout.th}" fill="rgba(11,17,24,.6)"/>`;
+for(let i=0;i<ls.length;i++)body+=`<text x="${layout.textX}" y="${layout.sy+i*layout.lh}" text-anchor="middle" dominant-baseline="middle" fill="rgba(255,255,255,.95)" font-family="${family}" font-size="${layout.fs}">${escXml(ls[i])}</text>`;
+body+=`</g><rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="1"/></g>`;
+}
+return`<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${defs}</defs>${body}</svg>`;
+}
+function applyProjectData(d){const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Segoe UI").trim()||"Segoe UI"}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.maskPath=[];st.maskHover=null;selRect(st.rects[0]?st.rects[0].id:null);render();}
+function restoreAutoSave(){try{const rawSaved=localStorage.getItem(AUTO_SAVE_KEY);if(!rawSaved)return false;applyProjectData(JSON.parse(rawSaved));return true}catch(_e){return false}}
+function mk(x,y,w,h){const id=st.next++;const colorA="#2fcaaf";const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,cellLinks:[],hiddenCells:[]};metricFromPx(r);return r}
+function setMode(m){st.mode=m;el.toolSelect.classList.toggle("active",m==="select");el.toolDraw.classList.toggle("active",m==="draw");if(el.toolMaskAdd)el.toolMaskAdd.classList.toggle("active",m==="maskAdd");if(el.toolMaskSub)el.toolMaskSub.classList.toggle("active",m==="maskSub");if(el.toolCellEdit)el.toolCellEdit.classList.toggle("active",m==="cellEdit");if(el.mToolSelect)el.mToolSelect.classList.toggle("active",m==="select");if(el.mToolDraw)el.mToolDraw.classList.toggle("active",m==="draw");if(el.mToolMaskAdd)el.mToolMaskAdd.classList.toggle("active",m==="maskAdd");if(el.mToolMaskSub)el.mToolMaskSub.classList.toggle("active",m==="maskSub");if(el.mToolCellEdit)el.mToolCellEdit.classList.toggle("active",m==="cellEdit");if(!isMaskMode()){st.maskPath=[];st.maskHover=null}if(!isCellEditMode())st.cellHover=null;wrap.dataset.mode=m;st.draft=null;st.drag=null;render()}
+function selRect(id){st.sel=id;st.maskPath=[];st.maskHover=null;st.cellHover=null;syncProps();listRects();render()}
+const cur=()=>st.rects.find(r=>r.id===st.sel)||null;
+function hit(x,y){for(let i=st.rects.length-1;i>=0;i--){const r=st.rects[i],p=worldToRectUV(r,x,y);if(p.u>=0&&p.u<=r.width&&p.v>=0&&p.v<=r.height)return r}return null}
+function snapMaskNode(r,wx,wy){if(!r)return null;const p=worldToRectUV(r,wx,wy);if(p.u<0||p.u>r.width||p.v<0||p.v>r.height)return null;const u=Math.max(0,Math.min(r.width,p.u)),v=Math.max(0,Math.min(r.height,p.v)),axes=getMaskNodeAxes(r);let gu=axes.xs[0],gv=axes.ys[0],bdx=1e9,bdy=1e9;for(const x of axes.xs){const d=Math.abs(x-u);if(d<bdx){bdx=d;gu=x}}for(const y of axes.ys){const d=Math.abs(y-v);if(d<bdy){bdy=d;gv=y}}return rectUVToWorld(r,gu,gv)}
+function addMaskPoint(wx,wy){const r=cur();if(!r)return;const p=snapMaskNode(r,wx,wy);if(!p)return;const first=st.maskPath[0],last=st.maskPath[st.maskPath.length-1],eps=6/st.zoom;if(first&&st.maskPath.length>=3&&Math.hypot(p.x-first.x,p.y-first.y)<=eps){applyMaskPath();return}if(last&&Math.abs(last.x-p.x)<0.001&&Math.abs(last.y-p.y)<0.001)return;st.maskPath.push(p);render()}
+function applyMaskPath(){const r=cur();if(!r||st.maskPath.length<3){st.maskPath=[];render();return}const cx=drawCellX(r),cy=drawCellY(r),hs=getHiddenSet(r),cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy)),hide=st.mode==="maskAdd";for(let iy=0;iy<rows;iy++){for(let ix=0;ix<cols;ix++){const cw=Math.min(cx,r.width-ix*cx),ch=Math.min(cy,r.height-iy*cy),wp=rectUVToWorld(r,ix*cx+cw/2,iy*cy+ch/2);if(!pointInPoly(wp.x,wp.y,st.maskPath))continue;const k=maskCellKey(ix,iy);if(hide)hs.add(k);else hs.delete(k)}}setHiddenSet(r);st.maskPath=[];st.maskHover=null;render()}
+function toggleCellLinkAtPoint(r,wx,wy){const cand=getCellLinkCandidateAtPoint(r,wx,wy);if(!cand)return false;const arr=Array.isArray(r.cellLinks)?r.cellLinks:[];
+if(cand.exists){const ks=new Set(cand.keys);r.cellLinks=arr.filter(v=>!ks.has(v));render();return true}
+if(!cand.canToggle)return false;
+const next=new Set(arr);for(const k of cand.keys)next.add(k);r.cellLinks=[...next];render();return true}
+function snap(x,y,id,w,h,off){
+if(off)return{x:Math.round(x),y:Math.round(y),gx:null,gy:null,dg:null};
+const self=st.rects.find(r=>r.id===id);if(!self)return{x:Math.round(x),y:Math.round(y),gx:null,gy:null,dg:null};
+const moving={...self,x,y},mb=rectAABB(moving),mw=mb.maxX-mb.minX,mh=mb.maxY-mb.minY,d=8/st.zoom,others=st.rects.filter(r=>r.id!==id).map(r=>({r,bb:rectAABB(r)}));let bx=null,by=null;
+const mx=[mb.minX,(mb.minX+mb.maxX)/2,mb.maxX],my=[mb.minY,(mb.minY+mb.maxY)/2,mb.maxY];
+for(const o of others){const ox=[o.bb.minX,(o.bb.minX+o.bb.maxX)/2,o.bb.maxX],oy=[o.bb.minY,(o.bb.minY+o.bb.maxY)/2,o.bb.maxY];for(const p of mx)for(const t of ox){const dd=t-p,ad=Math.abs(dd);if(ad<=d&&(!bx||ad<Math.abs(bx.d)))bx={d:dd,g:t}}for(const p of my)for(const t of oy){const dd=t-p,ad=Math.abs(dd);if(ad<=d&&(!by||ad<Math.abs(by.d)))by={d:dd,g:t}}}
+if(others.length){let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const o of others){minX=Math.min(minX,o.bb.minX);minY=Math.min(minY,o.bb.minY);maxX=Math.max(maxX,o.bb.maxX);maxY=Math.max(maxY,o.bb.maxY)}const bbCx=(minX+maxX)/2,bbCy=(minY+maxY)/2;for(const p of mx){const dd=bbCx-p,ad=Math.abs(dd);if(ad<=d&&(!bx||ad<Math.abs(bx.d)))bx={d:dd,g:bbCx}}for(const p of my){const dd=bbCy-p,ad=Math.abs(dd);if(ad<=d&&(!by||ad<Math.abs(by.d)))by={d:dd,g:bbCy}}}
+const betterDist=(cand,current)=>{if(!current)return true;const cv=Math.round(current.guide.v),nv=Math.round(cand.guide.v);if(nv!==cv)return nv<cv;const cd=Math.abs(current.d),nd=Math.abs(cand.d);return nd<cd;};
+const hSource=others.filter(o=>Math.min(mb.maxY,o.bb.maxY)-Math.max(mb.minY,o.bb.minY)>0),vSource=others.filter(o=>Math.min(mb.maxX,o.bb.maxX)-Math.max(mb.minX,o.bb.minX)>0);
+const pickY=(a,b)=>{const lo=Math.max(a.minY,b.minY),hi=Math.min(a.maxY,b.maxY);return lo<hi?(lo+hi)/2:(a.minY+a.maxY)/2};
+const pickX=(a,b)=>{const lo=Math.max(a.minX,b.minX),hi=Math.min(a.maxX,b.maxX);return lo<hi?(lo+hi)/2:(a.minX+a.maxX)/2};
+const hpairs=[];for(let i=0;i<hSource.length;i++)for(let j=0;j<hSource.length;j++){if(i===j)continue;const l=hSource[i].bb,r=hSource[j].bb;if(l.maxX>r.minX)continue;const g=Math.round(r.minX-l.maxX);if(g>0)hpairs.push({g,x1:l.maxX,x2:r.minX,y:pickY(l,r)})}
+const hGapVals=[...new Set(hpairs.map(p=>p.g))];let bdx=null;
+for(const o of hSource){const ob=o.bb,myv=pickY(mb,ob);if(ob.maxX<=mb.maxX){for(const g of hGapVals){const targetMinX=ob.maxX+g,dd=targetMinX-mb.minX,ad=Math.abs(dd);if(ad<=d){const ref=hpairs.find(p=>p.g===g)||{g,x1:ob.maxX,x2:targetMinX,y:myv};const cand={d:dd,guide:{axis:"x",x1:ob.maxX,y1:myv,x2:targetMinX,y2:myv,v:g,ref:{axis:"x",x1:ref.x1,y1:ref.y,x2:ref.x2,y2:ref.y,v:ref.g}}};if(betterDist(cand,bdx))bdx=cand}}}if(ob.minX>=mb.minX){for(const g of hGapVals){const targetMinX=ob.minX-mw-g,dd=targetMinX-mb.minX,ad=Math.abs(dd);if(ad<=d){const ref=hpairs.find(p=>p.g===g)||{g,x1:targetMinX+mw,x2:ob.minX,y:myv};const cand={d:dd,guide:{axis:"x",x1:targetMinX+mw,y1:myv,x2:ob.minX,y2:myv,v:g,ref:{axis:"x",x1:ref.x1,y1:ref.y,x2:ref.x2,y2:ref.y,v:ref.g}}};if(betterDist(cand,bdx))bdx=cand}}}}
+const vpairs=[];for(let i=0;i<vSource.length;i++)for(let j=0;j<vSource.length;j++){if(i===j)continue;const t=vSource[i].bb,b=vSource[j].bb;if(t.maxY>b.minY)continue;const g=Math.round(b.minY-t.maxY);if(g>0)vpairs.push({g,y1:t.maxY,y2:b.minY,x:pickX(t,b)})}
+const vGapVals=[...new Set(vpairs.map(p=>p.g))];let bdy=null;
+for(const o of vSource){const ob=o.bb,mxv=pickX(mb,ob);if(ob.maxY<=mb.maxY){for(const g of vGapVals){const targetMinY=ob.maxY+g,dd=targetMinY-mb.minY,ad=Math.abs(dd);if(ad<=d){const ref=vpairs.find(p=>p.g===g)||{g,y1:ob.maxY,y2:targetMinY,x:mxv};const cand={d:dd,guide:{axis:"y",x1:mxv,y1:ob.maxY,x2:mxv,y2:targetMinY,v:g,ref:{axis:"y",x1:ref.x,y1:ref.y1,x2:ref.x,y2:ref.y2,v:ref.g}}};if(betterDist(cand,bdy))bdy=cand}}}if(ob.minY>=mb.minY){for(const g of vGapVals){const targetMinY=ob.minY-mh-g,dd=targetMinY-mb.minY,ad=Math.abs(dd);if(ad<=d){const ref=vpairs.find(p=>p.g===g)||{g,y1:targetMinY+mh,y2:ob.minY,x:mxv};const cand={d:dd,guide:{axis:"y",x1:mxv,y1:targetMinY+mh,x2:mxv,y2:ob.minY,v:g,ref:{axis:"y",x1:ref.x,y1:ref.y1,x2:ref.x,y2:ref.y2,v:ref.g}}};if(betterDist(cand,bdy))bdy=cand}}}}
+let dx=bx?bx.d:0,dy=by?by.d:0,gx=bx?bx.g:null,gy=by?by.g:null,dg=null,usedX=false,usedY=false;
+if(bdx&&(!bx||Math.abs(bdx.d)<=Math.abs(bx.d))){dx=bdx.d;gx=null;usedX=true}
+if(bdy&&(!by||Math.abs(bdy.d)<=Math.abs(by.d))){dy=bdy.d;gy=null;usedY=true}
+if(usedX&&usedY)dg=Math.abs(bdx.d)<=Math.abs(bdy.d)?bdx.guide:bdy.guide;else if(usedX)dg=bdx.guide;else if(usedY)dg=bdy.guide;
+return{x:Math.round(x+dx),y:Math.round(y+dy),gx,gy,dg}
+}
+function drawRect(c,r,sel,z,origin){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
+const topo=getCellTopology(r,cellX,cellY);
+let drawContent=true;if(hs.size){c.beginPath();let n=0;for(let y=0;y<h;y+=cellY){for(let x=0;x<w;x+=cellX){const ix=Math.floor(x/cellX),iy=Math.floor(y/cellY);if(hs.has(maskCellKey(ix,iy)))continue;const cw=Math.min(cellX,w-x),ch=Math.min(cellY,h-y);c.rect(-w/2+x,-h/2+y,cw,ch);n++}}if(n>0)c.clip();else drawContent=false}
+if(drawContent){
+const comps=new Map();
+for(let y=0;y<h;y+=cellY){
+  for(let x=0;x<w;x+=cellX){
+    const ix=Math.floor(x/cellX),iy=Math.floor(y/cellY),idx=iy*topo.cols+ix,compId=topo.comp[idx],seed=topo.seed[compId]||{col:ix,row:iy},cw=Math.min(cellX,w-x),ch=Math.min(cellY,h-y),rx=-w/2+x,ry=-h/2+y;
+    let it=comps.get(compId);
+    if(!it){
+      const cc=topo.color&&topo.color[compId]!==-1?topo.color[compId]:((seed.col+seed.row)%2),base=(cc===0)?r.colorA:r.colorB,{r:cr,g:cg,b:cb}=hexRgb(base),lum=(cr*299+cg*587+cb*114)/1000,alt=shadeHex(base,lum>140?-0.25:0.25);
+      it={base,alt,minX:rx,minY:ry,maxX:rx+cw,maxY:ry+ch,cells:[]};comps.set(compId,it);
+    }else{
+      it.minX=Math.min(it.minX,rx);it.minY=Math.min(it.minY,ry);it.maxX=Math.max(it.maxX,rx+cw);it.maxY=Math.max(it.maxY,ry+ch);
+    }
+    it.cells.push({x:rx,y:ry,w:cw,h:ch});
+  }
+}
+for(const it of comps.values()){
+  c.save();
+  c.beginPath();
+  for(const cl of it.cells)c.rect(cl.x,cl.y,cl.w,cl.h);
+  c.clip();
+  const bw=it.maxX-it.minX,bh=it.maxY-it.minY;
+  c.fillStyle=it.base;c.fillRect(it.minX,it.minY,bw,bh);
+  c.fillStyle=it.alt;c.beginPath();c.moveTo(it.minX,it.minY);c.lineTo(it.minX+bw,it.minY);c.lineTo(it.minX,it.minY+bh);c.closePath();c.fill();
+  c.restore();
+}
+c.strokeStyle="rgba(255,255,255,.36)";c.lineWidth=1/z;c.beginPath();c.moveTo(-w/2,-h/2);c.lineTo(w/2,h/2);c.moveTo(w/2,-h/2);c.lineTo(-w/2,h/2);c.stroke();
+c.strokeStyle="rgba(255,255,255,.75)";c.lineWidth=1.2/z;c.beginPath();c.arc(0,0,Math.max(0,Math.min(w,h)/2-(2/z)),0,Math.PI*2);c.stroke();
+if(!((isMaskMode()||isCellEditMode())&&sel)){
+const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),baseFs=Math.max(6,st.textSize),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(w)} x ${Math.round(h)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`],maxW=Math.max(20,w-6),localRect={x:-w/2,y:-h/2,width:w,height:h},hbs=hiddenCellBoxes(localRect,cellX,cellY,hs),freeRects=computeFreeRects(localRect,cellX,cellY,hs),layout=chooseTextLayout(localRect,ls,(t,fs)=>{c.font=`${fs}px ${fontFamilyCss(st.fontFamily)}`;return c.measureText(t).width},maxW,baseFs,hbs,freeRects);
+c.textAlign="center";c.textBaseline="middle";c.font=`${layout.fs}px ${fontFamilyCss(st.fontFamily)}`;
+c.fillStyle="rgba(11,17,24,.6)";c.fillRect(layout.textLeft,layout.textTop,layout.tw,layout.th);c.fillStyle="rgba(255,255,255,.95)";for(let i=0;i<ls.length;i++)c.fillText(ls[i],layout.textX,layout.sy+i*layout.lh,maxW);
+}
+}
+c.strokeStyle=sel?"#ffe08a":"rgba(255,255,255,.85)";c.lineWidth=sel?7/z:1/z;
+const borderSegs=getVisibleBoundarySegmentsLocal(w,h,cellX,cellY,hs);
+if(borderSegs.length){
+  c.beginPath();
+  for(const s of borderSegs){c.moveTo(s.x1,s.y1);c.lineTo(s.x2,s.y2)}
+  c.stroke();
+}
+c.restore();}
+function drawMaskOverlay(c,z){if(!isMaskMode())return;const r=cur();if(!r)return;const axes=getMaskNodeAxes(r),dot=Math.max(1.8,2.6/z);
+for(const gy of axes.ys){for(const gx of axes.xs){const p=rectUVToWorld(r,gx,gy);c.fillStyle="rgba(255,255,255,.18)";c.beginPath();c.arc(p.x,p.y,dot,0,Math.PI*2);c.fill()}}
+if(st.maskPath.length){const isAdd=st.mode==="maskAdd",col=isAdd?"rgba(255,110,110,.95)":"rgba(116,221,141,.95)";c.strokeStyle=col;c.lineWidth=Math.max(1.2,1.8/z);c.fillStyle=isAdd?"rgba(255,90,90,.18)":"rgba(90,220,120,.18)";c.beginPath();c.moveTo(st.maskPath[0].x,st.maskPath[0].y);for(let i=1;i<st.maskPath.length;i++)c.lineTo(st.maskPath[i].x,st.maskPath[i].y);if(st.maskHover)c.lineTo(st.maskHover.x,st.maskHover.y);c.stroke();if(st.maskPath.length>=3){c.closePath();c.fill()}for(const p of st.maskPath){c.fillStyle=col;c.beginPath();c.arc(p.x,p.y,Math.max(2.8,3.4/z),0,Math.PI*2);c.fill()}}
+if(st.maskHover){c.fillStyle="rgba(255,255,255,.9)";c.beginPath();c.arc(st.maskHover.x,st.maskHover.y,Math.max(2.4,3/z),0,Math.PI*2);c.fill()}}
+function drawCellEditOverlay(c,z){if(!isCellEditMode())return;const r=cur();if(!r)return;const cx=drawCellX(r),cy=drawCellY(r),topo=getCellTopology(r,cx,cy),axes=getMaskNodeAxes(r);c.save();c.strokeStyle="rgba(255,255,255,.18)";c.lineWidth=Math.max(1,1.1/z);
+for(const x of axes.xs){const p1=rectUVToWorld(r,x,0),p2=rectUVToWorld(r,x,r.height);c.beginPath();c.moveTo(p1.x,p1.y);c.lineTo(p2.x,p2.y);c.stroke()}
+for(const y of axes.ys){const p1=rectUVToWorld(r,0,y),p2=rectUVToWorld(r,r.width,y);c.beginPath();c.moveTo(p1.x,p1.y);c.lineTo(p2.x,p2.y);c.stroke()}
+const bounds=getComponentBoundarySegments(r,cx,cy,topo);c.strokeStyle="rgba(255,255,255,.9)";c.lineWidth=Math.max(1.8,2.2/z);
+for(const s of bounds){c.beginPath();c.moveTo(s.p1.x,s.p1.y);c.lineTo(s.p2.x,s.p2.y);c.stroke()}
+if(st.cellHover&&st.cellHover.p1&&st.cellHover.p2){c.strokeStyle=st.cellHover.canToggle?(st.cellHover.exists?"rgba(255,205,92,.95)":"rgba(94,220,143,.95)"):"rgba(255,106,106,.95)";c.lineWidth=Math.max(2.4,3.4/z);c.beginPath();c.moveTo(st.cellHover.p1.x,st.cellHover.p1.y);c.lineTo(st.cellHover.p2.x,st.cellHover.p2.y);c.stroke()}
+c.restore()}
+function drawContentBounds(c,z){if(!st.rects.length)return;let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.round(maxX-minX),h=Math.round(maxY-minY);c.save();c.strokeStyle="rgba(255,255,255,.5)";c.lineWidth=1.5/z;c.setLineDash([]);c.strokeRect(minX,minY,w,h);const label=`${w} x ${h} px`;c.font=`${Math.max(10,12/z)}px Segoe UI`;const tw=c.measureText(label).width+10;const th=Math.max(16,16/z);c.fillStyle="rgba(15,19,24,.85)";c.fillRect(minX,minY-th-4/z,tw,th);c.fillStyle="rgba(255,255,255,.92)";c.textAlign="left";c.textBaseline="middle";c.fillText(label,minX+5,minY-th/2-4/z);c.restore()}
+function drawGrid(){const step=64,lt=s2w(0,0),rb=s2w(cv.clientWidth,cv.clientHeight),sx=Math.floor(lt.x/step)*step,ex=Math.ceil(rb.x/step)*step,sy=Math.floor(lt.y/step)*step,ey=Math.ceil(rb.y/step)*step;
+ctx.save();ctx.strokeStyle="rgba(147,177,207,.09)";ctx.lineWidth=1;for(let x=sx;x<=ex;x+=step){const px=w2s(x,0).x;ctx.beginPath();ctx.moveTo(Math.round(px)+.5,0);ctx.lineTo(Math.round(px)+.5,cv.clientHeight);ctx.stroke()}
+for(let y=sy;y<=ey;y+=step){const py=w2s(0,y).y;ctx.beginPath();ctx.moveTo(0,Math.round(py)+.5);ctx.lineTo(cv.clientWidth,Math.round(py)+.5);ctx.stroke()}ctx.restore()}
+function drawGuides(){if(st.g.x==null&&st.g.y==null)return;ctx.save();ctx.strokeStyle="rgba(74,200,255,.9)";ctx.setLineDash([6,5]);ctx.lineWidth=1;
+if(st.g.x!=null){const x=w2s(st.g.x,0).x;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cv.clientHeight);ctx.stroke()}if(st.g.y!=null){const y=w2s(0,st.g.y).y;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cv.clientWidth,y);ctx.stroke()}ctx.restore()}
+function drawDistanceGuide(){if(!st.dg)return;
+const drawDim=(g,color,labelShift)=>{
+  let{x1,y1,x2,y2,v,axis}=g;const p1=w2s(x1,y1),p2=w2s(x2,y2),t=`${Math.round(v)} px`;
+  ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+  ctx.font="12px Segoe UI";const tw=ctx.measureText(t).width+10;ctx.fillStyle="rgba(15,19,24,.85)";
+  if(axis==="y"){const m=(p1.y+p2.y)/2;ctx.beginPath();ctx.moveTo(p1.x-7,p1.y);ctx.lineTo(p1.x+7,p1.y);ctx.moveTo(p2.x-7,p2.y);ctx.lineTo(p2.x+7,p2.y);ctx.stroke();ctx.fillRect(p1.x+8+labelShift,m-8,tw,16);ctx.fillStyle=color;ctx.textAlign="left";ctx.textBaseline="middle";ctx.fillText(t,p1.x+13+labelShift,m);}
+  else{if(p1.x>p2.x){const tx=p1.x;p1.x=p2.x;p2.x=tx}const m=(p1.x+p2.x)/2;ctx.beginPath();ctx.moveTo(p1.x,p1.y-7);ctx.lineTo(p1.x,p1.y+7);ctx.moveTo(p2.x,p2.y-7);ctx.lineTo(p2.x,p2.y+7);ctx.stroke();ctx.fillRect(m-tw/2,p1.y-24-labelShift,tw,16);ctx.fillStyle=color;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(t,m,p1.y-16-labelShift);}
+  ctx.restore();
+};
+if(st.dg.ref)drawDim(st.dg.ref,"#ffd77a",0);
+drawDim(st.dg,"#71d7ff",18);
+}
+function render(){const r=window.devicePixelRatio||1;ctx.setTransform(r,0,0,r,0,0);ctx.clearRect(0,0,cv.clientWidth,cv.clientHeight);drawGrid();ctx.save();ctx.translate(cv.clientWidth/2,cv.clientHeight/2);ctx.scale(st.zoom,st.zoom);ctx.translate(-st.camX,-st.camY);
+const origin=getOrigin();for(const rr of st.rects)drawRect(ctx,rr,rr.id===st.sel,st.zoom,origin);if(st.draft){const d=st.draft;ctx.strokeStyle="#7fd4f8";ctx.lineWidth=1/st.zoom;ctx.setLineDash([8/st.zoom,5/st.zoom]);ctx.strokeRect(d.x,d.y,d.width,d.height);ctx.setLineDash([])}drawMaskOverlay(ctx,st.zoom);drawCellEditOverlay(ctx,st.zoom);
+drawContentBounds(ctx,st.zoom);
+ctx.restore();drawGuides();drawDistanceGuide();el.zoomLabel.textContent=`${Math.round(st.zoom*100)}%`;wrap.dataset.panning=st.pan?"1":"0";schedulePersist()}
+function resize(){const r=window.devicePixelRatio||1,b=cv.getBoundingClientRect();cv.width=Math.floor(b.width*r);cv.height=Math.floor(b.height*r);render()}
+window.addEventListener("resize",resize);
+function zoomAt(sx,sy,nz){const b=s2w(sx,sy);st.zoom=zc(nz);const a=s2w(sx,sy);st.camX+=b.x-a.x;st.camY+=b.y-a.y;render()}
+cv.addEventListener("contextmenu",e=>e.preventDefault());
+cv.addEventListener("mousedown",e=>{const b=cv.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=s2w(sx,sy),pan=e.button===1||e.button===2||(st.keys.space&&e.button===0);if(pan){st.pan=true;st.panS={sx,sy,cx:st.camX,cy:st.camY};render();return}if(e.button!==0)return;
+if(st.mode==="draw"){st.draft={x:p.x,y:p.y,width:0,height:0,sx:p.x,sy:p.y};render();return}
+if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);addMaskPoint(p.x,p.y);return}
+if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);return}if(h.id!==st.sel)selRect(h.id);toggleCellLinkAtPoint(h,p.x,p.y);return}
+const h=hit(p.x,p.y);if(h){selRect(h.id);st.drag={id:h.id,sx:p.x,sy:p.y,rx:h.x,ry:h.y}}else selRect(null);render()});
+window.addEventListener("mousemove",e=>{const b=cv.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=s2w(sx,sy);
+if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();return}
+if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();listRects()}const r=h||cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();return}
+if(isCellEditMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();listRects()}const r=h||cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();return}
+if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.width=Math.abs(p.x-d.sx);d.height=Math.abs(p.y-d.sy);render();return}
+if(st.drag){const r=st.rects.find(v=>v.id===st.drag.id);if(!r)return;const nx=st.drag.rx+(p.x-st.drag.sx),ny=st.drag.ry+(p.y-st.drag.sy),sn=snap(nx,ny,r.id,r.width,r.height,e.ctrlKey||st.keys.ctrl);r.x=sn.x;r.y=sn.y;st.g.x=sn.gx;st.g.y=sn.gy;st.dg=sn.dg;syncProps();listRects();render()}});
+window.addEventListener("mouseup",()=>{if(st.pan){st.pan=false;st.panS=null}let created=null;if(st.draft){const d=st.draft;if(d.width>=1&&d.height>=1){created=mk(d.x,d.y,d.width,d.height);st.rects.push(created)}st.draft=null}st.drag=null;st.g.x=null;st.g.y=null;st.dg=null;if(created){setMode("select");selRect(created.id)}render()});
+cv.addEventListener("wheel",e=>{e.preventDefault();const b=cv.getBoundingClientRect();zoomAt(e.clientX-b.left,e.clientY-b.top,st.zoom*(e.deltaY<0?1.1:.9))},{passive:false});
+const touchDist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+const touchMid=(a,b,rect)=>({sx:((a.clientX+b.clientX)/2)-rect.left,sy:((a.clientY+b.clientY)/2)-rect.top});
+cv.addEventListener("touchstart",e=>{const rect=cv.getBoundingClientRect();if(e.touches.length===2){const m=touchMid(e.touches[0],e.touches[1],rect);st.touch={type:"pinch",startDist:touchDist(e.touches[0],e.touches[1]),startZoom:st.zoom,worldMid:s2w(m.sx,m.sy)};st.drag=null;st.pan=false;st.draft=null;e.preventDefault();return}
+if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);st.touch={type:"single"};if(st.mode==="draw"){st.draft={x:p.x,y:p.y,width:0,height:0,sx:p.x,sy:p.y};render();e.preventDefault();return}
+if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);addMaskPoint(p.x,p.y);e.preventDefault();return}
+if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);e.preventDefault();return}if(h.id!==st.sel)selRect(h.id);toggleCellLinkAtPoint(h,p.x,p.y);e.preventDefault();return}
+const h=hit(p.x,p.y);if(h){selRect(h.id);st.drag={id:h.id,sx:p.x,sy:p.y,rx:h.x,ry:h.y}}else{st.pan=true;st.panS={sx,sy,cx:st.camX,cy:st.camY}}render();e.preventDefault()},{passive:false});
+cv.addEventListener("touchmove",e=>{const rect=cv.getBoundingClientRect();if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=2){const m=touchMid(e.touches[0],e.touches[1],rect),dist=Math.max(1,touchDist(e.touches[0],e.touches[1]));st.zoom=zc(st.touch.startZoom*(dist/st.touch.startDist));st.camX=st.touch.worldMid.x-(m.sx-cv.clientWidth/2)/st.zoom;st.camY=st.touch.worldMid.y-(m.sy-cv.clientHeight/2)/st.zoom;render();e.preventDefault();return}
+if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);if(isMaskMode()){const r=cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();e.preventDefault();return}if(isCellEditMode()){const r=cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();e.preventDefault();return}if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();e.preventDefault();return}
+if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.width=Math.abs(p.x-d.sx);d.height=Math.abs(p.y-d.sy);render();e.preventDefault();return}
+if(st.drag){const r=st.rects.find(v=>v.id===st.drag.id);if(!r)return;const nx=st.drag.rx+(p.x-st.drag.sx),ny=st.drag.ry+(p.y-st.drag.sy),sn=snap(nx,ny,r.id,r.width,r.height,false);r.x=sn.x;r.y=sn.y;st.g.x=sn.gx;st.g.y=sn.gy;st.dg=sn.dg;syncProps();listRects();render();e.preventDefault()}},{passive:false});
+cv.addEventListener("touchend",e=>{if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=1){e.preventDefault();return}if(e.touches.length===0){st.touch=null;if(st.pan){st.pan=false;st.panS=null}let created=null;if(st.draft){const d=st.draft;if(d.width>=1&&d.height>=1){created=mk(d.x,d.y,d.width,d.height);st.rects.push(created)}st.draft=null}st.drag=null;st.g.x=null;st.g.y=null;st.dg=null;if(created){setMode("select");selRect(created.id)}render();e.preventDefault()}},{passive:false});
+function delSel(){if(st.sel==null)return;st.rects=st.rects.filter(r=>r.id!==st.sel);st.sel=null;st.maskPath=[];st.maskHover=null;syncProps();listRects();render()}
+function newProject(){st.rects=[];st.sel=null;st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;listRects();syncProps();setMode("select");render()}
+function dupSel(){const r=cur();if(!r)return;const c={...r,id:st.next++,name:`${r.name} copy`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[]};st.rects.push(c);selRect(c.id)}
+function dupMirrorSel(){const r=cur();if(!r)return;const cx=drawCellX(r),cy=drawCellY(r),cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy));const mapIndex=i=>{const x=i%cols,y=Math.floor(i/cols);if(!(x>=0&&x<cols&&y>=0&&y<rows))return -1;const nx=(cols-1)-x;return y*cols+nx};
+const hiddenSrc=Array.isArray(r.hiddenCells)?r.hiddenCells:[],hiddenSet=new Set();
+for(const k of hiddenSrc){const p=String(k).split(",");if(p.length!==2)continue;const ix=+p[0],iy=+p[1];if(!(ix>=0&&ix<cols&&iy>=0&&iy<rows))continue;hiddenSet.add(`${(cols-1)-ix},${iy}`)}
+const linkSrc=Array.isArray(r.cellLinks)?r.cellLinks:[],linkSet=new Set();
+for(const k of linkSrc){const p=parseLinkKey(k);if(!p)continue;const a2=mapIndex(p.a),b2=mapIndex(p.b);if(a2<0||b2<0||a2===b2)continue;linkSet.add(mkLinkKey(a2,b2))}
+const c={...r,id:st.next++,name:`${r.name} mirror`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,cellLinks:[...linkSet],hiddenCells:[...hiddenSet]};
+st.rects.push(c);selRect(c.id)}
+function fit(){if(!st.rects.length){st.camX=0;st.camY=0;st.zoom=1;render();return}let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
+const w=Math.max(1,maxX-minX),h=Math.max(1,maxY-minY),pad=80;st.zoom=zc(Math.min((cv.clientWidth-pad)/w,(cv.clientHeight-pad)/h));st.camX=(minX+maxX)/2;st.camY=(minY+maxY)/2;render()}
+function syncProps(){const r=cur(),on=!!r;[el.name,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy].forEach(v=>v.disabled=!on);el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(!r){el.name.value="";el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто контраст: вкл";el.cx.value=el.cy.value="128";return}
+metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто контраст: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
+function listRects(){if(!st.rects.length){el.list.innerHTML="<p class='hint' style='margin:0'>Прямоугольников пока нет.</p>";return}el.list.innerHTML="";for(const r of st.rects){const d=document.createElement("div");d.className="rect-item"+(r.id===st.sel?" active":"");d.innerHTML=`<strong>${r.name}</strong><br>${r.width}x${r.height} @ (${r.x}, ${r.y})`;d.onclick=()=>selRect(r.id);el.list.appendChild(d)}}
+function applyProps(){const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто контраст: ${r.autoContrastB!==false?"вкл":"выкл"}`;listRects();render()}
+[el.name,el.x,el.y,el.rot,el.scale,el.a,el.cx,el.cy].forEach(v=>v.addEventListener("input",applyProps));
+el.b.addEventListener("input",()=>{const r=cur();if(!r)return;r.autoContrastB=false;r.colorB=el.b.value||r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто контраст: выкл";listRects();render()});
+[el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.cx,el.cy].forEach(v=>{v.addEventListener("change",()=>{applyProps();syncProps()});v.addEventListener("keydown",e=>{if(e.key==="Enter"){applyProps();syncProps()}})});
+const applyTextSettings=()=>{st.textSize=Math.max(6,evalExpr(el.textSize.value,st.textSize||12));st.fontFamily=(el.font.value||"Segoe UI").trim()||"Segoe UI";render()};
+[el.textSize,el.font].forEach(v=>v.addEventListener("input",applyTextSettings));
+el.textSize.addEventListener("change",()=>{applyTextSettings();syncProps()});
+el.textSize.addEventListener("keydown",e=>{if(e.key==="Enter"){applyTextSettings();syncProps()}});
+el.font.addEventListener("change",()=>{applyTextSettings();syncProps()});
+el.toolSelect.onclick=()=>setMode("select");el.toolDraw.onclick=()=>setMode("draw");if(el.toolMaskAdd)el.toolMaskAdd.onclick=()=>setMode("maskAdd");if(el.toolMaskSub)el.toolMaskSub.onclick=()=>setMode("maskSub");if(el.toolCellEdit)el.toolCellEdit.onclick=()=>setMode("cellEdit");if(el.newProject)el.newProject.onclick=newProject;el.btnCopy.onclick=dupSel;if(el.btnCopyMirror)el.btnCopyMirror.onclick=dupMirrorSel;el.btnDelete.onclick=delSel;if(el.btnAutoContrast)el.btnAutoContrast.onclick=()=>{const r=cur();if(!r)return;r.autoContrastB=!(r.autoContrastB!==false);if(r.autoContrastB)r.colorB=autoContrast(r.colorA);syncProps();listRects();render()};el.randColor.onclick=()=>{const r=cur();if(!r)return;r.colorA=randomColor();if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);syncProps();listRects();render()};el.zoomIn.onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,st.zoom*1.2);el.zoomOut.onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,st.zoom/1.2);el.zoomReset.onclick=()=>{st.zoom=1;render()};el.zoomFit.onclick=fit;
+const isMobile=()=>window.matchMedia("(max-width:900px)").matches;
+const setSideOpen=open=>{if(!isMobile())return;el.side.classList.toggle("open",open);el.overlay.classList.toggle("open",open)};
+el.mobileMenu.onclick=()=>setSideOpen(!el.side.classList.contains("open"));
+el.sideClose.onclick=()=>setSideOpen(false);
+el.overlay.onclick=()=>setSideOpen(false);
+window.addEventListener("resize",()=>{if(!isMobile())setSideOpen(false)});
+el.mToolSelect.onclick=()=>el.toolSelect.click();
+el.mToolDraw.onclick=()=>el.toolDraw.click();
+if(el.mToolMaskAdd)el.mToolMaskAdd.onclick=()=>el.toolMaskAdd.click();
+if(el.mToolMaskSub)el.mToolMaskSub.onclick=()=>el.toolMaskSub.click();
+if(el.mToolCellEdit)el.mToolCellEdit.onclick=()=>el.toolCellEdit.click();
+el.mCopy.onclick=()=>el.btnCopy.click();
+if(el.mCopyMirror)el.mCopyMirror.onclick=()=>el.btnCopyMirror.click();
+el.mDelete.onclick=()=>el.btnDelete.click();
+el.mZoomOut.onclick=()=>el.zoomOut.click();
+el.mZoomIn.onclick=()=>el.zoomIn.click();
+if(el.btnClearMasks)el.btnClearMasks.onclick=()=>{const r=cur();if(!r)return;r.hiddenCells=[];hiddenCache.set(r,{src:r.hiddenCells,set:new Set()});st.maskPath=[];st.maskHover=null;render()};
+const isStandalone=()=>window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent||"");
+const hideInstallBanner=()=>{if(el.installBanner)el.installBanner.classList.remove("show")};
+const showInstallBanner=(text,actionText,actionFn)=>{
+  if(!isMobile()||isStandalone()||!el.installBanner)return;
+  el.installBannerText.textContent=text;
+  el.installBannerAction.textContent=actionText;
+  el.installBannerAction.onclick=actionFn;
+  el.installBanner.classList.add("show");
+};
+const dismissInstallHint=()=>{try{localStorage.setItem(INSTALL_HINT_KEY,"1")}catch(_e){};hideInstallBanner()};
+if(el.installBannerClose)el.installBannerClose.onclick=dismissInstallHint;
+if(el.installApp)el.installApp.onclick=async()=>{
+  if(deferredInstallPrompt){
+    try{
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt=null;
+      hideInstallBanner();
+    }catch(_e){}
+    return;
+  }
+  if(isIOS()){
+    showInstallBanner("iOS: нажмите «Поделиться» и выберите «На экран Домой».","Понятно",hideInstallBanner);
+    return;
+  }
+  showInstallBanner("Установка недоступна в этом браузере.","Ок",hideInstallBanner);
+};
+window.addEventListener("beforeinstallprompt",e=>{
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  if(el.installApp)el.installApp.style.display="inline-flex";
+  showInstallBanner("Установить приложение на главный экран?","Установить",async()=>{
+    if(!deferredInstallPrompt)return;
+    try{
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+    }catch(_e){}
+    deferredInstallPrompt=null;
+    hideInstallBanner();
+  });
+});
+window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;hideInstallBanner();});
+if(isMobile()&&!isStandalone()&&isIOS()){
+  let dismissed=false;
+  try{dismissed=localStorage.getItem(INSTALL_HINT_KEY)==="1"}catch(_e){}
+  if(!dismissed){
+    setTimeout(()=>showInstallBanner("Добавьте приложение на главный экран: «Поделиться» → «На экран Домой».","Понятно",dismissInstallHint),600);
+  }
+}
+const down=(name,text,mime)=>{const b=new Blob([text],{type:mime}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;a.click();URL.revokeObjectURL(u)};
+const askFileName=(def,ext)=>{const raw=prompt("Имя файла:",def);if(raw==null)return null;let name=raw.trim();if(!name)name=def;if(!name.toLowerCase().endsWith(ext))name+=ext;return name};
+const projectFileBase=()=>{const raw=(st.projectName||"project").trim()||"project";const sanitized=raw.replace(/[\\/:*?"<>|]+/g,"_").replace(/\s+/g," ").trim();return sanitized||"project"};
+const isTauriRuntime=()=>!!(window.__TAURI_INTERNALS__||window.__TAURI__||window.__TAURI_IPC__||/\bTauri\b/i.test(navigator.userAgent||"")||location.protocol==="tauri:"||location.protocol==="asset:");
+const tauriInvoke=(cmd,args)=>{
+  if(window.__TAURI_INTERNALS__&&typeof window.__TAURI_INTERNALS__.invoke==="function")return window.__TAURI_INTERNALS__.invoke(cmd,args);
+  if(window.__TAURI__&&window.__TAURI__.core&&typeof window.__TAURI__.core.invoke==="function")return window.__TAURI__.core.invoke(cmd,args);
+  if(window.__TAURI__&&typeof window.__TAURI__.invoke==="function")return window.__TAURI__.invoke(cmd,args);
+  throw new Error("Tauri invoke API not available");
+};
+const blobToBase64=async blob=>{
+  const bytes=new Uint8Array(await blob.arrayBuffer());
+  const chunk=0x8000;
+  let bin="";
+  for(let i=0;i<bytes.length;i+=chunk)bin+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+  return btoa(bin);
+};
+const saveBlobWithSystemDialog=async(blob,suggestedName,mime,ext,description)=>{
+  if(isTauriRuntime()){
+    try{
+      const dataBase64=await blobToBase64(blob);
+      await tauriInvoke("save_file_dialog",{suggestedName,dataBase64});
+      return;
+    }catch(err){
+      alert(`Ошибка нативного сохранения (Tauri): ${err&&err.message?err.message:String(err)}`);
+      return;
+    }
+  }
+  if(window.showSaveFilePicker){
+    try{
+      const handle=await window.showSaveFilePicker({
+        suggestedName,
+        types:[{description,accept:{[mime]:[ext]}}],
+      });
+      const writable=await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    }catch(err){
+      if(err&&err.name==="AbortError")return;
+      console.warn("showSaveFilePicker failed, fallback to download:",err);
+    }
+  }
+  const name=askFileName(suggestedName,ext);
+  if(!name)return;
+  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
+};
+el.save.onclick=async()=>{const text=JSON.stringify(buildProject(),null,2);const blob=new Blob([text],{type:"application/json"});await saveBlobWithSystemDialog(blob,`${projectFileBase()}.json`,"application/json",".json","JSON files")};
+el.load.onclick=()=>el.file.click();el.file.addEventListener("change",()=>{const f=el.file.files&&el.file.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(String(rd.result||"{}"));applyProjectData(d)}catch(err){alert(`Ошибка JSON: ${err.message}`)}};rd.readAsText(f);el.file.value=""});
+el.expSvg.onclick=async()=>{if(!st.rects.length){alert("Нечего экспортировать");return}const svg=buildSvgExport();const blob=new Blob([svg],{type:"image/svg+xml"});await saveBlobWithSystemDialog(blob,`${projectFileBase()}.svg`,"image/svg+xml",".svg","SVG images")};
+el.exp.onclick=async()=>{if(!st.rects.length){alert("Нечего экспортировать");return}await ensureFontReady();let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
+const out=document.createElement("canvas"),w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY));out.width=w;out.height=h;const c=out.getContext("2d");for(const r of st.rects)drawRect(c,{...r,x:r.x-minX,y:r.y-minY},false,1,{x:0,y:0});
+out.toBlob(async b=>{if(!b){alert("Ошибка экспорта");return}await saveBlobWithSystemDialog(b,`${projectFileBase()}.png`,"image/png",".png","PNG images")},"image/png")};
+el.project.addEventListener("input",()=>{st.projectName=(el.project.value||"project").trim()||"project";schedulePersist()});
+el.project.addEventListener("change",()=>{st.projectName=(el.project.value||"project").trim()||"project";syncProps();schedulePersist()});
+window.addEventListener("keydown",e=>{if(e.key===" ")st.keys.space=true;if(e.key==="Control")st.keys.ctrl=true;if(e.key==="Escape"){setMode("select");e.preventDefault();return}if(isMaskMode()&&e.key==="Enter"){applyMaskPath();e.preventDefault();return}if(e.key==="Delete"){delSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="d"){dupSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="c"){const r=cur();if(r)st.clip={...r,autoContrastB:r.autoContrastB!==false,rotation:r.rotation||0,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[]};e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="v"){if(st.clip){const c={...st.clip,id:st.next++,name:`${st.clip.name} copy`,x:st.clip.x+20,y:st.clip.y+20,rotation:st.clip.rotation||0,autoContrastB:st.clip.autoContrastB!==false,colorB:(st.clip.autoContrastB!==false)?autoContrast(st.clip.colorA):st.clip.colorB,cellLinks:Array.isArray(st.clip.cellLinks)?[...st.clip.cellLinks]:[],hiddenCells:Array.isArray(st.clip.hiddenCells)?[...st.clip.hiddenCells]:[]};st.rects.push(c);selRect(c.id)}e.preventDefault()}
+const r=cur();if(r){const s=e.shiftKey?10:1;let m=false;if(e.key==="ArrowLeft"){r.x-=s;m=true}else if(e.key==="ArrowRight"){r.x+=s;m=true}else if(e.key==="ArrowUp"){r.y-=s;m=true}else if(e.key==="ArrowDown"){r.y+=s;m=true}if(m){syncProps();listRects();render();e.preventDefault()}}});
+window.addEventListener("keyup",e=>{if(e.key===" ")st.keys.space=false;if(e.key==="Control"){st.keys.ctrl=false;st.g.x=null;st.g.y=null;st.dg=null;render()}});
+setMode(st.mode);
+if(!restoreAutoSave()){const a=mk(-180,-90,260,180);a.name="Main";const b=mk(180,-30,220,160);b.name="Side";b.colorA="#db8f37";b.colorB=autoContrast(b.colorA);st.rects.push(a,b);selRect(a.id);resize();listRects();syncProps();fit()}else{resize();listRects();syncProps();}
+</script></body></html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
