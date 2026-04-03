@@ -579,7 +579,8 @@ return{x:Math.round(x+dx),y:Math.round(y+dy),gx,gy,dg}
 }
 function drawRect(c,r,sel,z,origin){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
 const topo=getCellTopology(r,cellX,cellY);
-const regions=((sel||r.numberCells)?planNumberRegions(r,cellX,cellY,topo.cols,topo.rows):null);
+const needRegions=!!(r.numberCells||sel||(st.mode==="regions"&&r.id===st.hoverRect));
+const regions=(needRegions?planNumberRegions(r,cellX,cellY,topo.cols,topo.rows):null);
 let drawContent=true,maskedClip=false;if(hs.size){c.save();maskedClip=true;c.beginPath();let n=0;for(let y=0;y<h;y+=cellY){for(let x=0;x<w;x+=cellX){const ix=Math.floor(x/cellX),iy=Math.floor(y/cellY);if(hs.has(maskCellKey(ix,iy)))continue;const cw=Math.min(cellX,w-x),ch=Math.min(cellY,h-y);c.rect(-w/2+x,-h/2+y,cw,ch);n++}}if(n>0)c.clip();else drawContent=false}
 if(drawContent){
 const comps=new Map();
@@ -606,7 +607,7 @@ for(const it of comps.values()){
   c.fillStyle=it.alt;c.beginPath();c.moveTo(it.minX,it.minY);c.lineTo(it.minX+bw,it.minY);c.lineTo(it.minX,it.minY+bh);c.closePath();c.fill();
   c.restore();
 }
-if(r.numberCells&&regions){
+if(r.numberCells&&regions&&!(st.mode==="regions"&&r.id===st.hoverRect)){
   const nfs=9,pad=2.5;
   c.font=`${nfs}px ${fontFamilyCss(st.fontFamily)}`;
   c.textAlign="left";c.textBaseline="top";
@@ -630,7 +631,7 @@ if(r.numberCells&&regions){
 }
 c.strokeStyle="rgba(255,255,255,.36)";c.lineWidth=1/z;c.beginPath();c.moveTo(-w/2,-h/2);c.lineTo(w/2,h/2);c.moveTo(w/2,-h/2);c.lineTo(-w/2,h/2);c.stroke();
 c.strokeStyle="rgba(255,255,255,.75)";c.lineWidth=1.2/z;c.beginPath();c.arc(0,0,Math.max(0,Math.min(w,h)/2-(2/z)),0,Math.PI*2);c.stroke();
-if(!((isMaskMode()||isCellEditMode())&&sel)){
+if(!((isMaskMode()||isCellEditMode())&&sel)&&!(st.mode==="regions"&&r.id===st.hoverRect)){
 const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),baseFs=Math.max(6,st.textSize),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),pct=fillPercent(wm,hm,r.areaM2Px),ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(w)} x ${Math.round(h)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`],maxW=Math.max(20,w-6),localRect={x:-w/2,y:-h/2,width:w,height:h},hbs=hiddenCellBoxes(localRect,cellX,cellY,hs),freeRects=computeFreeRects(localRect,cellX,cellY,hs),layout=chooseTextLayout(localRect,ls,(t,fs)=>{c.font=`${fs}px ${fontFamilyCss(st.fontFamily)}`;return c.measureText(t).width},maxW,baseFs,hbs,freeRects);
 c.textAlign="center";c.textBaseline="middle";c.font=`${layout.fs}px ${fontFamilyCss(st.fontFamily)}`;
 c.fillStyle="rgba(11,17,24,.6)";c.fillRect(layout.textLeft,layout.textTop,layout.tw,layout.th);c.fillStyle="rgba(255,255,255,.95)";for(let i=0;i<ls.length;i++)c.fillText(ls[i],layout.textX,layout.sy+i*layout.lh,maxW);
@@ -639,7 +640,7 @@ c.fillStyle="rgba(11,17,24,.6)";c.fillRect(layout.textLeft,layout.textTop,layout
 if(maskedClip)c.restore();
 const showRegionsOverlay=!!(regions&&st.mode==="regions"&&r.id===st.hoverRect);
 if(showRegionsOverlay){
-    const regionLabelFs=9;
+    const regionLabelFs=Math.max(18,Math.min(46,Math.min(w,h)*0.12));
     c.save();
     for(const rg of regions.regionsById.values()){
       const ci=(rg.gy*regions.nx+rg.gx)%REGION_ZONE_COLORS.length,col=REGION_ZONE_COLORS[ci];
@@ -660,11 +661,12 @@ if(showRegionsOverlay){
     c.restore();
     c.save();
     c.font=`${Math.max(8,regionLabelFs)}px ${fontFamilyCss(st.fontFamily)}`;
-    c.textAlign="left";c.textBaseline="top";
+    c.textAlign="center";c.textBaseline="middle";
     for(const rg of regions.regionsById.values()){
-      const tx=-w/2+Math.max(2,regions.xCutsPx[rg.gx]+2),ty=-h/2+Math.max(2,regions.yCutsPx[rg.gy]+2),tw=c.measureText(rg.label).width+4,th=Math.max(10,regionLabelFs+2);
-      c.fillStyle="rgba(11,17,24,.72)";c.fillRect(tx-1,ty-1,tw,th);
-      c.fillStyle="rgba(113,215,255,.96)";c.fillText(rg.label,tx,ty);
+      const x0=-w/2+regions.xCutsPx[rg.gx],x1=-w/2+regions.xCutsPx[rg.gx+1],y0=-h/2+regions.yCutsPx[rg.gy],y1=-h/2+regions.yCutsPx[rg.gy+1];
+      const cx=(x0+x1)/2,cy=(y0+y1)/2,tw=c.measureText(rg.label).width+14,th=Math.max(regionLabelFs+10,20);
+      c.fillStyle="rgba(11,17,24,.56)";c.fillRect(cx-tw/2,cy-th/2,tw,th);
+      c.fillStyle="rgba(255,255,255,.97)";c.fillText(rg.label,cx,cy);
     }
     c.restore();
 }
@@ -737,6 +739,7 @@ cv.addEventListener("mousedown",e=>{const b=cv.getBoundingClientRect(),sx=e.clie
 if(st.mode==="draw"){st.draft={x:p.x,y:p.y,width:0,height:0,sx:p.x,sy:p.y};render();return}
 if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);addMaskPoint(p.x,p.y);return}
 if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);return}if(h.id!==st.sel)selRect(h.id);toggleCellLinkAtPoint(h,p.x,p.y);return}
+if(st.mode==="regions"){return}
 const h=hit(p.x,p.y);if(h){selRect(h.id);st.drag={id:h.id,sx:p.x,sy:p.y,rx:h.x,ry:h.y}}else selRect(null);render()});
 window.addEventListener("mousemove",e=>{const b=cv.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=s2w(sx,sy);
 if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();return}
@@ -754,6 +757,7 @@ cv.addEventListener("touchstart",e=>{const rect=cv.getBoundingClientRect();if(e.
 if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);st.touch={type:"single"};if(st.mode==="draw"){st.draft={x:p.x,y:p.y,width:0,height:0,sx:p.x,sy:p.y};render();e.preventDefault();return}
 if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);addMaskPoint(p.x,p.y);e.preventDefault();return}
 if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);e.preventDefault();return}if(h.id!==st.sel)selRect(h.id);toggleCellLinkAtPoint(h,p.x,p.y);e.preventDefault();return}
+if(st.mode==="regions"){st.pan=true;st.panS={sx,sy,cx:st.camX,cy:st.camY};render();e.preventDefault();return}
 const h=hit(p.x,p.y);if(h){selRect(h.id);st.drag={id:h.id,sx:p.x,sy:p.y,rx:h.x,ry:h.y}}else{st.pan=true;st.panS={sx,sy,cx:st.camX,cy:st.camY}}render();e.preventDefault()},{passive:false});
 cv.addEventListener("touchmove",e=>{const rect=cv.getBoundingClientRect();if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=2){const m=touchMid(e.touches[0],e.touches[1],rect),dist=Math.max(1,touchDist(e.touches[0],e.touches[1]));st.zoom=zc(st.touch.startZoom*(dist/st.touch.startDist));st.camX=st.touch.worldMid.x-(m.sx-cv.clientWidth/2)/st.zoom;st.camY=st.touch.worldMid.y-(m.sy-cv.clientHeight/2)/st.zoom;render();e.preventDefault();return}
 if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);if(isMaskMode()){const r=cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();e.preventDefault();return}if(isCellEditMode()){const r=cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();e.preventDefault();return}if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();e.preventDefault();return}
