@@ -2,52 +2,114 @@
 <html lang="ru"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Редактор масок LED экранов</title>
+<link rel="stylesheet" href="./vendor/bootstrap/bootstrap.min.css">
+<link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
+<link rel="stylesheet" href="./vendor/fonts/roboto/roboto.css">
 <style>
-:root{--bg:#0f1318;--p:#1a2028;--p2:#242d37;--t:#e8edf3;--m:#9aabbe;--b:#324150;--cb:#0b1118;--f:"Segoe UI","Arial","Noto Sans",sans-serif}
-*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;font-family:var(--f);color:var(--t);background:var(--bg);user-select:none;-webkit-user-select:none}input,textarea{user-select:text;-webkit-user-select:text}
-.app{display:grid;grid-template-rows:auto 1fr;height:100%}.toolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:linear-gradient(180deg,#1b232c,#141b22);border-bottom:1px solid var(--b);flex-wrap:wrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
-.group{display:flex;gap:6px;align-items:center;padding-right:8px;margin-right:4px;border-right:1px solid var(--b)}.group:last-child{border-right:none}
-button,input{font:inherit}button{border:1px solid var(--b);background:var(--p2);color:var(--t);padding:7px 10px;border-radius:8px;cursor:pointer}button.active{background:#184238;border-color:#2a8a72}button.danger{background:#4b2525;border-color:#9d5050}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;font-family:"Roboto","Segoe UI","Arial","Noto Sans",sans-serif;user-select:none;-webkit-user-select:none}
+input,textarea{user-select:text;-webkit-user-select:text}
+.app{display:grid;grid-template-rows:auto 1fr;height:100%}
+.toolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--bs-border-color);flex-wrap:nowrap;overflow-x:hidden;overflow-y:visible;position:relative;z-index:1090}
+.group{display:flex;gap:6px;align-items:center;padding-right:8px;margin-right:4px;border-right:1px solid var(--bs-border-color)}
+.group:last-child{border-right:none}
+button,input{font:inherit}button{cursor:pointer}
+.toolbar .btn{height:36px;display:inline-flex;align-items:center;justify-content:center}
 .icon-btn{width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.icon-btn i{font-size:16px;line-height:1}
+.icon-label-btn{width:auto;min-width:74px;height:36px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.icon-label-btn span{font-weight:700;letter-spacing:.2px}
 .icon-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.toolbar-input{min-width:170px;border:1px solid var(--b);background:#0e151c;color:var(--t);border-radius:8px;padding:7px 8px}
+.toolbar-input{min-width:170px}
+.icon-dropdown::after{display:none}
+.toolbar .dropdown-menu{z-index:2100}
+.toolbar-overflow-popup{position:fixed;z-index:2200;display:none;min-width:220px;max-width:min(92vw,360px);max-height:min(60vh,420px);overflow:auto}
+.toolbar-overflow-popup.show{display:block}
 .mobile-only{display:none}
 .install-btn{display:none}
-.mobile-menu-group{margin-left:auto;padding-right:0;margin-right:0;border-right:none}
+.mobile-menu-group{padding-right:0;margin-right:0;border-right:none}
+.toolbar-right{margin-left:auto;padding-right:0;margin-right:0;border-right:none}
+.overflow-group{display:none}
 .mobile-hide{display:flex}
 .side-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .side-close{display:none}
 .mobile-dock{display:none}
-.side-overlay{display:none}
-.install-banner{position:fixed;left:10px;right:10px;bottom:70px;z-index:40;display:none;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--b);border-radius:12px;background:rgba(20,27,35,.96);font-size:12px;color:var(--t)}
+.install-banner{position:fixed;left:10px;right:10px;bottom:70px;z-index:40;display:none;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--bs-border-color);border-radius:12px;background:var(--bs-body-bg);font-size:12px}
 .install-banner.show{display:flex}
 .install-banner button{padding:6px 10px}
-.main{display:grid;grid-template-columns:1fr 320px;min-height:0}.canvas-wrap{position:relative;background:radial-gradient(circle at 15% 15%,rgba(43,196,160,.09),transparent 38%),radial-gradient(circle at 80% 10%,rgba(74,200,255,.08),transparent 35%),var(--cb);min-height:0}
+.help-modal .modal-content{border-color:var(--bs-border-color)}
+.help-modal{z-index:2000}
+.help-modal .modal-header{border-bottom-color:var(--bs-border-color)}
+.help-modal .modal-body{max-height:75vh}
+.help-sub{margin:0 0 12px;color:var(--bs-secondary-color);font-size:12px}
+.help-list{display:grid;grid-template-columns:1fr;gap:8px}
+.help-item{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;padding:8px;border:1px solid var(--bs-border-color);border-radius:10px;background:var(--bs-tertiary-bg)}
+.help-item i{font-size:16px;line-height:1.1;justify-self:center;margin-top:2px}
+.help-item b{display:block;font-size:13px;margin-bottom:2px}
+.help-item span{display:block;color:var(--bs-secondary-color);font-size:12px;line-height:1.35}
+.help-section-title{margin:14px 0 8px;font-size:13px}
+.help-canvas-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.help-canvas-card{padding:10px;border:1px solid var(--bs-border-color);border-radius:10px;background:var(--bs-tertiary-bg)}
+.help-canvas-card h4{margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--bs-border-color);font-size:14px;font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:7px}
+.help-canvas-card h4 i{font-size:14px}
+.help-canvas-card p{margin:0 0 5px;color:var(--bs-secondary-color);font-size:12px;line-height:1.35}
+.help-canvas-card p i{width:14px;text-align:center;margin-right:5px}
+@media (max-width:700px){.help-canvas-grid{grid-template-columns:1fr}}
+.main{display:grid;grid-template-columns:1fr 320px;min-height:0}
+.canvas-wrap{position:relative;background:var(--bs-body-bg);min-height:0}
 canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.canvas-wrap[data-mode="select"] canvas,.canvas-wrap[data-mode="regions"] canvas{cursor:default}.canvas-wrap[data-panning="1"] canvas{cursor:grabbing}
-.side{border-left:1px solid var(--b);background:linear-gradient(180deg,#171f27,#121820);padding:12px;overflow:auto}.panel-title{margin:0 0 10px;font-size:15px}.hint{margin:0 0 12px;color:var(--m);font-size:12px;line-height:1.35}
-.field{margin-bottom:9px}.field label{display:block;margin-bottom:4px;font-size:12px;color:var(--m)}.field input:not([type="checkbox"]){width:100%;border:1px solid var(--b);background:#0e151c;color:var(--t);border-radius:8px;padding:7px 8px}.field input[type="color"]{padding:2px;height:36px}
-.check-row{display:flex!important;align-items:center;gap:8px;margin-bottom:0!important;color:var(--t)!important;font-size:13px!important}
-.check-input{appearance:none;-webkit-appearance:none;width:16px!important;height:16px!important;margin:0!important;border:1px solid var(--b)!important;border-radius:0!important;background:#0e151c;display:inline-block;position:relative;cursor:pointer}
-.check-input::after{content:"";position:absolute;inset:3px;background:#8fd7ff;border-radius:0;transform:scale(0);transform-origin:center;transition:transform .12s ease}
-.check-input:checked{border-color:#5fa8d6;background:#12283a}
-.check-input:checked::after{transform:scale(1)}
-.check-input:disabled{opacity:.45;cursor:default}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rect-list{margin-top:14px;border-top:1px solid var(--b);padding-top:10px}.rect-item{border:1px solid var(--b);border-radius:8px;background:#0f1720;padding:8px;font-size:12px;margin-bottom:7px;cursor:pointer}.rect-item.active{border-color:#88a6c6;background:#1a2634}
+.side{--bs-offcanvas-width:min(88vw,360px);border-left:1px solid var(--bs-border-color);background:var(--bs-body-bg);padding:12px;overflow:auto}
+@media (min-width:901px){
+  .side.offcanvas{
+    position:static;
+    transform:none;
+    visibility:visible!important;
+    z-index:auto;
+    width:auto;
+    max-width:none;
+    border-left:1px solid var(--bs-border-color);
+    border-top:0;
+    background:var(--bs-body-bg);
+  }
+}
+.panel-title{margin:0 0 10px;font-size:15px}
+.hint{margin:0 0 12px;color:var(--bs-secondary-color);font-size:12px;line-height:1.35}
+.field{margin-bottom:9px}.field label{display:block;margin-bottom:4px;font-size:12px;color:var(--bs-secondary-color)}.field input[type="color"]{padding:2px;height:36px;width:100%}
+.range-row{display:grid;grid-template-columns:3fr 1fr;align-items:center;column-gap:4px}
+.range-row input[type="range"]{width:100%;margin:0}
+.range-value{margin:0;text-align:center;justify-self:stretch;white-space:nowrap;font-size:12px;color:var(--bs-secondary-color);line-height:1.2}
+.field .form-control-color{max-width:none;width:100%}
+.form-check{padding-left:1.6rem}
+.form-check-input{cursor:pointer}
+.form-check-label{font-size:13px;cursor:pointer;line-height:1.2}
+.field .form-check{display:flex;align-items:center;gap:.45rem;min-height:36px;padding-left:0}
+.field .form-check .form-check-input{margin:0;float:none}
+.field .form-check .form-check-label{margin:0}
+.settings-collapse{margin:8px 0 10px;padding:8px;border:1px solid var(--bs-border-color);border-radius:8px;background:var(--bs-tertiary-bg)}
+.settings-collapse>summary{list-style:none;cursor:pointer;font-size:12px;color:var(--bs-secondary-color);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.settings-collapse>summary::-webkit-details-marker{display:none}
+.settings-collapse>summary::before{content:"▸";font-size:12px;line-height:1;opacity:.9;transition:transform .15s ease}
+.settings-collapse[open]>summary::before{transform:rotate(90deg)}
+.settings-collapse:not([open])>summary{margin-bottom:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rect-list{margin-top:14px;border-top:1px solid var(--bs-border-color);padding-top:10px}
+.rect-item{border:1px solid var(--bs-border-color);border-radius:8px;background:var(--bs-tertiary-bg);padding:8px;font-size:12px;margin-bottom:7px;cursor:pointer}
+.rect-item.active{border-color:var(--bs-primary-border-subtle);background:var(--bs-primary-bg-subtle)}
+.rect-item.dragging{opacity:.45}
+.rect-item.drop-before{box-shadow:inset 0 2px 0 var(--bs-info)}
+.rect-item.drop-after{box-shadow:inset 0 -2px 0 var(--bs-info)}
 @media (max-width:900px){
   .main{grid-template-columns:1fr;grid-template-rows:1fr}
   .group{padding-right:6px;margin-right:2px}
   .mobile-hide{display:none!important}
   .icon-btn{width:42px;height:42px}
   .toolbar button{min-height:42px}
+  .toolbar{gap:6px}
   .toolbar-input{min-width:140px}
   .mobile-only{display:inline-flex}
   .install-btn{display:inline-flex}
-  .side{position:fixed;top:0;right:0;bottom:0;width:min(88vw,360px);max-height:none;border-left:1px solid var(--b);border-top:none;z-index:30;transform:translateX(105%);transition:transform .2s ease}
-  .side.open{transform:translateX(0)}
   .side-close{display:inline-flex}
-  .side-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:25}
-  .side-overlay.open{display:block}
-  .mobile-dock{display:flex;position:fixed;z-index:35;background:rgba(20,27,35,.94);border:1px solid var(--b);border-radius:14px;padding:6px;gap:6px;backdrop-filter:blur(6px)}
+  .mobile-dock{display:flex!important;position:fixed;z-index:1070;background:var(--bs-tertiary-bg);border:1px solid var(--bs-border-color);border-radius:14px;padding:6px;gap:6px}
 }
 @media (max-width:900px) and (orientation:portrait){
   .mobile-dock{left:10px;top:50%;bottom:auto;transform:translateY(-50%);flex-direction:column;max-height:calc(100vh - 24px);overflow-y:auto;overflow-x:hidden}
@@ -55,91 +117,111 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
 @media (max-width:900px) and (orientation:landscape){
   .mobile-dock{left:50%;top:auto;bottom:10px;transform:translateX(-50%);flex-direction:row;max-width:calc(100vw - 20px);overflow-x:auto;overflow-y:hidden}
 }
+@media (hover:none) and (pointer:coarse){
+  .mobile-dock{display:flex!important;position:fixed;z-index:1070;background:var(--bs-tertiary-bg);border:1px solid var(--bs-border-color);border-radius:14px;padding:6px;gap:6px}
+}
+@media (hover:none) and (pointer:coarse) and (orientation:portrait){
+  .mobile-dock{left:10px;top:50%;bottom:auto;transform:translateY(-50%);flex-direction:column;max-height:calc(100vh - 24px);overflow-y:auto;overflow-x:hidden}
+}
+@media (hover:none) and (pointer:coarse) and (orientation:landscape){
+  .mobile-dock{left:50%;top:auto;bottom:10px;transform:translateX(-50%);flex-direction:row;max-width:calc(100vw - 20px);overflow-x:auto;overflow-y:hidden}
+}
 </style></head><body>
-<div class="app"><div class="toolbar">
-<div class="group"><span style="font-size:12px;color:var(--m)">Проект</span><input id="projectName" class="toolbar-input" type="text" value="project"></div>
+<div class="app"><div id="toolbarMain" class="toolbar navbar bg-body-tertiary shadow-sm">
+<div class="group"><span class="text-secondary" style="font-size:12px">Проект</span><input id="projectName" class="toolbar-input" type="text" value="project"></div>
+<div class="group"><button id="helpOpen" class="icon-btn" title="Инструкция" aria-label="Инструкция"><i class="fa-solid fa-circle-question"></i></button></div>
 <div class="group mobile-hide">
-  <button id="toolSelect" class="active icon-btn" title="Выделение" aria-label="Выделение">
-    <svg viewBox="0 0 24 24"><path d="M4 4l7 16 2-7 7-2z"/></svg>
+  <button id="toolSelect" class="icon-btn" title="Выделение" aria-label="Выделение">
+    <i class="fa-solid fa-arrow-pointer"></i>
   </button>
   <button id="toolDraw" class="icon-btn" title="Добавление" aria-label="Добавление">
-    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    <i class="fa-solid fa-plus"></i>
   </button>
   <button id="toolMaskAdd" class="icon-btn" title="+ Маска (скрыть)" aria-label="+ Маска">
-    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M19 4v4M17 6h4"/></svg>
+    <i class="fa-solid fa-square-plus"></i>
   </button>
   <button id="toolMaskSub" class="icon-btn" title="- Маска (показать)" aria-label="- Маска">
-    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M17 6h4"/></svg>
+    <i class="fa-solid fa-square-minus"></i>
   </button>
-  <button id="toolCellEdit" class="icon-btn" title="Объединение/деление клеток" aria-label="Клетки">
-    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="7" height="14" rx="1.5"/><rect x="14" y="5" width="7" height="14" rx="1.5"/><path d="M10 9h4M10 15h4"/><path d="M12 7v10"/></svg>
+  <button id="toolCellEdit" class="icon-btn" title="Объединение/деление кабинетов" aria-label="Кабинеты">
+    <i class="fa-solid fa-link"></i>
   </button>
   <button id="toolRegions" class="icon-btn" title="Подсветка областей" aria-label="Области">
-    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
+    <i class="fa-solid fa-border-all"></i>
   </button>
 </div>
 <div class="group mobile-hide">
   <button id="btnCopy" class="icon-btn" title="Копировать" aria-label="Копировать">
-    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="10" height="10" rx="2"/><path d="M5 15V5h10"/></svg>
+    <i class="fa-regular fa-clone"></i>
   </button>
   <button id="btnCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить">
-    <svg viewBox="0 0 24 24"><rect x="3" y="6" width="7" height="12" rx="1.5"/><rect x="14" y="6" width="7" height="12" rx="1.5"/><path d="M12 4v16"/><path d="M11 9l-2 3 2 3M13 9l2 3-2 3"/></svg>
+    <i class="fa-regular fa-clone fa-flip-horizontal"></i>
   </button>
   <button id="btnDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить">
-    <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 12h8l1-12"/><path d="M10 11v5M14 11v5"/></svg>
+    <i class="fa-solid fa-trash"></i>
   </button>
 </div>
 <div class="group mobile-hide">
   <button id="zoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить">
-    <svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L20 20"/><path d="M7 10h6"/></svg>
+    <i class="fa-solid fa-magnifying-glass-minus"></i>
   </button>
   <button id="zoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить">
-    <svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L20 20"/><path d="M10 7v6M7 10h6"/></svg>
+    <i class="fa-solid fa-magnifying-glass-plus"></i>
   </button>
   <button id="zoomReset">100%</button>
   <button id="zoomFit" class="icon-btn" title="Вписать" aria-label="Вписать">
-    <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    <i class="fa-solid fa-expand"></i>
   </button>
-  <span id="zoomLabel" style="font-size:12px;color:var(--m)">100%</span>
+  <span id="zoomLabel" class="text-secondary" style="font-size:12px">100%</span>
 </div>
 <div class="group">
-  <button id="newProject" class="icon-btn" title="Новый проект (очистить поле)" aria-label="Новый проект">
-    <svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></svg>
+  <button id="newProject" class="icon-btn" title="Новый проект" aria-label="Новый проект">
+    <i class="fa-solid fa-file-circle-plus"></i>
   </button>
   <button id="saveProject" class="icon-btn" title="Сохранить JSON" aria-label="Сохранить JSON">
-    <svg viewBox="0 0 24 24"><path d="M5 4h12l2 2v14H5z"/><path d="M8 4v6h8V4"/><path d="M9 17h6"/></svg>
+    <i class="fa-solid fa-floppy-disk"></i>
   </button>
   <button id="loadProject" class="icon-btn" title="Загрузить JSON" aria-label="Загрузить JSON">
-    <svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 16V11"/><path d="M10 13l2-2 2 2"/></svg>
+    <i class="fa-solid fa-folder-open"></i>
   </button>
-  <button id="exportSvg" class="icon-btn" title="Экспорт SVG" aria-label="Экспорт SVG">
-    <svg viewBox="0 0 24 24"><text x="12" y="11.8" text-anchor="middle" font-size="12.8" font-weight="700" font-family="Segoe UI, Arial, sans-serif" fill="currentColor" stroke="none">SVG</text><path d="M12 14.2v6"/><path d="M9.2 17.5L12 20.3l2.8-2.8"/></svg>
-  </button>
-  <button id="exportPng" class="icon-btn" title="Экспорт PNG" aria-label="Экспорт PNG">
-    <svg viewBox="0 0 24 24"><text x="12" y="11.8" text-anchor="middle" font-size="12.8" font-weight="700" font-family="Segoe UI, Arial, sans-serif" fill="currentColor" stroke="none">PNG</text><path d="M12 14.2v6"/><path d="M9.2 17.5L12 20.3l2.8-2.8"/></svg>
+  <button id="exportSvg" class="icon-label-btn" title="Экспорт SVG" aria-label="Экспорт SVG"><i class="fa-regular fa-file-image"></i><span>SVG</span></button>
+  <button id="exportPng" class="icon-label-btn" title="Экспорт PNG" aria-label="Экспорт PNG"><i class="fa-regular fa-file-image"></i><span>PNG</span></button>
+</div>
+<div id="overflowGroup" class="group overflow-group">
+  <button id="toolbarOverflowToggle" class="icon-btn icon-dropdown" title="Ещё" aria-label="Ещё" aria-expanded="false">
+    <i class="fa-solid fa-ellipsis"></i>
   </button>
 </div>
-<div class="group mobile-only mobile-menu-group"><button id="mobileMenu" class="icon-btn" title="Панель свойств" aria-label="Панель свойств"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div>
-<div class="group mobile-only"><button id="installApp" class="icon-btn install-btn" title="Установить приложение" aria-label="Установить приложение"><svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="M8.5 9.5L12 13l3.5-3.5"/><path d="M5 15v4h14v-4"/></svg></button></div>
+<div class="group mobile-only mobile-menu-group"><button id="mobileMenu" class="icon-btn" title="Панель свойств" aria-label="Панель свойств" data-bs-toggle="offcanvas" data-bs-target="#sidePanel" aria-controls="sidePanel"><i class="fa-solid fa-bars"></i></button></div>
+<div class="group mobile-only"><button id="installApp" class="icon-btn install-btn" title="Установить приложение" aria-label="Установить приложение"><i class="fa-solid fa-download"></i></button></div>
+<div class="group toolbar-right">
+  <button id="themeToggle" class="icon-btn icon-dropdown" title="Тема" aria-label="Тема" aria-expanded="false">
+    <i id="themeIcon" class="fa-solid fa-circle-half-stroke"></i>
+  </button>
+</div>
 <input id="fileInput" type="file" accept="application/json" style="display:none"></div>
-<div class="main"><div id="canvasWrap" class="canvas-wrap" data-mode="select"><canvas id="editorCanvas"></canvas></div>
-<aside id="sidePanel" class="side"><div class="side-head"><h2 class="panel-title">Свойства прямоугольника</h2><button id="sideClose" class="icon-btn side-close" title="Закрыть" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-<p class="hint">Ctrl отключает магнит. ПКМ или Space+ЛКМ панорамируют. На тач: 1 палец — объект/пан, 2 пальца — масштаб и пан.</p>
-<p class="hint" style="margin-top:-6px">Инструменты «+ Маска» и «- Маска»: клики по узлам сетки, замкните полигон кликом по первой точке (или Enter). Esc очищает текущий контур.</p>
-<div style="margin:8px 0 10px;padding:8px;border:1px solid var(--b);border-radius:8px;background:#0f1720">
-  <div style="font-size:12px;color:var(--m);margin-bottom:6px">Глобальные настройки текста (для всех прямоугольников)</div>
-  <div class="grid2"><div class="field"><label for="globalTextSize">Размер текста (px)</label><input id="globalTextSize" type="text" inputmode="decimal" spellcheck="false" value="12"></div><div class="field"><label for="globalFont">Шрифт</label><input id="globalFont" type="text" spellcheck="false" value="Segoe UI, Arial"></div></div>
+<div id="toolbarOverflowPopup" class="toolbar-overflow-popup dropdown-menu"></div>
+<div id="themePopup" class="toolbar-overflow-popup dropdown-menu">
+  <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-theme="auto"><i class="fa-solid fa-circle-half-stroke"></i><span>Авто</span></button>
+  <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-theme="light"><i class="fa-regular fa-sun"></i><span>Светлая</span></button>
+  <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-theme="dark"><i class="fa-regular fa-moon"></i><span>Тёмная</span></button>
 </div>
+<div class="main"><div id="canvasWrap" class="canvas-wrap" data-mode="select"><canvas id="editorCanvas"></canvas></div>
+<aside id="sidePanel" class="side offcanvas offcanvas-end bg-body border-start shadow-sm" tabindex="-1" aria-labelledby="sideTitle"><div class="side-head"><h2 id="sideTitle" class="panel-title">Свойства экрана</h2><button id="sideClose" type="button" class="icon-btn side-close" title="Закрыть" aria-label="Закрыть" data-bs-dismiss="offcanvas"><i class="fa-solid fa-xmark"></i></button></div>
+<details class="settings-collapse">
+  <summary>Глобальные настройки</summary>
+  <div class="grid2"><div class="field"><label for="globalTextSize">Размер текста (px)</label><input id="globalTextSize" type="text" inputmode="decimal" spellcheck="false" value="12"></div><div class="field"><label for="globalFont">Шрифт</label><input id="globalFont" type="text" spellcheck="false" value="Roboto, Segoe UI, Arial"></div></div>
+</details>
 <div class="field"><label for="propName">Имя</label><input id="propName" type="text"></div>
+<div class="field"><label for="propTextSize">Размер шрифта экрана (0 = глобальный)</label><div class="range-row"><input id="propTextSize" type="range" min="0" max="128" step="1" value="0"><div id="propTextSizeLabel" class="hint range-value" title="Глобальный размер"><i class="fa-solid fa-globe"></i></div></div></div>
 <div class="grid2"><div class="field"><label for="propX">X (px)</label><input id="propX" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propY">Y (px)</label><input id="propY" type="text" inputmode="decimal" spellcheck="false"></div></div>
 <div class="field"><label for="propRot">Поворот (°)</label><input id="propRot" type="text" inputmode="decimal" spellcheck="false" value="0"></div>
 <div class="grid2"><div class="field"><label for="propWm">Ширина (м)</label><input id="propWm" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propHm">Высота (м)</label><input id="propHm" type="text" inputmode="decimal" spellcheck="false"></div></div><div class="grid2"><div class="field"><label for="propScale">Коэффициент (px/м)</label><input id="propScale" type="text" inputmode="decimal" spellcheck="false" value="256"></div><div class="field"><label for="propAreaM2">Площадь 1м² (px²)</label><input id="propAreaM2" type="text" inputmode="decimal" spellcheck="false" value="256*256"></div></div>
 <div class="grid2"><div class="field"><label for="propColorA">Основной</label><input id="propColorA" type="color" value="#2fcaaf"></div><div class="field"><label for="propColorB">Дополнительный</label><input id="propColorB" type="color" value="#1f3f7e"></div></div><div class="field"><button id="btnAutoContrast" type="button" style="width:100%">Авто дополнительный: вкл</button></div><div class="field"><button id="btnRandomColor" type="button" style="width:100%">Случайный цвет</button></div>
-<div class="grid2"><div class="field"><label for="propCellX">Размер клетки X</label><input id="propCellX" type="text" inputmode="decimal" spellcheck="false" value="128"></div><div class="field"><label for="propCellY">Размер клетки Y</label><input id="propCellY" type="text" inputmode="decimal" spellcheck="false" value="128"></div></div>
-<div class="field"><label class="check-row"><input id="propNumberCells" class="check-input" type="checkbox">Нумеровать клетки</label></div>
+<div class="grid2"><div class="field"><label for="propCellX">Размер кабинета X</label><input id="propCellX" type="text" inputmode="decimal" spellcheck="false" value="128"></div><div class="field"><label for="propCellY">Размер кабинета Y</label><input id="propCellY" type="text" inputmode="decimal" spellcheck="false" value="128"></div></div>
+<div class="field"><div class="form-check"><input id="propNumberCells" class="form-check-input" type="checkbox"><label class="form-check-label" for="propNumberCells">Нумеровать кабинеты</label></div></div>
 <div class="field"><button id="btnClearMasks" type="button" style="width:100%">Удалить все маски</button></div>
 <div class="rect-list" id="rectList"></div></aside></div></div>
-<div id="sideOverlay" class="side-overlay"></div>
 <div id="installBanner" class="install-banner">
   <span id="installBannerText">Установить приложение на главный экран?</span>
   <div style="display:flex;gap:6px">
@@ -147,25 +229,210 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
     <button id="installBannerClose" type="button">Позже</button>
   </div>
 </div>
-<div class="mobile-dock">
-  <button id="mToolSelect" class="icon-btn" title="Выделение" aria-label="Выделение"><svg viewBox="0 0 24 24"><path d="M4 4l7 16 2-7 7-2z"/></svg></button>
-  <button id="mToolDraw" class="icon-btn" title="Добавление" aria-label="Добавление"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
-  <button id="mToolMaskAdd" class="icon-btn" title="+ Маска (скрыть)" aria-label="+ Маска"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M19 4v4M17 6h4"/></svg></button>
-  <button id="mToolMaskSub" class="icon-btn" title="- Маска (показать)" aria-label="- Маска"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M6 15l4-6 4 4"/><circle cx="6" cy="15" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="19" cy="6" r="4"/><path d="M17 6h4"/></svg></button>
-  <button id="mToolCellEdit" class="icon-btn" title="Объединение/деление клеток" aria-label="Клетки"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="7" height="14" rx="1.5"/><rect x="14" y="5" width="7" height="14" rx="1.5"/><path d="M10 9h4M10 15h4"/><path d="M12 7v10"/></svg></button>
-  <button id="mToolRegions" class="icon-btn" title="Подсветка областей" aria-label="Области"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg></button>
-  <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="10" height="10" rx="2"/><path d="M5 15V5h10"/></svg></button>
-  <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="7" height="12" rx="1.5"/><rect x="14" y="6" width="7" height="12" rx="1.5"/><path d="M12 4v16"/><path d="M11 9l-2 3 2 3M13 9l2 3-2 3"/></svg></button>
-  <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 12h8l1-12"/><path d="M10 11v5M14 11v5"/></svg></button>
-  <button id="mZoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L20 20"/><path d="M7 10h6"/></svg></button>
-  <button id="mZoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L20 20"/><path d="M10 7v6M7 10h6"/></svg></button>
+<div id="helpModal" class="modal help-modal" tabindex="-1" aria-labelledby="helpTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="helpTitle" class="modal-title">Инструкция</h5>
+        <button id="helpClose" type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+    <p class="help-section-title">Работа с холстом</p>
+    <div class="help-canvas-grid">
+      <div class="help-canvas-card">
+        <h4><i class="fa-solid fa-desktop"></i>ПК</h4>
+        <p><i class="fa-solid fa-computer-mouse"></i>ЛКМ: выделение/перемещение объектов и работа активным инструментом.</p>
+        <p><i class="fa-solid fa-computer-mouse"></i>ПКМ или <i class="fa-regular fa-keyboard"></i>Space + ЛКМ: панорамирование холста.</p>
+        <p><i class="fa-solid fa-mouse"></i>Колесо мыши: масштаб в точке курсора.</p>
+        <p><i class="fa-regular fa-keyboard"></i>Ctrl при перетаскивании: временно отключает снаппинг.</p>
+        <p><i class="fa-regular fa-keyboard"></i>Esc: выход в инструмент выделения. Delete: удалить выбранный объект.</p>
+      </div>
+      <div class="help-canvas-card">
+        <h4><i class="fa-solid fa-mobile-screen-button"></i>Мобильные</h4>
+        <p><i class="fa-solid fa-hand-pointer"></i>1 касание: взаимодействие с объектом по выбранному инструменту.</p>
+        <p><i class="fa-solid fa-hand-pointer"></i>1 касание по пустому месту (в некоторых режимах): панорамирование.</p>
+        <p><i class="fa-solid fa-handshake-angle"></i>2 касания: масштаб и панорамирование одновременно.</p>
+        <p>Нижняя плавающая панель: быстрый доступ к инструментам и зуму.</p>
+      </div>
+    </div>
+    <p class="help-sub" style="margin-top:12px">Иконки инструментов (сверху вниз):</p>
+    <div class="help-list">
+      <div class="help-item"><i class="fa-solid fa-arrow-pointer"></i><div><b>Выделение</b><span>Выбор экрана и перетаскивание. Ctrl временно отключает снап.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-plus"></i><div><b>Добавление</b><span>Создание нового экрана протяжкой мыши или пальцем.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-square-plus"></i><div><b>+ Маска (скрыть)</b><span>Клики по узлам сетки. Замкните контур для скрытия области.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-square-minus"></i><div><b>- Маска (показать)</b><span>Возвращает ранее скрытые области по замкнутому контуру.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-link"></i><div><b>Объединение/деление кабинетов</b><span>Клик по общей границе кабинетов включает или выключает склейку.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-border-all"></i><div><b>Подсветка областей</b><span>Показывает зоны подэкранов на экране под курсором.</span></div></div>
+      <div class="help-item"><i class="fa-regular fa-clone"></i><div><b>Копировать</b><span>Создаёт копию выбранного экрана со смещением.</span></div></div>
+      <div class="help-item"><i class="fa-regular fa-clone fa-flip-horizontal"></i><div><b>Копировать и отразить</b><span>Создаёт копию с отражением масок и связей клеток по вертикали.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-trash"></i><div><b>Удалить</b><span>Удаляет выбранный экран.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-magnifying-glass-minus"></i><div><b>Отдалить</b><span>Уменьшает масштаб холста.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-magnifying-glass-plus"></i><div><b>Приблизить</b><span>Увеличивает масштаб холста.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-expand"></i><div><b>Вписать</b><span>Подгоняет камеру под все экраны на сцене.</span></div></div>
+      </div>
+    </div>
+  </div>
 </div>
+</div>
+<div class="mobile-dock bg-body-tertiary shadow">
+  <button id="mToolSelect" class="icon-btn" title="Выделение" aria-label="Выделение"><i class="fa-solid fa-arrow-pointer"></i></button>
+  <button id="mToolDraw" class="icon-btn" title="Добавление" aria-label="Добавление"><i class="fa-solid fa-plus"></i></button>
+  <button id="mToolMaskAdd" class="icon-btn" title="+ Маска (скрыть)" aria-label="+ Маска"><i class="fa-solid fa-square-plus"></i></button>
+  <button id="mToolMaskSub" class="icon-btn" title="- Маска (показать)" aria-label="- Маска"><i class="fa-solid fa-square-minus"></i></button>
+  <button id="mToolCellEdit" class="icon-btn" title="Объединение/деление кабинетов" aria-label="Кабинеты"><i class="fa-solid fa-link"></i></button>
+  <button id="mToolRegions" class="icon-btn" title="Подсветка областей" aria-label="Области"><i class="fa-solid fa-border-all"></i></button>
+  <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><i class="fa-regular fa-clone"></i></button>
+  <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
+  <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i class="fa-solid fa-trash"></i></button>
+  <button id="mZoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+  <button id="mZoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+</div>
+<script src="./vendor/bootstrap/bootstrap.bundle.min.js"></script>
 <script>
 const $=id=>document.getElementById(id),cv=$("editorCanvas"),ctx=cv.getContext("2d"),wrap=$("canvasWrap");
-const el={project:$("projectName"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),side:$("sidePanel"),sideClose:$("sideClose"),overlay:$("sideOverlay"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),expSvg:$("exportSvg"),exp:$("exportPng"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),numCells:$("propNumberCells"),btnClearMasks:$("btnClearMasks"),list:$("rectList")};
-const st={rects:[],sel:null,hoverRect:null,mode:"select",camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Segoe UI, Arial",projectName:"project",maskPath:[],maskHover:null,cellHover:null};
+const ensureMobileDock=()=>{
+  if(document.querySelector(".mobile-dock"))return;
+  const dock=document.createElement("div");
+  dock.className="mobile-dock bg-body-tertiary shadow";
+  dock.innerHTML=`
+  <button id="mToolSelect" class="icon-btn" title="Выделение" aria-label="Выделение"><i class="fa-solid fa-arrow-pointer"></i></button>
+  <button id="mToolDraw" class="icon-btn" title="Добавление" aria-label="Добавление"><i class="fa-solid fa-plus"></i></button>
+  <button id="mToolMaskAdd" class="icon-btn" title="+ Маска (скрыть)" aria-label="+ Маска"><i class="fa-solid fa-square-plus"></i></button>
+  <button id="mToolMaskSub" class="icon-btn" title="- Маска (показать)" aria-label="- Маска"><i class="fa-solid fa-square-minus"></i></button>
+  <button id="mToolCellEdit" class="icon-btn" title="Объединение/деление кабинетов" aria-label="Кабинеты"><i class="fa-solid fa-link"></i></button>
+  <button id="mToolRegions" class="icon-btn" title="Подсветка областей" aria-label="Области"><i class="fa-solid fa-border-all"></i></button>
+  <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><i class="fa-regular fa-clone"></i></button>
+  <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
+  <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i class="fa-solid fa-trash"></i></button>
+  <button id="mZoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+  <button id="mZoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить"><i class="fa-solid fa-magnifying-glass-plus"></i></button>`;
+  document.body.appendChild(dock);
+};
+ensureMobileDock();
+const el={toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),expSvg:$("exportSvg"),exp:$("exportPng"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),numCells:$("propNumberCells"),btnClearMasks:$("btnClearMasks"),list:$("rectList")};
+const desktopToolButtons=[el.toolSelect,el.toolDraw,el.toolMaskAdd,el.toolMaskSub,el.toolCellEdit,el.toolRegions].filter(Boolean);
+const mobileToolButtons=[el.mToolSelect,el.mToolDraw,el.mToolMaskAdd,el.mToolMaskSub,el.mToolCellEdit,el.mToolRegions].filter(Boolean);
+const overflowButtonIds=["toolSelect","toolDraw","toolMaskAdd","toolMaskSub","toolCellEdit","toolRegions","btnCopy","btnCopyMirror","btnDelete","zoomOut","zoomIn","zoomReset","zoomFit","newProject","save","load","expSvg","exp"];
+const overflowButtons=overflowButtonIds.map(id=>el[id]).filter(Boolean);
+const overflowGroups=[...new Set(overflowButtons.map(b=>b.closest(".group")).filter(Boolean))];
+let overflowHiddenButtons=[];
+const hideToolbarOverflowPopup=()=>{
+  if(!el.overflowPopup||!el.overflowToggle)return;
+  el.overflowPopup.classList.remove("show");
+  el.overflowToggle.setAttribute("aria-expanded","false");
+};
+const hideThemePopup=()=>{
+  if(!el.themePopup||!el.themeToggle)return;
+  el.themePopup.classList.remove("show");
+  el.themeToggle.setAttribute("aria-expanded","false");
+};
+const showThemePopup=()=>{
+  if(!el.themePopup||!el.themeToggle)return;
+  const tr=el.themeToggle.getBoundingClientRect();
+  const vw=window.innerWidth;
+  el.themePopup.style.visibility="hidden";
+  el.themePopup.classList.add("show");
+  const pw=el.themePopup.offsetWidth||220;
+  const left=Math.max(8,Math.min(vw-8-pw,tr.right-pw));
+  const top=tr.bottom+6;
+  el.themePopup.style.left=`${left}px`;
+  el.themePopup.style.top=`${top}px`;
+  el.themePopup.style.visibility="";
+  el.themeToggle.setAttribute("aria-expanded","true");
+};
+const showToolbarOverflowPopup=()=>{
+  if(!el.overflowPopup||!el.overflowToggle||!overflowHiddenButtons.length)return;
+  hideThemePopup();
+  el.overflowPopup.innerHTML="";
+  for(const b of overflowHiddenButtons){
+    const item=document.createElement("button");
+    item.type="button";
+    item.className="dropdown-item d-flex align-items-center gap-2";
+    if(b.classList.contains("btn-success"))item.classList.add("active");
+    const icon=b.querySelector("i");
+    const text=(b.textContent||"").trim();
+    const title=b.getAttribute("title")||b.getAttribute("aria-label")||text||"Действие";
+    item.innerHTML=`${icon?`<i class="${icon.className}"></i>`:""}<span>${title}</span>`;
+    item.addEventListener("click",()=>{hideToolbarOverflowPopup();b.click()});
+    el.overflowPopup.appendChild(item);
+  }
+  const tr=el.overflowToggle.getBoundingClientRect();
+  const vw=window.innerWidth;
+  el.overflowPopup.style.visibility="hidden";
+  el.overflowPopup.classList.add("show");
+  const pw=el.overflowPopup.offsetWidth||220;
+  const left=Math.max(8,Math.min(vw-8-pw,tr.right-pw));
+  const top=tr.bottom+6;
+  el.overflowPopup.style.left=`${left}px`;
+  el.overflowPopup.style.top=`${top}px`;
+  el.overflowPopup.style.visibility="";
+  el.overflowToggle.setAttribute("aria-expanded","true");
+};
+const applyBootstrapClasses=()=>{
+  for(const b of document.querySelectorAll("button")){
+    if(b.classList.contains("btn-close"))continue;
+    b.classList.add("btn","btn-sm");
+    b.classList.remove("btn-danger","btn-outline-light","btn-outline-secondary","btn-secondary","btn-success","btn-info");
+    if(b===el.helpOpen)b.classList.add("btn-info");
+    else if(b.closest(".toolbar"))b.classList.add("btn-secondary");
+    else if(mobileToolButtons.includes(b))b.classList.add("btn-secondary");
+    else if(b.classList.contains("danger"))b.classList.add("btn-danger");
+    else b.classList.add("btn-secondary");
+  }
+  for(const i of document.querySelectorAll("input")){
+    if(i.type==="checkbox")continue;
+    if(i.type==="range"){i.classList.add("form-range");continue}
+    if(i.type==="color"){i.classList.add("form-control","form-control-color","form-control-sm")}
+    else{i.classList.add("form-control","form-control-sm")}
+  }
+  for(const s of document.querySelectorAll("select"))s.classList.add("form-select","form-select-sm");
+};
+applyBootstrapClasses();
+const updateToolbarOverflow=()=>{
+  if(!el.toolbar||!el.overflowGroup||!el.overflowPopup)return;
+  for(const b of overflowButtons)b.classList.remove("d-none");
+  for(const g of overflowGroups)g.classList.remove("d-none");
+  overflowHiddenButtons=[];
+  hideToolbarOverflowPopup();
+  hideThemePopup();
+  el.overflowGroup.style.display="none";
+  const toolbarRect=()=>el.toolbar.getBoundingClientRect();
+  const rightGroup=el.themeToggle?el.themeToggle.closest(".group"):null;
+  const isOverflowed=()=>{
+    if(!rightGroup)return false;
+    const tr=toolbarRect(),rr=rightGroup.getBoundingClientRect();
+    return rr.right>tr.right-2;
+  };
+  if(!isOverflowed())return;
+  el.overflowGroup.style.display="flex";
+  const hidden=[];
+  const refreshGroupVisibility=()=>{
+    for(const g of overflowGroups){
+      const hasVisible=[...g.querySelectorAll("button")].some(btn=>!btn.classList.contains("d-none"));
+      g.classList.toggle("d-none",!hasVisible);
+    }
+  };
+  for(let i=overflowButtons.length-1;i>=0&&isOverflowed();i--){
+    const b=overflowButtons[i];
+    if(!b||b.classList.contains("d-none"))continue;
+    if(getComputedStyle(b).display==="none")continue;
+    b.classList.add("d-none");
+    hidden.unshift(b);
+    refreshGroupVisibility();
+  }
+  if(!hidden.length){
+    el.overflowGroup.style.display="none";
+    for(const g of overflowGroups)g.classList.remove("d-none");
+    return;
+  }
+  overflowHiddenButtons=hidden;
+};
+const st={rects:[],sel:null,hoverRect:null,mode:"select",camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null};
+const clampTextSize=v=>Math.max(6,Math.min(128,Math.round(v)));
+const getRectTextSizePx=r=>{const lv=Number(r&&r.textSize);return Number.isFinite(lv)&&lv>0?clampTextSize(lv):clampTextSize(st.textSize||12);};
 let deferredInstallPrompt=null;
 const INSTALL_HINT_KEY="led-mask-editor-install-hint-dismissed";
+const HELP_SEEN_KEY="led-mask-editor-help-seen-v1";
 const w2s=(x,y)=>({x:(x-st.camX)*st.zoom+cv.clientWidth/2,y:(y-st.camY)*st.zoom+cv.clientHeight/2});
 const s2w=(x,y)=>({x:(x-cv.clientWidth/2)/st.zoom+st.camX,y:(y-cv.clientHeight/2)/st.zoom+st.camY});
 const zc=v=>Math.min(8,Math.max(window.matchMedia("(max-width:900px)").matches?0.01:0.1,v));
@@ -489,7 +756,34 @@ const metricFromPx=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.width=Mat
 const pxFromMetric=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.widthM=Math.max(0.001,+r.widthM||0.001);r.heightM=Math.max(0.001,+r.heightM||0.001);r.width=Math.max(1,Math.round(r.widthM*r.scale));r.height=Math.max(1,Math.round(r.heightM*r.scale));};
 const AUTO_SAVE_KEY="led-mask-editor.autosave.v1";
 let persistTimer=null;
-const buildProject=()=>({version:1,projectName:st.projectName,camera:{x:st.camX,y:st.camY,zoom:st.zoom},settings:{textSize:st.textSize,fontFamily:st.fontFamily},nextId:st.next,rectangles:st.rects});
+const themeMedia=window.matchMedia?window.matchMedia("(prefers-color-scheme: dark)"):null;
+const normalizeThemeMode=v=>v==="light"||v==="dark"||v==="auto"?v:"auto";
+const resolveThemeMode=v=>normalizeThemeMode(v)==="auto"?(themeMedia&&themeMedia.matches?"dark":"light"):normalizeThemeMode(v);
+const updateThemeUi=()=>{
+  if(el.themeIcon){
+    const icon=st.themeMode==="dark"?"fa-moon":st.themeMode==="light"?"fa-sun":"fa-circle-half-stroke";
+    el.themeIcon.className=`fa-solid ${icon}`;
+  }
+  if(el.themeToggle){
+    const title=st.themeMode==="dark"?"Тема: тёмная":st.themeMode==="light"?"Тема: светлая":"Тема: авто";
+    el.themeToggle.title=title;
+    el.themeToggle.setAttribute("aria-label",title);
+  }
+  if(el.themePopup){
+    for(const a of el.themePopup.querySelectorAll("[data-theme]")){
+      const on=a.getAttribute("data-theme")===st.themeMode;
+      a.classList.toggle("active",on);
+    }
+  }
+};
+const applyThemeMode=(mode,persist=true)=>{
+  st.themeMode=normalizeThemeMode(mode);
+  document.documentElement.setAttribute("data-bs-theme",resolveThemeMode(st.themeMode));
+  updateThemeUi();
+  if(persist)schedulePersist();
+  render();
+};
+const buildProject=()=>({version:1,projectName:st.projectName,camera:{x:st.camX,y:st.camY,zoom:st.zoom},settings:{textSize:st.textSize,fontFamily:st.fontFamily,themeMode:st.themeMode},nextId:st.next,rectangles:st.rects});
 const schedulePersist=()=>{if(persistTimer)clearTimeout(persistTimer);persistTimer=setTimeout(()=>{try{localStorage.setItem(AUTO_SAVE_KEY,JSON.stringify(buildProject()))}catch(_e){}},150)};
 const evalExpr=(input,fallback)=>{const s=String(input??"").trim();if(!s)return fallback;const n=Number(s.replace(",","."));if(Number.isFinite(n))return n;const normalized=s.replace(/,/g,".").replace(/\s+/g,"");if(!/^[0-9+\-*/().]+$/.test(normalized))return fallback;try{const v=Function(`"use strict";return (${normalized});`)();return Number.isFinite(v)?v:fallback}catch(_e){return fallback}};
 const randomColor=()=>{
@@ -506,7 +800,7 @@ const randomColor=()=>{
 };
 const escXml=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
 const fontFamilyCss=(value)=>{
-  const parts=String(value||"Segoe UI, Arial").split(",").map(s=>s.trim()).filter(Boolean);
+  const parts=String(value||"Roboto, Segoe UI, Arial").split(",").map(s=>s.trim()).filter(Boolean);
   if(!parts.length) return "\"Segoe UI\", Arial";
   return parts.map(p=>{
     if((p.startsWith("\"")&&p.endsWith("\""))||(p.startsWith("'")&&p.endsWith("'"))) return p;
@@ -514,13 +808,16 @@ const fontFamilyCss=(value)=>{
   }).join(", ");
 };
 const ensureFontReady=async()=>{
-  if(!document.fonts||!document.fonts.ready) return;
-  const size=Math.max(6,st.textSize||12);
+  if(st.fontReady)return;
+  if(!document.fonts||!document.fonts.ready){st.fontReady=true;return;}
+  const localMax=st.rects.reduce((m,r)=>Math.max(m,Math.max(0,Number(r&&r.textSize)||0)),0);
+  const size=Math.max(6,st.textSize||12,localMax);
   const family=fontFamilyCss(st.fontFamily);
   try{ await document.fonts.load(`${size}px ${family}`); }catch(_e){}
   try{ await document.fonts.ready; }catch(_e){}
+  st.fontReady=true;
 };
-function buildSvgExport(){let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY),1),origin={x:minX,y:minY};const fs=Math.max(6,st.textSize),lh=Math.max(fs+2,st.textSize+2),family=escXml(String(st.fontFamily||"Segoe UI, Arial"));let defs="",body="";
+function buildSvgExport(){let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY),1),origin={x:minX,y:minY},family=escXml(String(st.fontFamily||"Roboto, Segoe UI, Arial"));let defs="",body="";
 for(const r of st.rects){const x=r.x-minX,y=r.y-minY,id=`pat_${r.id}`,cx=drawCellX(r),cy=drawCellY(r),a=r.colorA,b=r.colorB,a2=shadeHex(a,((hexRgb(a).r*299+hexRgb(a).g*587+hexRgb(a).b*114)/1000)>140?-0.25:0.25),b2=shadeHex(b,((hexRgb(b).r*299+hexRgb(b).g*587+hexRgb(b).b*114)/1000)>140?-0.25:0.25);
 defs+=`<pattern id="${id}" patternUnits="userSpaceOnUse" width="${cx*2}" height="${cy*2}">`
   +`<rect x="0" y="0" width="${cx}" height="${cy}" fill="${a}"/><polygon points="0,0 ${cx},0 0,${cy}" fill="${a2}"/>`
@@ -529,24 +826,39 @@ defs+=`<pattern id="${id}" patternUnits="userSpaceOnUse" width="${cx*2}" height=
   +`<rect x="${cx}" y="${cy}" width="${cx}" height="${cy}" fill="${a}"/><polygon points="${cx},${cy} ${cx*2},${cy} ${cx},${cy*2}" fill="${a2}"/>`
   +`</pattern>`;
 const hidden=Array.isArray(r.hiddenCells)?r.hiddenCells:[];let maskAttr="";if(hidden.length){const mid=`mask_${r.id}`;let maskBody=`<rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill="white"/>`;for(const key of hidden){const parts=String(key).split(",");if(parts.length!==2)continue;const ix=+parts[0],iy=+parts[1];if(!(ix>=0&&iy>=0))continue;const ox=ix*cx,oy=iy*cy;if(ox>=r.width||oy>=r.height)continue;const cw=Math.min(cx,r.width-ox),ch=Math.min(cy,r.height-oy);maskBody+=`<rect x="${x+ox}" y="${y+oy}" width="${cw}" height="${ch}" fill="black"/>`}defs+=`<mask id="${mid}" maskUnits="userSpaceOnUse">${maskBody}</mask>`;maskAttr=` mask="url(#${mid})"`}
-const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),pct=fillPercent(wm,hm,r.areaM2Px);const ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(r.width)} x ${Math.round(r.height)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`];const maxW=Math.max(20,r.width-6);const hset=new Set(hidden),localRect={x,y,width:r.width,height:r.height},hbs=hiddenCellBoxes(localRect,cx,cy,hset),freeRects=computeFreeRects(localRect,cx,cy,hset),layout=chooseTextLayout(localRect,ls,(t,f)=>String(t).length*f*0.58,maxW,fs,hbs,freeRects),rot=(r.rotation||0),rcx=x+r.width/2,rcy=y+r.height/2,tf=Math.abs(rot)>1e-6?` transform="rotate(${rot} ${rcx} ${rcy})"`:"";
+const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),pct=fillPercent(wm,hm,r.areaM2Px),localFs=getRectTextSizePx(r);const ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(r.width)} x ${Math.round(r.height)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`];const maxW=Math.max(20,r.width-6);const hset=new Set(hidden),localRect={x,y,width:r.width,height:r.height},hbs=hiddenCellBoxes(localRect,cx,cy,hset),freeRects=computeFreeRects(localRect,cx,cy,hset),layout=chooseTextLayout(localRect,ls,(t,f)=>String(t).length*f*0.58,maxW,localFs,hbs,freeRects),rot=(r.rotation||0),rcx=x+r.width/2,rcy=y+r.height/2,tf=Math.abs(rot)>1e-6?` transform="rotate(${rot} ${rcx} ${rcy})"`:"";
   body+=`<g${tf}><g${maskAttr}><rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill="url(#${id})"/>`
-    +`<line x1="${x}" y1="${y}" x2="${x+r.width}" y2="${y+r.height}" stroke="rgba(255,255,255,.36)" stroke-width="1"/>`
-    +`<line x1="${x+r.width}" y1="${y}" x2="${x}" y2="${y+r.height}" stroke="rgba(255,255,255,.36)" stroke-width="1"/>`
-    +`<circle cx="${x+r.width/2}" cy="${y+r.height/2}" r="${Math.max(0,Math.min(r.width,r.height)/2-2)}" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.2"/>`
+    +`<line x1="${x}" y1="${y}" x2="${x+r.width}" y2="${y+r.height}" stroke="rgba(255,255,255,.55)" stroke-width="2.4"/>`
+    +`<line x1="${x+r.width}" y1="${y}" x2="${x}" y2="${y+r.height}" stroke="rgba(255,255,255,.55)" stroke-width="2.4"/>`
+    +`<circle cx="${x+r.width/2}" cy="${y+r.height/2}" r="${Math.max(0,Math.min(r.width,r.height)/2-2)}" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="2.4"/>`
   +`<rect x="${layout.textLeft}" y="${layout.textTop}" width="${layout.tw}" height="${layout.th}" fill="rgba(11,17,24,.6)"/>`;
 for(let i=0;i<ls.length;i++)body+=`<text x="${layout.textX}" y="${layout.sy+i*layout.lh}" text-anchor="middle" dominant-baseline="middle" fill="rgba(255,255,255,.95)" font-family="${family}" font-size="${layout.fs}">${escXml(ls[i])}</text>`;
 body+=`</g><rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="1"/></g>`;
 }
 return`<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${defs}</defs>${body}</svg>`;
 }
-function applyProjectData(d){const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=Math.max(1,evalExpr(d&&d.settings?d.settings.areaM2Px:null,65536));st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:Math.max(1,evalExpr(r.areaM2Px,legacyAreaM2)),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),numberCells:!!r.numberCells,cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Segoe UI, Arial").trim()||"Segoe UI, Arial"}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.maskPath=[];st.maskHover=null;selRect(st.rects[0]?st.rects[0].id:null);render();}
+function applyProjectData(d){const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=Math.max(1,evalExpr(d&&d.settings?d.settings.areaM2Px:null,65536));st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:Math.max(1,evalExpr(r.areaM2Px,legacyAreaM2)),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),numberCells:!!r.numberCells,cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.themeMode=normalizeThemeMode(d.settings.themeMode)}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.maskPath=[];st.maskHover=null;applyThemeMode(st.themeMode,false);selRect(st.rects[0]?st.rects[0].id:null);render();}
 function restoreAutoSave(){try{const rawSaved=localStorage.getItem(AUTO_SAVE_KEY);if(!rawSaved)return false;applyProjectData(JSON.parse(rawSaved));return true}catch(_e){return false}}
-function mk(x,y,w,h){const id=st.next++;const colorA="#2fcaaf";const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,areaM2Px:65536,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,numberCells:false,cellLinks:[],hiddenCells:[]};metricFromPx(r);return r}
-function setMode(m){st.mode=m;el.toolSelect.classList.toggle("active",m==="select");el.toolDraw.classList.toggle("active",m==="draw");if(el.toolMaskAdd)el.toolMaskAdd.classList.toggle("active",m==="maskAdd");if(el.toolMaskSub)el.toolMaskSub.classList.toggle("active",m==="maskSub");if(el.toolCellEdit)el.toolCellEdit.classList.toggle("active",m==="cellEdit");if(el.toolRegions)el.toolRegions.classList.toggle("active",m==="regions");if(el.mToolSelect)el.mToolSelect.classList.toggle("active",m==="select");if(el.mToolDraw)el.mToolDraw.classList.toggle("active",m==="draw");if(el.mToolMaskAdd)el.mToolMaskAdd.classList.toggle("active",m==="maskAdd");if(el.mToolMaskSub)el.mToolMaskSub.classList.toggle("active",m==="maskSub");if(el.mToolCellEdit)el.mToolCellEdit.classList.toggle("active",m==="cellEdit");if(el.mToolRegions)el.mToolRegions.classList.toggle("active",m==="regions");if(!isMaskMode()){st.maskPath=[];st.maskHover=null}if(!isCellEditMode())st.cellHover=null;if(m!=="regions")st.hoverRect=null;wrap.dataset.mode=m;st.draft=null;st.drag=null;render()}
+function mk(x,y,w,h){const id=st.next++;const colorA=randomColor();const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,areaM2Px:65536,textSize:0,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,numberCells:false,cellLinks:[],hiddenCells:[]};metricFromPx(r);return r}
+function setMode(m){
+  st.mode=m;
+  const map=[["select",el.toolSelect,el.mToolSelect],["draw",el.toolDraw,el.mToolDraw],["maskAdd",el.toolMaskAdd,el.mToolMaskAdd],["maskSub",el.toolMaskSub,el.mToolMaskSub],["cellEdit",el.toolCellEdit,el.mToolCellEdit],["regions",el.toolRegions,el.mToolRegions]];
+  for(const [mode,...btns] of map){
+    const on=m===mode;
+    for(const b of btns){
+      if(!b)continue;
+      b.classList.toggle("btn-success",on);
+      b.classList.toggle("btn-secondary",!on);
+    }
+  }
+  if(!isMaskMode()){st.maskPath=[];st.maskHover=null}
+  if(!isCellEditMode())st.cellHover=null;
+  if(m!=="regions")st.hoverRect=null;
+  wrap.dataset.mode=m;st.draft=null;st.drag=null;updateToolbarOverflow();render()
+}
 function selRect(id){st.sel=id;st.maskPath=[];st.maskHover=null;st.cellHover=null;if(st.mode!=="regions")st.hoverRect=null;syncProps();listRects();render()}
 const cur=()=>st.rects.find(r=>r.id===st.sel)||null;
-function hit(x,y){for(let i=st.rects.length-1;i>=0;i--){const r=st.rects[i],p=worldToRectUV(r,x,y);if(p.u>=0&&p.u<=r.width&&p.v>=0&&p.v<=r.height)return r}return null}
+function hit(x,y){for(let i=0;i<st.rects.length;i++){const r=st.rects[i],p=worldToRectUV(r,x,y);if(p.u>=0&&p.u<=r.width&&p.v>=0&&p.v<=r.height)return r}return null}
 function snapMaskNode(r,wx,wy){if(!r)return null;const p=worldToRectUV(r,wx,wy);if(p.u<0||p.u>r.width||p.v<0||p.v>r.height)return null;const u=Math.max(0,Math.min(r.width,p.u)),v=Math.max(0,Math.min(r.height,p.v)),axes=getMaskNodeAxes(r);let gu=axes.xs[0],gv=axes.ys[0],bdx=1e9,bdy=1e9;for(const x of axes.xs){const d=Math.abs(x-u);if(d<bdx){bdx=d;gu=x}}for(const y of axes.ys){const d=Math.abs(y-v);if(d<bdy){bdy=d;gv=y}}return rectUVToWorld(r,gu,gv)}
 function addMaskPoint(wx,wy){const r=cur();if(!r)return;const p=snapMaskNode(r,wx,wy);if(!p)return;const first=st.maskPath[0],last=st.maskPath[st.maskPath.length-1],eps=6/st.zoom;if(first&&st.maskPath.length>=3&&Math.hypot(p.x-first.x,p.y-first.y)<=eps){applyMaskPath();return}if(last&&Math.abs(last.x-p.x)<0.001&&Math.abs(last.y-p.y)<0.001)return;st.maskPath.push(p);render()}
 function applyMaskPath(){const r=cur();if(!r||st.maskPath.length<3){st.maskPath=[];render();return}const cx=drawCellX(r),cy=drawCellY(r),hs=getHiddenSet(r),cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy)),hide=st.mode==="maskAdd";for(let iy=0;iy<rows;iy++){for(let ix=0;ix<cols;ix++){const cw=Math.min(cx,r.width-ix*cx),ch=Math.min(cy,r.height-iy*cy),wp=rectUVToWorld(r,ix*cx+cw/2,iy*cy+ch/2);if(!pointInPoly(wp.x,wp.y,st.maskPath))continue;const k=maskCellKey(ix,iy);if(hide)hs.add(k);else hs.delete(k)}}setHiddenSet(r);st.maskPath=[];st.maskHover=null;render()}
@@ -578,6 +890,7 @@ if(usedX&&usedY)dg=Math.abs(bdx.d)<=Math.abs(bdy.d)?bdx.guide:bdy.guide;else if(
 return{x:Math.round(x+dx),y:Math.round(y+dy),gx,gy,dg}
 }
 function drawRect(c,r,sel,z,origin){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
+const skeleton=!st.fontReady;
 const topo=getCellTopology(r,cellX,cellY);
 const needRegions=!!(r.numberCells||sel||(st.mode==="regions"&&r.id===st.hoverRect));
 const regions=(needRegions?planNumberRegions(r,cellX,cellY,topo.cols,topo.rows):null);
@@ -607,7 +920,7 @@ for(const it of comps.values()){
   c.fillStyle=it.alt;c.beginPath();c.moveTo(it.minX,it.minY);c.lineTo(it.minX+bw,it.minY);c.lineTo(it.minX,it.minY+bh);c.closePath();c.fill();
   c.restore();
 }
-if(r.numberCells&&regions&&!(st.mode==="regions"&&r.id===st.hoverRect)){
+if(!skeleton&&r.numberCells&&regions&&!(st.mode==="regions"&&r.id===st.hoverRect)){
   const nfs=9,pad=2.5;
   c.font=`${nfs}px ${fontFamilyCss(st.fontFamily)}`;
   c.textAlign="left";c.textBaseline="top";
@@ -629,10 +942,10 @@ if(r.numberCells&&regions&&!(st.mode==="regions"&&r.id===st.hoverRect)){
     c.fillStyle="rgba(255,255,255,.92)";c.fillText(text,tx,ty);
   }
 }
-c.strokeStyle="rgba(255,255,255,.36)";c.lineWidth=1/z;c.beginPath();c.moveTo(-w/2,-h/2);c.lineTo(w/2,h/2);c.moveTo(w/2,-h/2);c.lineTo(-w/2,h/2);c.stroke();
-c.strokeStyle="rgba(255,255,255,.75)";c.lineWidth=1.2/z;c.beginPath();c.arc(0,0,Math.max(0,Math.min(w,h)/2-(2/z)),0,Math.PI*2);c.stroke();
-if(!((isMaskMode()||isCellEditMode())&&sel)&&!(st.mode==="regions"&&r.id===st.hoverRect)){
-const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),baseFs=Math.max(6,st.textSize),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),pct=fillPercent(wm,hm,r.areaM2Px),ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(w)} x ${Math.round(h)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`],maxW=Math.max(20,w-6),localRect={x:-w/2,y:-h/2,width:w,height:h},hbs=hiddenCellBoxes(localRect,cellX,cellY,hs),freeRects=computeFreeRects(localRect,cellX,cellY,hs),layout=chooseTextLayout(localRect,ls,(t,fs)=>{c.font=`${fs}px ${fontFamilyCss(st.fontFamily)}`;return c.measureText(t).width},maxW,baseFs,hbs,freeRects);
+c.strokeStyle="rgba(255,255,255,.55)";c.lineWidth=2.4/z;c.beginPath();c.moveTo(-w/2,-h/2);c.lineTo(w/2,h/2);c.moveTo(w/2,-h/2);c.lineTo(-w/2,h/2);c.stroke();
+c.strokeStyle="rgba(255,255,255,.75)";c.lineWidth=2.4/z;c.beginPath();c.arc(0,0,Math.max(0,Math.min(w,h)/2-(2/z)),0,Math.PI*2);c.stroke();
+if(!skeleton&&!((isMaskMode()||isCellEditMode())&&sel)&&!(st.mode==="regions"&&r.id===st.hoverRect)){
+const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),baseFs=getRectTextSizePx(r),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),pct=fillPercent(wm,hm,r.areaM2Px),ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(w)} x ${Math.round(h)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`],maxW=Math.max(20,w-6),localRect={x:-w/2,y:-h/2,width:w,height:h},hbs=hiddenCellBoxes(localRect,cellX,cellY,hs),freeRects=computeFreeRects(localRect,cellX,cellY,hs),layout=chooseTextLayout(localRect,ls,(t,fs)=>{c.font=`${fs}px ${fontFamilyCss(st.fontFamily)}`;return c.measureText(t).width},maxW,baseFs,hbs,freeRects);
 c.textAlign="center";c.textBaseline="middle";c.font=`${layout.fs}px ${fontFamilyCss(st.fontFamily)}`;
 c.fillStyle="rgba(11,17,24,.6)";c.fillRect(layout.textLeft,layout.textTop,layout.tw,layout.th);c.fillStyle="rgba(255,255,255,.95)";for(let i=0;i<ls.length;i++)c.fillText(ls[i],layout.textX,layout.sy+i*layout.lh,maxW);
 }
@@ -659,16 +972,18 @@ if(showRegionsOverlay){
     c.stroke();
     c.setLineDash([]);
     c.restore();
-    c.save();
-    c.font=`${Math.max(8,regionLabelFs)}px ${fontFamilyCss(st.fontFamily)}`;
-    c.textAlign="center";c.textBaseline="middle";
-    for(const rg of regions.regionsById.values()){
-      const x0=-w/2+regions.xCutsPx[rg.gx],x1=-w/2+regions.xCutsPx[rg.gx+1],y0=-h/2+regions.yCutsPx[rg.gy],y1=-h/2+regions.yCutsPx[rg.gy+1];
-      const cx=(x0+x1)/2,cy=(y0+y1)/2,tw=c.measureText(rg.label).width+14,th=Math.max(regionLabelFs+10,20);
-      c.fillStyle="rgba(11,17,24,.56)";c.fillRect(cx-tw/2,cy-th/2,tw,th);
-      c.fillStyle="rgba(255,255,255,.97)";c.fillText(rg.label,cx,cy);
+    if(!skeleton){
+      c.save();
+      c.font=`${Math.max(8,regionLabelFs)}px ${fontFamilyCss(st.fontFamily)}`;
+      c.textAlign="center";c.textBaseline="middle";
+      for(const rg of regions.regionsById.values()){
+        const x0=-w/2+regions.xCutsPx[rg.gx],x1=-w/2+regions.xCutsPx[rg.gx+1],y0=-h/2+regions.yCutsPx[rg.gy],y1=-h/2+regions.yCutsPx[rg.gy+1];
+        const cx=(x0+x1)/2,cy=(y0+y1)/2,tw=c.measureText(rg.label).width+14,th=Math.max(regionLabelFs+10,20);
+        c.fillStyle="rgba(11,17,24,.56)";c.fillRect(cx-tw/2,cy-th/2,tw,th);
+        c.fillStyle="rgba(255,255,255,.97)";c.fillText(rg.label,cx,cy);
+      }
+      c.restore();
     }
-    c.restore();
 }
 c.strokeStyle=sel?"#ffe08a":"rgba(255,255,255,.85)";c.lineWidth=sel?7/z:1/z;
 c.lineCap="butt";
@@ -698,18 +1013,18 @@ if(borderSegs.length){
   }
 }
 c.restore();}
-function drawMaskOverlay(c,z){if(!isMaskMode())return;const r=cur();if(!r)return;const axes=getMaskNodeAxes(r),dot=Math.max(1.8,2.6/z);
-for(const gy of axes.ys){for(const gx of axes.xs){const p=rectUVToWorld(r,gx,gy);c.fillStyle="rgba(255,255,255,.18)";c.beginPath();c.arc(p.x,p.y,dot,0,Math.PI*2);c.fill()}}
+function drawMaskOverlay(c,z){if(!isMaskMode())return;const r=cur();if(!r)return;const darkTheme=(document.documentElement.getAttribute("data-bs-theme")||"light")==="dark";const nodeCol=darkTheme?"rgba(255,255,255,.18)":"rgba(0,0,0,.34)";const hoverCol=darkTheme?"rgba(255,255,255,.9)":"rgba(0,0,0,.85)";const axes=getMaskNodeAxes(r),dot=Math.max(1.8,2.6/z);
+for(const gy of axes.ys){for(const gx of axes.xs){const p=rectUVToWorld(r,gx,gy);c.fillStyle=nodeCol;c.beginPath();c.arc(p.x,p.y,dot,0,Math.PI*2);c.fill()}}
 if(st.maskPath.length){const isAdd=st.mode==="maskAdd",col=isAdd?"rgba(255,110,110,.95)":"rgba(116,221,141,.95)";c.strokeStyle=col;c.lineWidth=Math.max(1.2,1.8/z);c.fillStyle=isAdd?"rgba(255,90,90,.18)":"rgba(90,220,120,.18)";c.beginPath();c.moveTo(st.maskPath[0].x,st.maskPath[0].y);for(let i=1;i<st.maskPath.length;i++)c.lineTo(st.maskPath[i].x,st.maskPath[i].y);if(st.maskHover)c.lineTo(st.maskHover.x,st.maskHover.y);c.stroke();if(st.maskPath.length>=3){c.closePath();c.fill()}for(const p of st.maskPath){c.fillStyle=col;c.beginPath();c.arc(p.x,p.y,Math.max(2.8,3.4/z),0,Math.PI*2);c.fill()}}
-if(st.maskHover){c.fillStyle="rgba(255,255,255,.9)";c.beginPath();c.arc(st.maskHover.x,st.maskHover.y,Math.max(2.4,3/z),0,Math.PI*2);c.fill()}}
-function drawCellEditOverlay(c,z){if(!isCellEditMode())return;const r=cur();if(!r)return;const cx=drawCellX(r),cy=drawCellY(r),topo=getCellTopology(r,cx,cy),axes=getMaskNodeAxes(r);c.save();c.strokeStyle="rgba(255,255,255,.18)";c.lineWidth=Math.max(1,1.1/z);
+if(st.maskHover){c.fillStyle=hoverCol;c.beginPath();c.arc(st.maskHover.x,st.maskHover.y,Math.max(2.4,3/z),0,Math.PI*2);c.fill()}}
+function drawCellEditOverlay(c,z){if(!isCellEditMode())return;const r=cur();if(!r)return;const darkTheme=(document.documentElement.getAttribute("data-bs-theme")||"light")==="dark";const gridCol=darkTheme?"rgba(255,255,255,.18)":"rgba(0,0,0,.28)";const boundCol=darkTheme?"rgba(255,255,255,.9)":"rgba(0,0,0,.78)";const cx=drawCellX(r),cy=drawCellY(r),topo=getCellTopology(r,cx,cy),axes=getMaskNodeAxes(r);c.save();c.strokeStyle=gridCol;c.lineWidth=Math.max(1,1.1/z);
 for(const x of axes.xs){const p1=rectUVToWorld(r,x,0),p2=rectUVToWorld(r,x,r.height);c.beginPath();c.moveTo(p1.x,p1.y);c.lineTo(p2.x,p2.y);c.stroke()}
 for(const y of axes.ys){const p1=rectUVToWorld(r,0,y),p2=rectUVToWorld(r,r.width,y);c.beginPath();c.moveTo(p1.x,p1.y);c.lineTo(p2.x,p2.y);c.stroke()}
-const bounds=getComponentBoundarySegments(r,cx,cy,topo);c.strokeStyle="rgba(255,255,255,.9)";c.lineWidth=Math.max(1.8,2.2/z);
+const bounds=getComponentBoundarySegments(r,cx,cy,topo);c.strokeStyle=boundCol;c.lineWidth=Math.max(1.8,2.2/z);
 for(const s of bounds){c.beginPath();c.moveTo(s.p1.x,s.p1.y);c.lineTo(s.p2.x,s.p2.y);c.stroke()}
 if(st.cellHover&&st.cellHover.p1&&st.cellHover.p2){c.strokeStyle=st.cellHover.canToggle?(st.cellHover.exists?"rgba(255,205,92,.95)":"rgba(94,220,143,.95)"):"rgba(255,106,106,.95)";c.lineWidth=Math.max(2.4,3.4/z);c.beginPath();c.moveTo(st.cellHover.p1.x,st.cellHover.p1.y);c.lineTo(st.cellHover.p2.x,st.cellHover.p2.y);c.stroke()}
 c.restore()}
-function drawContentBounds(c,z){if(!st.rects.length)return;let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABBMasked(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.round(maxX-minX),h=Math.round(maxY-minY);c.save();c.strokeStyle="rgba(255,255,255,.5)";c.lineWidth=1.5/z;c.setLineDash([]);c.strokeRect(minX,minY,w,h);const label=`${w} x ${h} px`;c.font=`${Math.max(10,12/z)}px \"Segoe UI\", Arial`;const tw=c.measureText(label).width+10;const th=Math.max(16,16/z);c.fillStyle="rgba(15,19,24,.85)";c.fillRect(minX,minY-th-4/z,tw,th);c.fillStyle="rgba(255,255,255,.92)";c.textAlign="left";c.textBaseline="middle";c.fillText(label,minX+5,minY-th/2-4/z);c.restore()}
+function drawContentBounds(c,z){if(!st.rects.length)return;let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABBMasked(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}const w=Math.round(maxX-minX),h=Math.round(maxY-minY);const darkTheme=(document.documentElement.getAttribute("data-bs-theme")||"light")==="dark";const stroke=darkTheme?"rgba(255,255,255,.5)":"rgba(0,0,0,.55)",labelBg=darkTheme?"rgba(15,19,24,.85)":"rgba(255,255,255,.88)",labelFg=darkTheme?"rgba(255,255,255,.92)":"rgba(17,24,39,.95)";c.save();c.strokeStyle=stroke;c.lineWidth=1.5/z;c.setLineDash([]);c.strokeRect(minX,minY,w,h);if(st.fontReady){const label=`${w} x ${h} px`;c.font=`${Math.max(10,12/z)}px ${fontFamilyCss(st.fontFamily)}`;const tw=c.measureText(label).width+10;const th=Math.max(16,16/z);c.fillStyle=labelBg;c.fillRect(minX,minY-th-4/z,tw,th);c.fillStyle=labelFg;c.textAlign="left";c.textBaseline="middle";c.fillText(label,minX+5,minY-th/2-4/z);}c.restore()}
 function drawGrid(){const step=64,lt=s2w(0,0),rb=s2w(cv.clientWidth,cv.clientHeight),sx=Math.floor(lt.x/step)*step,ex=Math.ceil(rb.x/step)*step,sy=Math.floor(lt.y/step)*step,ey=Math.ceil(rb.y/step)*step;
 ctx.save();ctx.strokeStyle="rgba(147,177,207,.09)";ctx.lineWidth=1;for(let x=sx;x<=ex;x+=step){const px=w2s(x,0).x;ctx.beginPath();ctx.moveTo(Math.round(px)+.5,0);ctx.lineTo(Math.round(px)+.5,cv.clientHeight);ctx.stroke()}
 for(let y=sy;y<=ey;y+=step){const py=w2s(0,y).y;ctx.beginPath();ctx.moveTo(0,Math.round(py)+.5);ctx.lineTo(cv.clientWidth,Math.round(py)+.5);ctx.stroke()}ctx.restore()}
@@ -719,7 +1034,8 @@ function drawDistanceGuide(){if(!st.dg)return;
 const drawDim=(g,color,labelShift)=>{
   let{x1,y1,x2,y2,v,axis}=g;const p1=w2s(x1,y1),p2=w2s(x2,y2),t=`${Math.round(v)} px`;
   ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
-  ctx.font="12px \"Segoe UI\", Arial";const tw=ctx.measureText(t).width+10;ctx.fillStyle="rgba(15,19,24,.85)";
+  if(!st.fontReady){ctx.restore();return;}
+  ctx.font=`12px ${fontFamilyCss(st.fontFamily)}`;const tw=ctx.measureText(t).width+10;ctx.fillStyle="rgba(15,19,24,.85)";
   if(axis==="y"){const m=(p1.y+p2.y)/2;ctx.beginPath();ctx.moveTo(p1.x-7,p1.y);ctx.lineTo(p1.x+7,p1.y);ctx.moveTo(p2.x-7,p2.y);ctx.lineTo(p2.x+7,p2.y);ctx.stroke();ctx.fillRect(p1.x+8+labelShift,m-8,tw,16);ctx.fillStyle=color;ctx.textAlign="left";ctx.textBaseline="middle";ctx.fillText(t,p1.x+13+labelShift,m);}
   else{if(p1.x>p2.x){const tx=p1.x;p1.x=p2.x;p2.x=tx}const m=(p1.x+p2.x)/2;ctx.beginPath();ctx.moveTo(p1.x,p1.y-7);ctx.lineTo(p1.x,p1.y+7);ctx.moveTo(p2.x,p2.y-7);ctx.lineTo(p2.x,p2.y+7);ctx.stroke();ctx.fillRect(m-tw/2,p1.y-24-labelShift,tw,16);ctx.fillStyle=color;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(t,m,p1.y-16-labelShift);}
   ctx.restore();
@@ -728,7 +1044,7 @@ if(st.dg.ref)drawDim(st.dg.ref,"#ffd77a",0);
 drawDim(st.dg,"#71d7ff",18);
 }
 function render(){const r=window.devicePixelRatio||1;ctx.setTransform(r,0,0,r,0,0);ctx.clearRect(0,0,cv.clientWidth,cv.clientHeight);drawGrid();ctx.save();ctx.translate(cv.clientWidth/2,cv.clientHeight/2);ctx.scale(st.zoom,st.zoom);ctx.translate(-st.camX,-st.camY);
-const origin=getOrigin();for(const rr of st.rects)drawRect(ctx,rr,rr.id===st.sel,st.zoom,origin);if(st.draft){const d=st.draft;ctx.strokeStyle="#7fd4f8";ctx.lineWidth=1/st.zoom;ctx.setLineDash([8/st.zoom,5/st.zoom]);ctx.strokeRect(d.x,d.y,d.width,d.height);ctx.setLineDash([])}drawMaskOverlay(ctx,st.zoom);drawCellEditOverlay(ctx,st.zoom);
+const origin=getOrigin();for(let i=st.rects.length-1;i>=0;i--){const rr=st.rects[i];drawRect(ctx,rr,rr.id===st.sel,st.zoom,origin)}if(st.draft){const d=st.draft;ctx.strokeStyle="#7fd4f8";ctx.lineWidth=1/st.zoom;ctx.setLineDash([8/st.zoom,5/st.zoom]);ctx.strokeRect(d.x,d.y,d.width,d.height);ctx.setLineDash([])}drawMaskOverlay(ctx,st.zoom);drawCellEditOverlay(ctx,st.zoom);
 drawContentBounds(ctx,st.zoom);
 ctx.restore();drawGuides();drawDistanceGuide();el.zoomLabel.textContent=`${Math.round(st.zoom*100)}%`;wrap.dataset.panning=st.pan?"1":"0";schedulePersist()}
 function resize(){const r=window.devicePixelRatio||1,b=cv.getBoundingClientRect();cv.width=Math.floor(b.width*r);cv.height=Math.floor(b.height*r);render()}
@@ -765,7 +1081,7 @@ if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.wi
 if(st.drag){const r=st.rects.find(v=>v.id===st.drag.id);if(!r)return;const nx=st.drag.rx+(p.x-st.drag.sx),ny=st.drag.ry+(p.y-st.drag.sy),sn=snap(nx,ny,r.id,r.width,r.height,false);r.x=sn.x;r.y=sn.y;st.g.x=sn.gx;st.g.y=sn.gy;st.dg=sn.dg;syncProps();listRects();render();e.preventDefault()}},{passive:false});
 cv.addEventListener("touchend",e=>{if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=1){e.preventDefault();return}if(e.touches.length===0){st.touch=null;if(st.pan){st.pan=false;st.panS=null}let created=null;if(st.draft){const d=st.draft;if(d.width>=1&&d.height>=1){created=mk(d.x,d.y,d.width,d.height);st.rects.push(created)}st.draft=null}st.drag=null;st.g.x=null;st.g.y=null;st.dg=null;if(created){setMode("select");selRect(created.id)}render();e.preventDefault()}},{passive:false});
 function delSel(){if(st.sel==null)return;st.rects=st.rects.filter(r=>r.id!==st.sel);st.sel=null;st.maskPath=[];st.maskHover=null;syncProps();listRects();render()}
-function newProject(){st.rects=[];st.sel=null;st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;listRects();syncProps();setMode("select");render()}
+function newProject(){st.rects=[];st.sel=null;st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.maskPath=[];st.maskHover=null;st.cellHover=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;listRects();syncProps();setMode("select");render()}
 function dupSel(){const r=cur();if(!r)return;const c={...r,id:st.next++,name:`${r.name} copy`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[]};st.rects.push(c);selRect(c.id)}
 function dupMirrorSel(){const r=cur();if(!r)return;const cx=drawCellX(r),cy=drawCellY(r),cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy));const mapIndex=i=>{const x=i%cols,y=Math.floor(i/cols);if(!(x>=0&&x<cols&&y>=0&&y<rows))return -1;const nx=(cols-1)-x;return y*cols+nx};
 const hiddenSrc=Array.isArray(r.hiddenCells)?r.hiddenCells:[],hiddenSet=new Set();
@@ -776,15 +1092,59 @@ const c={...r,id:st.next++,name:`${r.name} mirror`,x:r.x+20,y:r.y+20,rotation:r.
 st.rects.push(c);selRect(c.id)}
 function fit(){if(!st.rects.length){st.camX=0;st.camY=0;st.zoom=1;render();return}let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABBMasked(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
 const w=Math.max(1,maxX-minX),h=Math.max(1,maxY-minY),pad=80;st.zoom=zc(Math.min((cv.clientWidth-pad)/w,(cv.clientHeight-pad)/h));st.camX=(minX+maxX)/2;st.camY=(minY+maxY)/2;render()}
-function syncProps(){const r=cur(),on=!!r;[el.name,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.numCells].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){el.name.value="";el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.numCells.checked=false;if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
-metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;el.numCells.checked=!!r.numberCells;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
-function listRects(){if(!st.rects.length){el.list.innerHTML="<p class='hint' style='margin:0'>Прямоугольников пока нет.</p>";return}el.list.innerHTML="";for(const r of st.rects){const d=document.createElement("div");d.className="rect-item"+(r.id===st.sel?" active":"");d.innerHTML=`<strong>${r.name}</strong><br>${r.width}x${r.height} @ (${r.x}, ${r.y})`;d.onclick=()=>selRect(r.id);el.list.appendChild(d)}}
+const updateRectTextSizeLabel=r=>{
+  if(!el.rectTextSizeLabel)return;
+  const lv=Math.max(0,Math.min(128,Math.round(Number(r&&r.textSize)||0)));
+  if(lv>0){
+    el.rectTextSizeLabel.textContent=`${lv}px`;
+    el.rectTextSizeLabel.title=`Локальный размер: ${lv}px`;
+    el.rectTextSizeLabel.setAttribute("aria-label",`Локальный размер: ${lv}px`);
+  }else{
+    const gv=Math.round(st.textSize||12);
+    el.rectTextSizeLabel.innerHTML='<i class="fa-solid fa-globe"></i>';
+    el.rectTextSizeLabel.title=`Глобальный размер: ${gv}px`;
+    el.rectTextSizeLabel.setAttribute("aria-label",`Глобальный размер: ${gv}px`);
+  }
+};
+function syncProps(){const r=cur(),on=!!r;[el.name,el.rectTextSize,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.numCells].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;updateThemeUi();el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){el.name.value="";el.rectTextSize.value="0";updateRectTextSizeLabel(null);el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.numCells.checked=false;if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
+metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.rectTextSize.value=String(Math.max(0,Math.min(128,Math.round(Number(r.textSize)||0))));updateRectTextSizeLabel(r);el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;el.numCells.checked=!!r.numberCells;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
+let listDragId=null;
+const reorderRects=(dragId,targetId,after=false)=>{
+  const from=st.rects.findIndex(r=>r.id===dragId),to0=st.rects.findIndex(r=>r.id===targetId);
+  if(from<0||to0<0||from===to0)return false;
+  const [item]=st.rects.splice(from,1);
+  let to=to0;
+  if(from<to)to--;
+  if(after)to++;
+  to=Math.max(0,Math.min(st.rects.length,to));
+  st.rects.splice(to,0,item);
+  return true;
+};
+function listRects(){
+  if(!st.rects.length){el.list.innerHTML="<p class='hint' style='margin:0'>Экранов пока нет.</p>";return}
+  el.list.innerHTML="";
+  const clearDrops=()=>{for(const n of el.list.querySelectorAll(".rect-item"))n.classList.remove("drop-before","drop-after")};
+  for(const r of st.rects){
+    const d=document.createElement("div");
+    d.className="rect-item"+(r.id===st.sel?" active":"");
+    d.draggable=true;
+    d.dataset.id=String(r.id);
+    d.innerHTML=`<strong>${r.name}</strong><br>${r.width}x${r.height} @ (${r.x}, ${r.y})`;
+    d.onclick=()=>selRect(r.id);
+    d.addEventListener("dragstart",e=>{listDragId=r.id;d.classList.add("dragging");if(e.dataTransfer){e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",String(r.id))}catch(_e){}}});
+    d.addEventListener("dragend",()=>{listDragId=null;clearDrops();d.classList.remove("dragging")});
+    d.addEventListener("dragover",e=>{if(listDragId==null)return;e.preventDefault();const rect=d.getBoundingClientRect(),after=e.clientY>rect.top+rect.height/2;clearDrops();d.classList.add(after?"drop-after":"drop-before")});
+    d.addEventListener("drop",e=>{if(listDragId==null)return;e.preventDefault();const rect=d.getBoundingClientRect(),after=e.clientY>rect.top+rect.height/2;if(reorderRects(listDragId,r.id,after)){listRects();render()}else clearDrops();listDragId=null});
+    el.list.appendChild(d);
+  }
+}
 function applyProps(){const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));r.areaM2Px=Math.max(1,evalExpr(el.areaM2.value,r.areaM2Px||65536));pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));r.numberCells=!!el.numCells.checked;el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;listRects();render()}
 [el.name,el.x,el.y,el.rot,el.scale,el.a,el.cx,el.cy].forEach(v=>v.addEventListener("input",applyProps));
 el.b.addEventListener("input",()=>{const r=cur();if(!r)return;r.autoContrastB=false;r.colorB=el.b.value||r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: выкл";listRects();render()});
 [el.numCells].forEach(v=>v.addEventListener("change",applyProps));
+[el.rectTextSize].forEach(v=>v.addEventListener("input",()=>{const r=cur();if(!r)return;r.textSize=Math.max(0,Math.min(128,Math.round(evalExpr(el.rectTextSize.value,r.textSize||0))));updateRectTextSizeLabel(r);st.fontReady=false;render();ensureFontReady().then(()=>render()).catch(()=>{})}));
 [el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.cx,el.cy].forEach(v=>{v.addEventListener("change",()=>{applyProps();syncProps()});v.addEventListener("keydown",e=>{if(e.key==="Enter"){applyProps();syncProps()}})});
-const applyTextSettings=()=>{st.textSize=Math.max(6,evalExpr(el.textSize.value,st.textSize||12));st.fontFamily=(el.font.value||"Segoe UI, Arial").trim()||"Segoe UI, Arial";render()};
+const applyTextSettings=()=>{st.textSize=Math.max(6,evalExpr(el.textSize.value,st.textSize||12));st.fontFamily=(el.font.value||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.fontReady=false;render();ensureFontReady().then(()=>render()).catch(()=>{})};
 [el.textSize,el.font].forEach(v=>v.addEventListener("input",applyTextSettings));
 const applyAreaM2Settings=()=>{const r=cur();if(!r)return;r.areaM2Px=Math.max(1,evalExpr(el.areaM2.value,r.areaM2Px||65536));render()};
 if(el.areaM2){el.areaM2.addEventListener("change",()=>{applyAreaM2Settings();syncProps()});el.areaM2.addEventListener("keydown",e=>{if(e.key==="Enter"){applyAreaM2Settings();syncProps()}})}
@@ -793,11 +1153,63 @@ el.textSize.addEventListener("keydown",e=>{if(e.key==="Enter"){applyTextSettings
 el.font.addEventListener("change",()=>{applyTextSettings();syncProps()});
 el.toolSelect.onclick=()=>setMode("select");el.toolDraw.onclick=()=>setMode("draw");if(el.toolMaskAdd)el.toolMaskAdd.onclick=()=>setMode("maskAdd");if(el.toolMaskSub)el.toolMaskSub.onclick=()=>setMode("maskSub");if(el.toolCellEdit)el.toolCellEdit.onclick=()=>setMode("cellEdit");if(el.toolRegions)el.toolRegions.onclick=()=>setMode("regions");if(el.newProject)el.newProject.onclick=newProject;el.btnCopy.onclick=dupSel;if(el.btnCopyMirror)el.btnCopyMirror.onclick=dupMirrorSel;el.btnDelete.onclick=delSel;if(el.btnAutoContrast)el.btnAutoContrast.onclick=()=>{const r=cur();if(!r)return;r.autoContrastB=!(r.autoContrastB!==false);if(r.autoContrastB)r.colorB=autoContrast(r.colorA);syncProps();listRects();render()};el.randColor.onclick=()=>{const r=cur();if(!r)return;r.colorA=randomColor();if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);syncProps();listRects();render()};el.zoomIn.onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,st.zoom*1.2);el.zoomOut.onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,st.zoom/1.2);el.zoomReset.onclick=()=>{st.zoom=1;render()};el.zoomFit.onclick=fit;
 const isMobile=()=>window.matchMedia("(max-width:900px)").matches;
-const setSideOpen=open=>{if(!isMobile())return;el.side.classList.toggle("open",open);el.overlay.classList.toggle("open",open)};
-el.mobileMenu.onclick=()=>setSideOpen(!el.side.classList.contains("open"));
-el.sideClose.onclick=()=>setSideOpen(false);
-el.overlay.onclick=()=>setSideOpen(false);
-window.addEventListener("resize",()=>{if(!isMobile())setSideOpen(false)});
+const isCoarsePointer=()=>window.matchMedia&&window.matchMedia("(hover:none) and (pointer:coarse)").matches;
+const isEditableTarget=t=>{
+  if(!t||!(t instanceof Element))return false;
+  if(t.closest("[contenteditable='true']"))return true;
+  const n=t.tagName;
+  return n==="INPUT"||n==="TEXTAREA"||n==="SELECT";
+};
+let lastTouchEndTs=0;
+document.addEventListener("touchend",e=>{
+  if(!isCoarsePointer())return;
+  if(isEditableTarget(e.target))return;
+  const now=Date.now(),dt=now-lastTouchEndTs;
+  if(dt>0&&dt<320)e.preventDefault();
+  lastTouchEndTs=now;
+},{passive:false});
+const updateMobileDock=()=>{
+  if(!el.mobileDock)return;
+  const show=isMobile()||isCoarsePointer();
+  if(!show){
+    el.mobileDock.style.display="none";
+    return;
+  }
+  const portrait=window.innerHeight>=window.innerWidth;
+  el.mobileDock.style.display="flex";
+  el.mobileDock.style.position="fixed";
+  el.mobileDock.style.zIndex="1070";
+  el.mobileDock.style.left=portrait?"10px":"50%";
+  el.mobileDock.style.top=portrait?"50%":"auto";
+  el.mobileDock.style.bottom=portrait?"auto":"10px";
+  el.mobileDock.style.transform=portrait?"translateY(-50%)":"translateX(-50%)";
+  el.mobileDock.style.flexDirection=portrait?"column":"row";
+  el.mobileDock.style.maxHeight=portrait?"calc(100vh - 24px)":"";
+  el.mobileDock.style.maxWidth=portrait?"":"calc(100vw - 20px)";
+  el.mobileDock.style.overflowY=portrait?"auto":"hidden";
+  el.mobileDock.style.overflowX=portrait?"hidden":"auto";
+};
+let helpModalInstance=null;
+const getHelpModal=()=>{
+  if(!el.helpModal||!window.bootstrap||!window.bootstrap.Modal)return null;
+  if(!helpModalInstance)helpModalInstance=window.bootstrap.Modal.getOrCreateInstance(el.helpModal,{backdrop:true,keyboard:true,focus:true});
+  return helpModalInstance;
+};
+const openHelpModal=()=>{
+  const modal=getHelpModal();
+  if(modal){modal.show();return}
+  if(el.helpModal){el.helpModal.style.display="block";el.helpModal.classList.add("show");el.helpModal.setAttribute("aria-hidden","false")}
+};
+const closeHelpModal=()=>{
+  const modal=getHelpModal();
+  if(modal){modal.hide();return}
+  if(el.helpModal){el.helpModal.classList.remove("show");el.helpModal.style.display="none";el.helpModal.setAttribute("aria-hidden","true")}
+  try{localStorage.setItem(HELP_SEEN_KEY,"1")}catch(_e){}
+};
+try{if(!localStorage.getItem(HELP_SEEN_KEY))openHelpModal()}catch(_e){openHelpModal()}
+if(el.helpOpen)el.helpOpen.onclick=openHelpModal;
+if(el.helpClose)el.helpClose.onclick=closeHelpModal;
+if(el.helpModal)el.helpModal.addEventListener("hidden.bs.modal",()=>{try{localStorage.setItem(HELP_SEEN_KEY,"1")}catch(_e){}});
 el.mToolSelect.onclick=()=>el.toolSelect.click();
 el.mToolDraw.onclick=()=>el.toolDraw.click();
 if(el.mToolMaskAdd)el.mToolMaskAdd.onclick=()=>el.toolMaskAdd.click();
@@ -911,15 +1323,37 @@ el.save.onclick=async()=>{const text=JSON.stringify(buildProject(),null,2);const
 el.load.onclick=()=>el.file.click();el.file.addEventListener("change",()=>{const f=el.file.files&&el.file.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(String(rd.result||"{}"));applyProjectData(d)}catch(err){alert(`Ошибка JSON: ${err.message}`)}};rd.readAsText(f);el.file.value=""});
 el.expSvg.onclick=async()=>{if(!st.rects.length){alert("Нечего экспортировать");return}const svg=buildSvgExport();const blob=new Blob([svg],{type:"image/svg+xml"});await saveBlobWithSystemDialog(blob,`${projectFileBase()}.svg`,"image/svg+xml",".svg","SVG images")};
 el.exp.onclick=async()=>{if(!st.rects.length){alert("Нечего экспортировать");return}await ensureFontReady();let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
-const out=document.createElement("canvas"),w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY));out.width=w;out.height=h;const c=out.getContext("2d");for(const r of st.rects)drawRect(c,{...r,x:r.x-minX,y:r.y-minY},false,1,{x:0,y:0});
+const out=document.createElement("canvas"),w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY));out.width=w;out.height=h;const c=out.getContext("2d");for(let i=st.rects.length-1;i>=0;i--){const r=st.rects[i];drawRect(c,{...r,x:r.x-minX,y:r.y-minY},false,1,{x:0,y:0})}
 out.toBlob(async b=>{if(!b){alert("Ошибка экспорта");return}await saveBlobWithSystemDialog(b,`${projectFileBase()}.png`,"image/png",".png","PNG images")},"image/png")};
 el.project.addEventListener("input",()=>{st.projectName=(el.project.value||"project").trim()||"project";schedulePersist()});
 el.project.addEventListener("change",()=>{st.projectName=(el.project.value||"project").trim()||"project";syncProps();schedulePersist()});
-window.addEventListener("keydown",e=>{if(e.key===" ")st.keys.space=true;if(e.key==="Control")st.keys.ctrl=true;if(e.key==="Escape"){setMode("select");e.preventDefault();return}if(isMaskMode()&&e.key==="Enter"){applyMaskPath();e.preventDefault();return}if(e.key==="Delete"){delSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="d"){dupSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="c"){const r=cur();if(r)st.clip={...r,autoContrastB:r.autoContrastB!==false,rotation:r.rotation||0,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[]};e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="v"){if(st.clip){const c={...st.clip,id:st.next++,name:`${st.clip.name} copy`,x:st.clip.x+20,y:st.clip.y+20,rotation:st.clip.rotation||0,autoContrastB:st.clip.autoContrastB!==false,colorB:(st.clip.autoContrastB!==false)?autoContrast(st.clip.colorA):st.clip.colorB,cellLinks:Array.isArray(st.clip.cellLinks)?[...st.clip.cellLinks]:[],hiddenCells:Array.isArray(st.clip.hiddenCells)?[...st.clip.hiddenCells]:[]};st.rects.push(c);selRect(c.id)}e.preventDefault()}
+if(el.themePopup){
+  for(const a of el.themePopup.querySelectorAll("[data-theme]")){
+    a.addEventListener("click",e=>{e.preventDefault();applyThemeMode(a.getAttribute("data-theme"),true);hideThemePopup()});
+  }
+}
+if(el.themeToggle)el.themeToggle.addEventListener("click",e=>{e.preventDefault();hideToolbarOverflowPopup();const open=el.themePopup&&el.themePopup.classList.contains("show");if(open)hideThemePopup();else showThemePopup()});
+if(themeMedia&&typeof themeMedia.addEventListener==="function")themeMedia.addEventListener("change",()=>{if(st.themeMode==="auto")applyThemeMode("auto",false)});
+else if(themeMedia&&typeof themeMedia.addListener==="function")themeMedia.addListener(()=>{if(st.themeMode==="auto")applyThemeMode("auto",false)});
+if(el.overflowToggle)el.overflowToggle.addEventListener("click",e=>{e.preventDefault();if(!overflowHiddenButtons.length)return;const open=el.overflowPopup&&el.overflowPopup.classList.contains("show");if(open)hideToolbarOverflowPopup();else showToolbarOverflowPopup()});
+document.addEventListener("click",e=>{
+  const t=e.target;
+  if(el.overflowPopup&&el.overflowToggle&&!(el.overflowPopup.contains(t)||el.overflowToggle.contains(t)))hideToolbarOverflowPopup();
+  if(el.themePopup&&el.themeToggle&&!(el.themePopup.contains(t)||el.themeToggle.contains(t)))hideThemePopup();
+});
+window.addEventListener("resize",updateMobileDock);
+window.addEventListener("orientationchange",updateMobileDock);
+window.addEventListener("resize",()=>{hideToolbarOverflowPopup();hideThemePopup();updateToolbarOverflow()});
+window.addEventListener("orientationchange",()=>{hideToolbarOverflowPopup();hideThemePopup();updateToolbarOverflow()});
+window.addEventListener("keydown",e=>{if(e.key===" ")st.keys.space=true;if(e.key==="Control")st.keys.ctrl=true;if(e.key==="Escape"){if(el.helpModal&&el.helpModal.classList.contains("show")){closeHelpModal();e.preventDefault();return}setMode("select");e.preventDefault();return}if(isMaskMode()&&e.key==="Enter"){applyMaskPath();e.preventDefault();return}if(e.key==="Delete"){delSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="d"){dupSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="c"){const r=cur();if(r)st.clip={...r,autoContrastB:r.autoContrastB!==false,rotation:r.rotation||0,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[]};e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="v"){if(st.clip){const c={...st.clip,id:st.next++,name:`${st.clip.name} copy`,x:st.clip.x+20,y:st.clip.y+20,rotation:st.clip.rotation||0,autoContrastB:st.clip.autoContrastB!==false,colorB:(st.clip.autoContrastB!==false)?autoContrast(st.clip.colorA):st.clip.colorB,cellLinks:Array.isArray(st.clip.cellLinks)?[...st.clip.cellLinks]:[],hiddenCells:Array.isArray(st.clip.hiddenCells)?[...st.clip.hiddenCells]:[]};st.rects.push(c);selRect(c.id)}e.preventDefault()}
 const r=cur();if(r){const s=e.shiftKey?10:1;let m=false;if(e.key==="ArrowLeft"){r.x-=s;m=true}else if(e.key==="ArrowRight"){r.x+=s;m=true}else if(e.key==="ArrowUp"){r.y-=s;m=true}else if(e.key==="ArrowDown"){r.y+=s;m=true}if(m){syncProps();listRects();render();e.preventDefault()}}});
 window.addEventListener("keyup",e=>{if(e.key===" ")st.keys.space=false;if(e.key==="Control"){st.keys.ctrl=false;st.g.x=null;st.g.y=null;st.dg=null;render()}});
 setMode(st.mode);
+applyThemeMode(st.themeMode,false);
+updateMobileDock();
+updateToolbarOverflow();
 if(!restoreAutoSave()){const a=mk(-180,-90,260,180);a.name="Main";const b=mk(180,-30,220,160);b.name="Side";b.colorA="#db8f37";b.colorB=autoContrast(b.colorA);st.rects.push(a,b);selRect(a.id);resize();listRects();syncProps();fit()}else{resize();listRects();syncProps();}
+ensureFontReady().then(()=>{render()}).catch(()=>{});
 </script></body></html>
 
 
