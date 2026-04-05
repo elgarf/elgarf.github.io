@@ -746,12 +746,12 @@ const getDataFlowGroups=(r,cx,cy,topo,hs,regions)=>{
   const out=[];
   for(const [rid,arr] of byRegion){
     const baseOrdered=orderByMode(arr,mode,zMode).map((it,idx)=>({...it,baseIdx:idx}));
-    let ordered=refineFlowOrder(baseOrdered);
+    let ordered=zMode?baseOrdered:refineFlowOrder(baseOrdered);
     if(!zMode)ordered=optimizeFlowPathShortest(ordered);
     if(pathSelfCrosses(ordered)){
       const altUseZ=!zMode;
       const altBase=orderByMode(arr,mode,altUseZ).map((it,idx)=>({...it,baseIdx:idx}));
-      let altOrdered=refineFlowOrder(altBase);
+      let altOrdered=altUseZ?altBase:refineFlowOrder(altBase);
       if(!altUseZ)altOrdered=optimizeFlowPathShortest(altOrdered);
       if(!pathSelfCrosses(altOrdered))ordered=altOrdered;
       else if(flowPathCost(altOrdered)+1e-6<flowPathCost(ordered))ordered=altOrdered;
