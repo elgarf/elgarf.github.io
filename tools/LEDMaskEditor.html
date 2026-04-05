@@ -693,7 +693,35 @@ const refineFlowOrder=(ordered)=>{
   const relaxed=flowSearchOrder([head],rem,base,true);
   return relaxed||ordered;
 };
-const getDataFlowGroups=(r,cx,cy,topo,hs,regions)=>{
+const getRectCalcCache=r=>{
+  if(!r||typeof r!=="object")return{regions:null,flow:null};
+  if(!r._calcCache||typeof r._calcCache!=="object")r._calcCache={regions:null,flow:null};
+  return r._calcCache;
+};
+const listSignature=v=>Array.isArray(v)&&v.length?v.join(";"):"";
+const regionCalcKey=(r,cx,cy,topo)=>[
+  r&&r.width||0,
+  r&&r.height||0,
+  cx||0,
+  cy||0,
+  topo&&topo.cols||0,
+  topo&&topo.rows||0,
+  Math.max(0,Math.round(Number(r&&r.splitVariant)||0)),
+  listSignature(r&&r.cellLinks),
+  listSignature(r&&r.hiddenCells)
+].join("|");
+const flowCalcKey=(r,cx,cy,topo,regions)=>[
+  normalizeDataFlow(r&&r.dataFlow),
+  !!(r&&r.dataFlowZ),
+  r&&r.width||0,
+  r&&r.height||0,
+  cx||0,
+  cy||0,
+  topo&&topo.cols||0,
+  topo&&topo.rows||0,
+  regions&&regions._calcKey?regions._calcKey:""
+].join("|");
+const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions)=>{
   const mode=normalizeDataFlow(r&&r.dataFlow);
   const zMode=!!(r&&r.dataFlowZ);
   if(mode==="none")return[];
@@ -1013,7 +1041,7 @@ const splitIndicesBySize=(sizes,groups)=>{
   }
   cuts.push(n);return cuts;
 };
-const planNumberRegions=(r,cx,cy,topo,hs)=>{
+const planNumberRegionsUncached=(r,cx,cy,topo,hs)=>{
   const cols=Math.max(1,topo&&topo.cols||1),rows=Math.max(1,topo&&topo.rows||1);
   const cellW=[];for(let x=0;x<r.width;x+=cx)cellW.push(Math.min(cx,r.width-x));
   const cellH=[];for(let y=0;y<r.height;y+=cy)cellH.push(Math.min(cy,r.height-y));
@@ -1715,6 +1743,28 @@ const planNumberRegions=(r,cx,cy,topo,hs)=>{
   for(let i=0;i<rows;i++)if(rowToGroup[i]===-1)rowToGroup[i]=0;
   const xCutsPx=[0,r.width],yCutsPx=[0,r.height];
   return{nx:finalRegions.length,ny:1,colToGroup,rowToGroup,regionsById:byId,xCutsPx,yCutsPx,cellToRegion,regions:finalRegions};
+};
+const planNumberRegions=(r,cx,cy,topo,hs)=>{
+  const cache=getRectCalcCache(r);
+  const key=regionCalcKey(r,cx,cy,topo);
+  if(cache.regions&&cache.regions.key===key)return cache.regions.value;
+  const value=planNumberRegionsUncached(r,cx,cy,topo,hs);
+  if(value&&typeof value==="object"){
+    try{Object.defineProperty(value,"_calcKey",{value:key,writable:true,configurable:true});}
+    catch(_e){value._calcKey=key;}
+  }
+  cache.regions={key,value};
+  if(cache.flow&&cache.flow.regionKey!==key)cache.flow=null;
+  return value;
+};
+const getDataFlowGroups=(r,cx,cy,topo,hs,regions)=>{
+  const cache=getRectCalcCache(r);
+  const key=flowCalcKey(r,cx,cy,topo,regions);
+  if(cache.flow&&cache.flow.key===key)return cache.flow.value;
+  const value=getDataFlowGroupsUncached(r,cx,cy,topo,hs,regions);
+  const regionKey=(regions&&regions._calcKey)||"";
+  cache.flow={key,regionKey,value};
+  return value;
 };
 const metricFromPx=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.width=Math.max(1,Math.round(+r.width||1));r.height=Math.max(1,Math.round(+r.height||1));r.widthM=Math.max(0.001,mRound(r.width/r.scale));r.heightM=Math.max(0.001,mRound(r.height/r.scale));};
 const pxFromMetric=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.widthM=Math.max(0.001,+r.widthM||0.001);r.heightM=Math.max(0.001,+r.heightM||0.001);r.width=Math.max(1,Math.round(r.widthM*r.scale));r.height=Math.max(1,Math.round(r.heightM*r.scale));};
