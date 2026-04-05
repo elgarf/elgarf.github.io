@@ -9,7 +9,15 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;font-family:"Roboto","Segoe UI","Arial","Noto Sans",sans-serif;user-select:none;-webkit-user-select:none}
 input,textarea{user-select:text;-webkit-user-select:text}
-.app{display:grid;grid-template-rows:auto 1fr;height:100%}
+.app{display:grid;grid-template-rows:auto auto 1fr;height:100%}
+.project-tabs{display:flex;align-items:flex-end;gap:8px;padding:8px 10px 0;border-bottom:1px solid var(--bs-border-color);background:var(--bs-body-bg);overflow-x:auto;overflow-y:hidden}
+.project-tabs-list{display:flex;flex-wrap:nowrap;gap:2px;min-width:0;white-space:nowrap;border-bottom:0}
+.project-tabs-list .nav-item{flex:0 0 auto}
+.project-tabs-list .nav-link{display:inline-flex;align-items:center;gap:8px;max-width:240px}
+.project-tabs-list .tab-title{display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.project-tabs-list .tab-close-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:3px;opacity:.8}
+.project-tabs-list .tab-close-icon:hover{background:rgba(127,127,127,.18);opacity:1}
+.project-tabs-add{margin-bottom:4px;flex:0 0 auto}
 .toolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--bs-border-color);flex-wrap:nowrap;overflow-x:hidden;overflow-y:visible;position:relative;z-index:1090}
 .group{display:flex;gap:6px;align-items:center;padding-right:8px;margin-right:4px;border-right:1px solid var(--bs-border-color)}
 .group:last-child{border-right:none}
@@ -99,6 +107,7 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
 .rect-item.drop-before{box-shadow:inset 0 2px 0 var(--bs-info)}
 .rect-item.drop-after{box-shadow:inset 0 -2px 0 var(--bs-info)}
 @media (max-width:900px){
+  .project-tabs{display:none}
   .main{grid-template-columns:1fr;grid-template-rows:1fr}
   .group{padding-right:6px;margin-right:2px}
   .mobile-hide{display:none!important}
@@ -127,7 +136,12 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   .mobile-dock{left:50%;top:auto;bottom:10px;transform:translateX(-50%);flex-direction:row;max-width:calc(100vw - 20px);overflow-x:auto;overflow-y:hidden}
 }
 </style></head><body>
-<div class="app"><div id="toolbarMain" class="toolbar navbar bg-body-tertiary shadow-sm">
+<div class="app">
+<div id="projectTabs" class="project-tabs">
+  <ul id="projectTabsList" class="project-tabs-list nav nav-tabs"></ul>
+  <button id="projectTabAdd" class="icon-btn project-tabs-add" title="Новая вкладка" aria-label="Новая вкладка"><i class="fa-solid fa-plus"></i></button>
+</div>
+<div id="toolbarMain" class="toolbar navbar bg-body-tertiary shadow-sm">
 <div class="group"><span class="text-secondary" style="font-size:12px">Проект</span><input id="projectName" class="toolbar-input" type="text" value="project"></div>
 <div class="group"><button id="helpOpen" class="icon-btn" title="Инструкция" aria-label="Инструкция"><i class="fa-solid fa-circle-question"></i></button></div>
 <div class="group mobile-hide">
@@ -309,7 +323,7 @@ const ensureMobileDock=()=>{
   document.body.appendChild(dock);
 };
 ensureMobileDock();
-const el={toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),expSvg:$("exportSvg"),exp:$("exportPng"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),numCells:$("propNumberCells"),btnClearMasks:$("btnClearMasks"),list:$("rectList")};
+const el={projectTabs:$("projectTabs"),projectTabsList:$("projectTabsList"),projectTabAdd:$("projectTabAdd"),toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),expSvg:$("exportSvg"),exp:$("exportPng"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),numCells:$("propNumberCells"),btnClearMasks:$("btnClearMasks"),list:$("rectList")};
 const desktopToolButtons=[el.toolSelect,el.toolDraw,el.toolMaskAdd,el.toolMaskSub,el.toolCellEdit,el.toolRegions].filter(Boolean);
 const mobileToolButtons=[el.mToolSelect,el.mToolDraw,el.mToolMaskAdd,el.mToolMaskSub,el.mToolCellEdit,el.mToolRegions].filter(Boolean);
 const overflowButtonIds=["toolSelect","toolDraw","toolMaskAdd","toolMaskSub","toolCellEdit","toolRegions","btnCopy","btnCopyMirror","btnDelete","zoomOut","zoomIn","zoomReset","zoomFit","newProject","save","load","expSvg","exp"];
@@ -427,7 +441,7 @@ const updateToolbarOverflow=()=>{
   }
   overflowHiddenButtons=hidden;
 };
-const st={rects:[],sel:null,hoverRect:null,mode:"select",camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null};
+const st={rects:[],sel:null,hoverRect:null,mode:"select",camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null,tabs:[],activeTabId:null,nextTabId:1};
 const clampTextSize=v=>Math.max(6,Math.min(128,Math.round(v)));
 const getRectTextSizePx=r=>{const lv=Number(r&&r.textSize);return Number.isFinite(lv)&&lv>0?clampTextSize(lv):clampTextSize(st.textSize||12);};
 let deferredInstallPrompt=null;
@@ -755,6 +769,8 @@ const planNumberRegions=(r,cx,cy,cols,rows)=>{
 const metricFromPx=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.width=Math.max(1,Math.round(+r.width||1));r.height=Math.max(1,Math.round(+r.height||1));r.widthM=Math.max(0.001,mRound(r.width/r.scale));r.heightM=Math.max(0.001,mRound(r.height/r.scale));};
 const pxFromMetric=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.widthM=Math.max(0.001,+r.widthM||0.001);r.heightM=Math.max(0.001,+r.heightM||0.001);r.width=Math.max(1,Math.round(r.widthM*r.scale));r.height=Math.max(1,Math.round(r.heightM*r.scale));};
 const AUTO_SAVE_KEY="led-mask-editor.autosave.v1";
+const TABS_SAVE_KEY="led-mask-editor.tabs.v1";
+const THEME_MODE_KEY="led-mask-editor.theme-mode.v1";
 let persistTimer=null;
 const themeMedia=window.matchMedia?window.matchMedia("(prefers-color-scheme: dark)"):null;
 const normalizeThemeMode=v=>v==="light"||v==="dark"||v==="auto"?v:"auto";
@@ -780,11 +796,84 @@ const applyThemeMode=(mode,persist=true)=>{
   st.themeMode=normalizeThemeMode(mode);
   document.documentElement.setAttribute("data-bs-theme",resolveThemeMode(st.themeMode));
   updateThemeUi();
-  if(persist)schedulePersist();
+  if(persist){try{localStorage.setItem(THEME_MODE_KEY,st.themeMode)}catch(_e){}}
   render();
 };
-const buildProject=()=>({version:1,projectName:st.projectName,camera:{x:st.camX,y:st.camY,zoom:st.zoom},settings:{textSize:st.textSize,fontFamily:st.fontFamily,themeMode:st.themeMode},nextId:st.next,rectangles:st.rects});
-const schedulePersist=()=>{if(persistTimer)clearTimeout(persistTimer);persistTimer=setTimeout(()=>{try{localStorage.setItem(AUTO_SAVE_KEY,JSON.stringify(buildProject()))}catch(_e){}},150)};
+const buildProject=()=>({version:1,projectName:st.projectName,camera:{x:st.camX,y:st.camY,zoom:st.zoom},settings:{textSize:st.textSize,fontFamily:st.fontFamily},nextId:st.next,rectangles:st.rects});
+const cloneProjectData=data=>{try{return JSON.parse(JSON.stringify(data))}catch(_e){return buildProject()}};
+const makeEmptyProjectData=(name="Новый проект")=>({version:1,projectName:name,camera:{x:0,y:0,zoom:1},settings:{textSize:st.textSize,fontFamily:st.fontFamily},nextId:1,rectangles:[]});
+const getActiveTab=()=>st.tabs.find(t=>t.id===st.activeTabId)||null;
+const syncActiveTabSnapshot=()=>{
+  const t=getActiveTab();
+  if(!t)return;
+  t.title=(st.projectName||"Новый проект").trim()||"Новый проект";
+  t.data=cloneProjectData(buildProject());
+};
+const renderProjectTabs=()=>{
+  if(!el.projectTabsList)return;
+  el.projectTabsList.innerHTML="";
+  for(const t of st.tabs){
+    const li=document.createElement("li");
+    li.className="nav-item";
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className=`nav-link ${t.id===st.activeTabId?"active":""}`;
+    btn.title=t.title||"Новый проект";
+    btn.setAttribute("aria-selected",t.id===st.activeTabId?"true":"false");
+    const title=document.createElement("span");
+    title.className="tab-title";
+    title.textContent=t.title||"Новый проект";
+    const close=document.createElement("span");
+    close.className="tab-close-icon";
+    close.title="Закрыть вкладку";
+    close.setAttribute("aria-label","Закрыть вкладку");
+    close.innerHTML='<i class="fa-solid fa-xmark"></i>';
+    btn.appendChild(title);
+    btn.appendChild(close);
+    btn.addEventListener("click",e=>{
+      const closeEl=e.target&&e.target.closest?e.target.closest(".tab-close-icon"):null;
+      if(closeEl){closeProjectTab(t.id);return;}
+      openProjectTab(t.id);
+    });
+    li.appendChild(btn);
+    el.projectTabsList.appendChild(li);
+  }
+};
+const buildTabsBundle=()=>{
+  syncActiveTabSnapshot();
+  return{version:1,nextTabId:st.nextTabId,activeTabId:st.activeTabId,tabs:st.tabs.map(t=>({id:t.id,title:t.title||"Новый проект",data:cloneProjectData(t.data||makeEmptyProjectData(t.title||"Новый проект"))}))};
+};
+const schedulePersist=()=>{if(persistTimer)clearTimeout(persistTimer);persistTimer=setTimeout(()=>{try{localStorage.setItem(TABS_SAVE_KEY,JSON.stringify(buildTabsBundle()));localStorage.setItem(AUTO_SAVE_KEY,JSON.stringify(buildProject()))}catch(_e){}},150)};
+function openProjectTab(tabId){
+  const next=st.tabs.find(t=>t.id===tabId);
+  if(!next)return;
+  if(st.activeTabId!==null&&st.activeTabId!==tabId)syncActiveTabSnapshot();
+  st.activeTabId=tabId;
+  applyProjectData(cloneProjectData(next.data||makeEmptyProjectData(next.title||"Новый проект")));
+  renderProjectTabs();
+}
+function createProjectTab(data){
+  syncActiveTabSnapshot();
+  const d=cloneProjectData(data||makeEmptyProjectData("Новый проект"));
+  const title=(d.projectName||"Новый проект").trim()||"Новый проект";
+  const tab={id:st.nextTabId++,title,data:d};
+  st.tabs.push(tab);
+  st.activeTabId=tab.id;
+  applyProjectData(cloneProjectData(d));
+  renderProjectTabs();
+}
+function closeProjectTab(tabId){
+  if(st.tabs.length<=1)return;
+  const idx=st.tabs.findIndex(t=>t.id===tabId);
+  if(idx<0)return;
+  const wasActive=st.activeTabId===tabId;
+  st.tabs.splice(idx,1);
+  if(!wasActive){renderProjectTabs();schedulePersist();return;}
+  const next=st.tabs[Math.max(0,idx-1)]||st.tabs[0];
+  st.activeTabId=next.id;
+  applyProjectData(cloneProjectData(next.data||makeEmptyProjectData(next.title||"Новый проект")));
+  renderProjectTabs();
+}
 const evalExpr=(input,fallback)=>{const s=String(input??"").trim();if(!s)return fallback;const n=Number(s.replace(",","."));if(Number.isFinite(n))return n;const normalized=s.replace(/,/g,".").replace(/\s+/g,"");if(!/^[0-9+\-*/().]+$/.test(normalized))return fallback;try{const v=Function(`"use strict";return (${normalized});`)();return Number.isFinite(v)?v:fallback}catch(_e){return fallback}};
 const randomColor=()=>{
   const h=Math.random()*360,s=1,v=0.5,c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;
@@ -837,8 +926,35 @@ body+=`</g><rect x="${x}" y="${y}" width="${r.width}" height="${r.height}" fill=
 }
 return`<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${defs}</defs>${body}</svg>`;
 }
-function applyProjectData(d){const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=Math.max(1,evalExpr(d&&d.settings?d.settings.areaM2Px:null,65536));st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:Math.max(1,evalExpr(r.areaM2Px,legacyAreaM2)),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),numberCells:!!r.numberCells,cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.themeMode=normalizeThemeMode(d.settings.themeMode)}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.maskPath=[];st.maskHover=null;applyThemeMode(st.themeMode,false);selRect(st.rects[0]?st.rects[0].id:null);render();}
-function restoreAutoSave(){try{const rawSaved=localStorage.getItem(AUTO_SAVE_KEY);if(!rawSaved)return false;applyProjectData(JSON.parse(rawSaved));return true}catch(_e){return false}}
+function applyProjectData(d){const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=Math.max(1,evalExpr(d&&d.settings?d.settings.areaM2Px:null,65536));st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:Math.max(1,evalExpr(r.areaM2Px,legacyAreaM2)),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),numberCells:!!r.numberCells,cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial"}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.maskPath=[];st.maskHover=null;selRect(st.rects[0]?st.rects[0].id:null);syncActiveTabSnapshot();renderProjectTabs();render();}
+function restoreAutoSave(){
+  try{
+    const rawTabs=localStorage.getItem(TABS_SAVE_KEY);
+    if(rawTabs){
+      const parsed=JSON.parse(rawTabs);
+      if(parsed&&Array.isArray(parsed.tabs)&&parsed.tabs.length){
+        st.tabs=parsed.tabs.map((t,i)=>({id:+t.id||i+1,title:String(t&&t.title||"Новый проект"),data:cloneProjectData(t&&t.data||makeEmptyProjectData("Новый проект"))}));
+        st.nextTabId=Math.max((+parsed.nextTabId||1),st.tabs.reduce((m,t)=>Math.max(m,t.id),0)+1);
+        st.activeTabId=st.tabs.some(t=>t.id===+parsed.activeTabId)?+parsed.activeTabId:st.tabs[0].id;
+        const active=getActiveTab();
+        applyProjectData(cloneProjectData(active&&active.data||makeEmptyProjectData("Новый проект")));
+        renderProjectTabs();
+        return true;
+      }
+    }
+  }catch(_e){}
+  try{
+    const rawSaved=localStorage.getItem(AUTO_SAVE_KEY);
+    if(!rawSaved)return false;
+    const data=JSON.parse(rawSaved);
+    st.tabs=[{id:1,title:String((data&&data.projectName)||"Новый проект"),data:cloneProjectData(data)}];
+    st.nextTabId=2;
+    st.activeTabId=1;
+    applyProjectData(cloneProjectData(data));
+    renderProjectTabs();
+    return true;
+  }catch(_e){return false}
+}
 function mk(x,y,w,h){const id=st.next++;const colorA=randomColor();const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,areaM2Px:65536,textSize:0,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,numberCells:false,cellLinks:[],hiddenCells:[]};metricFromPx(r);return r}
 function setMode(m){
   st.mode=m;
@@ -1081,7 +1197,7 @@ if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.wi
 if(st.drag){const r=st.rects.find(v=>v.id===st.drag.id);if(!r)return;const nx=st.drag.rx+(p.x-st.drag.sx),ny=st.drag.ry+(p.y-st.drag.sy),sn=snap(nx,ny,r.id,r.width,r.height,false);r.x=sn.x;r.y=sn.y;st.g.x=sn.gx;st.g.y=sn.gy;st.dg=sn.dg;syncProps();listRects();render();e.preventDefault()}},{passive:false});
 cv.addEventListener("touchend",e=>{if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=1){e.preventDefault();return}if(e.touches.length===0){st.touch=null;if(st.pan){st.pan=false;st.panS=null}let created=null;if(st.draft){const d=st.draft;if(d.width>=1&&d.height>=1){created=mk(d.x,d.y,d.width,d.height);st.rects.push(created)}st.draft=null}st.drag=null;st.g.x=null;st.g.y=null;st.dg=null;if(created){setMode("select");selRect(created.id)}render();e.preventDefault()}},{passive:false});
 function delSel(){if(st.sel==null)return;st.rects=st.rects.filter(r=>r.id!==st.sel);st.sel=null;st.maskPath=[];st.maskHover=null;syncProps();listRects();render()}
-function newProject(){st.rects=[];st.sel=null;st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.maskPath=[];st.maskHover=null;st.cellHover=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;listRects();syncProps();setMode("select");render()}
+function newProject(){st.rects=[];st.sel=null;st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.maskPath=[];st.maskHover=null;st.cellHover=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;listRects();syncProps();setMode("select");syncActiveTabSnapshot();renderProjectTabs();render()}
 const insertCloneAboveSource=(sourceId,clone)=>{
   const idx=st.rects.findIndex(v=>v.id===sourceId);
   if(idx>=0)st.rects.splice(idx,0,clone);
@@ -1330,8 +1446,9 @@ el.expSvg.onclick=async()=>{if(!st.rects.length){alert("Нечего экспо�
 el.exp.onclick=async()=>{if(!st.rects.length){alert("Нечего экспортировать");return}await ensureFontReady();let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABB(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
 const out=document.createElement("canvas"),w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY));out.width=w;out.height=h;const c=out.getContext("2d");for(let i=st.rects.length-1;i>=0;i--){const r=st.rects[i];drawRect(c,{...r,x:r.x-minX,y:r.y-minY},false,1,{x:0,y:0})}
 out.toBlob(async b=>{if(!b){alert("Ошибка экспорта");return}await saveBlobWithSystemDialog(b,`${projectFileBase()}.png`,"image/png",".png","PNG images")},"image/png")};
-el.project.addEventListener("input",()=>{st.projectName=(el.project.value||"project").trim()||"project";schedulePersist()});
-el.project.addEventListener("change",()=>{st.projectName=(el.project.value||"project").trim()||"project";syncProps();schedulePersist()});
+el.project.addEventListener("input",()=>{st.projectName=(el.project.value||"project").trim()||"project";syncActiveTabSnapshot();renderProjectTabs();schedulePersist()});
+el.project.addEventListener("change",()=>{st.projectName=(el.project.value||"project").trim()||"project";syncActiveTabSnapshot();renderProjectTabs();syncProps();schedulePersist()});
+if(el.projectTabAdd)el.projectTabAdd.addEventListener("click",()=>createProjectTab(makeEmptyProjectData("Новый проект")));
 if(el.themePopup){
   for(const a of el.themePopup.querySelectorAll("[data-theme]")){
     a.addEventListener("click",e=>{e.preventDefault();applyThemeMode(a.getAttribute("data-theme"),true);hideThemePopup()});
@@ -1354,10 +1471,18 @@ window.addEventListener("keydown",e=>{if(e.key===" ")st.keys.space=true;if(e.key
 const r=cur();if(r){const s=e.shiftKey?10:1;let m=false;if(e.key==="ArrowLeft"){r.x-=s;m=true}else if(e.key==="ArrowRight"){r.x+=s;m=true}else if(e.key==="ArrowUp"){r.y-=s;m=true}else if(e.key==="ArrowDown"){r.y+=s;m=true}if(m){syncProps();listRects();render();e.preventDefault()}}});
 window.addEventListener("keyup",e=>{if(e.key===" ")st.keys.space=false;if(e.key==="Control"){st.keys.ctrl=false;st.g.x=null;st.g.y=null;st.dg=null;render()}});
 setMode(st.mode);
+try{st.themeMode=normalizeThemeMode(localStorage.getItem(THEME_MODE_KEY)||st.themeMode)}catch(_e){}
 applyThemeMode(st.themeMode,false);
 updateMobileDock();
 updateToolbarOverflow();
 if(!restoreAutoSave()){const a=mk(-180,-90,260,180);a.name="Main";const b=mk(180,-30,220,160);b.name="Side";b.colorA="#db8f37";b.colorB=autoContrast(b.colorA);st.rects.push(a,b);selRect(a.id);resize();listRects();syncProps();fit()}else{resize();listRects();syncProps();}
+if(!st.tabs.length){
+  st.tabs=[{id:1,title:(st.projectName||"Новый проект"),data:cloneProjectData(buildProject())}];
+  st.activeTabId=1;
+  st.nextTabId=2;
+}
+syncActiveTabSnapshot();
+renderProjectTabs();
 ensureFontReady().then(()=>{render()}).catch(()=>{});
 </script></body></html>
 
