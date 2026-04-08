@@ -2203,16 +2203,23 @@ const origin=getOrigin();for(let i=st.rects.length-1;i>=0;i--){const rr=st.rects
 drawContentBounds(ctx,st.zoom);
 ctx.restore();drawGuides();drawDistanceGuide();el.zoomLabel.textContent=`${Math.round(st.zoom*100)}%`;wrap.dataset.panning=st.pan?"1":"0";schedulePersist()}
 function updateViewportHeightVar(){
-  let h=window.innerHeight||0;
-  if(window.visualViewport&&window.visualViewport.height)h=Math.round(window.visualViewport.height);
+  const h1=Math.round(window.innerHeight||0);
+  const h2=Math.round((document.documentElement&&document.documentElement.clientHeight)||0);
+  const h3=Math.round((window.visualViewport&&window.visualViewport.height)||0);
+  const h=Math.max(h1,h2,h3);
   if(h>0)document.documentElement.style.setProperty("--app-vh",`${h}px`);
 }
 function resize(){updateViewportHeightVar();const r=window.devicePixelRatio||1,b=cv.getBoundingClientRect();cv.width=Math.floor(b.width*r);cv.height=Math.floor(b.height*r);render()}
 window.addEventListener("resize",resize);
 if(window.visualViewport){
   window.visualViewport.addEventListener("resize",resize);
-  window.visualViewport.addEventListener("scroll",resize);
 }
+window.addEventListener("orientationchange",()=>{
+  resize();
+  setTimeout(resize,80);
+  setTimeout(resize,260);
+  setTimeout(resize,700);
+});
 function zoomAt(sx,sy,nz){const b=s2w(sx,sy);st.zoom=zc(nz);const a=s2w(sx,sy);st.camX+=b.x-a.x;st.camY+=b.y-a.y;render()}
 cv.addEventListener("contextmenu",e=>e.preventDefault());
 cv.addEventListener("mousedown",e=>{const b=cv.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=s2w(sx,sy),pan=e.button===1||e.button===2||(st.keys.space&&e.button===0);if(pan){st.pan=true;st.panS={sx,sy,cx:st.camX,cy:st.camY};render();return}if(e.button!==0)return;
