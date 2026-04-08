@@ -7,9 +7,10 @@
 <link rel="stylesheet" href="./vendor/fonts/roboto/roboto.css">
 <style>
 *{box-sizing:border-box}
+:root{--app-vh:100vh}
 html,body{margin:0;height:100%;overflow:hidden;font-family:"Roboto","Segoe UI","Arial","Noto Sans",sans-serif;user-select:none;-webkit-user-select:none}
 input,textarea{user-select:text;-webkit-user-select:text}
-.app{display:grid;grid-template-rows:auto auto 1fr;height:100%}
+.app{display:grid;grid-template-rows:auto auto 1fr;height:var(--app-vh);min-height:var(--app-vh)}
 .project-tabs{display:flex;align-items:flex-end;gap:8px;padding:8px 10px 0;border-bottom:1px solid var(--bs-border-color);background:var(--bs-body-bg);overflow-x:auto;overflow-y:hidden}
 .project-tabs-list{display:flex;flex-wrap:nowrap;gap:2px;min-width:0;white-space:nowrap;border-bottom:0}
 .project-tabs-list .nav-item{flex:0 0 auto}
@@ -136,6 +137,9 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
 }
 @media (hover:none) and (pointer:coarse) and (orientation:landscape){
   .mobile-dock{left:50%;top:auto;bottom:10px;transform:translateX(-50%);flex-direction:row;max-width:calc(100vw - 20px);overflow-x:auto;overflow-y:hidden}
+}
+@supports (height: 100dvh){
+  :root{--app-vh:100dvh}
 }
 </style></head><body>
 <div class="app">
@@ -2198,8 +2202,17 @@ function render(){const r=window.devicePixelRatio||1;ctx.setTransform(r,0,0,r,0,
 const origin=getOrigin();for(let i=st.rects.length-1;i>=0;i--){const rr=st.rects[i];drawRect(ctx,rr,rr.id===st.sel,st.zoom,origin)}if(st.draft){const d=st.draft;ctx.strokeStyle="#7fd4f8";ctx.lineWidth=1/st.zoom;ctx.setLineDash([8/st.zoom,5/st.zoom]);ctx.strokeRect(d.x,d.y,d.width,d.height);ctx.setLineDash([])}drawMaskOverlay(ctx,st.zoom);drawCellEditOverlay(ctx,st.zoom);
 drawContentBounds(ctx,st.zoom);
 ctx.restore();drawGuides();drawDistanceGuide();el.zoomLabel.textContent=`${Math.round(st.zoom*100)}%`;wrap.dataset.panning=st.pan?"1":"0";schedulePersist()}
-function resize(){const r=window.devicePixelRatio||1,b=cv.getBoundingClientRect();cv.width=Math.floor(b.width*r);cv.height=Math.floor(b.height*r);render()}
+function updateViewportHeightVar(){
+  let h=window.innerHeight||0;
+  if(window.visualViewport&&window.visualViewport.height)h=Math.round(window.visualViewport.height);
+  if(h>0)document.documentElement.style.setProperty("--app-vh",`${h}px`);
+}
+function resize(){updateViewportHeightVar();const r=window.devicePixelRatio||1,b=cv.getBoundingClientRect();cv.width=Math.floor(b.width*r);cv.height=Math.floor(b.height*r);render()}
 window.addEventListener("resize",resize);
+if(window.visualViewport){
+  window.visualViewport.addEventListener("resize",resize);
+  window.visualViewport.addEventListener("scroll",resize);
+}
 function zoomAt(sx,sy,nz){const b=s2w(sx,sy);st.zoom=zc(nz);const a=s2w(sx,sy);st.camX+=b.x-a.x;st.camY+=b.y-a.y;render()}
 cv.addEventListener("contextmenu",e=>e.preventDefault());
 cv.addEventListener("mousedown",e=>{const b=cv.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=s2w(sx,sy),pan=e.button===1||e.button===2||(st.keys.space&&e.button===0);if(pan){st.pan=true;st.panS={sx,sy,cx:st.camX,cy:st.camY};render();return}if(e.button!==0)return;
@@ -2537,6 +2550,7 @@ window.addEventListener("keyup",e=>{if(e.key===" ")st.keys.space=false;if(e.key=
 setMode(st.mode);
 try{st.themeMode=normalizeThemeMode(localStorage.getItem(THEME_MODE_KEY)||st.themeMode)}catch(_e){}
 applyThemeMode(st.themeMode,false);
+updateViewportHeightVar();
 updateMobileDock();
 updateToolbarOverflow();
 if(!restoreAutoSave()){const a=mk(-180,-90,260,180);a.name="Main";const b=mk(180,-30,220,160);b.name="Side";b.colorA="#db8f37";b.colorB=autoContrast(b.colorA);st.rects.push(a,b);selRect(a.id);resize();listRects();syncProps();fit()}else{resize();listRects();syncProps();}
