@@ -2903,10 +2903,20 @@ const saveBlobWithSystemDialog=async(blob,suggestedName,mime,ext,description,sav
   const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
 };
 el.save.onclick=async()=>{const text=JSON.stringify(buildProject(),null,2);const blob=new Blob([text],{type:"application/json"});await saveBlobWithSystemDialog(blob,`${projectFileBase()}.json`,"application/json",".json","JSON files",st.saveLocationId)};
-el.load.onclick=()=>el.file.click();el.file.addEventListener("change",()=>{const f=el.file.files&&el.file.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(String(rd.result||"{}"));applyProjectData(d)}catch(err){alert(`Ошибка JSON: ${err.message}`)}};rd.readAsText(f);el.file.value=""});
+el.load.onclick=()=>el.file.click();el.file.addEventListener("change",()=>{const f=el.file.files&&el.file.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(String(rd.result||"{}"));applyProjectData(d);schedulePersist("all")}catch(err){alert(`Ошибка JSON: ${err.message}`)}};rd.readAsText(f);el.file.value=""});
 const fmtOne=v=>{const n=Math.round((Number(v)||0)*10)/10;return Number.isInteger(n)?`${n.toFixed(0)}`:n.toFixed(1)};
 const fmtMeters=v=>{const n=Math.round((Number(v)||0)*1000)/1000;return Number.isInteger(n)?`${n.toFixed(0)}`:String(n).replace(/\.?0+$/,"")};
-const buildRectSpecText=r=>{
+const fmtAreaM2=v=>{const n=Math.max(0,Math.round((Number(v)||0)*1000)/1000);return Number.isInteger(n)?`${n.toFixed(0)}`:String(n).replace(/\.?0+$/,"")};
+const parseScreenNameGroup=r=>{
+  const fallback=`Экран #${r&&r.id!=null?r.id:"?"}`,raw=String((r&&r.name)||fallback).trim()||fallback,at=raw.indexOf("@");
+  if(at<0)return{name:raw,group:"Общая"};
+  const name=(raw.slice(0,at).trim()||fallback),group=(raw.slice(at+1).trim()||"Общая");
+  return{name,group};
+};
+const mapToCabinetList=m=>[...m.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],"ru")).map(([size,count])=>`${size}м – ${count} шт.`);
+const mapToCableList=m=>[...m.entries()].sort((a,b)=>parseFloat(a[0])-parseFloat(b[0])).map(([len,count])=>`${len} – ${count} шт.`);
+const mergeCountMap=(dst,src)=>{for(const [k,v] of src.entries())dst.set(k,(dst.get(k)||0)+(v||0));};
+const buildRectSpecData=r=>{
   const cellX=drawCellX(r),cellY=drawCellY(r),topo=getCellTopologyCached(r,cellX,cellY),hs=getHiddenSet(r);
   const cols=Math.max(1,topo&&topo.cols||1),rows=Math.max(1,topo&&topo.rows||1);
   const colW=[];for(let x=0;x<r.width;x+=cellX)colW.push(Math.min(cellX,r.width-x));
@@ -2914,8 +2924,10 @@ const buildRectSpecText=r=>{
   const colPref=[0];for(let i=0;i<colW.length;i++)colPref.push(colPref[i]+colW[i]);
   const rowPref=[0];for(let i=0;i<rowH.length;i++)rowPref.push(rowPref[i]+rowH[i]);
   const comp=new Map();
+  let visibleAreaPx=0;
   for(let iy=0;iy<rows;iy++)for(let ix=0;ix<cols;ix++){
     if(hs&&hs.has(maskCellKey(ix,iy)))continue;
+    visibleAreaPx+=Math.max(0,(colW[ix]||0)*(rowH[iy]||0));
     const idx=iy*cols+ix,cid=((topo&&Array.isArray(topo.comp)?topo.comp[idx]:0)|0);
     let it=comp.get(cid);
     if(!it){it={c0:ix,c1:ix+1,r0:iy,r1:iy+1,cells:1};comp.set(cid,it);continue;}
@@ -2939,17 +2951,45 @@ const buildRectSpecText=r=>{
       cableByLen.set(k,(cableByLen.get(k)||0)+1);
     }
   }
-  const cabinetList=[...cabinetBySize.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],"ru")).map(([size,count])=>`${size}м × ${count}`);
-  const cableList=[...cableByLen.entries()].sort((a,b)=>parseFloat(a[0])-parseFloat(b[0])).map(([len,count])=>`${len} × ${count}`);
+  const scale=Math.max(1,+r.scale||256),visibleAreaM2=visibleAreaPx/(scale*scale);
+  return{cabinetBySize,cableByLen,visibleAreaM2};
+};
+const buildRectSpecText=r=>{
+  const {name,group}=parseScreenNameGroup(r);
+  const {cabinetBySize,cableByLen}=buildRectSpecData(r);
+  const cabinetList=[...cabinetBySize.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],"ru")).map(([size,count])=>`${size}м – ${count} шт.`);
+  const cableList=[...cableByLen.entries()].sort((a,b)=>parseFloat(a[0])-parseFloat(b[0])).map(([len,count])=>`${len} – ${count} шт.`);
   const wM=fmtMeters((+r.width||0)/Math.max(1,+r.scale||256)),hM=fmtMeters((+r.height||0)/Math.max(1,+r.scale||256));
   const out=[
-    `###### ${r.name||`Экран #${r.id}`} (${Math.round(r.width)}x${Math.round(r.height)} px / ${wM} x ${hM} м)`,
+    `###### ${name} (${Math.round(r.width)}x${Math.round(r.height)} px / ${wM} x ${hM} м)`,
+    `- Группа: ${group}`,
     `- Кабинеты: ${cabinetList.length?cabinetList.join("; "):"—"}`,
-    `- Коммутация (+30%): ${cableList.length?cableList.join("; "):"0м × 0"}`
+    `- Коммутация: ${cableList.length?cableList.join("; "):"0м – 0 шт."}`
   ];
   return out.join("\n");
 };
-const buildFlowSpecText=()=>["##### Спецификация","",st.rects.map(r=>buildRectSpecText(r)).join("\n\n")].join("\n");
+const buildFlowSpecText=()=>{
+  const screenBlocks=st.rects.map(r=>buildRectSpecText(r)).join("\n\n");
+  const byGroup=new Map();
+  for(const r of st.rects){
+    const {group}=parseScreenNameGroup(r),data=buildRectSpecData(r);
+    let rec=byGroup.get(group);
+    if(!rec){rec={cabinetBySize:new Map(),cableByLen:new Map(),visibleAreaM2:0};byGroup.set(group,rec);}
+    mergeCountMap(rec.cabinetBySize,data.cabinetBySize);
+    mergeCountMap(rec.cableByLen,data.cableByLen);
+    rec.visibleAreaM2+=(Number(data.visibleAreaM2)||0);
+  }
+  const totalBlocks=[...byGroup.entries()].sort((a,b)=>a[0].localeCompare(b[0],"ru")).map(([group,rec])=>{
+    const cab=mapToCabinetList(rec.cabinetBySize),cbl=mapToCableList(rec.cableByLen);
+    return[
+      `###### Группа: ${group}`,
+      `- Площадь экранов: ${fmtAreaM2(rec.visibleAreaM2)} м²`,
+      `- Кабинеты: ${cab.length?cab.join("; "):"—"}`,
+      `- Коммутация: ${cbl.length?cbl.join("; "):"0м – 0 шт."}`
+    ].join("\n");
+  }).join("\n\n");
+  return["##### Спецификация","",screenBlocks,"","##### Итоговая сумма","",totalBlocks].join("\n");
+};
 const exportPng=async(includeFlow)=>{
   if(!st.rects.length){alert("Нечего экспортировать");return}
   await ensureFontReady();
