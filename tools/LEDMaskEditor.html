@@ -526,7 +526,7 @@ const updateToolbarOverflow=()=>{
   }
   overflowHiddenButtons=hidden;
 };
-const st={rects:[],sel:null,mode:"select",regionsHighlight:false,camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,flowDrag:null,flowHover:null,flowEditPoints:[],pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",saveLocationId:"proj-project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null,tabs:[],activeTabId:null,nextTabId:1};
+const st={rects:[],sel:null,mode:"select",regionsHighlight:false,camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,flowDrag:null,flowHover:null,flowDirHover:null,flowRegionRid:null,flowEditPoints:[],flowStartHandles:[],flowDirButtons:[],pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",saveLocationId:"proj-project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null,tabs:[],activeTabId:null,nextTabId:1};
 const FLOW_DRAW_BATCH_THRESHOLD=280;
 const FLOW_DRAW_BATCH_STEP=360;
 const flowDrawProgress=new Map();
@@ -760,14 +760,25 @@ const wouldSelfCross=(path,next)=>{
 };
 const flowCandidateOrder=(path,rem,prevBase,allowCross)=>{
   const prev=path[path.length-1];
+  const prev2=path.length>1?path[path.length-2]:null;
+  const prevDx=prev2?((+prev.u||0)-(+prev2.u||0)):0,prevDy=prev2?((+prev.v||0)-(+prev2.v||0)):0,prevLen=Math.hypot(prevDx,prevDy);
   return rem.map((it,i)=>{
     const g=flowBoxGap(prev,it),adj=(g.dist===0?1:0),base=(it.baseIdx!=null?it.baseIdx:i),seqPenalty=Math.abs(base-(prevBase+1));
     const center=flowDist(prev,it);
     const edge=g.dist;
     const align=(g.ovX+g.ovY);
     const crosses=wouldSelfCross(path,it);
+    const dx=(+it.u||0)-(+prev.u||0),dy=(+it.v||0)-(+prev.v||0),len=Math.hypot(dx,dy);
+    const absDx=Math.abs(dx),absDy=Math.abs(dy),diagPart=Math.min(absDx,absDy),diagLen=Math.max(0,len-Math.abs(absDx-absDy));
+    const diagonalPenalty=(diagPart>1e-6)?(diagPart*11.5+diagLen*2.2):0;
+    let backPenalty=0;
+    if(prevLen>1e-6&&len>1e-6){
+      const dot=(prevDx*dx+prevDy*dy)/(prevLen*len);
+      if(dot<-0.35)backPenalty+=Math.abs(dot)*2200;
+      else if(dot<0)backPenalty+=Math.abs(dot)*900;
+    }
     const crossPenalty=crosses?(allowCross?100000:1e12):0;
-    const score=crossPenalty + edge*1000 + center + seqPenalty*2 - adj*220 - align*10;
+    const score=crossPenalty + backPenalty + diagonalPenalty + edge*1000 + center + seqPenalty*2 - adj*220 - align*10;
     return{i,score,crosses};
   }).sort((a,b)=>a.score-b.score);
 };
@@ -828,7 +839,16 @@ const flowCrossCount=arr=>{
   }
   return c;
 };
-const flowPathCost=arr=>flowPathLength(arr)+flowCrossCount(arr)*1e9;
+const flowPathCost=arr=>{
+  const base=flowPathLength(arr)+flowCrossCount(arr)*1e9;
+  if(!Array.isArray(arr)||arr.length<2)return base;
+  let diagonalPenalty=0;
+  for(let i=1;i<arr.length;i++){
+    const a=arr[i-1],b=arr[i],dx=Math.abs((+b.u||0)-(+a.u||0)),dy=Math.abs((+b.v||0)-(+a.v||0)),len=Math.hypot(dx,dy),diagPart=Math.min(dx,dy),diagLen=Math.max(0,len-Math.abs(dx-dy));
+    if(diagPart>1e-6)diagonalPenalty+=diagPart*15+diagLen*3;
+  }
+  return base+diagonalPenalty;
+};
 const optimizeFlowPathShortest=arr=>{
   if(!Array.isArray(arr)||arr.length<4)return arr||[];
   let best=arr.slice(),bestCost=flowPathCost(best),changed=true,guard=0;
@@ -925,29 +945,49 @@ const flowCalcKey=(r,cx,cy,topo,regions)=>[
   flowLocksSignature(r),
   regions&&regions._calcKey?regions._calcKey:""
 ].join("|");
+const FLOW_DIR_SET=new Set(["right","left","down","up"]);
 const normalizeFlowLocks=raw=>{
   if(!raw||typeof raw!=="object")return{};
   const out={};
-  for(const [rk,arr] of Object.entries(raw)){
+  for(const [rk,val] of Object.entries(raw)){
     const rid=Math.max(0,Math.round(Number(rk)||0));
-    if(!Array.isArray(arr)||!arr.length)continue;
-    const norm=[];
-    for(const it of arr){
-      const index=Math.max(0,Math.round(Number(it&&it.index)||0)),cid=Math.max(0,Math.round(Number(it&&it.cid)||0));
+    let locksSrc=[],startCid=null,startDir="",mode="",startPinned=false;
+    if(Array.isArray(val)){
+      locksSrc=val;
+    }else if(val&&typeof val==="object"){
+      locksSrc=Array.isArray(val.locks)?val.locks:[];
+      if(val.startCid!==null&&val.startCid!==undefined&&String(val.startCid)!==""){
+        const parsedStartCid=Number(val.startCid);
+        if(Number.isFinite(parsedStartCid))startCid=Math.max(0,Math.round(parsedStartCid||0));
+      }
+      const d=String(val.startDir||"").toLowerCase();
+      if(FLOW_DIR_SET.has(d))startDir=d;
+      startPinned=!!val.startPinned;
+      const m=String(val.mode||"");
+      if(DATA_FLOW_MODES.has(m)&&m!=="none")mode=m;
+    }
+    const norm=[],seen=new Set();
+    for(const it of locksSrc){
+      const index=Math.max(0,Math.round(Number(it&&it.index)||0)),cid=Math.max(0,Math.round(Number(it&&it.cid)||0)),key=`${index}:${cid}`;
+      if(seen.has(key))continue;
+      seen.add(key);
       norm.push({index,cid});
     }
-    if(!norm.length)continue;
     norm.sort((a,b)=>a.index-b.index);
-    out[String(rid)]=norm;
+    if(!norm.length&&startCid==null&&!startDir)continue;
+    if(startCid!=null&&startPinned!==true&&FLOW_DIR_SET.has(startDir))startPinned=true;
+    out[String(rid)]={locks:norm,startCid,startDir,mode,startPinned:!!startPinned};
   }
   return out;
 };
 const flowLocksSignature=r=>{
   const locks=normalizeFlowLocks(r&&r.flowLocks),parts=[];
   for(const key of Object.keys(locks).sort((a,b)=>(+a)-(+b))){
-    const arr=locks[key];
-    if(!arr||!arr.length)continue;
-    parts.push(`${key}:${arr.map(it=>`${it.index}-${it.cid}`).join(",")}`);
+    const cfg=locks[key]||{},arr=Array.isArray(cfg.locks)?cfg.locks:[];
+    const startPart=((cfg.startPinned&&cfg.startCid!=null)||cfg.startDir)?`@${cfg.startPinned&&cfg.startCid!=null?cfg.startCid:""}:${cfg.startDir||""}:${cfg.startPinned?"1":"0"}`:"";
+    const modePart=(cfg.mode&&cfg.mode!=="none")?`#${cfg.mode}`:"";
+    if(!arr.length&&!startPart&&!modePart)continue;
+    parts.push(`${key}:${arr.map(it=>`${it.index}-${it.cid}`).join(",")}${startPart}${modePart}`);
   }
   return parts.join("|");
 };
@@ -1019,35 +1059,173 @@ const restorePersistedRectCache=(r,raw)=>{
     }
   }
 };
-const getFlowLocksRegion=(r,rid)=>{
-  if(!r||typeof r!=="object")return[];
+const getFlowRegionConfig=(r,rid)=>{
+  if(!r||typeof r!=="object")return{locks:[],startCid:null,startDir:"",mode:"",startPinned:false};
   if(!r.flowLocks||typeof r.flowLocks!=="object")r.flowLocks={};
   const key=String(Math.max(0,Math.round(Number(rid)||0)));
-  const arr=Array.isArray(r.flowLocks[key])?r.flowLocks[key]:[];
-  r.flowLocks[key]=arr;
-  return arr;
+  const norm=normalizeFlowLocks(r.flowLocks),cfg=norm[key]&&typeof norm[key]==="object"?norm[key]:{locks:[],startCid:null,startDir:"",mode:"",startPinned:false};
+  r.flowLocks=norm;
+  r.flowLocks[key]=cfg;
+  return cfg;
+};
+const getFlowLocksRegion=(r,rid)=>{
+  return getFlowRegionConfig(r,rid).locks;
+};
+const getFlowStartRoutingRegion=(r,rid)=>{
+  const cfg=getFlowRegionConfig(r,rid);
+  return{startCid:cfg.startCid,startDir:cfg.startDir||"",startPinned:!!cfg.startPinned};
+};
+const getFlowModeRegion=(r,rid,globalMode)=>{
+  const cfg=getFlowRegionConfig(r,rid),m=normalizeDataFlow(cfg.mode||"");
+  return m!=="none"?m:normalizeDataFlow(globalMode);
 };
 const setFlowLock=(r,rid,index,cid)=>{
   if(!r||typeof r!=="object")return;
-  if(!r.flowLocks||typeof r.flowLocks!=="object")r.flowLocks={};
-  const key=String(Math.max(0,Math.round(Number(rid)||0)));
   const idx=Math.max(0,Math.round(Number(index)||0)),cc=Math.max(0,Math.round(Number(cid)||0));
-  const arr=Array.isArray(r.flowLocks[key])?r.flowLocks[key]:[];
+  const cfg=getFlowRegionConfig(r,rid),arr=Array.isArray(cfg.locks)?cfg.locks:[];
   const next=arr.filter(it=>Math.max(0,Math.round(Number(it&&it.index)||0))!==idx);
   next.push({index:idx,cid:cc});
   next.sort((a,b)=>a.index-b.index);
-  r.flowLocks[key]=next;
+  cfg.locks=next;
   const cache=getRectCalcCache(r);
   if(cache)cache.flow=null;
+};
+const setFlowStart=(r,rid,cid)=>{
+  if(!r||typeof r!=="object")return;
+  const cfg=getFlowRegionConfig(r,rid),cc=Math.max(0,Math.round(Number(cid)||0));
+  cfg.startCid=cc;
+  cfg.startPinned=true;
+  const cache=getRectCalcCache(r);
+  if(cache)cache.flow=null;
+};
+const setFlowDirection=(r,rid,dir,startCid)=>{
+  if(!r||typeof r!=="object")return;
+  const d=String(dir||"").toLowerCase();
+  if(!FLOW_DIR_SET.has(d))return;
+  const cfg=getFlowRegionConfig(r,rid);
+  cfg.startDir=d;
+  if(Number.isFinite(Number(startCid)))cfg.startCid=Math.max(0,Math.round(Number(startCid)||0));
+  cfg.startPinned=true;
+  cfg.locks=[];
+  const cache=getRectCalcCache(r);
+  if(cache)cache.flow=null;
+};
+const resolveFlowModeFromStartAndDir=(points,routing,fallbackMode)=>{
+  const modeFallback=normalizeDataFlow(fallbackMode);
+  const pts=Array.isArray(points)?points:[];
+  if(!pts.length)return modeFallback;
+  const cfg=(routing&&typeof routing==="object")?routing:{};
+  const dir=String(cfg.startDir||"").toLowerCase();
+  if(!FLOW_DIR_SET.has(dir))return modeFallback;
+  const startCid=(cfg&&cfg.startPinned&&Number.isFinite(Number(cfg.startCid)))?Math.max(0,Math.round(Number(cfg.startCid)||0)):null;
+  let sp=pts[0];
+  if(startCid!=null){
+    const found=pts.find(it=>Math.max(0,Math.round(Number(it&&it.cid)||0))===startCid);
+    if(found)sp=found;
+  }
+  let minU=Infinity,maxU=-Infinity,minV=Infinity,maxV=-Infinity;
+  for(const p of pts){
+    const u=+p.u||0,v=+p.v||0;
+    if(u<minU)minU=u;if(u>maxU)maxU=u;
+    if(v<minV)minV=v;if(v>maxV)maxV=v;
+  }
+  if(!(Number.isFinite(minU)&&Number.isFinite(maxU)&&Number.isFinite(minV)&&Number.isFinite(maxV)))return modeFallback;
+  const su=+sp.u||0,sv=+sp.v||0,midU=(minU+maxU)/2,midV=(minV+maxV)/2;
+  const dTop=Math.abs(sv-minV),dBottom=Math.abs(maxV-sv),dLeft=Math.abs(su-minU),dRight=Math.abs(maxU-su);
+  const side=(dTop<=dBottom&&dTop<=dLeft&&dTop<=dRight)?"top":(dBottom<=dLeft&&dBottom<=dRight)?"bottom":(dLeft<=dRight)?"left":"right";
+  const leftHalf=su<=midU,topHalf=sv<=midV;
+  if(side==="bottom"){
+    if(dir==="right")return"h_bl_lr";
+    if(dir==="left")return"h_br_rl";
+    if(dir==="up")return leftHalf?"v_lb_bu":"v_rb_bu";
+    if(dir==="down")return leftHalf?"v_lt_td":"v_rt_td";
+  }else if(side==="top"){
+    if(dir==="right")return"h_tl_lr";
+    if(dir==="left")return"h_tr_rl";
+    if(dir==="down")return leftHalf?"v_lt_td":"v_rt_td";
+    if(dir==="up")return leftHalf?"v_lb_bu":"v_rb_bu";
+  }else if(side==="left"){
+    if(dir==="down")return"v_lt_td";
+    if(dir==="up")return"v_lb_bu";
+    if(dir==="right")return topHalf?"h_tl_lr":"h_bl_lr";
+    if(dir==="left")return topHalf?"h_tr_rl":"h_br_rl";
+  }else{
+    if(dir==="down")return"v_rt_td";
+    if(dir==="up")return"v_rb_bu";
+    if(dir==="left")return topHalf?"h_tr_rl":"h_br_rl";
+    if(dir==="right")return topHalf?"h_tl_lr":"h_bl_lr";
+  }
+  return modeFallback;
+};
+const setFlowRegionMode=(r,rid,mode)=>{
+  if(!r||typeof r!=="object")return;
+  const m=normalizeDataFlow(mode);
+  const cfg=getFlowRegionConfig(r,rid);
+  if(m==="none"){cfg.mode="";cfg.locks=[];cfg.startCid=null;cfg.startDir="";cfg.startPinned=false;}
+  else cfg.mode=m;
+  cfg.locks=[];
+  cfg.startCid=null;
+  cfg.startDir="";
+  cfg.startPinned=false;
+  const cache=getRectCalcCache(r);
+  if(cache)cache.flow=null;
+};
+const resetFlowRegionOverrides=(r,rid)=>{
+  if(!r||typeof r!=="object")return;
+  const cfg=getFlowRegionConfig(r,rid);
+  cfg.locks=[];
+  cfg.startCid=null;
+  cfg.startDir="";
+  cfg.mode="";
+  cfg.startPinned=false;
+  const cache=getRectCalcCache(r);
+  if(cache)cache.flow=null;
+};
+const applyFlowStartRouting=(ordered,routing,budget)=>{
+  if(!Array.isArray(ordered)||ordered.length<2)return ordered;
+  const cfg=(routing&&typeof routing==="object")?routing:{};
+  let cur=ordered.slice();
+  const startCid=(cfg&&cfg.startPinned&&Number.isFinite(Number(cfg.startCid)))?Math.max(0,Math.round(Number(cfg.startCid)||0)):null;
+  let startPos=0;
+  if(startCid!=null){
+    const pos=cur.findIndex(it=>Math.max(0,Math.round(Number(it&&it.cid)||0))===startCid);
+    if(pos>=0)startPos=pos;
+  }
+  const dir=String(cfg.startDir||"").toLowerCase();
+  const n=cur.length;
+  const forward=cur.slice(startPos).concat(cur.slice(0,startPos));
+  const backward=cur.slice(0,startPos+1).reverse().concat(cur.slice(startPos+1).reverse());
+  if(!FLOW_DIR_SET.has(dir)||n<3)return forward;
+  const dirVec=dir==="right"?[1,0]:dir==="left"?[-1,0]:dir==="down"?[0,1]:[0,-1];
+  const scoreRoute=route=>{
+    if(!Array.isArray(route)||route.length<2)return Number.POSITIVE_INFINITY;
+    const s=route[0],nx=route[1],dx=(+nx.u||0)-(+s.u||0),dy=(+nx.v||0)-(+s.v||0),len=Math.hypot(dx,dy);
+    const dot=len>1e-6?(dx*dirVec[0]+dy*dirVec[1])/len:-1;
+    const wrongDirPenalty=dot<0?200000:(dot<0.25?50000:0);
+    const crossPenalty=pathSelfCrosses(route)?1e9:0;
+    return crossPenalty+wrongDirPenalty+flowPathLength(route);
+  };
+  if(checkCalcTimeout(budget))return forward;
+  const sf=scoreRoute(forward),sb=scoreRoute(backward);
+  return sb+1e-6<sf?backward:forward;
 };
 const applyFlowLocksToOrdered=(ordered,locks,budget)=>{
   if(!Array.isArray(ordered)||ordered.length<2||!Array.isArray(locks)||!locks.length)return ordered;
   let cur=ordered.slice();
-  const pickNext=(prev,rem)=>{
-    let bestIdx=0,bestDist=Infinity,bestBase=Infinity;
+  const pickNext=(path,rem)=>{
+    const prev=path[path.length-1],prev2=path.length>1?path[path.length-2]:null,prevDx=prev2?((+prev.u||0)-(+prev2.u||0)):0,prevDy=prev2?((+prev.v||0)-(+prev2.v||0)):0,prevLen=Math.hypot(prevDx,prevDy);
+    let bestIdx=0,bestScore=Infinity,bestBase=Infinity;
     for(let i=0;i<rem.length;i++){
-      const d=flowDist(prev,rem[i]),bb=(rem[i]&&rem[i].baseIdx!=null)?rem[i].baseIdx:i;
-      if(d<bestDist-1e-6||(Math.abs(d-bestDist)<=1e-6&&bb<bestBase)){bestIdx=i;bestDist=d;bestBase=bb;}
+      const cand=rem[i],d=flowDist(prev,cand),bb=(cand&&cand.baseIdx!=null)?cand.baseIdx:i,cross=wouldSelfCross(path,cand),crossPenalty=cross?1e9:0;
+      const dx=(+cand.u||0)-(+prev.u||0),dy=(+cand.v||0)-(+prev.v||0),len=Math.hypot(dx,dy);
+      let backPenalty=0;
+      if(prevLen>1e-6&&len>1e-6){
+        const dot=(prevDx*dx+prevDy*dy)/(prevLen*len);
+        if(dot<-0.35)backPenalty+=Math.abs(dot)*2400;
+        else if(dot<0)backPenalty+=Math.abs(dot)*1000;
+      }
+      const score=crossPenalty+backPenalty+d;
+      if(score<bestScore-1e-6||(Math.abs(score-bestScore)<=1e-6&&bb<bestBase)){bestIdx=i;bestScore=score;bestBase=bb;}
     }
     return bestIdx;
   };
@@ -1062,11 +1240,11 @@ const applyFlowLocksToOrdered=(ordered,locks,budget)=>{
     if(prefixSet.has(targetCid))continue;
     const fixed=cur[pos];
     const rem=cur.filter((it,i)=>i!==pos&&!prefixSet.has(Math.max(0,Math.round(Number(it&&it.cid)||0))));
-    const tail=[];let prev=fixed;
+    const tail=[];let path=prefix.concat([fixed]);
     while(rem.length){
       if(checkCalcTimeout(budget))break;
-      const nx=pickNext(prev,rem),it=rem.splice(nx,1)[0];
-      tail.push(it);prev=it;
+      const nx=pickNext(path,rem),it=rem.splice(nx,1)[0];
+      tail.push(it);path.push(it);
     }
     cur=prefix.concat([fixed],tail);
   }
@@ -1077,6 +1255,21 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
   const mode=normalizeDataFlow(r&&r.dataFlow);
   const zMode=!!(r&&r.dataFlowZ);
   if(mode==="none")return[];
+  const regionOfCell=(ix,iy)=>{
+    if(regions&&Array.isArray(regions.cellToRegion)){
+      const rid=regions.cellToRegion[iy*topo.cols+ix];
+      if(Number.isFinite(rid)&&rid>=0)return Math.max(0,Math.round(Number(rid)||0));
+    }
+    if(regions&&regions.regionsById&&typeof regions.regionsById.values==="function"){
+      for(const rg of regions.regionsById.values()){
+        if(!rg)continue;
+        const c0=Math.max(0,Math.round(Number(rg.c0)||0)),c1=Math.max(c0+1,Math.round(Number(rg.c1)||0));
+        const r0=Math.max(0,Math.round(Number(rg.r0)||0)),r1=Math.max(r0+1,Math.round(Number(rg.r1)||0));
+        if(ix>=c0&&ix<c1&&iy>=r0&&iy<r1)return Math.max(0,Math.round(Number(rg.id)||0));
+      }
+    }
+    return -1;
+  };
   const stat=new Map();
   for(let iy=0;iy<topo.rows;iy++){
     if(checkCalcTimeout(budget))return [];
@@ -1085,16 +1278,26 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
       if(hs&&hs.has(maskCellKey(ix,iy)))continue;
       const idx=iy*topo.cols+ix,cid=topo.comp[idx],cw=Math.min(cx,r.width-ix*cx),ch=Math.min(cy,r.height-iy*cy),u=ix*cx+cw/2,v=iy*cy+ch/2,seed=topo.seed[cid]||{col:ix,row:iy};
       let s=stat.get(cid);
-      if(!s){s={cid,col:seed.col,row:seed.row,sumU:0,sumV:0,count:0,minCol:ix,maxCol:ix,minRow:iy,maxRow:iy};stat.set(cid,s)}
+      if(!s){s={cid,col:seed.col,row:seed.row,sumU:0,sumV:0,count:0,minCol:ix,maxCol:ix,minRow:iy,maxRow:iy,ridCounts:{}};stat.set(cid,s)}
       s.sumU+=u;s.sumV+=v;s.count++;
       if(ix<s.minCol)s.minCol=ix;if(ix>s.maxCol)s.maxCol=ix;if(iy<s.minRow)s.minRow=iy;if(iy>s.maxRow)s.maxRow=iy;
+      const ridCell=regionOfCell(ix,iy);
+      if(ridCell>=0){
+        const k=String(ridCell);
+        s.ridCounts[k]=(s.ridCounts[k]|0)+1;
+      }
     }
   }
   const list=[...stat.values()].filter(s=>s.count>0).map(s=>{
     const u=s.sumU/s.count,v=s.sumV/s.count;
     const rowBand=Math.max(0,Math.min(topo.rows-1,Math.round(v/Math.max(1,cy)-0.5)));
     const colBand=Math.max(0,Math.min(topo.cols-1,Math.round(u/Math.max(1,cx)-0.5)));
-    return{cid:s.cid,col:colBand,row:rowBand,u,v,minCol:s.minCol,maxCol:s.maxCol,minRow:s.minRow,maxRow:s.maxRow};
+    let rid=-1,best=0;
+    for(const [rk,rv] of Object.entries(s.ridCounts||{})){
+      const c=rv|0,id=Math.max(0,Math.round(Number(rk)||0));
+      if(c>best){best=c;rid=id;}
+    }
+    return{cid:s.cid,col:colBand,row:rowBand,u,v,minCol:s.minCol,maxCol:s.maxCol,minRow:s.minRow,maxRow:s.maxRow,rid};
   });
   if(!list.length)return[];
   const orderByMode=(arr,m,useZ=zMode)=>{
@@ -1111,14 +1314,29 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
     }
   };
   const groupOf=it=>{
+    if(Number.isFinite(Number(it&&it.rid))&&Number(it.rid)>=0)return Math.max(0,Math.round(Number(it.rid)||0));
     if(regions&&Array.isArray(regions.cellToRegion)){
       const idx=it.row*topo.cols+it.col;
       const rid=regions.cellToRegion[idx];
       if(rid>=0)return rid;
     }
-    if(!regions||!Array.isArray(regions.colToGroup)||!Array.isArray(regions.rowToGroup))return 0;
-    const gx=regions.colToGroup[Math.max(0,Math.min(regions.colToGroup.length-1,it.col))]||0,gy=regions.rowToGroup[Math.max(0,Math.min(regions.rowToGroup.length-1,it.row))]||0;
-    return gy*regions.nx+gx;
+    if(regions&&regions.regionsById&&typeof regions.regionsById.values==="function"){
+      for(const rg of regions.regionsById.values()){
+        if(!rg)continue;
+        const c0=Math.max(0,Math.round(Number(rg.c0)||0)),c1=Math.max(c0+1,Math.round(Number(rg.c1)||0));
+        const r0=Math.max(0,Math.round(Number(rg.r0)||0)),r1=Math.max(r0+1,Math.round(Number(rg.r1)||0));
+        if(it.col>=c0&&it.col<c1&&it.row>=r0&&it.row<r1)return Math.max(0,Math.round(Number(rg.id)||0));
+      }
+    }
+    if(regions&&Array.isArray(regions.colToGroup)){
+      const gx=regions.colToGroup[Math.max(0,Math.min(regions.colToGroup.length-1,it.col))];
+      if(Number.isFinite(gx))return Math.max(0,Math.round(Number(gx)||0));
+    }
+    if(regions&&Array.isArray(regions.rowToGroup)){
+      const gy=regions.rowToGroup[Math.max(0,Math.min(regions.rowToGroup.length-1,it.row))];
+      if(Number.isFinite(gy))return Math.max(0,Math.round(Number(gy)||0));
+    }
+    return 0;
   };
   const byRegion=new Map();
   for(const it of list){
@@ -1129,24 +1347,53 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
   const out=[];
   for(const [rid,arr] of byRegion){
     if(checkCalcTimeout(budget))return [];
-    const baseOrdered=orderByMode(arr,mode,zMode).map((it,idx)=>({...it,baseIdx:idx}));
-    let ordered=(zMode?baseOrdered:refineFlowOrder(baseOrdered));
-    if(!zMode&&ordered.length<=FLOW_OPTIMIZE_MAX_POINTS)ordered=optimizeFlowPathShortest(ordered);
-    if(pathSelfCrosses(ordered)){
-      const altUseZ=!zMode;
-      const altBase=orderByMode(arr,mode,altUseZ).map((it,idx)=>({...it,baseIdx:idx}));
-      let altOrdered=altUseZ?altBase:refineFlowOrder(altBase);
-      if(!altUseZ&&altOrdered.length<=FLOW_OPTIMIZE_MAX_POINTS)altOrdered=optimizeFlowPathShortest(altOrdered);
-      if(!pathSelfCrosses(altOrdered))ordered=altOrdered;
-      else if(flowPathCost(altOrdered)+1e-6<flowPathCost(ordered))ordered=altOrdered;
-    }else if(!zMode){
-      const baseCost=flowPathCost(baseOrdered),optCost=flowPathCost(ordered);
-      if(baseCost+1e-6<optCost)ordered=baseOrdered;
+    const cfgRegion=getFlowRegionConfig(r,rid);
+    if(cfgRegion&&cfgRegion.startPinned&&cfgRegion.startCid!=null){
+      const hasStartCid=arr.some(it=>Math.max(0,Math.round(Number(it&&it.cid)||0))===Math.max(0,Math.round(Number(cfgRegion.startCid)||0)));
+      if(!hasStartCid){cfgRegion.startCid=null;cfgRegion.startPinned=false;}
     }
-    ordered=applyFlowLocksToOrdered(ordered,getFlowLocksRegion(r,rid),budget);
+    const routing=getFlowStartRoutingRegion(r,rid);
+    const localMode=resolveFlowModeFromStartAndDir(arr,routing,getFlowModeRegion(r,rid,mode));
+    const baseOrdered=orderByMode(arr,localMode,zMode).map((it,idx)=>({...it,baseIdx:idx}));
+    const manualRoute=(routing&&(((routing.startPinned&&routing.startCid!=null)||FLOW_DIR_SET.has(String(routing.startDir||"").toLowerCase()))));
+    let zFallbackUsed=false;
+    let ordered=baseOrdered;
+    if(!manualRoute){
+      ordered=(zMode?baseOrdered:refineFlowOrder(baseOrdered));
+      if(!zMode&&ordered.length<=FLOW_OPTIMIZE_MAX_POINTS)ordered=optimizeFlowPathShortest(ordered);
+      if(pathSelfCrosses(ordered)){
+        const altUseZ=!zMode;
+        const altBase=orderByMode(arr,localMode,altUseZ).map((it,idx)=>({...it,baseIdx:idx}));
+        let altOrdered=altUseZ?altBase:refineFlowOrder(altBase);
+        if(!altUseZ&&altOrdered.length<=FLOW_OPTIMIZE_MAX_POINTS)altOrdered=optimizeFlowPathShortest(altOrdered);
+        if(!pathSelfCrosses(altOrdered)){ordered=altOrdered;zFallbackUsed=!!altUseZ;}
+        else if(flowPathCost(altOrdered)+1e-6<flowPathCost(ordered)){ordered=altOrdered;zFallbackUsed=!!altUseZ;}
+      }else if(!zMode){
+        const baseCost=flowPathCost(baseOrdered),optCost=flowPathCost(ordered);
+        if(baseCost+1e-6<optCost)ordered=baseOrdered;
+      }
+    }
+    ordered=applyFlowStartRouting(ordered,routing,budget);
+    const regionLocks=getFlowLocksRegion(r,rid);
+    ordered=applyFlowLocksToOrdered(ordered,regionLocks,budget);
+    if(pathSelfCrosses(ordered)){
+      const head=ordered[0],rest=ordered.slice(1),base=(head&&head.baseIdx!=null)?head.baseIdx:0,strictState={nodes:0,limit:FLOW_SEARCH_NODE_LIMIT_STRICT,aborted:false};
+      const strict=flowSearchOrder([head],rest,base,false,strictState);
+      if(strict&&!pathSelfCrosses(strict)){
+        const relocked=applyFlowLocksToOrdered(strict,regionLocks,budget);
+        if(!pathSelfCrosses(relocked))ordered=relocked;
+      }
+      else{
+        const opt=optimizeFlowPathShortest(ordered);
+        if(!pathSelfCrosses(opt)){
+          const relocked=applyFlowLocksToOrdered(opt,regionLocks,budget);
+          if(!pathSelfCrosses(relocked))ordered=relocked;
+        }
+      }
+    }
     const rgb=REGION_ZONE_COLORS[((rid%REGION_ZONE_COLORS.length)+REGION_ZONE_COLORS.length)%REGION_ZONE_COLORS.length];
     const label=(regions&&regions.regionsById&&regions.regionsById.get(rid)&&regions.regionsById.get(rid).label)||toLetters(rid);
-    out.push({rid,label,rgb,points:ordered.map(v=>({u:v.u,v:v.v,cid:v.cid}))});
+    out.push({rid,label,rgb,zFallback:!!zFallbackUsed,points:ordered.map(v=>({u:v.u,v:v.v,cid:v.cid}))});
   }
   out.sort((a,b)=>a.rid-b.rid);
   return out;
@@ -1155,11 +1402,44 @@ const collectFlowEditPoints=(r,groups)=>{
   if(!r||!Array.isArray(groups))return;
   for(const g of groups){
     const rid=Math.max(0,Math.round(Number(g&&g.rid)||0)),pts=Array.isArray(g&&g.points)?g.points:[];
+    if(pts.length){
+      const s0=pts[0],su=+s0.u||0,sv=+s0.v||0,scid=Math.max(0,Math.round(Number(s0&&s0.cid)||0)),sw=rectUVToWorld(r,su,sv);
+      st.flowStartHandles.push({rid,cid:scid,u:su,v:sv,x:sw.x,y:sw.y,zFallback:!!(g&&g.zFallback)});
+      const cfg=getFlowStartRoutingRegion(r,rid);
+      const dir=String(cfg&&cfg.startDir||"").toLowerCase();
+      const dirDefs=[{dir:"left",du:-28,dv:0,label:"◀"},{dir:"right",du:28,dv:0,label:"▶"},{dir:"up",du:0,dv:-28,label:"▲"},{dir:"down",du:0,dv:28,label:"▼"}];
+      for(const d of dirDefs){
+        const wp=rectUVToWorld(r,su+d.du,sv+d.dv);
+        st.flowDirButtons.push({rid,cid:scid,dir:d.dir,label:d.label,u:su+d.du,v:sv+d.dv,x:wp.x,y:wp.y,active:(FLOW_DIR_SET.has(dir)&&dir===d.dir)});
+      }
+    }
     for(let i=0;i<pts.length;i++){
       const p=pts[i],u=+p.u||0,v=+p.v||0,cid=Math.max(0,Math.round(Number(p&&p.cid)||0)),wp=rectUVToWorld(r,u,v);
       st.flowEditPoints.push({rid,index:i,cid,u,v,x:wp.x,y:wp.y});
     }
   }
+};
+const findFlowStartHandle=(wx,wy,rid=null)=>{
+  const pts=Array.isArray(st.flowStartHandles)?st.flowStartHandles:[],maxDist=Math.max(11,20/Math.max(0.2,st.zoom||1));
+  let best=null,bestD=Infinity;
+  for(const p of pts){
+    if(rid!=null&&p.rid!==rid)continue;
+    const d=Math.hypot((+p.x||0)-wx,(+p.y||0)-wy);
+    if(d<bestD){bestD=d;best=p;}
+  }
+  if(best&&bestD<=maxDist)return best;
+  return null;
+};
+const findFlowDirectionButton=(wx,wy,rid=null)=>{
+  const pts=Array.isArray(st.flowDirButtons)?st.flowDirButtons:[],maxDist=Math.max(11,18/Math.max(0.2,st.zoom||1));
+  let best=null,bestD=Infinity;
+  for(const p of pts){
+    if(rid!=null&&p.rid!==rid)continue;
+    const d=Math.hypot((+p.x||0)-wx,(+p.y||0)-wy);
+    if(d<bestD){bestD=d;best=p;}
+  }
+  if(best&&bestD<=maxDist)return best;
+  return null;
 };
 const findFlowEditPoint=(wx,wy,rid=null,minIndex=0)=>{
   const pts=Array.isArray(st.flowEditPoints)?st.flowEditPoints:[],maxDist=Math.max(10,18/Math.max(0.2,st.zoom||1));
@@ -1176,8 +1456,39 @@ const findFlowEditPoint=(wx,wy,rid=null,minIndex=0)=>{
 const drawFlowEditOverlay=(c,w,h)=>{
   if(st.mode!=="flowEdit")return;
   const points=Array.isArray(st.flowEditPoints)?st.flowEditPoints:[];
+  const starts=Array.isArray(st.flowStartHandles)?st.flowStartHandles:[];
+  const dirs=Array.isArray(st.flowDirButtons)?st.flowDirButtons:[];
   if(!points.length)return;
   c.save();
+  for(const b of dirs){
+    const x=-w/2+(+b.u||0),y=-h/2+(+b.v||0),hover=!!(st.flowDirHover&&st.flowDirHover.rid===b.rid&&st.flowDirHover.dir===b.dir),on=!!b.active;
+    c.fillStyle=on?"rgba(25,135,84,.98)":"rgba(33,37,41,.75)";
+    if(hover)c.fillStyle=on?"rgba(38,166,99,.98)":"rgba(73,80,87,.92)";
+    c.strokeStyle=on?"rgba(255,255,255,.95)":"rgba(255,255,255,.72)";
+    c.lineWidth=1.1;
+    c.beginPath();c.arc(x,y,8.2,0,Math.PI*2);c.fill();c.stroke();
+    c.fillStyle="#fff";
+    c.font=`700 9px ${fontFamilyCss(st.fontFamily)}`;
+    c.textAlign="center";c.textBaseline="middle";
+    c.fillText(String(b.label||""),x,y+0.2);
+  }
+  for(const p of starts){
+    const x=-w/2+(+p.u||0),y=-h/2+(+p.v||0),hover=!!(!st.flowDrag&&st.flowHover&&st.flowHover.kind==="start"&&st.flowHover.rid===p.rid),selected=(Number(st.flowRegionRid)===Number(p.rid));
+    c.fillStyle=selected?"rgba(255,153,0,.98)":(hover?"rgba(255,193,7,.98)":"rgba(255,235,59,.95)");
+    c.strokeStyle="rgba(0,0,0,.8)";
+    c.lineWidth=2;
+    c.beginPath();c.arc(x,y,9.6,0,Math.PI*2);c.fill();c.stroke();
+    if(p.zFallback){
+      c.fillStyle="rgba(25,135,84,.98)";
+      c.strokeStyle="rgba(255,255,255,.95)";
+      c.lineWidth=1;
+      c.beginPath();c.arc(x+11,y-11,6.8,0,Math.PI*2);c.fill();c.stroke();
+      c.fillStyle="#fff";
+      c.font=`700 9px ${fontFamilyCss(st.fontFamily)}`;
+      c.textAlign="center";c.textBaseline="middle";
+      c.fillText("Z",x+11,y-11.2);
+    }
+  }
   for(const p of points){
     const x=-w/2+(+p.u||0),y=-h/2+(+p.v||0),active=!!(st.flowDrag&&st.flowDrag.rid===p.rid&&st.flowDrag.currentIndex===p.index&&p.index>=st.flowDrag.fromIndex);
     const hover=!!(!st.flowDrag&&st.flowHover&&st.flowHover.rid===p.rid&&st.flowHover.index===p.index);
@@ -2486,6 +2797,7 @@ const SPLIT_VARIANT_MAX=${SPLIT_VARIANT_MAX};
 const AREA_LIMIT_EPS=${AREA_LIMIT_EPS};
 const REGION_ZONE_COLORS=${JSON.stringify(REGION_ZONE_COLORS)};
 const DATA_FLOW_MODES=new Set(${JSON.stringify([...DATA_FLOW_MODES])});
+const FLOW_DIR_SET=new Set(["right","left","down","up"]);
 const calcNow=${calcNow.toString()};
 const makeCalcBudget=${makeCalcBudget.toString()};
 const checkCalcTimeout=${checkCalcTimeout.toString()};
@@ -2512,7 +2824,12 @@ const optimizeFlowPathShortest=${optimizeFlowPathShortest.toString()};
 const refineFlowOrder=${refineFlowOrder.toString()};
 const buildSingleRegionPlan=${buildSingleRegionPlan.toString()};
 const normalizeFlowLocks=${normalizeFlowLocks.toString()};
-const getFlowLocksRegion=(r,rid)=>{if(!r||typeof r!=="object")return[];if(!r.flowLocks||typeof r.flowLocks!=="object")r.flowLocks={};const key=String(Math.max(0,Math.round(Number(rid)||0)));const arr=Array.isArray(r.flowLocks[key])?r.flowLocks[key]:[];r.flowLocks[key]=arr;return arr;};
+const getFlowRegionConfig=${getFlowRegionConfig.toString()};
+const getFlowLocksRegion=${getFlowLocksRegion.toString()};
+const getFlowStartRoutingRegion=${getFlowStartRoutingRegion.toString()};
+const getFlowModeRegion=${getFlowModeRegion.toString()};
+const resolveFlowModeFromStartAndDir=${resolveFlowModeFromStartAndDir.toString()};
+const applyFlowStartRouting=${applyFlowStartRouting.toString()};
 const applyFlowLocksToOrdered=${applyFlowLocksToOrdered.toString()};
 const getDataFlowGroupsUncached=${getDataFlowGroupsUncached.toString()};
 const planNumberRegionsUncached=${planNumberRegionsUncached.toString()};
@@ -3104,6 +3421,8 @@ function setMode(m){
   st.mode=m;
   st.flowDrag=null;
   st.flowHover=null;
+  st.flowDirHover=null;
+  if(m!=="flowEdit")st.flowRegionRid=null;
   const map=[["select",el.toolSelect,el.mToolSelect],["draw",el.toolDraw,el.mToolDraw],["maskAdd",el.toolMaskAdd,el.mToolMaskAdd],["maskSub",el.toolMaskSub,el.mToolMaskSub],["cellEdit",el.toolCellEdit,el.mToolCellEdit],["flowEdit",el.toolFlowEdit,el.mToolFlowEdit]];
   for(const [mode,...btns] of map){
     const on=m===mode;
@@ -3117,7 +3436,7 @@ function setMode(m){
   if(!isCellEditMode())st.cellHover=null;
   wrap.dataset.mode=m;st.draft=null;st.drag=null;updateToolbarOverflow();updateRegionsToggleUi();render()
 }
-function selRect(id){st.sel=id;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;syncProps();listRects();render()}
+function selRect(id){st.sel=id;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDirHover=null;st.flowRegionRid=null;syncProps();listRects();render()}
 const cur=()=>st.rects.find(r=>r.id===st.sel)||null;
 function hit(x,y){for(let i=0;i<st.rects.length;i++){const r=st.rects[i],p=worldToRectUV(r,x,y);if(p.u>=0&&p.u<=r.width&&p.v>=0&&p.v<=r.height)return r}return null}
 function snapMaskNode(r,wx,wy){if(!r)return null;const p=worldToRectUV(r,wx,wy);if(p.u<0||p.u>r.width||p.v<0||p.v>r.height)return null;const u=Math.max(0,Math.min(r.width,p.u)),v=Math.max(0,Math.min(r.height,p.v)),axes=getMaskNodeAxes(r);let gu=axes.xs[0],gv=axes.ys[0],bdx=1e9,bdy=1e9;for(const x of axes.xs){const d=Math.abs(x-u);if(d<bdx){bdx=d;gu=x}}for(const y of axes.ys){const d=Math.abs(y-v);if(d<bdy){bdy=d;gv=y}}return rectUVToWorld(r,gu,gv)}
@@ -3381,7 +3700,7 @@ const drawDim=(g,color,labelShift)=>{
 if(st.dg.ref)drawDim(st.dg.ref,"#ffd77a",0);
 drawDim(st.dg,"#71d7ff",18);
 }
-function render(){flowDrawRenderEpoch++;const r=window.devicePixelRatio||1,vm=getViewMetrics(),fastPan=!!st.pan,tabSwitching=!!(wrap&&wrap.classList&&wrap.classList.contains("tab-switching"));st.flowEditPoints=[];ctx.setTransform(r,0,0,r,0,0);ctx.clearRect(0,0,cv.clientWidth,cv.clientHeight);drawGrid();ctx.save();ctx.translate(vm.centerX,vm.centerY);ctx.scale(st.zoom,st.zoom);ctx.translate(-st.camX,-st.camY);
+function render(){flowDrawRenderEpoch++;const r=window.devicePixelRatio||1,vm=getViewMetrics(),fastPan=!!st.pan,tabSwitching=!!(wrap&&wrap.classList&&wrap.classList.contains("tab-switching"));st.flowEditPoints=[];st.flowStartHandles=[];st.flowDirButtons=[];ctx.setTransform(r,0,0,r,0,0);ctx.clearRect(0,0,cv.clientWidth,cv.clientHeight);drawGrid();ctx.save();ctx.translate(vm.centerX,vm.centerY);ctx.scale(st.zoom,st.zoom);ctx.translate(-st.camX,-st.camY);
 const origin=getOrigin();for(let i=st.rects.length-1;i>=0;i--){const rr=st.rects[i];drawRect(ctx,rr,rr.id===st.sel,st.zoom,origin,{designerRender:true,forceLowDetail:(fastPan||tabSwitching)})}if(st.draft){const d=st.draft;ctx.strokeStyle="#7fd4f8";ctx.lineWidth=1/st.zoom;ctx.setLineDash([8/st.zoom,5/st.zoom]);ctx.strokeRect(d.x,d.y,d.width,d.height);ctx.setLineDash([])}if(!(fastPan||tabSwitching)){drawMaskOverlay(ctx,st.zoom);drawCellEditOverlay(ctx,st.zoom);drawContentBounds(ctx,st.zoom);}
 ctx.restore();drawGuides();drawDistanceGuide();el.zoomLabel.textContent=`${Math.round(st.zoom*100)}%`;wrap.dataset.panning=st.pan?"1":"0"}
 const updateAppViewportHeight=()=>{
@@ -3426,53 +3745,75 @@ if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);return}if(h.id!==
 if(st.mode==="flowEdit"){
 const h=hit(p.x,p.y);if(!h){selRect(null);render();return}
 if(h.id!==st.sel){selRect(h.id);render();return}
+const dirBtn=findFlowDirectionButton(p.x,p.y);
+if(dirBtn){st.flowRegionRid=dirBtn.rid;const r=cur();if(r){setFlowDirection(r,dirBtn.rid,dirBtn.dir,dirBtn.cid);st.flowHover=null;st.flowDirHover=dirBtn;schedulePersist("project");syncProps();}render();return}
+const startHandle=findFlowStartHandle(p.x,p.y);
+if(startHandle){st.flowRegionRid=startHandle.rid;st.flowDrag={kind:"start",rid:startHandle.rid,fromIndex:0,currentIndex:0,cid:startHandle.cid};syncProps();render();return}
 const fp=findFlowEditPoint(p.x,p.y);
-if(fp)st.flowDrag={rid:fp.rid,fromIndex:fp.index,currentIndex:fp.index,cid:fp.cid};
+if(fp){st.flowRegionRid=fp.rid;st.flowDrag={rid:fp.rid,fromIndex:fp.index,currentIndex:fp.index,cid:fp.cid};syncProps();}
 render();return}
 const h=hit(p.x,p.y);if(h){selRect(h.id);st.drag={id:h.id,sx:p.x,sy:p.y,rx:h.x,ry:h.y}}else selRect(null);render()});
 window.addEventListener("mousemove",e=>{const b=cv.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=s2w(sx,sy);
 if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();return}
 if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps()}const r=h||cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();return}
 if(isCellEditMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps()}const r=h||cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();return}
-if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();render();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();return}
+if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();render();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};render();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();return}
 if(st.mode==="flowEdit"&&st.flowDrag){const fp=findFlowEditPoint(p.x,p.y,st.flowDrag.rid,st.flowDrag.fromIndex);st.flowDrag.currentIndex=fp?fp.index:st.flowDrag.fromIndex;render();return}
 if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.width=Math.abs(p.x-d.sx);d.height=Math.abs(p.y-d.sy);render();return}
 if(st.drag){const r=st.rects.find(v=>v.id===st.drag.id);if(!r)return;const nx=st.drag.rx+(p.x-st.drag.sx),ny=st.drag.ry+(p.y-st.drag.sy),sn=snap(nx,ny,r.id,r.width,r.height,e.ctrlKey||st.keys.ctrl);r.x=sn.x;r.y=sn.y;st.g.x=sn.gx;st.g.y=sn.gy;st.dg=sn.dg;syncProps();render()}});
-cv.addEventListener("mouseleave",()=>{if(st.mode==="flowEdit"&&st.flowHover){st.flowHover=null;render()}});
+cv.addEventListener("mouseleave",()=>{if(st.mode==="flowEdit"&&(st.flowHover||st.flowDirHover)){st.flowHover=null;st.flowDirHover=null;render()}});
 window.addEventListener("mouseup",()=>{const hadDrag=!!st.drag;if(st.pan){st.pan=false;st.panS=null}
 if(st.flowDrag){
 const r=cur(),fd=st.flowDrag;st.flowDrag=null;
 if(r){
-const pts=(st.flowEditPoints||[]).filter(p=>p.rid===fd.rid&&p.index>=fd.fromIndex),target=pts.find(p=>p.index===fd.currentIndex)||pts[0];
-if(target&&target.index>=fd.fromIndex&&target.cid!==fd.cid){setFlowLock(r,fd.rid,fd.fromIndex,target.cid);schedulePersist("project");}
+const isStartMove=String(fd&&fd.kind||"")==="start";
+const pts=(st.flowEditPoints||[]).filter(p=>p.rid===fd.rid&&(isStartMove?p.index>=0:p.index>=fd.fromIndex)),target=pts.find(p=>p.index===fd.currentIndex)||pts[0];
+if(isStartMove){
+if(target&&target.cid!==fd.cid){setFlowStart(r,fd.rid,target.cid);schedulePersist("project");}
+}else if(target&&target.index>=fd.fromIndex&&target.cid!==fd.cid){setFlowLock(r,fd.rid,fd.fromIndex,target.cid);schedulePersist("project");}
 }
 render();return;
 }
 let created=null;if(st.draft){const d=st.draft;if(d.width>=1&&d.height>=1){created=mk(d.x,d.y,d.width,d.height);st.rects.push(created)}st.draft=null}st.drag=null;st.g.x=null;st.g.y=null;st.dg=null;if(created){setMode("select");selRect(created.id)}if(hadDrag||created){listRects();schedulePersist("project")}render()});
 cv.addEventListener("wheel",e=>{e.preventDefault();const b=cv.getBoundingClientRect();zoomAt(e.clientX-b.left,e.clientY-b.top,st.zoom*(e.deltaY<0?1.1:.9))},{passive:false});
+cv.addEventListener("dblclick",e=>{
+  if(st.mode!=="flowEdit")return;
+  const r=cur();if(!r)return;
+  const b=cv.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=s2w(sx,sy);
+  const h=hit(p.x,p.y);if(!h||h.id!==st.sel)return;
+  const startHandle=findFlowStartHandle(p.x,p.y);
+  if(!startHandle)return;
+  st.flowRegionRid=startHandle.rid;
+  resetFlowRegionOverrides(r,startHandle.rid);
+  st.flowHover=null;st.flowDirHover=null;st.flowDrag=null;
+  schedulePersist("project");
+  syncProps();
+  render();
+  e.preventDefault();
+});
 const touchDist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
 const touchMid=(a,b,rect)=>({sx:((a.clientX+b.clientX)/2)-rect.left,sy:((a.clientY+b.clientY)/2)-rect.top});
 cv.addEventListener("touchstart",e=>{const rect=cv.getBoundingClientRect();if(e.touches.length===2){const m=touchMid(e.touches[0],e.touches[1],rect);st.touch={type:"pinch",startDist:touchDist(e.touches[0],e.touches[1]),startZoom:st.zoom,worldMid:s2w(m.sx,m.sy)};st.drag=null;st.pan=false;st.draft=null;e.preventDefault();return}
 if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);st.touch={type:"single"};if(st.mode==="draw"){st.draft={x:p.x,y:p.y,width:0,height:0,sx:p.x,sy:p.y};render();e.preventDefault();return}
 if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);addMaskPoint(p.x,p.y);e.preventDefault();return}
 if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);e.preventDefault();return}if(h.id!==st.sel)selRect(h.id);toggleCellLinkAtPoint(h,p.x,p.y);e.preventDefault();return}
-if(st.mode==="flowEdit"){const h=hit(p.x,p.y);if(!h){selRect(null);render();e.preventDefault();return}if(h.id!==st.sel){selRect(h.id);render();e.preventDefault();return}const fp=findFlowEditPoint(p.x,p.y);if(fp)st.flowDrag={rid:fp.rid,fromIndex:fp.index,currentIndex:fp.index,cid:fp.cid};render();e.preventDefault();return}
+if(st.mode==="flowEdit"){const h=hit(p.x,p.y);if(!h){selRect(null);render();e.preventDefault();return}if(h.id!==st.sel){selRect(h.id);render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);if(dirBtn){st.flowRegionRid=dirBtn.rid;const r=cur();if(r){setFlowDirection(r,dirBtn.rid,dirBtn.dir,dirBtn.cid);st.flowHover=null;st.flowDirHover=dirBtn;schedulePersist("project");syncProps();}render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowRegionRid=startHandle.rid;st.flowDrag={kind:"start",rid:startHandle.rid,fromIndex:0,currentIndex:0,cid:startHandle.cid};syncProps();render();e.preventDefault();return}const fp=findFlowEditPoint(p.x,p.y);if(fp){st.flowRegionRid=fp.rid;st.flowDrag={rid:fp.rid,fromIndex:fp.index,currentIndex:fp.index,cid:fp.cid};syncProps();}render();e.preventDefault();return}
 const h=hit(p.x,p.y);if(h){selRect(h.id);st.drag={id:h.id,sx:p.x,sy:p.y,rx:h.x,ry:h.y}}else{st.pan=true;st.panS={sx,sy,cx:st.camX,cy:st.camY}}render();e.preventDefault()},{passive:false});
 cv.addEventListener("touchmove",e=>{const rect=cv.getBoundingClientRect();if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=2){const m=touchMid(e.touches[0],e.touches[1],rect),dist=Math.max(1,touchDist(e.touches[0],e.touches[1])),vm=getViewMetrics();st.zoom=zc(st.touch.startZoom*(dist/st.touch.startDist));st.camX=st.touch.worldMid.x-(m.sx-vm.centerX)/st.zoom;st.camY=st.touch.worldMid.y-(m.sy-vm.centerY)/st.zoom;render();e.preventDefault();return}
 if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);if(isMaskMode()){const r=cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();e.preventDefault();return}if(isCellEditMode()){const r=cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();e.preventDefault();return}if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();e.preventDefault();return}
-if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();render();e.preventDefault();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();e.preventDefault();return}
+if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};render();e.preventDefault();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();e.preventDefault();return}
 if(st.mode==="flowEdit"&&st.flowDrag){const fp=findFlowEditPoint(p.x,p.y,st.flowDrag.rid,st.flowDrag.fromIndex);st.flowDrag.currentIndex=fp?fp.index:st.flowDrag.fromIndex;render();e.preventDefault();return}
 if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.width=Math.abs(p.x-d.sx);d.height=Math.abs(p.y-d.sy);render();e.preventDefault();return}
 if(st.drag){const r=st.rects.find(v=>v.id===st.drag.id);if(!r)return;const nx=st.drag.rx+(p.x-st.drag.sx),ny=st.drag.ry+(p.y-st.drag.sy),sn=snap(nx,ny,r.id,r.width,r.height,false);r.x=sn.x;r.y=sn.y;st.g.x=sn.gx;st.g.y=sn.gy;st.dg=sn.dg;syncProps();render();e.preventDefault()}},{passive:false});
 cv.addEventListener("touchend",e=>{if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=1){e.preventDefault();return}if(e.touches.length===0){const hadDrag=!!st.drag;st.touch=null;if(st.pan){st.pan=false;st.panS=null}
 if(st.flowDrag){
 const r=cur(),fd=st.flowDrag;st.flowDrag=null;
-if(r){const pts=(st.flowEditPoints||[]).filter(p=>p.rid===fd.rid&&p.index>=fd.fromIndex),target=pts.find(p=>p.index===fd.currentIndex)||pts[0];if(target&&target.index>=fd.fromIndex&&target.cid!==fd.cid){setFlowLock(r,fd.rid,fd.fromIndex,target.cid);schedulePersist("project");}}
+if(r){const isStartMove=String(fd&&fd.kind||"")==="start";const pts=(st.flowEditPoints||[]).filter(p=>p.rid===fd.rid&&(isStartMove?p.index>=0:p.index>=fd.fromIndex)),target=pts.find(p=>p.index===fd.currentIndex)||pts[0];if(isStartMove){if(target&&target.cid!==fd.cid){setFlowStart(r,fd.rid,target.cid);schedulePersist("project");}}else if(target&&target.index>=fd.fromIndex&&target.cid!==fd.cid){setFlowLock(r,fd.rid,fd.fromIndex,target.cid);schedulePersist("project");}}
 render();e.preventDefault();return;
 }
 let created=null;if(st.draft){const d=st.draft;if(d.width>=1&&d.height>=1){created=mk(d.x,d.y,d.width,d.height);st.rects.push(created)}st.draft=null}st.drag=null;st.g.x=null;st.g.y=null;st.dg=null;if(created){setMode("select");selRect(created.id)}if(hadDrag||created){listRects();schedulePersist("project")}render();e.preventDefault()}},{passive:false});
 function delSel(){if(st.sel==null)return;st.rects=st.rects.filter(r=>r.id!==st.sel);st.sel=null;st.maskPath=[];st.maskHover=null;syncProps();listRects();schedulePersist("project");render()}
-function newProject(){st.rects=[];st.sel=null;st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.saveLocationId=setGlobalSaveLocationId(getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.regionsHighlight=false;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDrag=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;updateRegionsToggleUi();listRects();syncProps();setMode("select");syncActiveTabSnapshot();renderProjectTabs();schedulePersist("all");render()}
+function newProject(){st.rects=[];st.sel=null;st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.saveLocationId=setGlobalSaveLocationId(getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.regionsHighlight=false;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDirHover=null;st.flowRegionRid=null;st.flowDrag=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;updateRegionsToggleUi();listRects();syncProps();setMode("select");syncActiveTabSnapshot();renderProjectTabs();schedulePersist("all");render()}
 const insertCloneAboveSource=(sourceId,clone)=>{
   const idx=st.rects.findIndex(v=>v.id===sourceId);
   if(idx>=0)st.rects.splice(idx,0,clone);
@@ -3521,7 +3862,7 @@ const updateSplitVariantControl=r=>{
   updateSplitVariantLabel(r);
 };
 function syncProps(){const r=cur(),on=!!r;[el.name,el.rectTextSize,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnResetFlowLocks)el.btnResetFlowLocks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;updateThemeUi();updateRegionsToggleUi();el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){el.name.value="";el.rectTextSize.value="0";updateRectTextSizeLabel(null);el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.dataFlow.value="none";el.dataFlowZ.checked=false;el.numCells.checked=false;el.splitVariant.max=String(SPLIT_VARIANT_MAX);el.splitVariant.value="0";updateSplitVariantLabel(null);if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
-metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.rectTextSize.value=String(Math.max(0,Math.min(128,Math.round(Number(r.textSize)||0))));updateRectTextSizeLabel(r);el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;el.dataFlow.value=normalizeDataFlow(r.dataFlow);el.dataFlowZ.checked=!!r.dataFlowZ;el.numCells.checked=!!r.numberCells;updateSplitVariantControl(r);if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
+metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.rectTextSize.value=String(Math.max(0,Math.min(128,Math.round(Number(r.textSize)||0))));updateRectTextSizeLabel(r);el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;{const globalMode=normalizeDataFlow(r.dataFlow),rid=(st.mode==="flowEdit"&&Number.isFinite(Number(st.flowRegionRid)))?Math.max(0,Math.round(Number(st.flowRegionRid)||0)):null,cfg=(rid!=null)?getFlowRegionConfig(r,rid):null,pts=(rid!=null)?(st.flowEditPoints||[]).filter(p=>p.rid===rid):[],computedMode=(rid!=null)?resolveFlowModeFromStartAndDir(pts,cfg,getFlowModeRegion(r,rid,globalMode)):"none";el.dataFlow.value=(computedMode!=="none")?computedMode:globalMode;}el.dataFlowZ.checked=!!r.dataFlowZ;el.numCells.checked=!!r.numberCells;updateSplitVariantControl(r);if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
 let listDragId=null;
 const reorderRects=(dragId,targetId,after=false)=>{
   const from=st.rects.findIndex(r=>r.id===dragId),to0=st.rects.findIndex(r=>r.id===targetId);
@@ -3552,7 +3893,7 @@ function listRects(){
     el.list.appendChild(d);
   }
 }
-function applyProps(opts){const o=(opts&&typeof opts==="object")?opts:{},needList=o.list!==false,needPersist=o.persist!==false,needRender=o.render!==false;const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));r.areaM2Px=Math.max(1,evalExpr(el.areaM2.value,r.areaM2Px||65536));pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));r.dataFlow=normalizeDataFlow(el.dataFlow.value);r.dataFlowZ=!!el.dataFlowZ.checked;r.numberCells=!!el.numCells.checked;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,SPLIT_VARIANT_MAX)));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));updateSplitVariantControl(r);el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;if(needList)listRects();if(needPersist)schedulePersist("project");if(needRender)render()}
+function applyProps(opts){const o=(opts&&typeof opts==="object")?opts:{},needList=o.list!==false,needPersist=o.persist!==false,needRender=o.render!==false;const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));r.areaM2Px=Math.max(1,evalExpr(el.areaM2.value,r.areaM2Px||65536));pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));{const selectedMode=normalizeDataFlow(el.dataFlow.value),rid=(st.mode==="flowEdit"&&Number.isFinite(Number(st.flowRegionRid)))?Math.max(0,Math.round(Number(st.flowRegionRid)||0)):null;if(rid!=null){const cfg=getFlowRegionConfig(r,rid),curMode=normalizeDataFlow(cfg&&cfg.mode||"none");if(curMode!==selectedMode)setFlowRegionMode(r,rid,selectedMode);}else{r.dataFlow=selectedMode;}}r.dataFlowZ=!!el.dataFlowZ.checked;r.numberCells=!!el.numCells.checked;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,SPLIT_VARIANT_MAX)));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));updateSplitVariantControl(r);el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;if(needList)listRects();if(needPersist)schedulePersist("project");if(needRender)render()}
 let propsInputRaf=0;
 const scheduleApplyPropsInput=()=>{if(propsInputRaf)return;propsInputRaf=requestAnimationFrame(()=>{propsInputRaf=0;applyProps({list:false,persist:false,render:true});});};
 [el.name,el.x,el.y,el.rot,el.scale,el.a,el.cx,el.cy].forEach(v=>v.addEventListener("input",scheduleApplyPropsInput));
@@ -3647,7 +3988,7 @@ el.mDelete.onclick=()=>el.btnDelete.click();
 el.mZoomOut.onclick=()=>el.zoomOut.click();
 el.mZoomIn.onclick=()=>el.zoomIn.click();
 if(el.btnClearMasks)el.btnClearMasks.onclick=()=>{const r=cur();if(!r)return;r.hiddenCells=[];hiddenCache.set(r,{src:r.hiddenCells,set:new Set()});st.maskPath=[];st.maskHover=null;schedulePersist("project");render()};
-if(el.btnResetFlowLocks)el.btnResetFlowLocks.onclick=()=>{const r=cur();if(!r)return;r.flowLocks={};st.flowHover=null;st.flowDrag=null;const cache=getRectCalcCache(r);if(cache)cache.flow=null;schedulePersist("project");render()};
+if(el.btnResetFlowLocks)el.btnResetFlowLocks.onclick=()=>{const r=cur();if(!r)return;r.flowLocks={};st.flowHover=null;st.flowDirHover=null;st.flowDrag=null;const cache=getRectCalcCache(r);if(cache)cache.flow=null;schedulePersist("project");render()};
 const isStandalone=()=>window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
 const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent||"");
 const hideInstallBanner=()=>{if(el.installBanner)el.installBanner.classList.remove("show")};
