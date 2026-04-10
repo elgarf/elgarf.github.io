@@ -1502,15 +1502,35 @@ const drawFlowEditOverlay=(c,w,h)=>{
 };
 const drawDataFlowOnRect=(c,groups,w,h,z)=>{
   if(!Array.isArray(groups)||!groups.length)return;
-  let totalSegments=0;
+  let totalSegments=0,hasPoints=false;
   for(const g of groups){
     const pts=Array.isArray(g&&g.points)?g.points:[];
+    if(pts.length)hasPoints=true;
     for(let i=1;i<pts.length;i++){
       const p0=pts[i-1],p1=pts[i],dx=(-w/2+(+p1.u||0))-(-w/2+(+p0.u||0)),dy=(-h/2+(+p1.v||0))-(-h/2+(+p0.v||0));
       if(Math.hypot(dx,dy)>=1)totalSegments++;
     }
   }
-  if(totalSegments<=0)return;
+  if(!hasPoints)return;
+  if(totalSegments<=0){
+    c.save();
+    c.lineCap="round";
+    c.lineJoin="round";
+    const dotR=16,labels=[];
+    for(const g of groups){
+      const pts=Array.isArray(g&&g.points)?g.points:[];
+      if(!pts.length)continue;
+      const rgb=Array.isArray(g&&g.rgb)?g.rgb:[255,0,0],stroke=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},.96)`;
+      const s0=pts[0],sx=-w/2+(+s0.u||0),sy=-h/2+(+s0.v||0);
+      c.beginPath();c.arc(sx,sy,dotR,0,Math.PI*2);c.fillStyle="#fff";c.fill();c.lineWidth=5.2;c.strokeStyle=stroke;c.stroke();
+      labels.push({x:sx,y:sy,text:String(g&&g.label||""),color:"#000"});
+    }
+    c.font=`700 12px ${fontFamilyCss(st.fontFamily)}`;
+    c.textAlign="center";c.textBaseline="middle";
+    for(const lb of labels){c.fillStyle=lb.color;c.fillText(lb.text,lb.x,lb.y)}
+    c.restore();
+    return;
+  }
   const batchEnabled=totalSegments>FLOW_DRAW_BATCH_THRESHOLD;
   const drawKey=flowDrawKeyForGroups(groups);
   const state=touchFlowDrawProgress(drawKey,totalSegments);
@@ -1522,13 +1542,17 @@ const drawDataFlowOnRect=(c,groups,w,h,z)=>{
   const labels=[];
   let drawnSegments=0,pending=false;
   for(const g of groups){
-    if(drawnSegments>=targetSegments){pending=true;break;}
+    if(drawnSegments>=targetSegments)pending=true;
     const pts=Array.isArray(g.points)?g.points:[];
     if(!pts.length)continue;
     const rgb=Array.isArray(g.rgb)?g.rgb:[255,0,0],stroke=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},.96)`,fill=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},.98)`;
     const textCol="#000";
     let drewGroup=false,lastDrawnPointIndex=0;
     const s0=pts[0],sx=-w/2+s0.u,sy=-h/2+s0.v;
+    c.strokeStyle=stroke;c.fillStyle=fill;
+    c.beginPath();c.arc(sx,sy,dotR,0,Math.PI*2);c.fillStyle="#fff";c.fill();c.lineWidth=5.2;c.strokeStyle=stroke;c.stroke();c.fillStyle=fill;c.lineWidth=4.4;
+    labels.push({x:sx,y:sy,text:String(g.label||""),color:textCol});
+    drewGroup=true;
     c.strokeStyle=stroke;
     c.fillStyle=fill;
     c.beginPath();
@@ -1538,12 +1562,6 @@ const drawDataFlowOnRect=(c,groups,w,h,z)=>{
       if(drawnSegments>=targetSegments){pending=true;break;}
       const p0=pts[i-1],p1=pts[i],x1=-w/2+p0.u,y1=-h/2+p0.v,x2=-w/2+p1.u,y2=-h/2+p1.v,dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
       if(len<1)continue;
-      if(!drewGroup){
-        c.strokeStyle=stroke;c.fillStyle=fill;
-        c.beginPath();c.arc(sx,sy,dotR,0,Math.PI*2);c.fillStyle="#fff";c.fill();c.lineWidth=5.2;c.strokeStyle=stroke;c.stroke();c.fillStyle=fill;c.lineWidth=4.4;
-        labels.push({x:sx,y:sy,text:String(g.label||""),color:textCol});
-        drewGroup=true;
-      }
       const ux=dx/len,uy=dy/len,startOffset=(i===1?dotR+2:0),lx1=x1+ux*startOffset,ly1=y1+uy*startOffset;
       c.moveTo(lx1,ly1);c.lineTo(x2,y2);hasLine=true;
       const nx=-uy,ny=ux,mx=(lx1+x2)/2,my=(ly1+y2)/2,bx=mx-ux*arrow*0.75,by=my-uy*arrow*0.75,tx=mx+ux*arrow*0.95,ty=my+uy*arrow*0.95,s=arrow*0.5;
@@ -1572,7 +1590,7 @@ const drawDataFlowOnRect=(c,groups,w,h,z)=>{
       }
       c.fill();
     }
-    if(drewGroup&&lastDrawnPointIndex===pts.length-1&&!pending){
+    if(drewGroup&&pts.length>1&&lastDrawnPointIndex===pts.length-1&&!pending){
       const e=pts[pts.length-1],pPrev=pts[pts.length-2],ex=-w/2+e.u,ey=-h/2+e.v,endW=7.2,endH=26;
       const dx=(e.u-pPrev.u),dy=(e.v-pPrev.v),a=Math.abs(dx)+Math.abs(dy)>1e-6?Math.atan2(dy,dx):0;
       c.save();
@@ -2712,17 +2730,37 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
     flowLenCache.set(sig,len);
     return len;
   };
+  const variantRegionEntropy=regs=>{
+    if(!Array.isArray(regs)||!regs.length)return 0;
+    const freq=new Map();
+    let total=0;
+    for(const z of regs){
+      const cw=Math.max(1,Math.round(Number(z&&z.c1)-Number(z&&z.c0)||0));
+      const rh=Math.max(1,Math.round(Number(z&&z.r1)-Number(z&&z.r0)||0));
+      const key=`${cw}x${rh}`;
+      freq.set(key,(freq.get(key)||0)+1);
+      total++;
+    }
+    if(total<=1)return 0;
+    let h=0;
+    for(const c of freq.values()){
+      const p=c/total;
+      h+=-p*Math.log2(Math.max(1e-12,p));
+    }
+    return h;
+  };
   const rankedAll=variants
     .map(v=>{
       const score=regionScore(v),sig=regionSig(v);
-      return{v,sig,score,delta:Math.abs(score.count-optimalRegionCount),flowLen:variantFlowLen(v),isEqual:equalVariantSigs.has(sig)};
+      return{v,sig,score,delta:Math.abs(score.count-optimalRegionCount),flowLen:variantFlowLen(v),entropy:variantRegionEntropy(v),isEqual:equalVariantSigs.has(sig)};
     });
   const ordered=[];
-  rankedAll.sort((a,b)=>(a.delta-b.delta)||(a.flowLen-b.flowLen)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
+  rankedAll.sort((a,b)=>(a.delta-b.delta)||(a.flowLen-b.flowLen)||(a.entropy-b.entropy)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
   if(rankedAll.length){
     ordered.push(rankedAll[0].v);
     calcProfile.bestVariantDelta=rankedAll[0].delta;
     calcProfile.bestVariantFlowLen=rankedAll[0].flowLen;
+    calcProfile.bestVariantEntropy=rankedAll[0].entropy;
     calcProfile.bestVariantRegionCount=rankedAll[0].score.count;
   }
   const ranked=rankedAll.slice(1).filter(it=>it.score.count<=maxAllowedCount);
@@ -2732,7 +2770,7 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
     ranked.splice(i,1);
     i--;
   }
-  ranked.sort((a,b)=>(a.delta-b.delta)||(a.flowLen-b.flowLen)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
+  ranked.sort((a,b)=>(a.delta-b.delta)||(a.flowLen-b.flowLen)||(a.entropy-b.entropy)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
   for(const it of ranked)ordered.push(it.v);
   const limited=ordered.slice(0,SPLIT_VARIANT_MAX+1);
   calcProfile.variantsMs=Math.max(0,calcNow()-variantsStartedAt);
@@ -2981,6 +3019,7 @@ const ensureCalcWorker=(kind)=>{
     cache.flow.pending=false;
     cache.flow.value=timedOut?[]:value;
     markCalcMetric("flow",Math.max(0,Number(d&&d.elapsed)||0),timedOut);
+    logFlowCalcSummary(req.rectId,req.key,cache.flow.value,{source:(d&&d.ok)?"worker":"fallback",timedOut:!!timedOut,elapsed:Math.max(0,Number(d&&d.elapsed)||0)});
     render();
   };
   flowCalcWorker.onerror=(err)=>{
@@ -2989,7 +3028,10 @@ const ensureCalcWorker=(kind)=>{
       const rr=st.rects.find(it=>it.id===req.rectId);
       if(!rr)continue;
       const cache=getRectCalcCache(rr);
-      if(cache.flow&&cache.flow.key===req.key){cache.flow.pending=false;cache.flow.value=[];}
+      if(cache.flow&&cache.flow.key===req.key){
+        cache.flow.pending=false;cache.flow.value=[];
+        logFlowCalcSummary(req.rectId,req.key,cache.flow.value,{source:"worker-error",timedOut:true,elapsed:0});
+      }
     }
     flowCalcPending.clear();
     try{flowCalcWorker.terminate()}catch(_e){}
@@ -3099,10 +3141,12 @@ const scheduleFlowCalcWorker=(r,key,cx,cy,topo,hs,regions)=>{
       cache.flow.pending=false;
       cache.flow.value=timedOut?[]:value;
       markCalcMetric("flow",0,timedOut);
+      logFlowCalcSummary(rectId,key,cache.flow.value,{source:"main",timedOut:!!timedOut,elapsed:0});
       render();
     }catch(_e){
       cache.flow.pending=false;
       cache.flow.value=[];
+      logFlowCalcSummary(rectId,key,cache.flow.value,{source:"main-error",timedOut:true,elapsed:0,error:_e&&_e.message||String(_e)});
       render();
     }
     return;
@@ -3140,6 +3184,21 @@ const getDataFlowGroups=(r,cx,cy,topo,hs,regions)=>{
   cache.flow={key,regionKey,value:[],pending:true};
   scheduleFlowCalcWorker(r,key,cx,cy,topo,hs,regions);
   return[];
+};
+const flowGroupsStats=groups=>{
+  const list=Array.isArray(groups)?groups:[];
+  let total=0;
+  for(const g of list){
+    const pts=Array.isArray(g&&g.points)?g.points:[];
+    for(let i=1;i<pts.length;i++)total+=flowDist(pts[i-1],pts[i]);
+  }
+  return{flowCount:list.length,totalFlowLen:Math.round(total*100)/100};
+};
+const logFlowCalcSummary=(rectId,key,groups,extra)=>{
+  try{
+    const stats=flowGroupsStats(groups);
+    console.info("[flow-calc]",{rectId,key,...stats,...(extra&&typeof extra==="object"?extra:{})});
+  }catch(_e){}
 };
 const metricFromPx=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.width=Math.max(1,Math.round(+r.width||1));r.height=Math.max(1,Math.round(+r.height||1));r.widthM=Math.max(0.001,mRound(r.width/r.scale));r.heightM=Math.max(0.001,mRound(r.height/r.scale));};
 const pxFromMetric=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.widthM=Math.max(0.001,+r.widthM||0.001);r.heightM=Math.max(0.001,+r.heightM||0.001);r.width=Math.max(1,Math.round(r.widthM*r.scale));r.height=Math.max(1,Math.round(r.heightM*r.scale));};
@@ -3470,7 +3529,7 @@ if(bdy&&(!by||Math.abs(bdy.d)<=Math.abs(by.d))){dy=bdy.d;gy=null;usedY=true}
 if(usedX&&usedY)dg=Math.abs(bdx.d)<=Math.abs(bdy.d)?bdx.guide:bdy.guide;else if(usedX)dg=bdx.guide;else if(usedY)dg=bdy.guide;
 return{x:Math.round(x+dx),y:Math.round(y+dy),gx,gy,dg}
 }
-function drawRect(c,r,sel,z,origin,opts){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height,options=opts||{},includeFlow=options.includeFlow!==false,designerRender=!!options.designerRender,disableLod=!!options.disableLod,forceLowDetail=!!options.forceLowDetail;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
+function drawRect(c,r,sel,z,origin,opts){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height,options=opts||{},includeFlow=options.includeFlow!==false,designerRender=!!options.designerRender,disableLod=!!options.disableLod,forceLowDetail=!!options.forceLowDetail,flowGroupsOverride=Array.isArray(options.flowGroupsOverride)?options.flowGroupsOverride:null;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
 const skeleton=!st.fontReady;
 const topo=getCellTopologyCached(r,cellX,cellY);
 const cellCount=(topo.cols||1)*(topo.rows||1),interactiveDetail=!!(sel||st.mode==="flowEdit"||isMaskMode()||isCellEditMode()),lowDetail=!!(forceLowDetail||(!disableLod&&designerRender&&!interactiveDetail&&cellCount>3000));
@@ -3480,7 +3539,7 @@ const needRegions=!!(!lowDetail&&(r.numberCells||wantsFlow||sel||showRegionsOver
 const regions=(needRegions?planNumberRegions(r,cellX,cellY,topo,hs):null);
 const showRegionsOverlay=!!(regions&&showRegionsOverlayRequested);
 if(sel&&r.id===st.sel)updateSplitVariantControl(r);
-const flowGroups=wantsFlow?getDataFlowGroups(r,cellX,cellY,topo,hs,regions):[];
+const flowGroups=wantsFlow?(flowGroupsOverride||getDataFlowGroups(r,cellX,cellY,topo,hs,regions)):[];
 if(st.mode==="flowEdit"&&sel&&r.id===st.sel)collectFlowEditPoints(r,flowGroups);
 let drawContent=true,maskedClip=false;if(hs.size){c.save();maskedClip=true;c.beginPath();let n=0;for(let y=0;y<h;y+=cellY){for(let x=0;x<w;x+=cellX){const ix=Math.floor(x/cellX),iy=Math.floor(y/cellY);if(hs.has(maskCellKey(ix,iy)))continue;const cw=Math.min(cellX,w-x),ch=Math.min(cellY,h-y);c.rect(-w/2+x,-h/2+y,cw,ch);n++}}if(n>0)c.clip();else drawContent=false}
 if(drawContent){
@@ -4176,6 +4235,12 @@ const buildFlowSpecText=()=>{
   }).join("\n\n");
   return["##### Спецификация","",screenBlocks,"","##### Итоговая сумма","",totalBlocks].join("\n");
 };
+const getExportFlowGroupsFromCache=r=>{
+  if(normalizeDataFlow(r&&r.dataFlow)==="none")return [];
+  const cache=getRectCalcCache(r);
+  if(!cache||!cache.flow||cache.flow.pending||!Array.isArray(cache.flow.value))return [];
+  return cache.flow.value;
+};
 const exportPng=async(includeFlow)=>{
   if(!st.rects.length){alert("Нечего экспортировать");return}
   await ensureFontReady();
@@ -4184,7 +4249,10 @@ const exportPng=async(includeFlow)=>{
   const out=document.createElement("canvas"),w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY));
   out.width=w;out.height=h;
   const c=out.getContext("2d");
-  for(let i=st.rects.length-1;i>=0;i--){const r=st.rects[i];drawRect(c,{...r,x:r.x-minX,y:r.y-minY},false,1,{x:0,y:0},{includeFlow})}
+  for(let i=st.rects.length-1;i>=0;i--){
+    const r=st.rects[i],er={...r,x:r.x-minX,y:r.y-minY},includeFlowRect=!!(includeFlow&&normalizeDataFlow(r&&r.dataFlow)!=="none"),flowGroups=includeFlowRect?getExportFlowGroupsFromCache(r):[];
+    drawRect(c,er,false,1,{x:0,y:0},{includeFlow:includeFlowRect,disableLod:true,flowGroupsOverride:flowGroups});
+  }
   out.toBlob(async b=>{
     if(!b){alert("Ошибка экспорта");return}
     const baseName=`${projectFileBase()}${includeFlow?"-flow":""}`;
