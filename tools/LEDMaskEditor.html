@@ -66,8 +66,8 @@ button,input{font:inherit}button{cursor:pointer}
 .help-canvas-card p i{width:14px;text-align:center;margin-right:5px}
 @media (max-width:700px){.help-canvas-grid{grid-template-columns:1fr}}
 .main{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
-.canvas-wrap{position:absolute;inset:0;background:var(--bs-body-bg);min-height:0;min-width:0}
-.canvas-wrap.tab-switching{opacity:.5;transform:scale(.995);transition:opacity .16s ease,transform .16s ease}
+.canvas-wrap{position:absolute;inset:0;background:var(--bs-body-bg);min-height:0;min-width:0;opacity:1;transform:scale(1);transition:opacity .36s ease,transform .36s ease}
+.canvas-wrap.tab-switching{opacity:.5;transform:scale(.995)}
 canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.canvas-wrap[data-mode="select"] canvas{cursor:default}.canvas-wrap[data-panning="1"] canvas{cursor:grabbing}
 .side{--bs-offcanvas-width:min(88vw,360px);border-left:1px solid var(--bs-border-color);background:var(--bs-body-bg);padding:12px;overflow:auto;z-index:1100}
 .offcanvas-backdrop{z-index:1090}
@@ -527,6 +527,39 @@ const updateToolbarOverflow=()=>{
   overflowHiddenButtons=hidden;
 };
 const st={rects:[],sel:null,mode:"select",regionsHighlight:false,camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,flowDrag:null,flowHover:null,flowEditPoints:[],pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",saveLocationId:"proj-project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null,tabs:[],activeTabId:null,nextTabId:1};
+const FLOW_DRAW_BATCH_THRESHOLD=280;
+const FLOW_DRAW_BATCH_STEP=360;
+const flowDrawProgress=new Map();
+const flowDrawRefKey=new WeakMap();
+let flowDrawRefSeq=1,flowDrawRaf=0,flowDrawRenderEpoch=0;
+const requestFlowDrawRender=()=>{
+  if(flowDrawRaf)return;
+  if(typeof requestAnimationFrame==="function"){
+    flowDrawRaf=requestAnimationFrame(()=>{flowDrawRaf=0;render();});
+    return;
+  }
+  flowDrawRaf=setTimeout(()=>{flowDrawRaf=0;render();},16);
+};
+const touchFlowDrawProgress=(key,total)=>{
+  const now=flowDrawRenderEpoch;
+  let s=flowDrawProgress.get(key);
+  if(!s){s={total:Math.max(0,total|0),drawn:0,lastSeen:now};flowDrawProgress.set(key,s);}
+  if((s.total|0)!==(total|0)){s.total=Math.max(0,total|0);s.drawn=0;}
+  s.lastSeen=now;
+  if(flowDrawProgress.size>64){
+    for(const [k,v] of flowDrawProgress){
+      if((now-(v.lastSeen|0))>8)flowDrawProgress.delete(k);
+      if(flowDrawProgress.size<=64)break;
+    }
+  }
+  return s;
+};
+const flowDrawKeyForGroups=groups=>{
+  if(!groups||typeof groups!=="object")return "flow-empty";
+  let key=flowDrawRefKey.get(groups);
+  if(!key){key=`flow-${flowDrawRefSeq++}`;flowDrawRefKey.set(groups,key);}
+  return key;
+};
 const clampTextSize=v=>Math.max(6,Math.min(128,Math.round(v)));
 const getRectTextSizePx=r=>{const lv=Number(r&&r.textSize);return Number.isFinite(lv)&&lv>0?clampTextSize(lv):clampTextSize(st.textSize||12);};
 let deferredInstallPrompt=null;
@@ -1158,32 +1191,54 @@ const drawFlowEditOverlay=(c,w,h)=>{
 };
 const drawDataFlowOnRect=(c,groups,w,h,z)=>{
   if(!Array.isArray(groups)||!groups.length)return;
+  let totalSegments=0;
+  for(const g of groups){
+    const pts=Array.isArray(g&&g.points)?g.points:[];
+    for(let i=1;i<pts.length;i++){
+      const p0=pts[i-1],p1=pts[i],dx=(-w/2+(+p1.u||0))-(-w/2+(+p0.u||0)),dy=(-h/2+(+p1.v||0))-(-h/2+(+p0.v||0));
+      if(Math.hypot(dx,dy)>=1)totalSegments++;
+    }
+  }
+  if(totalSegments<=0)return;
+  const batchEnabled=totalSegments>FLOW_DRAW_BATCH_THRESHOLD;
+  const drawKey=flowDrawKeyForGroups(groups);
+  const state=touchFlowDrawProgress(drawKey,totalSegments);
+  const targetSegments=batchEnabled?Math.min(totalSegments,(state.drawn|0)+FLOW_DRAW_BATCH_STEP):totalSegments;
   c.save();
   c.lineCap="round";
   c.lineJoin="round";
   const arrow=14,dotR=16,nodeR=6;
   const labels=[];
+  let drawnSegments=0,pending=false;
   for(const g of groups){
+    if(drawnSegments>=targetSegments){pending=true;break;}
     const pts=Array.isArray(g.points)?g.points:[];
     if(!pts.length)continue;
     const rgb=Array.isArray(g.rgb)?g.rgb:[255,0,0],stroke=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},.96)`,fill=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},.98)`;
     const textCol="#000";
-    c.strokeStyle=stroke;c.fillStyle=fill;
+    let drewGroup=false,lastDrawnPointIndex=0;
     const s0=pts[0],sx=-w/2+s0.u,sy=-h/2+s0.v;
-    c.beginPath();c.arc(sx,sy,dotR,0,Math.PI*2);c.fillStyle="#fff";c.fill();c.lineWidth=5.2;c.strokeStyle=stroke;c.stroke();c.fillStyle=fill;c.lineWidth=4.4;
-    labels.push({x:sx,y:sy,text:String(g.label||""),color:textCol});
     c.strokeStyle=stroke;
     c.fillStyle=fill;
     c.beginPath();
     let hasLine=false;
     const arrows=[];
     for(let i=1;i<pts.length;i++){
+      if(drawnSegments>=targetSegments){pending=true;break;}
       const p0=pts[i-1],p1=pts[i],x1=-w/2+p0.u,y1=-h/2+p0.v,x2=-w/2+p1.u,y2=-h/2+p1.v,dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
       if(len<1)continue;
+      if(!drewGroup){
+        c.strokeStyle=stroke;c.fillStyle=fill;
+        c.beginPath();c.arc(sx,sy,dotR,0,Math.PI*2);c.fillStyle="#fff";c.fill();c.lineWidth=5.2;c.strokeStyle=stroke;c.stroke();c.fillStyle=fill;c.lineWidth=4.4;
+        labels.push({x:sx,y:sy,text:String(g.label||""),color:textCol});
+        drewGroup=true;
+      }
       const ux=dx/len,uy=dy/len,startOffset=(i===1?dotR+2:0),lx1=x1+ux*startOffset,ly1=y1+uy*startOffset;
       c.moveTo(lx1,ly1);c.lineTo(x2,y2);hasLine=true;
       const nx=-uy,ny=ux,mx=(lx1+x2)/2,my=(ly1+y2)/2,bx=mx-ux*arrow*0.75,by=my-uy*arrow*0.75,tx=mx+ux*arrow*0.95,ty=my+uy*arrow*0.95,s=arrow*0.5;
       arrows.push({tx,ty,bx,by,nx,ny,s});
+      lastDrawnPointIndex=i;
+      drawnSegments++;
     }
     if(hasLine)c.stroke();
     if(arrows.length){
@@ -1196,16 +1251,17 @@ const drawDataFlowOnRect=(c,groups,w,h,z)=>{
       }
       c.fill();
     }
-    if(pts.length>2){
+    if(drewGroup&&lastDrawnPointIndex>1){
       c.beginPath();
-      for(let i=1;i<pts.length-1;i++){
+      const nodeEnd=Math.min(lastDrawnPointIndex,pts.length-1);
+      for(let i=1;i<nodeEnd;i++){
         const p=pts[i],px=-w/2+p.u,py=-h/2+p.v;
         c.moveTo(px+nodeR,py);
         c.arc(px,py,nodeR,0,Math.PI*2);
       }
       c.fill();
     }
-    if(pts.length>1){
+    if(drewGroup&&lastDrawnPointIndex===pts.length-1&&!pending){
       const e=pts[pts.length-1],pPrev=pts[pts.length-2],ex=-w/2+e.u,ey=-h/2+e.v,endW=7.2,endH=26;
       const dx=(e.u-pPrev.u),dy=(e.v-pPrev.v),a=Math.abs(dx)+Math.abs(dy)>1e-6?Math.atan2(dy,dx):0;
       c.save();
@@ -1219,6 +1275,12 @@ const drawDataFlowOnRect=(c,groups,w,h,z)=>{
   c.textAlign="center";c.textBaseline="middle";
   for(const lb of labels){c.fillStyle=lb.color;c.fillText(lb.text,lb.x,lb.y)}
   c.restore();
+  state.drawn=Math.max(state.drawn|0,drawnSegments);
+  if(batchEnabled&&state.drawn<totalSegments){
+    requestFlowDrawRender();
+  }else if(state.drawn>=totalSegments){
+    state.drawn=totalSegments;
+  }
 };
 function componentsAreRectangles(topo){
   const stat=new Map();
@@ -2828,14 +2890,26 @@ const runTabSwitchTransition=task=>{
   if(tabSwitchTimer){clearTimeout(tabSwitchTimer);tabSwitchTimer=0;}
   const runTask=()=>{
     task();
-    if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>host.classList.remove("tab-switching"));
-    else host.classList.remove("tab-switching");
+    const finishSwitch=()=>{
+      render();
+      if(typeof requestAnimationFrame==="function"){
+        requestAnimationFrame(()=>{
+          host.classList.remove("tab-switching");
+          render();
+        });
+      }else{
+        host.classList.remove("tab-switching");
+        render();
+      }
+    };
+    if(typeof requestAnimationFrame==="function")requestAnimationFrame(finishSwitch);
+    else finishSwitch();
   };
   host.classList.add("tab-switching");
   tabSwitchTimer=setTimeout(()=>{
     tabSwitchTimer=0;
     runTask();
-  },70);
+  },170);
 };
 const syncActiveTabSnapshot=()=>{
   const t=getActiveTab();
@@ -3307,8 +3381,8 @@ const drawDim=(g,color,labelShift)=>{
 if(st.dg.ref)drawDim(st.dg.ref,"#ffd77a",0);
 drawDim(st.dg,"#71d7ff",18);
 }
-function render(){const r=window.devicePixelRatio||1,vm=getViewMetrics(),fastPan=!!st.pan;st.flowEditPoints=[];ctx.setTransform(r,0,0,r,0,0);ctx.clearRect(0,0,cv.clientWidth,cv.clientHeight);drawGrid();ctx.save();ctx.translate(vm.centerX,vm.centerY);ctx.scale(st.zoom,st.zoom);ctx.translate(-st.camX,-st.camY);
-const origin=getOrigin();for(let i=st.rects.length-1;i>=0;i--){const rr=st.rects[i];drawRect(ctx,rr,rr.id===st.sel,st.zoom,origin,{designerRender:true,forceLowDetail:fastPan})}if(st.draft){const d=st.draft;ctx.strokeStyle="#7fd4f8";ctx.lineWidth=1/st.zoom;ctx.setLineDash([8/st.zoom,5/st.zoom]);ctx.strokeRect(d.x,d.y,d.width,d.height);ctx.setLineDash([])}if(!fastPan){drawMaskOverlay(ctx,st.zoom);drawCellEditOverlay(ctx,st.zoom);drawContentBounds(ctx,st.zoom);}
+function render(){flowDrawRenderEpoch++;const r=window.devicePixelRatio||1,vm=getViewMetrics(),fastPan=!!st.pan,tabSwitching=!!(wrap&&wrap.classList&&wrap.classList.contains("tab-switching"));st.flowEditPoints=[];ctx.setTransform(r,0,0,r,0,0);ctx.clearRect(0,0,cv.clientWidth,cv.clientHeight);drawGrid();ctx.save();ctx.translate(vm.centerX,vm.centerY);ctx.scale(st.zoom,st.zoom);ctx.translate(-st.camX,-st.camY);
+const origin=getOrigin();for(let i=st.rects.length-1;i>=0;i--){const rr=st.rects[i];drawRect(ctx,rr,rr.id===st.sel,st.zoom,origin,{designerRender:true,forceLowDetail:(fastPan||tabSwitching)})}if(st.draft){const d=st.draft;ctx.strokeStyle="#7fd4f8";ctx.lineWidth=1/st.zoom;ctx.setLineDash([8/st.zoom,5/st.zoom]);ctx.strokeRect(d.x,d.y,d.width,d.height);ctx.setLineDash([])}if(!(fastPan||tabSwitching)){drawMaskOverlay(ctx,st.zoom);drawCellEditOverlay(ctx,st.zoom);drawContentBounds(ctx,st.zoom);}
 ctx.restore();drawGuides();drawDistanceGuide();el.zoomLabel.textContent=`${Math.round(st.zoom*100)}%`;wrap.dataset.panning=st.pan?"1":"0"}
 const updateAppViewportHeight=()=>{
   const h=(window.visualViewport&&Number.isFinite(window.visualViewport.height)&&window.visualViewport.height>0)
