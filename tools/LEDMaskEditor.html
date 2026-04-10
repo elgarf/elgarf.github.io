@@ -67,7 +67,8 @@ button,input{font:inherit}button{cursor:pointer}
 .main{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
 .canvas-wrap{position:absolute;inset:0;background:var(--bs-body-bg);min-height:0;min-width:0}
 canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.canvas-wrap[data-mode="select"] canvas,.canvas-wrap[data-mode="regions"] canvas{cursor:default}.canvas-wrap[data-panning="1"] canvas{cursor:grabbing}
-.side{--bs-offcanvas-width:min(88vw,360px);border-left:1px solid var(--bs-border-color);background:var(--bs-body-bg);padding:12px;overflow:auto}
+.side{--bs-offcanvas-width:min(88vw,360px);border-left:1px solid var(--bs-border-color);background:var(--bs-body-bg);padding:12px;overflow:auto;z-index:1100}
+.offcanvas-backdrop{z-index:1090}
 @media (min-width:901px){
   .side.offcanvas{
     position:absolute;
@@ -125,7 +126,7 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   .mobile-only{display:inline-flex}
   .install-btn{display:inline-flex}
   .side-close{display:inline-flex}
-  .mobile-dock{display:flex!important;position:fixed;z-index:1070;background:var(--bs-tertiary-bg);border:1px solid var(--bs-border-color);border-radius:14px;padding:6px;gap:6px}
+  .mobile-dock{display:flex!important;position:fixed;z-index:1000;background:var(--bs-tertiary-bg);border:1px solid var(--bs-border-color);border-radius:14px;padding:6px;gap:6px}
 }
 @media (max-width:900px) and (orientation:portrait){
   .mobile-dock{left:10px;top:50%;bottom:auto;transform:translateY(-50%);flex-direction:column;max-height:calc(100vh - 24px);overflow-y:auto;overflow-x:hidden}
@@ -134,7 +135,7 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   .mobile-dock{left:50%;top:auto;bottom:10px;transform:translateX(-50%);flex-direction:row;max-width:calc(100vw - 20px);overflow-x:auto;overflow-y:hidden}
 }
 @media (hover:none) and (pointer:coarse){
-  .mobile-dock{display:flex!important;position:fixed;z-index:1070;background:var(--bs-tertiary-bg);border:1px solid var(--bs-border-color);border-radius:14px;padding:6px;gap:6px}
+  .mobile-dock{display:flex!important;position:fixed;z-index:1000;background:var(--bs-tertiary-bg);border:1px solid var(--bs-border-color);border-radius:14px;padding:6px;gap:6px}
 }
 @media (hover:none) and (pointer:coarse) and (orientation:portrait){
   .mobile-dock{left:10px;top:50%;bottom:auto;transform:translateY(-50%);flex-direction:column;max-height:calc(100vh - 24px);overflow-y:auto;overflow-x:hidden}
@@ -262,7 +263,7 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   </div>
 </div>
 <div class="field"><div class="form-check"><input id="propNumberCells" class="form-check-input" type="checkbox"><label class="form-check-label" for="propNumberCells">Нумеровать кабинеты</label></div></div>
-<div class="field"><label for="propSplitVariant">Вариант разделения по сигналам</label><div class="range-row"><input id="propSplitVariant" type="range" min="0" max="10" step="1" value="0"><div id="propSplitVariantLabel" class="hint range-value">0</div></div></div>
+<div class="field"><label for="propSplitVariant">Вариант разделения по сигналам</label><div class="range-row"><input id="propSplitVariant" type="range" min="0" max="25" step="1" value="0"><div id="propSplitVariantLabel" class="hint range-value">0</div></div></div>
 <div class="field"><button id="btnClearMasks" type="button" style="width:100%">Удалить все маски</button></div>
 <div class="rect-list" id="rectList"></div></aside></div></div>
 <div id="installBanner" class="install-banner">
@@ -334,10 +335,12 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
 <script>
 const $=id=>document.getElementById(id),cv=$("editorCanvas"),ctx=cv.getContext("2d"),wrap=$("canvasWrap");
 const ensureMobileDock=()=>{
-  if(document.querySelector(".mobile-dock"))return;
-  const dock=document.createElement("div");
-  dock.className="mobile-dock bg-body-tertiary shadow";
-  dock.innerHTML=`
+  const host=document.querySelector(".app")||document.body;
+  let dock=document.querySelector(".mobile-dock");
+  if(!dock){
+    dock=document.createElement("div");
+    dock.className="mobile-dock bg-body-tertiary shadow";
+    dock.innerHTML=`
   <button id="mToolSelect" class="icon-btn" title="Выделение" aria-label="Выделение"><i class="fa-solid fa-arrow-pointer"></i></button>
   <button id="mToolDraw" class="icon-btn" title="Добавление" aria-label="Добавление"><i class="fa-solid fa-plus"></i></button>
   <button id="mToolMaskAdd" class="icon-btn" title="+ Маска (скрыть)" aria-label="+ Маска"><i class="fa-solid fa-square-plus"></i></button>
@@ -349,7 +352,8 @@ const ensureMobileDock=()=>{
   <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i class="fa-solid fa-trash"></i></button>
   <button id="mZoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
   <button id="mZoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить"><i class="fa-solid fa-magnifying-glass-plus"></i></button>`;
-  document.body.appendChild(dock);
+  }
+  if(dock.parentElement!==host)host.appendChild(dock);
 };
 ensureMobileDock();
 const el={projectTabs:$("projectTabs"),projectTabsList:$("projectTabsList"),projectTabAdd:$("projectTabAdd"),toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),expSvg:$("exportSvg"),exp:$("exportPng"),expFlow:$("exportPngFlow"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),dataFlow:$("propDataFlow"),dataFlowZ:$("propDataFlowZ"),numCells:$("propNumberCells"),splitVariant:$("propSplitVariant"),splitVariantLabel:$("propSplitVariantLabel"),btnClearMasks:$("btnClearMasks"),list:$("rectList")};
@@ -563,6 +567,13 @@ function getCellTopology(r,cx,cy){
   }
   return{cols,rows,count,links,comp,seed,color};
 }
+const topoCalcKey=(r,cx,cy)=>[
+  r&&r.width||0,
+  r&&r.height||0,
+  cx||0,
+  cy||0,
+  listSignature(r&&r.cellLinks)
+].join("|");
 const DATA_FLOW_MODES=new Set(["none","h_bl_lr","h_tl_lr","h_br_rl","h_tr_rl","v_lb_bu","v_rb_bu","v_lt_td","v_rt_td"]);
 const normalizeDataFlow=v=>{
   const s=String(v||"");
@@ -741,8 +752,16 @@ const buildSingleRegionPlan=(r,cx,cy,topo,hs)=>{
 };
 const getRectCalcCache=r=>{
   if(!r||typeof r!=="object")return{regions:null,flow:null};
-  if(!r._calcCache||typeof r._calcCache!=="object")r._calcCache={regions:null,flow:null};
+  if(!r._calcCache||typeof r._calcCache!=="object")r._calcCache={regions:null,flow:null,topo:null};
   return r._calcCache;
+};
+const getCellTopologyCached=(r,cx,cy)=>{
+  const cache=getRectCalcCache(r);
+  const key=topoCalcKey(r,cx,cy);
+  if(cache.topo&&cache.topo.key===key)return cache.topo.value;
+  const value=getCellTopology(r,cx,cy);
+  cache.topo={key,value};
+  return value;
 };
 const listSignature=v=>Array.isArray(v)&&v.length?v.join(";"):"";
 const regionCalcKey=(r,cx,cy,topo)=>[
@@ -953,7 +972,7 @@ function pointToSegmentDistance(px,py,x1,y1,x2,y2){
   return Math.hypot(px-cx,py-cy);
 }
 function getCellLinkCandidateAtPoint(r,wx,wy){
-  const cx=drawCellX(r),cy=drawCellY(r),topo=getCellTopology(r,cx,cy),segs=getCellToggleSegments(r,cx,cy,topo),thr=Math.max(6,8/st.zoom);
+  const cx=drawCellX(r),cy=drawCellY(r),topo=getCellTopologyCached(r,cx,cy),segs=getCellToggleSegments(r,cx,cy,topo),thr=Math.max(6,8/st.zoom);
   let best=null;
   for(const s of segs){
     const d=pointToSegmentDistance(wx,wy,s.p1.x,s.p1.y,s.p2.x,s.p2.y);
@@ -1074,6 +1093,7 @@ const mRound=v=>Math.round(v*10000)/10000;
 const mFmt=v=>{const n=mRound(v);return Number.isInteger(n)?`${n.toFixed(0)}`:`${n}`};
 const fillPercent=(wm,hm,areaM2Px)=>{const area=Math.max(0,(+wm||0)*(+hm||0)),base=Math.max(1,+areaM2Px||65536);return(100*(base*area))/655360};
 const pctFmt=v=>{const n=Number.isFinite(+v)?+v:0;const t=Math.trunc(n*100)/100;return t.toFixed(2)};
+const SPLIT_VARIANT_MAX=25;
 const AREA_LIMIT_EPS=1e-6;
 const REGION_ZONE_COLORS=[[255,0,0],[0,255,0],[0,0,255],[255,255,0],[255,0,255],[0,255,255]];
 const toLetters=i=>{let n=Math.max(0,Math.floor(i))+1,s="";while(n>0){n--;s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)}return s};
@@ -1584,8 +1604,18 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs)=>{
       if(shifted&&shifted.length<optimized.length){optimized=shifted;improved=true;continue}
     }
   }
-  const regionScore=regs=>({count:regs.length,bad:totalBadness(regs),shape:totalShapeBadness(regs)});
+  const variantScoreCache=new WeakMap();
+  const variantSigCache=new WeakMap();
+  const regionScore=regs=>{
+    const cached=variantScoreCache.get(regs);
+    if(cached)return cached;
+    const value={count:regs.length,bad:totalBadness(regs),shape:totalShapeBadness(regs)};
+    variantScoreCache.set(regs,value);
+    return value;
+  };
   const regionSig=regs=>{
+    const cached=variantSigCache.get(regs);
+    if(cached)return cached;
     const groups=[];
     for(const z of regs){
       let ids=[];
@@ -1600,7 +1630,9 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs)=>{
       groups.push(ids.join(","));
     }
     groups.sort();
-    return groups.join("|");
+    const value=groups.join("|");
+    variantSigCache.set(regs,value);
+    return value;
   };
   const visCompList=[];for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible)visCompList.push({id,vc0:compBounds[id].vc0,vc1:compBounds[id].vc1,vr0:compBounds[id].vr0,vr1:compBounds[id].vr1});
   const regionsStrictNonOverlap=regs=>{
@@ -1668,22 +1700,81 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs)=>{
     return out;
   })();
   const addVariant=(list,seen,regs)=>{
-    if(!Array.isArray(regs)||!regs.length)return;
+    if(!Array.isArray(regs)||!regs.length)return null;
     const p=pruneEmpty(regs.map(z=>({...z})));
-    if(!p.length||!coversAllVisible(p)||!regionsStrictNonOverlap(p))return;
+    if(!p.length||!coversAllVisible(p)||!regionsStrictNonOverlap(p))return null;
     const sig=regionSig(p);
-    if(seen.has(sig))return;
+    if(seen.has(sig))return null;
     seen.add(sig);
     list.push(p);
+    return sig;
   };
-  const variants=[],seenVariants=new Set();
+  const buildEqualPartitionVariants=()=>{
+    const out=[],maxRegions=Math.min(12,Math.max(2,compactRegions.length));
+    const addIfValid=regs=>{
+      if(!Array.isArray(regs)||!regs.length)return;
+      if(!regionsStrictNonOverlap(regs))return;
+      for(const z of regs){if(areaRect(z.c0,z.c1,z.r0,z.r1)>maxAreaPx+AREA_LIMIT_EPS)return;}
+      if(!coversAllVisible(regs))return;
+      out.push(regs.map((z,idx)=>({...z,id:idx,label:toLetters(idx),gx:idx,gy:0,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0]})));
+    };
+    const makeStripes=(count,axis)=>{
+      if(count<2)return null;
+      const cuts=axis==="x"?splitIndicesBySize(cellW,count):splitIndicesBySize(cellH,count);
+      if(!Array.isArray(cuts)||cuts.length<2)return null;
+      const regs=[];
+      for(let i=1;i<cuts.length;i++){
+        if(axis==="x"){
+          const c0=cuts[i-1],c1=cuts[i];
+          if(c1<=c0)return null;
+          regs.push({c0,c1,r0:0,r1:rows});
+        }else{
+          const r0=cuts[i-1],r1=cuts[i];
+          if(r1<=r0)return null;
+          regs.push({c0:0,c1:cols,r0,r1});
+        }
+      }
+      return regs;
+    };
+    const makeGrid=(nx,ny)=>{
+      if(nx<2||ny<2)return null;
+      const xCuts=splitIndicesBySize(cellW,nx),yCuts=splitIndicesBySize(cellH,ny);
+      if(!Array.isArray(xCuts)||!Array.isArray(yCuts)||xCuts.length<2||yCuts.length<2)return null;
+      const regs=[];
+      for(let yi=1;yi<yCuts.length;yi++){
+        for(let xi=1;xi<xCuts.length;xi++){
+          const c0=xCuts[xi-1],c1=xCuts[xi],r0=yCuts[yi-1],r1=yCuts[yi];
+          if(c1<=c0||r1<=r0)return null;
+          regs.push({c0,c1,r0,r1});
+        }
+      }
+      return regs;
+    };
+    for(let count=2;count<=maxRegions;count++){
+      addIfValid(makeStripes(count,"x"));
+      addIfValid(makeStripes(count,"y"));
+    }
+    for(let nx=2;nx<=4;nx++){
+      for(let ny=2;ny<=4;ny++){
+        const count=nx*ny;
+        if(count>maxRegions)continue;
+        addIfValid(makeGrid(nx,ny));
+      }
+    }
+    return out;
+  };
+  const variants=[],seenVariants=new Set(),equalVariantSigs=new Set();
   const transformRegs=(regs,mode)=>regs.map(z=>{
     if(mode==="flipX"){return{...z,c0:cols-z.c1,c1:cols-z.c0,r0:z.r0,r1:z.r1,compSet:undefined};}
     if(mode==="flipY"){return{...z,c0:z.c0,c1:z.c1,r0:rows-z.r1,r1:rows-z.r0,compSet:undefined};}
     if(mode==="rot180"){return{...z,c0:cols-z.c1,c1:cols-z.c0,r0:rows-z.r1,r1:rows-z.r0,compSet:undefined};}
     return{...z,compSet:undefined};
   });
-  addVariant(variants,seenVariants,optimized);
+  const optimalVariantSig=addVariant(variants,seenVariants,optimized);
+  for(const eq of buildEqualPartitionVariants()){
+    const sig=addVariant(variants,seenVariants,eq);
+    if(sig)equalVariantSigs.add(sig);
+  }
   if(exactAssign)addVariant(variants,seenVariants,exactAssign);
   if(exactAssignList)for(const v of exactAssignList)addVariant(variants,seenVariants,v);
   if(exact)addVariant(variants,seenVariants,exact);
@@ -1758,11 +1849,34 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs)=>{
     const sa=regionScore(a),sb=regionScore(b);
     return (sa.count-sb.count)||(sa.bad-sb.bad)||(sa.shape-sb.shape);
   });
-  r._splitVariantCount=Math.max(1,variants.length);
-  const variantIndex=Math.max(0,Math.min(10,Math.round(Number(r&&r.splitVariant)||0)));
-  const chosenIndex=Math.min(variantIndex,Math.max(0,variants.length-1));
+  const optimalCount=Math.max(1,regionScore(optimized).count);
+  const maxAllowedCount=optimalCount+1;
+  const ranked=variants
+    .map(v=>{
+      const score=regionScore(v),sig=regionSig(v);
+      return{v,sig,score,delta:Math.abs(score.count-optimalCount),isEqual:equalVariantSigs.has(sig)};
+    })
+    .filter(it=>it.score.count<=maxAllowedCount);
+  const ordered=[];
+  ranked.sort((a,b)=>(a.delta-b.delta)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
+  if(ranked.length){
+    ordered.push(ranked[0].v);
+    ranked.splice(0,1);
+  }
+  for(let i=0;i<ranked.length;i++){
+    if(!ranked[i].isEqual)continue;
+    ordered.push(ranked[i].v);
+    ranked.splice(i,1);
+    i--;
+  }
+  ranked.sort((a,b)=>(a.delta-b.delta)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
+  for(const it of ranked)ordered.push(it.v);
+  const limited=ordered.slice(0,SPLIT_VARIANT_MAX+1);
+  r._splitVariantCount=Math.max(1,limited.length);
+  const variantIndex=Math.max(0,Math.min(SPLIT_VARIANT_MAX,Math.round(Number(r&&r.splitVariant)||0)));
+  const chosenIndex=Math.min(variantIndex,Math.max(0,limited.length-1));
   if(r&&Math.round(Number(r.splitVariant)||0)!==chosenIndex)r.splitVariant=chosenIndex;
-  const finalRegions=(variants[chosenIndex]||optimized).map(z=>({...z}));
+  const finalRegions=(limited[chosenIndex]||optimized).map(z=>({...z}));
   if(!finalRegions.length){
     const byId=new Map();byId.set(0,{id:0,gx:0,gy:0,c0:0,c1:cols,r0:0,r1:rows,w:r.width,h:r.height,label:"A"});
     return{nx:1,ny:1,colToGroup:new Array(cols).fill(0),rowToGroup:new Array(rows).fill(0),regionsById:byId,xCutsPx:[0,r.width],yCutsPx:[0,r.height],cellToRegion:new Array(rows*cols).fill(0),regions:[...byId.values()]};
@@ -1994,7 +2108,7 @@ body+=`</g>${flowSvg}<rect x="${x}" y="${y}" width="${r.width}" height="${r.heig
 }
 return`<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${defs}</defs>${body}</svg>`;
 }
-function applyProjectData(d){const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=Math.max(1,evalExpr(d&&d.settings?d.settings.areaM2Px:null,65536));st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:Math.max(1,evalExpr(r.areaM2Px,legacyAreaM2)),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(10,Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.maskPath=[];st.maskHover=null;selRect(st.rects[0]?st.rects[0].id:null);syncActiveTabSnapshot();renderProjectTabs();render();}
+function applyProjectData(d){const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=Math.max(1,evalExpr(d&&d.settings?d.settings.areaM2Px:null,65536));st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:Math.max(1,evalExpr(r.areaM2Px,legacyAreaM2)),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(SPLIT_VARIANT_MAX,Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.maskPath=[];st.maskHover=null;selRect(st.rects[0]?st.rects[0].id:null);syncActiveTabSnapshot();renderProjectTabs();render();}
 function restoreAutoSave(){
   try{
     const rawTabs=localStorage.getItem(TABS_SAVE_KEY);
@@ -2075,7 +2189,7 @@ return{x:Math.round(x+dx),y:Math.round(y+dy),gx,gy,dg}
 }
 function drawRect(c,r,sel,z,origin,opts){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height,options=opts||{},includeFlow=options.includeFlow!==false;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
 const skeleton=!st.fontReady;
-const topo=getCellTopology(r,cellX,cellY);
+const topo=getCellTopologyCached(r,cellX,cellY);
 const needRegions=!!(r.numberCells||normalizeDataFlow(r.dataFlow)!=="none"||sel||(st.mode==="regions"&&r.id===st.hoverRect));
 const regions=(needRegions?planNumberRegions(r,cellX,cellY,topo,hs):null);
 if(sel&&r.id===st.sel)updateSplitVariantControl(r);
@@ -2221,7 +2335,7 @@ function drawMaskOverlay(c,z){if(!isMaskMode())return;const r=cur();if(!r)return
 for(const gy of axes.ys){for(const gx of axes.xs){const p=rectUVToWorld(r,gx,gy);c.fillStyle=nodeCol;c.beginPath();c.arc(p.x,p.y,dot,0,Math.PI*2);c.fill()}}
 if(st.maskPath.length){const isAdd=st.mode==="maskAdd",col=isAdd?"rgba(255,110,110,.95)":"rgba(116,221,141,.95)";c.strokeStyle=col;c.lineWidth=Math.max(1.2,1.8/z);c.fillStyle=isAdd?"rgba(255,90,90,.18)":"rgba(90,220,120,.18)";c.beginPath();c.moveTo(st.maskPath[0].x,st.maskPath[0].y);for(let i=1;i<st.maskPath.length;i++)c.lineTo(st.maskPath[i].x,st.maskPath[i].y);if(st.maskHover)c.lineTo(st.maskHover.x,st.maskHover.y);c.stroke();if(st.maskPath.length>=3){c.closePath();c.fill()}for(const p of st.maskPath){c.fillStyle=col;c.beginPath();c.arc(p.x,p.y,Math.max(2.8,3.4/z),0,Math.PI*2);c.fill()}}
 if(st.maskHover){c.fillStyle=hoverCol;c.beginPath();c.arc(st.maskHover.x,st.maskHover.y,Math.max(2.4,3/z),0,Math.PI*2);c.fill()}}
-function drawCellEditOverlay(c,z){if(!isCellEditMode())return;const r=cur();if(!r)return;const darkTheme=(document.documentElement.getAttribute("data-bs-theme")||"light")==="dark";const gridCol=darkTheme?"rgba(255,255,255,.18)":"rgba(0,0,0,.28)";const boundCol=darkTheme?"rgba(255,255,255,.9)":"rgba(0,0,0,.78)";const cx=drawCellX(r),cy=drawCellY(r),topo=getCellTopology(r,cx,cy),axes=getMaskNodeAxes(r);c.save();c.strokeStyle=gridCol;c.lineWidth=Math.max(1,1.1/z);
+function drawCellEditOverlay(c,z){if(!isCellEditMode())return;const r=cur();if(!r)return;const darkTheme=(document.documentElement.getAttribute("data-bs-theme")||"light")==="dark";const gridCol=darkTheme?"rgba(255,255,255,.18)":"rgba(0,0,0,.28)";const boundCol=darkTheme?"rgba(255,255,255,.9)":"rgba(0,0,0,.78)";const cx=drawCellX(r),cy=drawCellY(r),topo=getCellTopologyCached(r,cx,cy),axes=getMaskNodeAxes(r);c.save();c.strokeStyle=gridCol;c.lineWidth=Math.max(1,1.1/z);
 for(const x of axes.xs){const p1=rectUVToWorld(r,x,0),p2=rectUVToWorld(r,x,r.height);c.beginPath();c.moveTo(p1.x,p1.y);c.lineTo(p2.x,p2.y);c.stroke()}
 for(const y of axes.ys){const p1=rectUVToWorld(r,0,y),p2=rectUVToWorld(r,r.width,y);c.beginPath();c.moveTo(p1.x,p1.y);c.lineTo(p2.x,p2.y);c.stroke()}
 const bounds=getComponentBoundarySegments(r,cx,cy,topo);c.strokeStyle=boundCol;c.lineWidth=Math.max(1.8,2.2/z);
@@ -2258,12 +2372,20 @@ const updateAppViewportHeight=()=>{
   if(Number.isFinite(h)&&h>0)document.documentElement.style.setProperty("--app-vh",`${Math.round(h)}px`);
 };
 function resize(){const r=window.devicePixelRatio||1,b=cv.getBoundingClientRect();cv.width=Math.max(1,Math.floor(b.width*r));cv.height=Math.max(1,Math.floor(b.height*r));render()}
-const scheduleCanvasResize=()=>{
+let canvasResizeRaf=0;
+let canvasResizeTimer=0;
+const runCanvasResize=()=>{
   updateAppViewportHeight();
   resize();
-  if(typeof requestAnimationFrame==="function")requestAnimationFrame(resize);
-  setTimeout(resize,120);
-  setTimeout(resize,320);
+};
+const scheduleCanvasResize=()=>{
+  if(!canvasResizeRaf&&typeof requestAnimationFrame==="function"){
+    canvasResizeRaf=requestAnimationFrame(()=>{canvasResizeRaf=0;runCanvasResize();});
+  }else if(!canvasResizeRaf){
+    runCanvasResize();
+  }
+  if(canvasResizeTimer)clearTimeout(canvasResizeTimer);
+  canvasResizeTimer=setTimeout(()=>{canvasResizeTimer=0;runCanvasResize();},120);
 };
 window.addEventListener("resize",scheduleCanvasResize);
 if(typeof ResizeObserver!=="undefined"){
@@ -2340,7 +2462,7 @@ const updateRectTextSizeLabel=r=>{
 };
 const updateSplitVariantLabel=r=>{
   if(!el.splitVariantLabel)return;
-  const v=Math.max(0,Math.min(10,Math.round(Number(r&&r.splitVariant)||0)));
+  const v=Math.max(0,Math.min(SPLIT_VARIANT_MAX,Math.round(Number(r&&r.splitVariant)||0)));
   el.splitVariantLabel.textContent=String(v);
   el.splitVariantLabel.title=`Номер разбиения: ${v}`;
 };
@@ -2348,15 +2470,15 @@ const updateSplitVariantControl=r=>{
   if(!el.splitVariant)return;
   const rawCnt=Number(r&&r._splitVariantCount);
   const hasCnt=Number.isFinite(rawCnt)&&rawCnt>0;
-  const cnt=hasCnt?Math.max(1,Math.round(rawCnt)):11;
-  const maxv=Math.max(0,Math.min(10,cnt-1));
+  const cnt=hasCnt?Math.max(1,Math.round(rawCnt)):(SPLIT_VARIANT_MAX+1);
+  const maxv=Math.max(0,Math.min(SPLIT_VARIANT_MAX,cnt-1));
   el.splitVariant.max=String(maxv);
   const cur=Math.max(0,Math.min(maxv,Math.round(Number(r&&r.splitVariant)||0)));
   el.splitVariant.value=String(cur);
   if(r&&hasCnt)r.splitVariant=cur;
   updateSplitVariantLabel(r);
 };
-function syncProps(){const r=cur(),on=!!r;[el.name,el.rectTextSize,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;updateThemeUi();el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){el.name.value="";el.rectTextSize.value="0";updateRectTextSizeLabel(null);el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.dataFlow.value="none";el.dataFlowZ.checked=false;el.numCells.checked=false;el.splitVariant.max="10";el.splitVariant.value="0";updateSplitVariantLabel(null);if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
+function syncProps(){const r=cur(),on=!!r;[el.name,el.rectTextSize,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;updateThemeUi();el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){el.name.value="";el.rectTextSize.value="0";updateRectTextSizeLabel(null);el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.dataFlow.value="none";el.dataFlowZ.checked=false;el.numCells.checked=false;el.splitVariant.max=String(SPLIT_VARIANT_MAX);el.splitVariant.value="0";updateSplitVariantLabel(null);if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
 metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.rectTextSize.value=String(Math.max(0,Math.min(128,Math.round(Number(r.textSize)||0))));updateRectTextSizeLabel(r);el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;el.dataFlow.value=normalizeDataFlow(r.dataFlow);el.dataFlowZ.checked=!!r.dataFlowZ;el.numCells.checked=!!r.numberCells;updateSplitVariantControl(r);if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
 let listDragId=null;
 const reorderRects=(dragId,targetId,after=false)=>{
@@ -2388,12 +2510,12 @@ function listRects(){
     el.list.appendChild(d);
   }
 }
-function applyProps(){const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));r.areaM2Px=Math.max(1,evalExpr(el.areaM2.value,r.areaM2Px||65536));pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));r.dataFlow=normalizeDataFlow(el.dataFlow.value);r.dataFlowZ=!!el.dataFlowZ.checked;r.numberCells=!!el.numCells.checked;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,10)));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));updateSplitVariantControl(r);el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;listRects();render()}
+function applyProps(){const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));r.areaM2Px=Math.max(1,evalExpr(el.areaM2.value,r.areaM2Px||65536));pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));r.dataFlow=normalizeDataFlow(el.dataFlow.value);r.dataFlowZ=!!el.dataFlowZ.checked;r.numberCells=!!el.numCells.checked;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,SPLIT_VARIANT_MAX)));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));updateSplitVariantControl(r);el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;listRects();render()}
 [el.name,el.x,el.y,el.rot,el.scale,el.a,el.cx,el.cy].forEach(v=>v.addEventListener("input",applyProps));
 el.b.addEventListener("input",()=>{const r=cur();if(!r)return;r.autoContrastB=false;r.colorB=el.b.value||r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: выкл";listRects();render()});
 [el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>v.addEventListener("change",applyProps));
 [el.rectTextSize].forEach(v=>v.addEventListener("input",()=>{const r=cur();if(!r)return;r.textSize=Math.max(0,Math.min(128,Math.round(evalExpr(el.rectTextSize.value,r.textSize||0))));updateRectTextSizeLabel(r);st.fontReady=false;render();ensureFontReady().then(()=>render()).catch(()=>{})}));
-if(el.splitVariant)el.splitVariant.addEventListener("input",()=>{const r=cur();if(!r)return;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,10)));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));updateSplitVariantControl(r);render();});
+if(el.splitVariant)el.splitVariant.addEventListener("input",()=>{const r=cur();if(!r)return;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,SPLIT_VARIANT_MAX)));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));updateSplitVariantControl(r);render();});
 [el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.cx,el.cy].forEach(v=>{v.addEventListener("change",()=>{applyProps();syncProps()});v.addEventListener("keydown",e=>{if(e.key==="Enter"){applyProps();syncProps()}})});
 const applyTextSettings=()=>{st.textSize=Math.max(6,evalExpr(el.textSize.value,st.textSize||12));st.fontFamily=(el.font.value||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.fontReady=false;render();ensureFontReady().then(()=>render()).catch(()=>{})};
 [el.textSize,el.font].forEach(v=>v.addEventListener("input",applyTextSettings));
@@ -2630,19 +2752,3 @@ syncActiveTabSnapshot();
 renderProjectTabs();
 ensureFontReady().then(()=>{render()}).catch(()=>{});
 </script></body></html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
