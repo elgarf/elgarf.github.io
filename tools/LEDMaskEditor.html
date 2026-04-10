@@ -918,7 +918,7 @@ const flowLocksSignature=r=>{
   }
   return parts.join("|");
 };
-const PROJECT_CACHE_VERSION=1;
+const PROJECT_CACHE_VERSION=2;
 const makeNonEnumerableCalcCache=(r,value)=>{
   try{
     Object.defineProperty(r,"_calcCache",{value,writable:true,configurable:true,enumerable:false});
@@ -945,7 +945,7 @@ const buildPersistedRectCache=r=>{
       };
     }
   }
-  if(regEntry&&typeof regEntry==="object"&&regEntry.key&&regEntry.value&&!regEntry.value._timedOut){
+  if(regEntry&&typeof regEntry==="object"&&regEntry.key&&regEntry.value&&!regEntry.value._timedOut&&!regEntry.pending){
     const v=regEntry.value,regs=Array.isArray(v.regions)?v.regions:[...(v.regionsById&&typeof v.regionsById.values==="function"?v.regionsById.values():[])];
     if(Array.isArray(v.colToGroup)&&Array.isArray(v.rowToGroup)&&Array.isArray(v.cellToRegion)&&regs.length){
       out.regions={
@@ -1064,7 +1064,6 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
     return{cid:s.cid,col:colBand,row:rowBand,u,v,minCol:s.minCol,maxCol:s.maxCol,minRow:s.minRow,maxRow:s.maxRow};
   });
   if(!list.length)return[];
-  if(list.length>900)return[];
   const orderByMode=(arr,m,useZ=zMode)=>{
     switch(m){
       case "h_bl_lr":return useZ?buildZOrder(arr,"row","desc","col","asc"):buildSnakeOrder(arr,"row","desc","col","asc");
@@ -1098,17 +1097,16 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
   for(const [rid,arr] of byRegion){
     if(checkCalcTimeout(budget))return [];
     const baseOrdered=orderByMode(arr,mode,zMode).map((it,idx)=>({...it,baseIdx:idx}));
-    const skipHeavy=arr.length>140;
-    let ordered=skipHeavy?baseOrdered:(zMode?baseOrdered:refineFlowOrder(baseOrdered));
-    if(!skipHeavy&&!zMode&&ordered.length<=FLOW_OPTIMIZE_MAX_POINTS)ordered=optimizeFlowPathShortest(ordered);
-    if(!skipHeavy&&pathSelfCrosses(ordered)){
+    let ordered=(zMode?baseOrdered:refineFlowOrder(baseOrdered));
+    if(!zMode&&ordered.length<=FLOW_OPTIMIZE_MAX_POINTS)ordered=optimizeFlowPathShortest(ordered);
+    if(pathSelfCrosses(ordered)){
       const altUseZ=!zMode;
       const altBase=orderByMode(arr,mode,altUseZ).map((it,idx)=>({...it,baseIdx:idx}));
       let altOrdered=altUseZ?altBase:refineFlowOrder(altBase);
       if(!altUseZ&&altOrdered.length<=FLOW_OPTIMIZE_MAX_POINTS)altOrdered=optimizeFlowPathShortest(altOrdered);
       if(!pathSelfCrosses(altOrdered))ordered=altOrdered;
       else if(flowPathCost(altOrdered)+1e-6<flowPathCost(ordered))ordered=altOrdered;
-    }else if(!skipHeavy&&!zMode){
+    }else if(!zMode){
       const baseCost=flowPathCost(baseOrdered),optCost=flowPathCost(ordered);
       if(baseCost+1e-6<optCost)ordered=baseOrdered;
     }
@@ -1421,6 +1419,8 @@ const SPLIT_VARIANT_MAX=25;
 const AREA_LIMIT_EPS=1e-6;
 const REGION_ZONE_COLORS=[[255,0,0],[0,255,0],[0,0,255],[255,255,0],[255,0,255],[0,255,255]];
 const CALC_TIMEOUT_MS=500;
+const FLOW_WORKER_TIMEOUT_MS=30000;
+const REGION_WORKER_TIMEOUT_MS=30000;
 const calcNow=()=>((typeof performance!=="undefined"&&performance&&typeof performance.now==="function")?performance.now():Date.now());
 const calcMetrics={regions:{calls:0,totalMs:0,maxMs:0,lastMs:0,slow:0,timeouts:0},flow:{calls:0,totalMs:0,maxMs:0,lastMs:0,slow:0,timeouts:0}};
 const makeCalcBudget=()=>({deadline:calcNow()+CALC_TIMEOUT_MS,probes:0,timedOut:false});
@@ -1455,6 +1455,8 @@ const splitIndicesBySize=(sizes,groups)=>{
   cuts.push(n);return cuts;
 };
 const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
+  const calcProfile={};
+  const calcStartedAt=calcNow();
   const singleRegionFallback=()=>{
     r._splitVariantCount=1;
     if(r&&Math.round(Number(r.splitVariant)||0)!==0)r.splitVariant=0;
@@ -1465,13 +1467,6 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
   };
   if(checkCalcTimeout(budget))return singleRegionFallback();
   const cols=Math.max(1,topo&&topo.cols||1),rows=Math.max(1,topo&&topo.rows||1);
-  const clippedGrid=(r.width%cx)!==0||(r.height%cy)!==0;
-  const cellCount=cols*rows;
-  if(cellCount>2200||(clippedGrid&&cellCount>900)){
-    r._splitVariantCount=1;
-    if(r&&Math.round(Number(r.splitVariant)||0)!==0)r.splitVariant=0;
-    return buildSingleRegionPlan(r,cx,cy,topo,hs);
-  }
   const cellW=[];for(let x=0;x<r.width;x+=cx)cellW.push(Math.min(cx,r.width-x));
   const cellH=[];for(let y=0;y<r.height;y+=cy)cellH.push(Math.min(cy,r.height-y));
   const prefSum=a=>{const p=[0];for(let i=0;i<a.length;i++)p.push(p[i]+a[i]);return p};
@@ -1501,10 +1496,22 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
   const occupied=Array.from({length:rows},()=>Array(cols).fill(false));
   const cellKey=(x,y)=>y*cols+x;
   const maxAreaPx=(Math.max(1,r.scale||256)*Math.max(1,r.scale||256)*655360)/Math.max(1,r.areaM2Px||65536);
-  const areaRect=(c0,c1,r0,r1)=>(colPref[c1]-colPref[c0])*(rowPref[r1]-rowPref[r0]);
+  const areaMemo=new Map(),shapeMemo=new Map();
+  const rectKey=(c0,c1,r0,r1)=>`${c0}|${c1}|${r0}|${r1}`;
+  const areaRect=(c0,c1,r0,r1)=>{
+    const k=rectKey(c0,c1,r0,r1);
+    if(areaMemo.has(k))return areaMemo.get(k);
+    const v=(colPref[c1]-colPref[c0])*(rowPref[r1]-rowPref[r0]);
+    areaMemo.set(k,v);
+    return v;
+  };
   const shapePenaltyRect=(c0,c1,r0,r1)=>{
+    const k=rectKey(c0,c1,r0,r1);
+    if(shapeMemo.has(k))return shapeMemo.get(k);
     const w=Math.max(1e-6,colPref[c1]-colPref[c0]),h=Math.max(1e-6,rowPref[r1]-rowPref[r0]);
-    return (Math.max(w,h)/Math.min(w,h))-1;
+    const v=(Math.max(w,h)/Math.min(w,h))-1;
+    shapeMemo.set(k,v);
+    return v;
   };
   const mixCost=(bad,shape)=>bad+(maxAreaPx*shape);
   const activeBounds=(()=>{
@@ -1517,6 +1524,23 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
     if(c1<0)return{c0:0,c1:cols,r0:0,r1:rows};
     return{c0,c1,r0,r1};
   })();
+  const fullArea=Math.max(1,areaRect(activeBounds.c0,activeBounds.c1,activeBounds.r0,activeBounds.r1));
+  const targetRegionCount=Math.max(1,Math.ceil(fullArea/Math.max(1,maxAreaPx)));
+  const variantRegionSoftCap=Math.max(4,targetRegionCount+8);
+  let visibleCompCount=0;
+  for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible)visibleCompCount++;
+  calcProfile.scanMs=Math.max(0,calcNow()-calcStartedAt);
+  calcProfile.targetRegionCount=targetRegionCount;
+  calcProfile.visibleCompCount=visibleCompCount;
+  const maxR1ByHeight=(r0,maxH)=>{
+    let lo=r0+1,hi=rows,best=r0;
+    while(lo<=hi){
+      const mid=(lo+hi)>>1,hv=rowPref[mid]-rowPref[r0];
+      if(hv<=maxH+AREA_LIMIT_EPS){best=mid;lo=mid+1;}
+      else hi=mid-1;
+    }
+    return Math.max(r0+1,best);
+  };
   const canSplitByCol=k=>{
     for(let id=0;id<compBounds.length;id++){
       const b=compBounds[id];
@@ -1600,6 +1624,7 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
       }
     }
   }
+  const greedyStartedAt=calcNow();
   let guard=0;
   while(guard<4096){
     if(checkCalcTimeout(budget))return singleRegionFallback();
@@ -1608,21 +1633,38 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
     for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible&&!compCovered[id])remain++;
     if(!remain)break;
     let best=null;
+    const considerRect=(c0,c1,r0,r1)=>{
+      if(c0<0||r0<0||c1>cols||r1>rows||c1<=c0||r1<=r0)return;
+      if(overlapsOccupied(c0,c1,r0,r1))return;
+      const a=areaRect(c0,c1,r0,r1);
+      if(a>maxAreaPx+AREA_LIMIT_EPS)return;
+      const stats=rectCompStats(c0,c1,r0,r1,true);
+      if(!stats||stats.uncoveredVisibleComps<=0)return;
+      const score={a,uncComps:stats.uncoveredVisibleComps,visComps:stats.visibleComps,w:(c1-c0),h:(r1-r0),sq:shapePenaltyRect(c0,c1,r0,r1),inside:stats.inside};
+      if(!best||score.uncComps>best.score.uncComps||(score.uncComps===best.score.uncComps&&score.a>best.score.a)||(score.uncComps===best.score.uncComps&&score.a===best.score.a&&score.visComps>best.score.visComps)||(score.uncComps===best.score.uncComps&&score.a===best.score.a&&score.visComps===best.score.visComps&&score.sq<best.score.sq)||(score.uncComps===best.score.uncComps&&score.a===best.score.a&&score.visComps===best.score.visComps&&score.sq===best.score.sq&&score.h>best.score.h)){
+        best={c0,c1,r0,r1,score,inside:stats.inside};
+      }
+    };
     for(let c0=0;c0<cols;c0++)for(let c1=c0+1;c1<=cols;c1++){
       if(checkCalcTimeout(budget))return singleRegionFallback();
       const w=colPref[c1]-colPref[c0];
       if(w<=0)continue;
-      for(let r0=0;r0<rows;r0++)for(let r1=r0+1;r1<=rows;r1++){
-        if(checkCalcTimeout(budget))return singleRegionFallback();
-        if(overlapsOccupied(c0,c1,r0,r1))continue;
-        const a=areaRect(c0,c1,r0,r1);
-        if(a>maxAreaPx+AREA_LIMIT_EPS)continue;
-        const stats=rectCompStats(c0,c1,r0,r1,true);
-        if(!stats||stats.uncoveredVisibleComps<=0)continue;
-        const score={a,uncComps:stats.uncoveredVisibleComps,visComps:stats.visibleComps,w:(c1-c0),h:(r1-r0),sq:shapePenaltyRect(c0,c1,r0,r1),inside:stats.inside};
-        if(!best||score.uncComps>best.score.uncComps||(score.uncComps===best.score.uncComps&&score.a>best.score.a)||(score.uncComps===best.score.uncComps&&score.a===best.score.a&&score.visComps>best.score.visComps)||(score.uncComps===best.score.uncComps&&score.a===best.score.a&&score.visComps===best.score.visComps&&score.sq<best.score.sq)||(score.uncComps===best.score.uncComps&&score.a===best.score.a&&score.visComps===best.score.visComps&&score.sq===best.score.sq&&score.h>best.score.h)){
-          best={c0,c1,r0,r1,score,inside:stats.inside};
+      if(w>maxAreaPx+AREA_LIMIT_EPS)continue;
+      const maxH=maxAreaPx/Math.max(1e-9,w);
+      for(let r0=0;r0<rows;r0++){
+        const r1Max=maxR1ByHeight(r0,maxH);
+        for(let r1=r0+1;r1<=r1Max;r1++){
+          if(checkCalcTimeout(budget))return singleRegionFallback();
+          considerRect(c0,c1,r0,r1);
         }
+      }
+    }
+    if(best==null){
+      for(let id=0;id<compBounds.length;id++){
+        if(checkCalcTimeout(budget))return singleRegionFallback();
+        const b=compBounds[id];
+        if(!b.hasVisible||compCovered[id])continue;
+        considerRect(b.vc0,b.vc1,b.vr0,b.vr1);
       }
     }
     if(!best){
@@ -1687,6 +1729,7 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
       }
     }
   }
+  calcProfile.greedyMs=Math.max(0,calcNow()-greedyStartedAt);
   const compactRegions=regions.filter(Boolean);
   const visibleCompIds=[];for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible)visibleCompIds.push(id);
   const regionContainsComp=(rg,id)=>{const b=compBounds[id];return b.vc0>=rg.c0&&b.vc1<=rg.c1&&b.vr0>=rg.r0&&b.vr1<=rg.r1};
@@ -1952,6 +1995,7 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
   let optimized=pruneEmpty(compactRegions.map(rg=>({...rg})));
   if(checkCalcTimeout(budget))return singleRegionFallback();
   let exactAssigned=false;
+  const optimizeStartedAt=calcNow();
   const exactAssignList=tryExactComponentAssignMany();
   if(checkCalcTimeout(budget))return singleRegionFallback();
   const exactAssign=(exactAssignList&&exactAssignList.length?exactAssignList[0]:null);
@@ -1970,6 +2014,7 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
       if(shifted&&shifted.length<optimized.length){optimized=shifted;improved=true;continue}
     }
   }
+  calcProfile.optimizeMs=Math.max(0,calcNow()-optimizeStartedAt);
   const variantScoreCache=new WeakMap();
   const variantSigCache=new WeakMap();
   const regionScore=regs=>{
@@ -2044,7 +2089,6 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
         if(!ok)return null;
         regs.push(fresh);
       }
-      if(regs.length>12)return null;
     }
     return regs.map((z,idx)=>({id:idx,label:toLetters(idx),c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0],gx:idx,gy:0,compSet:[...z.comps]}));
   };
@@ -2077,7 +2121,7 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
     return sig;
   };
   const buildEqualPartitionVariants=()=>{
-    const out=[],maxRegions=Math.min(12,Math.max(2,compactRegions.length));
+    const out=[],maxRegions=Math.max(2,Math.min(compactRegions.length,targetRegionCount+2));
     const addIfValid=regs=>{
       if(!Array.isArray(regs)||!regs.length)return;
       if(!regionsStrictNonOverlap(regs))return;
@@ -2130,6 +2174,7 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
     }
     return out;
   };
+  const variantsStartedAt=calcNow();
   const variants=[],seenVariants=new Set(),equalVariantSigs=new Set();
   const transformRegs=(regs,mode)=>regs.map(z=>{
     if(mode==="flipX"){return{...z,c0:cols-z.c1,c1:cols-z.c0,r0:z.r0,r1:z.r1,compSet:undefined};}
@@ -2247,6 +2292,9 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
   ranked.sort((a,b)=>(a.delta-b.delta)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
   for(const it of ranked)ordered.push(it.v);
   const limited=ordered.slice(0,SPLIT_VARIANT_MAX+1);
+  calcProfile.variantsMs=Math.max(0,calcNow()-variantsStartedAt);
+  calcProfile.totalMs=Math.max(0,calcNow()-calcStartedAt);
+  calcProfile.variantCount=limited.length;
   r._splitVariantCount=Math.max(1,limited.length);
   const variantIndex=Math.max(0,Math.min(SPLIT_VARIANT_MAX,Math.round(Number(r&&r.splitVariant)||0)));
   const chosenIndex=Math.min(variantIndex,Math.max(0,limited.length-1));
@@ -2254,7 +2302,9 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
   const finalRegions=(limited[chosenIndex]||optimized).map(z=>({...z}));
   if(!finalRegions.length){
     const byId=new Map();byId.set(0,{id:0,gx:0,gy:0,c0:0,c1:cols,r0:0,r1:rows,w:r.width,h:r.height,label:"A"});
-    return{nx:1,ny:1,colToGroup:new Array(cols).fill(0),rowToGroup:new Array(rows).fill(0),regionsById:byId,xCutsPx:[0,r.width],yCutsPx:[0,r.height],cellToRegion:new Array(rows*cols).fill(0),regions:[...byId.values()]};
+    const outSingle={nx:1,ny:1,colToGroup:new Array(cols).fill(0),rowToGroup:new Array(rows).fill(0),regionsById:byId,xCutsPx:[0,r.width],yCutsPx:[0,r.height],cellToRegion:new Array(rows*cols).fill(0),regions:[...byId.values()]};
+    try{Object.defineProperty(outSingle,"_profile",{value:calcProfile,writable:true,configurable:true});}catch(_e){outSingle._profile=calcProfile;}
+    return outSingle;
   }
   for(let i=0;i<finalRegions.length;i++){
     const rg=finalRegions[i];
@@ -2284,29 +2334,345 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
   for(let i=0;i<cols;i++)if(colToGroup[i]===-1)colToGroup[i]=0;
   for(let i=0;i<rows;i++)if(rowToGroup[i]===-1)rowToGroup[i]=0;
   const xCutsPx=[0,r.width],yCutsPx=[0,r.height];
-  return{nx:finalRegions.length,ny:1,colToGroup,rowToGroup,regionsById:byId,xCutsPx,yCutsPx,cellToRegion,regions:finalRegions};
+  const outPlan={nx:finalRegions.length,ny:1,colToGroup,rowToGroup,regionsById:byId,xCutsPx,yCutsPx,cellToRegion,regions:finalRegions};
+  try{Object.defineProperty(outPlan,"_profile",{value:calcProfile,writable:true,configurable:true});}catch(_e){outPlan._profile=calcProfile;}
+  return outPlan;
+};
+let regionCalcWorker=null,regionCalcReqSeq=1;
+const regionCalcPending=new Map();
+let flowCalcWorker=null,flowCalcReqSeq=1;
+const flowCalcPending=new Map();
+const calcWorkerScript=`
+const FLOW_WORKER_TIMEOUT_MS=${FLOW_WORKER_TIMEOUT_MS};
+const REGION_WORKER_TIMEOUT_MS=${REGION_WORKER_TIMEOUT_MS};
+const CALC_TIMEOUT_MS=30000;
+const FLOW_SEARCH_NODE_LIMIT_STRICT=${FLOW_SEARCH_NODE_LIMIT_STRICT};
+const FLOW_SEARCH_NODE_LIMIT_RELAXED=${FLOW_SEARCH_NODE_LIMIT_RELAXED};
+const FLOW_REFINE_MAX_POINTS=${FLOW_REFINE_MAX_POINTS};
+const FLOW_OPTIMIZE_MAX_POINTS=${FLOW_OPTIMIZE_MAX_POINTS};
+const SPLIT_VARIANT_MAX=${SPLIT_VARIANT_MAX};
+const AREA_LIMIT_EPS=${AREA_LIMIT_EPS};
+const REGION_ZONE_COLORS=${JSON.stringify(REGION_ZONE_COLORS)};
+const DATA_FLOW_MODES=new Set(${JSON.stringify([...DATA_FLOW_MODES])});
+const calcNow=${calcNow.toString()};
+const makeCalcBudget=${makeCalcBudget.toString()};
+const checkCalcTimeout=${checkCalcTimeout.toString()};
+const maskCellKey=${maskCellKey.toString()};
+const toLetters=${toLetters.toString()};
+const splitIndicesBySize=${splitIndicesBySize.toString()};
+const normalizeDataFlow=${normalizeDataFlow.toString()};
+const sortNums=${sortNums.toString()};
+const buildSnakeOrder=${buildSnakeOrder.toString()};
+const buildZOrder=${buildZOrder.toString()};
+const flowDist=${flowDist.toString()};
+const flowBoxGap=${flowBoxGap.toString()};
+const ptX=${ptX.toString()};
+const ptY=${ptY.toString()};
+const segIntersects=${segIntersects.toString()};
+const wouldSelfCross=${wouldSelfCross.toString()};
+const flowCandidateOrder=${flowCandidateOrder.toString()};
+const flowSearchOrder=${flowSearchOrder.toString()};
+const flowPathLength=${flowPathLength.toString()};
+const pathSelfCrosses=${pathSelfCrosses.toString()};
+const flowCrossCount=${flowCrossCount.toString()};
+const flowPathCost=${flowPathCost.toString()};
+const optimizeFlowPathShortest=${optimizeFlowPathShortest.toString()};
+const refineFlowOrder=${refineFlowOrder.toString()};
+const buildSingleRegionPlan=${buildSingleRegionPlan.toString()};
+const normalizeFlowLocks=${normalizeFlowLocks.toString()};
+const getFlowLocksRegion=(r,rid)=>{if(!r||typeof r!=="object")return[];if(!r.flowLocks||typeof r.flowLocks!=="object")r.flowLocks={};const key=String(Math.max(0,Math.round(Number(rid)||0)));const arr=Array.isArray(r.flowLocks[key])?r.flowLocks[key]:[];r.flowLocks[key]=arr;return arr;};
+const applyFlowLocksToOrdered=${applyFlowLocksToOrdered.toString()};
+const getDataFlowGroupsUncached=${getDataFlowGroupsUncached.toString()};
+const planNumberRegionsUncached=${planNumberRegionsUncached.toString()};
+self.onmessage=e=>{
+  const d=e&&e.data?e.data:{};
+  const kind=d.kind;
+  const reqId=d.reqId;
+  const payload=d.payload||{};
+  let ok=true,result=null,timedOut=false,elapsed=0;
+  const started=calcNow();
+  try{
+    const hsSet=new Set(Array.isArray(payload.hs)?payload.hs.map(v=>String(v)):[]);
+    if(kind==="regions"){
+      const budget=makeCalcBudget();
+      result=planNumberRegionsUncached(payload.r,payload.cx,payload.cy,payload.topo,hsSet,budget);
+      timedOut=!!(budget&&budget.timedOut)||!!(result&&result._timedOut);
+    }else if(kind==="flow"){
+      const budget=makeCalcBudget();
+      const reg=payload.regions&&typeof payload.regions==="object"?payload.regions:null;
+      const regions=reg?{nx:reg.nx||1,colToGroup:Array.isArray(reg.colToGroup)?reg.colToGroup:[],rowToGroup:Array.isArray(reg.rowToGroup)?reg.rowToGroup:[],cellToRegion:Array.isArray(reg.cellToRegion)?reg.cellToRegion:[],regionsById:new Map(Object.entries(reg.labels||{}).map(([k,v])=>[Math.max(0,Math.round(Number(k)||0)),{id:Math.max(0,Math.round(Number(k)||0)),label:String(v||"")}]))}:null;
+      result=getDataFlowGroupsUncached(payload.r,payload.cx,payload.cy,payload.topo,hsSet,regions,budget);
+      timedOut=!!(budget&&budget.timedOut);
+    }else{
+      ok=false;
+    }
+  }catch(_e){ok=false;result=null;}
+  elapsed=calcNow()-started;
+  self.postMessage({kind,reqId,ok,result,timedOut,elapsed});
+};
+`;
+const ensureCalcWorker=(kind)=>{
+  if(kind==="regions"){
+    if(regionCalcWorker)return regionCalcWorker;
+    try{
+      const blob=new Blob([calcWorkerScript],{type:"application/javascript"});
+      const url=URL.createObjectURL(blob);
+      regionCalcWorker=new Worker(url);
+    }catch(err){
+      try{console.warn("[calc-worker:regions] create failed",err);}catch(_e){}
+      regionCalcWorker=null;
+      return null;
+    }
+    regionCalcWorker.onmessage=e=>{
+      const d=e&&e.data?e.data:{};
+      if(d.kind!=="regions")return;
+      const req=regionCalcPending.get(d.reqId);
+      if(!req)return;
+      regionCalcPending.delete(d.reqId);
+      if(req.timer)clearTimeout(req.timer);
+      const rr=st.rects.find(it=>it.id===req.rectId);
+      if(!rr)return;
+      const cache=getRectCalcCache(rr);
+      if(!cache.regions||cache.regions.key!==req.key)return;
+      let value=d&&d.ok?d.result:null;
+      let timedOut=!!(d&&d.timedOut)||!value;
+      if((!d||!d.ok)&&rr){
+        try{
+          const budget=makeCalcBudget();
+          budget.deadline=calcNow()+REGION_WORKER_TIMEOUT_MS;
+          value=planNumberRegionsUncached(rr,req.cx,req.cy,req.topo,req.hs,budget);
+          timedOut=!!(budget&&budget.timedOut)||!!(value&&value._timedOut);
+          console.warn("[calc-worker:regions] fallback to main thread");
+        }catch(_e){
+          value=null;
+          timedOut=true;
+          console.warn("[calc-worker:regions] worker/local failed",_e);
+        }
+      }
+      if(timedOut){
+        value=buildSingleRegionPlan(rr,req.cx,req.cy,req.topo,req.hs);
+        try{Object.defineProperty(value,"_timedOut",{value:true,writable:true,configurable:true});}
+        catch(_e){value._timedOut=true;}
+      }
+      if(value&&typeof value==="object"){
+        try{Object.defineProperty(value,"_calcKey",{value:req.key,writable:true,configurable:true});}
+        catch(_e){value._calcKey=req.key;}
+        const p=value&&value._profile;
+        if(p&&typeof p==="object"&&Number(p.totalMs)>500){
+          try{console.info("[regions-profile]",{rectId:req.rectId,key:req.key,...p});}catch(_e){}
+        }
+      }
+      cache.regions.pending=false;
+      cache.regions.value=value;
+      cache.flow=null;
+      markCalcMetric("regions",Math.max(0,Number(d&&d.elapsed)||0),timedOut);
+      if(timedOut){
+        try{console.warn("[regions-timeout] worker returned timedOut",{rectId:req.rectId,key:req.key,elapsed:d&&d.elapsed});}catch(_e){}
+      }
+      render();
+    };
+    regionCalcWorker.onerror=(err)=>{
+      try{console.warn("[calc-worker:regions] worker error",err);}catch(_e){}
+      for(const req of regionCalcPending.values()){
+        if(req.timer)clearTimeout(req.timer);
+        const rr=st.rects.find(it=>it.id===req.rectId);
+        if(!rr)continue;
+        const cache=getRectCalcCache(rr);
+        if(cache.regions&&cache.regions.key===req.key){
+          const value=buildSingleRegionPlan(rr,req.cx,req.cy,req.topo,req.hs);
+          try{Object.defineProperty(value,"_timedOut",{value:true,writable:true,configurable:true});}
+          catch(_e){value._timedOut=true;}
+          cache.regions.pending=false;
+          cache.regions.value=value;
+        }
+      }
+      regionCalcPending.clear();
+      try{regionCalcWorker.terminate()}catch(_e){}
+      regionCalcWorker=null;
+      render();
+    };
+    return regionCalcWorker;
+  }
+  if(flowCalcWorker)return flowCalcWorker;
+  try{
+    const blob=new Blob([calcWorkerScript],{type:"application/javascript"});
+    const url=URL.createObjectURL(blob);
+    flowCalcWorker=new Worker(url);
+  }catch(err){
+    try{console.warn("[calc-worker:flow] create failed",err);}catch(_e){}
+    flowCalcWorker=null;
+    return null;
+  }
+  flowCalcWorker.onmessage=e=>{
+    const d=e&&e.data?e.data:{};
+    if(d.kind!=="flow")return;
+    const req=flowCalcPending.get(d.reqId);
+    if(!req)return;
+    flowCalcPending.delete(d.reqId);
+    const rr=st.rects.find(it=>it.id===req.rectId);
+    if(!rr)return;
+    const cache=getRectCalcCache(rr);
+    if(!cache.flow||cache.flow.key!==req.key)return;
+    let timedOut=!!(d&&d.timedOut)||!Array.isArray(d&&d.result);
+    let value=Array.isArray(d&&d.result)?d.result:null;
+    if((!d||!d.ok)&&rr){
+      try{
+        const budget=makeCalcBudget();
+        budget.deadline=calcNow()+FLOW_WORKER_TIMEOUT_MS;
+        const hs=req.hs||new Set();
+        value=getDataFlowGroupsUncached(rr,req.cx,req.cy,req.topo,hs,req.regions,budget);
+        timedOut=!!(budget&&budget.timedOut)||!Array.isArray(value);
+        console.warn("[calc-worker:flow] fallback to main thread");
+      }catch(_e){
+        value=null;
+        timedOut=true;
+        console.warn("[calc-worker:flow] worker/local failed",_e);
+      }
+    }
+    cache.flow.pending=false;
+    cache.flow.value=timedOut?[]:value;
+    markCalcMetric("flow",Math.max(0,Number(d&&d.elapsed)||0),timedOut);
+    render();
+  };
+  flowCalcWorker.onerror=(err)=>{
+    try{console.warn("[calc-worker:flow] worker error",err);}catch(_e){}
+    for(const req of flowCalcPending.values()){
+      const rr=st.rects.find(it=>it.id===req.rectId);
+      if(!rr)continue;
+      const cache=getRectCalcCache(rr);
+      if(cache.flow&&cache.flow.key===req.key){cache.flow.pending=false;cache.flow.value=[];}
+    }
+    flowCalcPending.clear();
+    try{flowCalcWorker.terminate()}catch(_e){}
+    flowCalcWorker=null;
+    render();
+  };
+  return flowCalcWorker;
+};
+const resetCalcWorkers=()=>{
+  for(const req of regionCalcPending.values())if(req.timer)clearTimeout(req.timer);
+  for(const _req of flowCalcPending.values()){}
+  regionCalcPending.clear();
+  flowCalcPending.clear();
+  if(regionCalcWorker){try{regionCalcWorker.terminate()}catch(_e){}}
+  if(flowCalcWorker){try{flowCalcWorker.terminate()}catch(_e){}}
+  regionCalcWorker=null;
+  flowCalcWorker=null;
+};
+const scheduleRegionCalcWorker=(r,key,cx,cy,topo,hs)=>{
+  const worker=ensureCalcWorker("regions"),reqId=regionCalcReqSeq++,rectId=r.id;
+  if(!worker){
+    const rr=st.rects.find(it=>it.id===rectId);
+    if(!rr)return;
+    const cache=getRectCalcCache(rr);
+    if(!cache.regions||cache.regions.key!==key)return;
+    try{
+      const budget=makeCalcBudget();
+      budget.deadline=calcNow()+REGION_WORKER_TIMEOUT_MS;
+      let value=planNumberRegionsUncached(rr,cx,cy,topo,hs,budget);
+      const timedOut=!!(budget&&budget.timedOut)||!!(value&&value._timedOut);
+      if(timedOut){
+        value=buildSingleRegionPlan(rr,cx,cy,topo,hs);
+        try{Object.defineProperty(value,"_timedOut",{value:true,writable:true,configurable:true});}
+        catch(_e){value._timedOut=true;}
+      }
+      try{Object.defineProperty(value,"_calcKey",{value:key,writable:true,configurable:true});}
+      catch(_e){value._calcKey=key;}
+      cache.regions.pending=false;
+      cache.regions.value=value;
+      cache.flow=null;
+      markCalcMetric("regions",0,timedOut);
+      render();
+    }catch(_e){
+      const value=buildSingleRegionPlan(rr,cx,cy,topo,hs);
+      try{Object.defineProperty(value,"_timedOut",{value:true,writable:true,configurable:true});}
+      catch(__e){value._timedOut=true;}
+      cache.regions.pending=false;
+      cache.regions.value=value;
+      render();
+    }
+    return;
+  }
+  const timer=setTimeout(()=>{
+    const req=regionCalcPending.get(reqId);
+    if(!req)return;
+    regionCalcPending.delete(reqId);
+    const rr=st.rects.find(it=>it.id===rectId);
+    if(!rr)return;
+    const cache=getRectCalcCache(rr);
+    if(!cache.regions||cache.regions.key!==key)return;
+    try{
+      const budget=makeCalcBudget();
+      budget.deadline=calcNow()+REGION_WORKER_TIMEOUT_MS;
+      let value=planNumberRegionsUncached(rr,cx,cy,topo,hs,budget);
+      const timedOut=!!(budget&&budget.timedOut)||!!(value&&value._timedOut);
+      if(timedOut){
+        value=buildSingleRegionPlan(rr,cx,cy,topo,hs);
+        try{Object.defineProperty(value,"_timedOut",{value:true,writable:true,configurable:true});}
+        catch(_e){value._timedOut=true;}
+      }
+      try{Object.defineProperty(value,"_calcKey",{value:key,writable:true,configurable:true});}
+      catch(_e){value._calcKey=key;}
+      cache.regions.pending=false;
+      cache.regions.value=value;
+      cache.flow=null;
+      markCalcMetric("regions",REGION_WORKER_TIMEOUT_MS,true);
+      try{console.warn("[regions-watchdog] fallback to local",{rectId,key});}catch(_e){}
+      render();
+    }catch(_e){
+      const value=buildSingleRegionPlan(rr,cx,cy,topo,hs);
+      try{Object.defineProperty(value,"_timedOut",{value:true,writable:true,configurable:true});}
+      catch(__e){value._timedOut=true;}
+      cache.regions.pending=false;
+      cache.regions.value=value;
+      cache.flow=null;
+      try{console.warn("[regions-watchdog] local failed",{rectId,key,error:_e&&_e.message||String(_e)});}catch(__e){}
+      render();
+    }
+  },REGION_WORKER_TIMEOUT_MS+5000);
+  regionCalcPending.set(reqId,{rectId,key,cx,cy,topo,hs,timer});
+  try{console.info("[regions-worker] scheduled",{rectId,key});}catch(_e){}
+  const rPayload={id:r&&r.id||0,width:r&&r.width||0,height:r&&r.height||0,widthM:r&&r.widthM||0,heightM:r&&r.heightM||0,scale:r&&r.scale||256,areaM2Px:r&&r.areaM2Px||65536,splitVariant:r&&r.splitVariant||0,cellLinks:Array.isArray(r&&r.cellLinks)?r.cellLinks:[]};
+  worker.postMessage({kind:"regions",reqId,payload:{r:rPayload,cx,cy,topo,hs:[...(hs&&typeof hs.forEach==="function"?hs:new Set())]}});
+};
+const scheduleFlowCalcWorker=(r,key,cx,cy,topo,hs,regions)=>{
+  const worker=ensureCalcWorker("flow"),reqId=flowCalcReqSeq++,rectId=r.id;
+  if(!worker){
+    const rr=st.rects.find(it=>it.id===rectId);
+    if(!rr)return;
+    const cache=getRectCalcCache(rr);
+    if(!cache.flow||cache.flow.key!==key)return;
+    try{
+      const budget=makeCalcBudget();
+      budget.deadline=calcNow()+FLOW_WORKER_TIMEOUT_MS;
+      const value=getDataFlowGroupsUncached(rr,cx,cy,topo,hs,regions,budget);
+      const timedOut=!!(budget&&budget.timedOut)||!Array.isArray(value);
+      cache.flow.pending=false;
+      cache.flow.value=timedOut?[]:value;
+      markCalcMetric("flow",0,timedOut);
+      render();
+    }catch(_e){
+      cache.flow.pending=false;
+      cache.flow.value=[];
+      render();
+    }
+    return;
+  }
+  flowCalcPending.set(reqId,{rectId,key,cx,cy,topo,hs,regions});
+  const rPayload={id:r&&r.id||0,width:r&&r.width||0,height:r&&r.height||0,dataFlow:r&&r.dataFlow||"none",dataFlowZ:!!(r&&r.dataFlowZ),flowLocks:normalizeFlowLocks(r&&r.flowLocks)};
+  const regionsPayload=regions?{nx:regions.nx||1,colToGroup:Array.isArray(regions.colToGroup)?regions.colToGroup:[],rowToGroup:Array.isArray(regions.rowToGroup)?regions.rowToGroup:[],cellToRegion:Array.isArray(regions.cellToRegion)?regions.cellToRegion:[],labels:Array.isArray(regions.regions)?Object.fromEntries(regions.regions.map(it=>[String(it.id),String(it.label||toLetters(it.id))])):{}}:null;
+  worker.postMessage({kind:"flow",reqId,payload:{r:rPayload,cx,cy,topo,hs:[...(hs&&typeof hs.forEach==="function"?hs:new Set())],regions:regionsPayload}});
 };
 const planNumberRegions=(r,cx,cy,topo,hs)=>{
   const cache=getRectCalcCache(r);
   const key=regionCalcKey(r,cx,cy,topo);
   if(cache.regions&&cache.regions.key===key)return cache.regions.value;
-  const budget=makeCalcBudget();
-  const started=calcNow();
-  let value=planNumberRegionsUncached(r,cx,cy,topo,hs,budget);
-  const elapsed=calcNow()-started;
-  const timedOut=!!(budget&&budget.timedOut)||!!(value&&value._timedOut);
-  if(timedOut){
-    value=buildSingleRegionPlan(r,cx,cy,topo,hs);
-    try{Object.defineProperty(value,"_timedOut",{value:true,writable:true,configurable:true});}
-    catch(_e){value._timedOut=true;}
-  }
-  markCalcMetric("regions",elapsed,timedOut);
-  if(value&&typeof value==="object"){
-    try{Object.defineProperty(value,"_calcKey",{value:key,writable:true,configurable:true});}
-    catch(_e){value._calcKey=key;}
-  }
-  cache.regions={key,value};
+  const value=buildSingleRegionPlan(r,cx,cy,topo,hs);
+  try{Object.defineProperty(value,"_calcKey",{value:key,writable:true,configurable:true});}
+  catch(_e){value._calcKey=key;}
+  cache.regions={key,value,pending:true};
   if(cache.flow&&cache.flow.regionKey!==key)cache.flow=null;
+  scheduleRegionCalcWorker(r,key,cx,cy,topo,hs);
   return value;
 };
 const getDataFlowGroups=(r,cx,cy,topo,hs,regions)=>{
@@ -2315,18 +2681,16 @@ const getDataFlowGroups=(r,cx,cy,topo,hs,regions)=>{
     return[];
   }
   const cache=getRectCalcCache(r);
+  const regionKey=(regions&&regions._calcKey)||"";
+  if(cache.regions&&cache.regions.key===regionKey&&cache.regions.pending){
+    if(cache.flow&&cache.flow.key===flowCalcKey(r,cx,cy,topo,regions))return cache.flow.value;
+    return [];
+  }
   const key=flowCalcKey(r,cx,cy,topo,regions);
   if(cache.flow&&cache.flow.key===key)return cache.flow.value;
-  const budget=makeCalcBudget();
-  const started=calcNow();
-  let value=getDataFlowGroupsUncached(r,cx,cy,topo,hs,regions,budget);
-  const elapsed=calcNow()-started;
-  const timedOut=!!(budget&&budget.timedOut);
-  if(timedOut)value=[];
-  markCalcMetric("flow",elapsed,timedOut);
-  const regionKey=(regions&&regions._calcKey)||"";
-  cache.flow={key,regionKey,value};
-  return value;
+  cache.flow={key,regionKey,value:[],pending:true};
+  scheduleFlowCalcWorker(r,key,cx,cy,topo,hs,regions);
+  return[];
 };
 const metricFromPx=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.width=Math.max(1,Math.round(+r.width||1));r.height=Math.max(1,Math.round(+r.height||1));r.widthM=Math.max(0.001,mRound(r.width/r.scale));r.heightM=Math.max(0.001,mRound(r.height/r.scale));};
 const pxFromMetric=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.widthM=Math.max(0.001,+r.widthM||0.001);r.heightM=Math.max(0.001,+r.heightM||0.001);r.width=Math.max(1,Math.round(r.widthM*r.scale));r.height=Math.max(1,Math.round(r.heightM*r.scale));};
@@ -2540,7 +2904,7 @@ const ensureFontReady=async()=>{
   try{ await document.fonts.ready; }catch(_e){}
   st.fontReady=true;
 };
-function applyProjectData(d,opts){const o=(opts&&typeof opts==="object")?opts:{},syncTabSnapshot=o.syncTabSnapshot!==false,renderTabs=o.renderTabs!==false,doRender=o.render!==false;const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=Math.max(1,evalExpr(d&&d.settings?d.settings.areaM2Px:null,65536));st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:Math.max(1,evalExpr(r.areaM2Px,legacyAreaM2)),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(SPLIT_VARIANT_MAX,Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells),flowLocks:normalizeFlowLocks(r.flowLocks)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);restorePersistedRectCache(it,r&&r.projectCache);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.regionsHighlight=!!d.settings.regionsHighlight;}else st.regionsHighlight=false;st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.saveLocationId=setGlobalSaveLocationId((d&&d.saveLocationId)||getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.maskPath=[];st.maskHover=null;updateRegionsToggleUi();selRect(st.rects[0]?st.rects[0].id:null);if(syncTabSnapshot)syncActiveTabSnapshot();if(renderTabs)renderProjectTabs();if(doRender)render();}
+function applyProjectData(d,opts){resetCalcWorkers();const o=(opts&&typeof opts==="object")?opts:{},syncTabSnapshot=o.syncTabSnapshot!==false,renderTabs=o.renderTabs!==false,doRender=o.render!==false;const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=Math.max(1,evalExpr(d&&d.settings?d.settings.areaM2Px:null,65536));st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:Math.max(1,evalExpr(r.areaM2Px,legacyAreaM2)),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(SPLIT_VARIANT_MAX,Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells),flowLocks:normalizeFlowLocks(r.flowLocks)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);restorePersistedRectCache(it,r&&r.projectCache);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.regionsHighlight=!!d.settings.regionsHighlight;}else st.regionsHighlight=false;st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.saveLocationId=setGlobalSaveLocationId((d&&d.saveLocationId)||getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.maskPath=[];st.maskHover=null;updateRegionsToggleUi();selRect(st.rects[0]?st.rects[0].id:null);if(syncTabSnapshot)syncActiveTabSnapshot();if(renderTabs)renderProjectTabs();if(doRender)render();}
 function restoreAutoSave(){
   try{
     const rawTabs=localStorage.getItem(TABS_SAVE_KEY);
