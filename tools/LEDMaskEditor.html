@@ -1529,6 +1529,14 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
   const variantRegionSoftCap=Math.max(4,targetRegionCount+8);
   let visibleCompCount=0;
   for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible)visibleCompCount++;
+  const clusterModes=[{sx:2,sy:2,name:"2x2"},{sx:2,sy:1,name:"2x1"},{sx:1,sy:2,name:"1x2"},{sx:1,sy:1,name:"1x1"}];
+  const buildBounds=(n,step)=>{
+    const s=Math.max(1,Math.round(step)||1),out=[0];
+    for(let i=s;i<n;i+=s)out.push(i);
+    if(out[out.length-1]!==n)out.push(n);
+    return out;
+  };
+  const uniqueSortedNums=arr=>[...new Set(arr)].sort((a,b)=>a-b);
   calcProfile.scanMs=Math.max(0,calcNow()-calcStartedAt);
   calcProfile.targetRegionCount=targetRegionCount;
   calcProfile.visibleCompCount=visibleCompCount;
@@ -1645,20 +1653,33 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
         best={c0,c1,r0,r1,score,inside:stats.inside};
       }
     };
-    for(let c0=0;c0<cols;c0++)for(let c1=c0+1;c1<=cols;c1++){
-      if(checkCalcTimeout(budget))return singleRegionFallback();
-      const w=colPref[c1]-colPref[c0];
-      if(w<=0)continue;
-      if(w>maxAreaPx+AREA_LIMIT_EPS)continue;
-      const maxH=maxAreaPx/Math.max(1e-9,w);
-      for(let r0=0;r0<rows;r0++){
-        const r1Max=maxR1ByHeight(r0,maxH);
-        for(let r1=r0+1;r1<=r1Max;r1++){
+    let usedCluster="1x1";
+    for(const mode of clusterModes){
+      const cBase=buildBounds(cols,mode.sx),rBase=buildBounds(rows,mode.sy);
+      const cCandidates=uniqueSortedNums(cBase.concat(compBounds.filter(b=>b.hasVisible).flatMap(b=>[b.vc0,b.vc1]))).filter(v=>v>=0&&v<=cols);
+      const rCandidates=uniqueSortedNums(rBase.concat(compBounds.filter(b=>b.hasVisible).flatMap(b=>[b.vr0,b.vr1]))).filter(v=>v>=0&&v<=rows);
+      const prevBest=best;
+      for(let ci=0;ci<cCandidates.length;ci++){
+        const c0=cCandidates[ci];
+        for(let cj=ci+1;cj<cCandidates.length;cj++){
           if(checkCalcTimeout(budget))return singleRegionFallback();
-          considerRect(c0,c1,r0,r1);
+          const c1=cCandidates[cj],w=colPref[c1]-colPref[c0];
+          if(w<=0||w>maxAreaPx+AREA_LIMIT_EPS)continue;
+          const maxH=maxAreaPx/Math.max(1e-9,w);
+          for(let ri=0;ri<rCandidates.length;ri++){
+            const r0=rCandidates[ri],r1Max=Math.min(rows,maxR1ByHeight(r0,maxH));
+            for(let rj=ri+1;rj<rCandidates.length;rj++){
+              const r1=rCandidates[rj];
+              if(r1>r1Max)break;
+              if(checkCalcTimeout(budget))return singleRegionFallback();
+              considerRect(c0,c1,r0,r1);
+            }
+          }
         }
       }
+      if(best&&best!==prevBest){usedCluster=mode.name;break;}
     }
+    calcProfile.clusterMode=usedCluster;
     if(best==null){
       for(let id=0;id<compBounds.length;id++){
         if(checkCalcTimeout(budget))return singleRegionFallback();
@@ -2269,27 +2290,76 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
     const sa=regionScore(a),sb=regionScore(b);
     return (sa.count-sb.count)||(sa.bad-sb.bad)||(sa.shape-sb.shape);
   });
-  const optimalCount=Math.max(1,regionScore(optimized).count);
-  const maxAllowedCount=optimalCount+1;
-  const ranked=variants
+  const optimalRegionCount=Math.max(1,targetRegionCount);
+  const maxAllowedCount=optimalRegionCount+1;
+  const flowMode=normalizeDataFlow(r&&r.dataFlow);
+  const flowLenCache=new Map();
+  const flowPathLenByGroups=groups=>{
+    let sum=0;
+    for(const g of groups||[]){
+      const pts=Array.isArray(g&&g.points)?g.points:[];
+      for(let i=1;i<pts.length;i++)sum+=flowDist(pts[i-1],pts[i]);
+    }
+    return sum;
+  };
+  const buildFlowRegionsModel=regs=>{
+    const list=regs.map((z,idx)=>({id:idx,label:toLetters(idx),c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,compSet:Array.isArray(z.compSet)?[...z.compSet]:null}));
+    const byId=new Map();for(const rg of list)byId.set(rg.id,rg);
+    const colToGroup=new Array(cols).fill(0),rowToGroup=new Array(rows).fill(0),cellToRegion=new Array(rows*cols).fill(-1);
+    for(const rg of list){
+      for(let x=rg.c0;x<rg.c1;x++)colToGroup[x]=rg.id;
+      for(let y=rg.r0;y<rg.r1;y++)rowToGroup[y]=rg.id;
+      if(Array.isArray(rg.compSet)&&rg.compSet.length){
+        const s=new Set(rg.compSet);
+        for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+          if(!visible[y][x])continue;
+          const cid=((compIds[cellKey(x,y)]|0)>=0?(compIds[cellKey(x,y)]|0):0);
+          if(s.has(cid))cellToRegion[cellKey(x,y)]=rg.id;
+        }
+      }else{
+        for(let y=rg.r0;y<rg.r1;y++)for(let x=rg.c0;x<rg.c1;x++){
+          const cid=((compIds[cellKey(x,y)]|0)>=0?(compIds[cellKey(x,y)]|0):0),b=compBounds[cid];
+          if(b.vc0>=rg.c0&&b.vc1<=rg.c1&&b.vr0>=rg.r0&&b.vr1<=rg.r1&&visible[y][x])cellToRegion[cellKey(x,y)]=rg.id;
+        }
+      }
+    }
+    return{nx:Math.max(1,list.length),colToGroup,rowToGroup,cellToRegion,regionsById:byId,regions:list};
+  };
+  const variantFlowLen=regs=>{
+    if(flowMode==="none")return 0;
+    const sig=regionSig(regs);
+    if(flowLenCache.has(sig))return flowLenCache.get(sig);
+    let len=Number.POSITIVE_INFINITY;
+    try{
+      const regionModel=buildFlowRegionsModel(regs);
+      const groups=getDataFlowGroupsUncached(r,cx,cy,topo,hset,regionModel,budget);
+      len=flowPathLenByGroups(groups);
+      if(!Number.isFinite(len))len=Number.POSITIVE_INFINITY;
+    }catch(_e){len=Number.POSITIVE_INFINITY;}
+    flowLenCache.set(sig,len);
+    return len;
+  };
+  const rankedAll=variants
     .map(v=>{
       const score=regionScore(v),sig=regionSig(v);
-      return{v,sig,score,delta:Math.abs(score.count-optimalCount),isEqual:equalVariantSigs.has(sig)};
-    })
-    .filter(it=>it.score.count<=maxAllowedCount);
+      return{v,sig,score,delta:Math.abs(score.count-optimalRegionCount),flowLen:variantFlowLen(v),isEqual:equalVariantSigs.has(sig)};
+    });
   const ordered=[];
-  ranked.sort((a,b)=>(a.delta-b.delta)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
-  if(ranked.length){
-    ordered.push(ranked[0].v);
-    ranked.splice(0,1);
+  rankedAll.sort((a,b)=>(a.delta-b.delta)||(a.flowLen-b.flowLen)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
+  if(rankedAll.length){
+    ordered.push(rankedAll[0].v);
+    calcProfile.bestVariantDelta=rankedAll[0].delta;
+    calcProfile.bestVariantFlowLen=rankedAll[0].flowLen;
+    calcProfile.bestVariantRegionCount=rankedAll[0].score.count;
   }
+  const ranked=rankedAll.slice(1).filter(it=>it.score.count<=maxAllowedCount);
   for(let i=0;i<ranked.length;i++){
     if(!ranked[i].isEqual)continue;
     ordered.push(ranked[i].v);
     ranked.splice(i,1);
     i--;
   }
-  ranked.sort((a,b)=>(a.delta-b.delta)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
+  ranked.sort((a,b)=>(a.delta-b.delta)||(a.flowLen-b.flowLen)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
   for(const it of ranked)ordered.push(it.v);
   const limited=ordered.slice(0,SPLIT_VARIANT_MAX+1);
   calcProfile.variantsMs=Math.max(0,calcNow()-variantsStartedAt);
