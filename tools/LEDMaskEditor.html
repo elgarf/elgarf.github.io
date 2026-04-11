@@ -326,6 +326,7 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
       <div class="help-item"><i class="fa-solid fa-square-plus"></i><div><b>+ Маска (скрыть)</b><span>Клики по узлам сетки. Замкните контур для скрытия области.</span></div></div>
       <div class="help-item"><i class="fa-solid fa-square-minus"></i><div><b>- Маска (показать)</b><span>Возвращает ранее скрытые области по замкнутому контуру.</span></div></div>
       <div class="help-item"><i class="fa-solid fa-link"></i><div><b>Объединение/деление кабинетов</b><span>Клик по общей границе кабинетов включает или выключает склейку.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-route"></i><div><b>Правка потока</b><span>Перетащите точку потока в пределах региона. Стартовую точку можно перенести, направление задаётся стрелками рядом со стартом, двойной клик по старту сбрасывает правки региона.</span></div></div>
       <div class="help-item"><i class="fa-solid fa-border-all"></i><div><b>Подсветка областей</b><span>Переключатель: показывает зоны подэкранов сразу на всех экранах в дизайнере.</span></div></div>
       <div class="help-item"><i class="fa-regular fa-clone"></i><div><b>Копировать</b><span>Создаёт копию выбранного экрана со смещением.</span></div></div>
       <div class="help-item"><i class="fa-regular fa-clone fa-flip-horizontal"></i><div><b>Копировать и отразить</b><span>Создаёт копию с отражением масок и связей клеток по вертикали.</span></div></div>
@@ -3803,14 +3804,115 @@ const insertCloneAboveSource=(sourceId,clone)=>{
   if(idx>=0)st.rects.splice(idx,0,clone);
   else st.rects.unshift(clone);
 };
-function dupSel(){const r=cur();if(!r)return;const c={...r,id:st.next++,name:`${r.name} copy`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[]};insertCloneAboveSource(r.id,c);selRect(c.id);schedulePersist("project")}
+function dupSel(){const r=cur();if(!r)return;const c={...r,id:st.next++,name:`${r.name} copy`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[],flowLocks:normalizeFlowLocks(r&&r.flowLocks)};insertCloneAboveSource(r.id,c);selRect(c.id);setMode("select");schedulePersist("project")}
 function dupMirrorSel(){const r=cur();if(!r)return;const cx=drawCellX(r),cy=drawCellY(r),cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy));const mapIndex=i=>{const x=i%cols,y=Math.floor(i/cols);if(!(x>=0&&x<cols&&y>=0&&y<rows))return -1;const nx=(cols-1)-x;return y*cols+nx};
 const hiddenSrc=Array.isArray(r.hiddenCells)?r.hiddenCells:[],hiddenSet=new Set();
 for(const k of hiddenSrc){const p=String(k).split(",");if(p.length!==2)continue;const ix=+p[0],iy=+p[1];if(!(ix>=0&&ix<cols&&iy>=0&&iy<rows))continue;hiddenSet.add(`${(cols-1)-ix},${iy}`)}
 const linkSrc=Array.isArray(r.cellLinks)?r.cellLinks:[],linkSet=new Set();
 for(const k of linkSrc){const p=parseLinkKey(k);if(!p)continue;const a2=mapIndex(p.a),b2=mapIndex(p.b);if(a2<0||b2<0||a2===b2)continue;linkSet.add(mkLinkKey(a2,b2))}
-const c={...r,id:st.next++,name:`${r.name} mirror`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,cellLinks:[...linkSet],hiddenCells:[...hiddenSet]};
-insertCloneAboveSource(r.id,c);selRect(c.id);schedulePersist("project")}
+const mirrorDir=d=>{const s=String(d||"").toLowerCase();if(s==="left")return"right";if(s==="right")return"left";return s;};
+const mirrorMode=m=>{const s=String(m||"");if(s==="h_bl_lr")return"h_br_rl";if(s==="h_br_rl")return"h_bl_lr";if(s==="h_tl_lr")return"h_tr_rl";if(s==="h_tr_rl")return"h_tl_lr";if(s==="v_lb_bu")return"v_rb_bu";if(s==="v_rb_bu")return"v_lb_bu";if(s==="v_lt_td")return"v_rt_td";if(s==="v_rt_td")return"v_lt_td";return s;};
+const topoOld=getCellTopology(r,cx,cy);
+const mirrorProbe={...r,cellLinks:[...linkSet],hiddenCells:[...hiddenSet]};
+const topoNew=getCellTopology(mirrorProbe,cx,cy);
+const cidMap=new Map();
+if(topoOld&&topoNew&&Array.isArray(topoOld.seed)&&Array.isArray(topoNew.comp)){
+  for(let oldCid=0;oldCid<topoOld.seed.length;oldCid++){
+    const seed=topoOld.seed[oldCid];
+    if(!seed)continue;
+    const oldIdx=Math.max(0,Math.min(cols-1,Math.round(Number(seed.col)||0)))+Math.max(0,Math.min(rows-1,Math.round(Number(seed.row)||0)))*cols;
+    const newIdx=mapIndex(oldIdx);
+    if(newIdx<0||newIdx>=topoNew.comp.length)continue;
+    const newCid=Math.max(0,Math.round(Number(topoNew.comp[newIdx])||0));
+    cidMap.set(oldCid,newCid);
+  }
+}
+let mirroredSplitVariant=Math.max(0,Math.round(Number(r&&r.splitVariant)||0));
+let bestPlanRegs=[];
+const regionRidMap=new Map();
+try{
+  const hsOld=getHiddenSet(r),oldBudget=makeCalcBudget();oldBudget.deadline=calcNow()+350;
+  const oldPlan=planNumberRegionsUncached(r,cx,cy,topoOld,hsOld,oldBudget);
+  const oldRegs=Array.isArray(oldPlan&&oldPlan.regions)?oldPlan.regions:[];
+  if(oldRegs.length){
+    const mirroredTargets=oldRegs.map(z=>({srcRid:Math.max(0,Math.round(Number(z&&z.id)||0)),c0:Math.max(0,cols-Math.max(0,Math.round(Number(z&&z.c1)||0))),c1:Math.max(0,cols-Math.max(0,Math.round(Number(z&&z.c0)||0))),r0:Math.max(0,Math.round(Number(z&&z.r0)||0)),r1:Math.max(0,Math.round(Number(z&&z.r1)||0))}));
+    const targetSig=mirroredTargets.map(z=>`${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
+    const rectMatchScore=(cand,target)=>{
+      const cc0=Math.max(0,Math.round(Number(cand&&cand.c0)||0)),cc1=Math.max(cc0+1,Math.round(Number(cand&&cand.c1)||0)),cr0=Math.max(0,Math.round(Number(cand&&cand.r0)||0)),cr1=Math.max(cr0+1,Math.round(Number(cand&&cand.r1)||0));
+      const tc0=target.c0,tc1=target.c1,tr0=target.r0,tr1=target.r1;
+      const dEdges=Math.abs(cc0-tc0)+Math.abs(cc1-tc1)+Math.abs(cr0-tr0)+Math.abs(cr1-tr1);
+      const cw=Math.max(1,cc1-cc0),ch=Math.max(1,cr1-cr0),tw=Math.max(1,tc1-tc0),th=Math.max(1,tr1-tr0);
+      const dSize=Math.abs(cw-tw)+Math.abs(ch-th);
+      return dEdges*10+dSize;
+    };
+    const scorePlan=regs=>{
+      const list=Array.isArray(regs)?regs:[];
+      if(!list.length)return 1e12;
+      const sig=list.map(z=>`${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
+      if(sig===targetSig)return -1e9;
+      const used=new Set();
+      let score=Math.abs(list.length-mirroredTargets.length)*1e6;
+      for(const t of mirroredTargets){
+        let best=1e9,bestIdx=-1;
+        for(let i=0;i<list.length;i++){
+          if(used.has(i))continue;
+          const s=rectMatchScore(list[i],t);
+          if(s<best){best=s;bestIdx=i;}
+        }
+        if(bestIdx>=0){used.add(bestIdx);score+=best;}
+        else score+=1e5;
+      }
+      return score;
+    };
+    const baseProbe={...r,cellLinks:[...linkSet],hiddenCells:[...hiddenSet],splitVariant:0};
+    let bestScore=1e12,bestVariant=mirroredSplitVariant,maxVar=Math.max(1,Math.min(SPLIT_VARIANT_MAX,25));
+    for(let sv=0;sv<maxVar;sv++){
+      baseProbe.splitVariant=sv;
+      const budget=makeCalcBudget();budget.deadline=calcNow()+300;
+      const plan=planNumberRegionsUncached(baseProbe,cx,cy,topoNew,getHiddenSet(baseProbe),budget);
+      if(sv===0){
+        const vc=Math.max(1,Math.round(Number(plan&&plan.variantCount)||1));
+        maxVar=Math.max(1,Math.min(SPLIT_VARIANT_MAX,vc));
+      }
+      const s=scorePlan(plan&&plan.regions);
+      if(s<bestScore){bestScore=s;bestVariant=sv;bestPlanRegs=Array.isArray(plan&&plan.regions)?plan.regions.map(it=>({...it})):[];}
+      if(bestScore<=-1e8)break;
+    }
+    mirroredSplitVariant=Math.max(0,Math.round(bestVariant||0));
+    if(bestPlanRegs.length){
+      const used=new Set();
+      for(const t of mirroredTargets){
+        let best=1e9,bestIdx=-1;
+        for(let i=0;i<bestPlanRegs.length;i++){
+          if(used.has(i))continue;
+          const s=rectMatchScore(bestPlanRegs[i],t);
+          if(s<best){best=s;bestIdx=i;}
+        }
+        if(bestIdx>=0){
+          used.add(bestIdx);
+          const dstRid=Math.max(0,Math.round(Number(bestPlanRegs[bestIdx]&&bestPlanRegs[bestIdx].id)||bestIdx));
+          regionRidMap.set(Math.max(0,Math.round(Number(t&&t.srcRid)||0)),dstRid);
+        }
+      }
+    }
+  }
+}catch(_e){}
+const srcFlowLocks=normalizeFlowLocks(r&&r.flowLocks),mirFlowLocks={};
+for(const [rk,cfg] of Object.entries(srcFlowLocks||{})){
+  const srcRid=Math.max(0,Math.round(Number(rk)||0));
+  const dstRid=regionRidMap.has(srcRid)?regionRidMap.get(srcRid):srcRid;
+  const locks=Array.isArray(cfg&&cfg.locks)?cfg.locks:[];
+  const mappedLocks=[];
+  for(const it of locks){
+    const idx=Math.max(0,Math.round(Number(it&&it.index)||0)),cidOld=Math.max(0,Math.round(Number(it&&it.cid)||0)),cidNew=(cidMap.has(cidOld)?cidMap.get(cidOld):cidOld);
+    mappedLocks.push({index:idx,cid:cidNew});
+  }
+  const startOld=(cfg&&cfg.startCid!=null)?Math.max(0,Math.round(Number(cfg.startCid)||0)):null;
+  const startNew=(startOld!=null?(cidMap.has(startOld)?cidMap.get(startOld):startOld):null);
+  mirFlowLocks[String(dstRid)]={locks:mappedLocks,startCid:startNew,startDir:mirrorDir(cfg&&cfg.startDir||""),mode:mirrorMode(cfg&&cfg.mode||""),startPinned:!!(cfg&&cfg.startPinned)};
+}
+const c={...r,id:st.next++,name:`${r.name} mirror`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,splitVariant:mirroredSplitVariant,cellLinks:[...linkSet],hiddenCells:[...hiddenSet],flowLocks:mirFlowLocks};
+insertCloneAboveSource(r.id,c);selRect(c.id);setMode("select");schedulePersist("project")}
 function fit(){if(!st.rects.length){st.camX=0;st.camY=0;st.zoom=1;render();return}let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABBMasked(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
 const vm=getViewMetrics(),w=Math.max(1,maxX-minX),h=Math.max(1,maxY-minY),pad=80;st.zoom=zc(Math.min((vm.viewWidth-pad)/w,(vm.viewHeight-pad)/h));st.camX=(minX+maxX)/2;st.camY=(minY+maxY)/2;render()}
 const updateRectTextSizeLabel=r=>{
@@ -4234,7 +4336,7 @@ if(el.side){
   el.side.addEventListener("shown.bs.offcanvas",scheduleCanvasResize);
   el.side.addEventListener("hidden.bs.offcanvas",scheduleCanvasResize);
 }
-window.addEventListener("keydown",e=>{if(e.key===" ")st.keys.space=true;if(e.key==="Control")st.keys.ctrl=true;if(e.key==="Escape"){if(el.helpModal&&el.helpModal.classList.contains("show")){closeHelpModal();e.preventDefault();return}setMode("select");e.preventDefault();return}if(isMaskMode()&&e.key==="Enter"){applyMaskPath();e.preventDefault();return}if(e.key==="Delete"){delSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="d"){dupSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="c"){const r=cur();if(r)st.clip={...r,autoContrastB:r.autoContrastB!==false,rotation:r.rotation||0,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[]};e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="v"){if(st.clip){const c={...st.clip,id:st.next++,name:`${st.clip.name} copy`,x:st.clip.x+20,y:st.clip.y+20,rotation:st.clip.rotation||0,autoContrastB:st.clip.autoContrastB!==false,colorB:(st.clip.autoContrastB!==false)?autoContrast(st.clip.colorA):st.clip.colorB,cellLinks:Array.isArray(st.clip.cellLinks)?[...st.clip.cellLinks]:[],hiddenCells:Array.isArray(st.clip.hiddenCells)?[...st.clip.hiddenCells]:[]};insertCloneAboveSource(st.clip.id,c);selRect(c.id);schedulePersist("project")}e.preventDefault()}
+window.addEventListener("keydown",e=>{if(e.key===" ")st.keys.space=true;if(e.key==="Control")st.keys.ctrl=true;if(e.key==="Escape"){if(el.helpModal&&el.helpModal.classList.contains("show")){closeHelpModal();e.preventDefault();return}setMode("select");e.preventDefault();return}if(isMaskMode()&&e.key==="Enter"){applyMaskPath();e.preventDefault();return}if(e.key==="Delete"){delSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="d"){dupSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="c"){const r=cur();if(r)st.clip={...r,autoContrastB:r.autoContrastB!==false,rotation:r.rotation||0,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[]};e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="v"){if(st.clip){const c={...st.clip,id:st.next++,name:`${st.clip.name} copy`,x:st.clip.x+20,y:st.clip.y+20,rotation:st.clip.rotation||0,autoContrastB:st.clip.autoContrastB!==false,colorB:(st.clip.autoContrastB!==false)?autoContrast(st.clip.colorA):st.clip.colorB,cellLinks:Array.isArray(st.clip.cellLinks)?[...st.clip.cellLinks]:[],hiddenCells:Array.isArray(st.clip.hiddenCells)?[...st.clip.hiddenCells]:[]};insertCloneAboveSource(st.clip.id,c);selRect(c.id);setMode("select");schedulePersist("project")}e.preventDefault()}
 const r=cur();if(r){const s=e.shiftKey?10:1;let m=false;if(e.key==="ArrowLeft"){r.x-=s;m=true}else if(e.key==="ArrowRight"){r.x+=s;m=true}else if(e.key==="ArrowUp"){r.y-=s;m=true}else if(e.key==="ArrowDown"){r.y+=s;m=true}if(m){syncProps();listRects();schedulePersist("project");render();e.preventDefault()}}});
 window.addEventListener("keyup",e=>{if(e.key===" ")st.keys.space=false;if(e.key==="Control"){st.keys.ctrl=false;st.g.x=null;st.g.y=null;st.dg=null;render()}});
 setMode(st.mode);
