@@ -281,7 +281,7 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   </div>
 </div>
 <div class="field"><div class="form-check"><input id="propNumberCells" class="form-check-input" type="checkbox"><label class="form-check-label" for="propNumberCells">Нумеровать кабинеты</label></div></div>
-<div class="field"><label for="propSplitVariant">Вариант разделения по сигналам</label><div class="range-row"><input id="propSplitVariant" type="range" min="0" max="24" step="1" value="0"><div id="propSplitVariantLabel" class="hint range-value">0</div></div></div>
+<div class="field"><label for="propSplitVariant">Вариант разделения по сигналам</label><div class="input-group input-group-sm"><button id="propSplitVariantDec" class="btn btn-outline-secondary" type="button" aria-label="Предыдущий вариант">-</button><input id="propSplitVariant" class="form-control text-center" type="number" min="0" max="24" step="1" value="0" readonly inputmode="none"><button id="propSplitVariantInc" class="btn btn-outline-secondary" type="button" aria-label="Следующий вариант">+</button></div></div>
 <div class="field"><button id="btnClearMasks" type="button" style="width:100%">Удалить все маски</button></div>
 <div class="field"><button id="btnResetFlowLocks" type="button" style="width:100%">Сброс правки потока</button></div>
 <div class="rect-list" id="rectList"></div></aside></div></div>
@@ -378,7 +378,7 @@ const ensureMobileDock=()=>{
   if(dock.parentElement!==host)host.appendChild(dock);
 };
 ensureMobileDock();
-const el={projectTabs:$("projectTabs"),projectTabsList:$("projectTabsList"),projectTabAdd:$("projectTabAdd"),toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),saveIndicator:$("saveIndicator"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolFlowEdit:$("mToolFlowEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolFlowEdit:$("toolFlowEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),exp:$("exportPng"),expFlow:$("exportPngFlow"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),dataFlow:$("propDataFlow"),dataFlowZ:$("propDataFlowZ"),numCells:$("propNumberCells"),splitVariant:$("propSplitVariant"),splitVariantLabel:$("propSplitVariantLabel"),btnClearMasks:$("btnClearMasks"),btnResetFlowLocks:$("btnResetFlowLocks"),list:$("rectList")};
+const el={projectTabs:$("projectTabs"),projectTabsList:$("projectTabsList"),projectTabAdd:$("projectTabAdd"),toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),saveIndicator:$("saveIndicator"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolFlowEdit:$("mToolFlowEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolFlowEdit:$("toolFlowEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),exp:$("exportPng"),expFlow:$("exportPngFlow"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),dataFlow:$("propDataFlow"),dataFlowZ:$("propDataFlowZ"),numCells:$("propNumberCells"),splitVariant:$("propSplitVariant"),splitVariantDec:$("propSplitVariantDec"),splitVariantInc:$("propSplitVariantInc"),splitVariantLabel:$("propSplitVariantLabel"),btnClearMasks:$("btnClearMasks"),btnResetFlowLocks:$("btnResetFlowLocks"),list:$("rectList")};
 const desktopToolButtons=[el.toolSelect,el.toolDraw,el.toolMaskAdd,el.toolMaskSub,el.toolCellEdit,el.toolFlowEdit].filter(Boolean);
 const mobileToolButtons=[el.mToolSelect,el.mToolDraw,el.mToolMaskAdd,el.mToolMaskSub,el.mToolCellEdit,el.mToolFlowEdit].filter(Boolean);
 const overflowButtonIds=["toolSelect","toolDraw","toolMaskAdd","toolMaskSub","toolCellEdit","toolFlowEdit","toolRegions","btnCopy","btnCopyMirror","btnDelete","zoomOut","zoomIn","zoomReset","zoomFit","newProject","save","load","exp","expFlow","themeToggle"];
@@ -1408,6 +1408,54 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
   const mode=normalizeDataFlow(r&&r.dataFlow);
   const zMode=!!(r&&r.dataFlowZ);
   if(mode==="none")return[];
+  let regionFlowCache=getDataFlowGroupsUncached._regionFlowCache;
+  if(!(regionFlowCache instanceof Map)){
+    regionFlowCache=new Map();
+    try{Object.defineProperty(getDataFlowGroupsUncached,"_regionFlowCache",{value:regionFlowCache,writable:true,configurable:true});}
+    catch(_e){getDataFlowGroupsUncached._regionFlowCache=regionFlowCache;}
+  }
+  const regionGeomKey=arr=>{
+    const list=(Array.isArray(arr)?arr:[]).map(it=>`${Math.max(0,Math.round(Number(it&&it.cid)||0))}:${Math.max(0,Math.round(Number(it&&it.col)||0))},${Math.max(0,Math.round(Number(it&&it.row)||0))}`).sort();
+    return `${list.length}|${list.join(";")}`;
+  };
+  const putRegionFlowCache=(key,value)=>{
+    if(!key||!value)return;
+    regionFlowCache.set(key,value);
+    const LIMIT=4096;
+    if(regionFlowCache.size>LIMIT){
+      const drop=regionFlowCache.size-LIMIT;
+      let i=0;
+      for(const k of regionFlowCache.keys()){
+        regionFlowCache.delete(k);
+        i++;
+        if(i>=drop)break;
+      }
+    }
+  };
+  const getCachedCidSet=cached=>{
+    if(!cached||typeof cached!=="object")return null;
+    if(cached.cidSet instanceof Set)return cached.cidSet;
+    const pts=Array.isArray(cached.points)?cached.points:[];
+    const set=new Set();
+    for(const p of pts)set.add(Math.max(0,Math.round(Number(p&&p.cid)||0)));
+    try{cached.cidSet=set;}catch(_e){}
+    return set;
+  };
+  const rebuildOrderedFromCached=(arr,cached)=>{
+    if(!Array.isArray(arr)||!arr.length||!cached||!Array.isArray(cached.points))return null;
+    const byCid=new Map(arr.map(it=>[Math.max(0,Math.round(Number(it&&it.cid)||0)),it]));
+    const used=new Set(),rebuilt=[];
+    for(const p of cached.points){
+      const cid=Math.max(0,Math.round(Number(p&&p.cid)||0));
+      if(used.has(cid))continue;
+      const src=byCid.get(cid);
+      if(!src)continue;
+      rebuilt.push({...src,baseIdx:rebuilt.length});
+      used.add(cid);
+    }
+    if(rebuilt.length!==arr.length)return null;
+    return rebuilt;
+  };
   const regionOfCell=(ix,iy)=>{
     if(regions&&Array.isArray(regions.cellToRegion)){
       const rid=regions.cellToRegion[iy*topo.cols+ix];
@@ -1507,41 +1555,88 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
     }
     const routing=getFlowStartRoutingRegion(r,rid);
     const localMode=resolveFlowModeFromStartAndDir(arr,routing,getFlowModeRegion(r,rid,mode));
+    const regionLocks=getFlowLocksRegion(r,rid);
     const baseOrdered=orderByMode(arr,localMode,zMode).map((it,idx)=>({...it,baseIdx:idx}));
     const manualRoute=(routing&&(((routing.startPinned&&routing.startCid!=null)||FLOW_DIR_SET.has(String(routing.startDir||"").toLowerCase()))));
+    const hasLocks=Array.isArray(regionLocks)&&regionLocks.length>0;
+    const canUseRegionCache=!manualRoute&&!hasLocks;
+    const cachePrefix=`${localMode}|${zMode?1:0}|`;
+    const cacheKey=canUseRegionCache?`${cachePrefix}${regionGeomKey(arr)}`:"";
     let zFallbackUsed=false;
-    let ordered=baseOrdered;
-    if(!manualRoute){
-      ordered=(zMode?baseOrdered:refineFlowOrder(baseOrdered));
-      if(!zMode&&ordered.length<=FLOW_OPTIMIZE_MAX_POINTS)ordered=optimizeFlowPathShortest(ordered);
-      if(pathSelfCrosses(ordered)){
-        const altUseZ=!zMode;
-        const altBase=orderByMode(arr,localMode,altUseZ).map((it,idx)=>({...it,baseIdx:idx}));
-        let altOrdered=altUseZ?altBase:refineFlowOrder(altBase);
-        if(!altUseZ&&altOrdered.length<=FLOW_OPTIMIZE_MAX_POINTS)altOrdered=optimizeFlowPathShortest(altOrdered);
-        if(!pathSelfCrosses(altOrdered)){ordered=altOrdered;zFallbackUsed=!!altUseZ;}
-        else if(flowPathCost(altOrdered)+1e-6<flowPathCost(ordered)){ordered=altOrdered;zFallbackUsed=!!altUseZ;}
-      }else if(!zMode){
-        const baseCost=flowPathCost(baseOrdered),optCost=flowPathCost(ordered);
-        if(baseCost+1e-6<optCost)ordered=baseOrdered;
+    let ordered=baseOrdered,fromCache=false;
+    if(canUseRegionCache&&cacheKey){
+      const cached=regionFlowCache.get(cacheKey);
+      if(cached&&Array.isArray(cached.points)&&cached.points.length){
+        const rebuilt=rebuildOrderedFromCached(arr,cached);
+        if(rebuilt){
+          ordered=rebuilt;
+          zFallbackUsed=!!cached.zFallback;
+          fromCache=true;
+        }
       }
     }
-    ordered=applyFlowStartRouting(ordered,routing,budget);
-    const regionLocks=getFlowLocksRegion(r,rid);
-    ordered=applyFlowLocksToOrdered(ordered,regionLocks,budget);
-    if(pathSelfCrosses(ordered)){
-      const head=ordered[0],rest=ordered.slice(1),base=(head&&head.baseIdx!=null)?head.baseIdx:0,strictState={nodes:0,limit:FLOW_SEARCH_NODE_LIMIT_STRICT,aborted:false};
-      const strict=flowSearchOrder([head],rest,base,false,strictState);
-      if(strict&&!pathSelfCrosses(strict)){
-        const relocked=applyFlowLocksToOrdered(strict,regionLocks,budget);
-        if(!pathSelfCrosses(relocked))ordered=relocked;
+    if(canUseRegionCache&&!fromCache){
+      const curCids=arr.map(it=>Math.max(0,Math.round(Number(it&&it.cid)||0)));
+      const curSet=new Set(curCids);
+      let best=null;
+      for(const [k,cached] of regionFlowCache){
+        if(typeof k!=="string"||!k.startsWith(cachePrefix))continue;
+        if(!cached||!Array.isArray(cached.points)||cached.points.length<arr.length)continue;
+        const set=getCachedCidSet(cached);
+        if(!set||set.size<curSet.size)continue;
+        let ok=true;
+        for(const cid of curSet){if(!set.has(cid)){ok=false;break;}}
+        if(!ok)continue;
+        const extra=set.size-curSet.size;
+        if(!best||extra<best.extra)best={cached,extra};
+        if(extra===0)break;
       }
-      else{
-        const opt=optimizeFlowPathShortest(ordered);
-        if(!pathSelfCrosses(opt)){
-          const relocked=applyFlowLocksToOrdered(opt,regionLocks,budget);
+      if(best&&best.cached){
+        const rebuilt=rebuildOrderedFromCached(arr,best.cached);
+        if(rebuilt){
+          ordered=rebuilt;
+          zFallbackUsed=!!best.cached.zFallback;
+          fromCache=true;
+        }
+      }
+    }
+    if(!fromCache){
+      if(!manualRoute){
+        ordered=(zMode?baseOrdered:refineFlowOrder(baseOrdered));
+        if(!zMode&&ordered.length<=FLOW_OPTIMIZE_MAX_POINTS)ordered=optimizeFlowPathShortest(ordered);
+        if(pathSelfCrosses(ordered)){
+          const altUseZ=!zMode;
+          const altBase=orderByMode(arr,localMode,altUseZ).map((it,idx)=>({...it,baseIdx:idx}));
+          let altOrdered=altUseZ?altBase:refineFlowOrder(altBase);
+          if(!altUseZ&&altOrdered.length<=FLOW_OPTIMIZE_MAX_POINTS)altOrdered=optimizeFlowPathShortest(altOrdered);
+          if(!pathSelfCrosses(altOrdered)){ordered=altOrdered;zFallbackUsed=!!altUseZ;}
+          else if(flowPathCost(altOrdered)+1e-6<flowPathCost(ordered)){ordered=altOrdered;zFallbackUsed=!!altUseZ;}
+        }else if(!zMode){
+          const baseCost=flowPathCost(baseOrdered),optCost=flowPathCost(ordered);
+          if(baseCost+1e-6<optCost)ordered=baseOrdered;
+        }
+      }
+      ordered=applyFlowStartRouting(ordered,routing,budget);
+      ordered=applyFlowLocksToOrdered(ordered,regionLocks,budget);
+      if(pathSelfCrosses(ordered)){
+        const head=ordered[0],rest=ordered.slice(1),base=(head&&head.baseIdx!=null)?head.baseIdx:0,strictState={nodes:0,limit:FLOW_SEARCH_NODE_LIMIT_STRICT,aborted:false};
+        const strict=flowSearchOrder([head],rest,base,false,strictState);
+        if(strict&&!pathSelfCrosses(strict)){
+          const relocked=applyFlowLocksToOrdered(strict,regionLocks,budget);
           if(!pathSelfCrosses(relocked))ordered=relocked;
         }
+        else{
+          const opt=optimizeFlowPathShortest(ordered);
+          if(!pathSelfCrosses(opt)){
+            const relocked=applyFlowLocksToOrdered(opt,regionLocks,budget);
+            if(!pathSelfCrosses(relocked))ordered=relocked;
+          }
+        }
+      }
+      if(canUseRegionCache&&cacheKey){
+        const points=ordered.map(v=>({cid:Math.max(0,Math.round(Number(v&&v.cid)||0))}));
+        const cidSet=new Set(points.map(p=>p.cid));
+        putRegionFlowCache(cacheKey,{zFallback:!!zFallbackUsed,points,cidSet});
       }
     }
     const rgb=REGION_ZONE_COLORS[((rid%REGION_ZONE_COLORS.length)+REGION_ZONE_COLORS.length)%REGION_ZONE_COLORS.length];
@@ -2032,1031 +2127,609 @@ const splitIndicesBySize=(sizes,groups)=>{
   cuts.push(n);return cuts;
 };
 const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
-  const calcProfile={};
-  const calcStartedAt=calcNow();
-  const singleRegionFallback=()=>{
+  const startedAt=calcNow();
+  const makeSingle=(timedOut=false)=>{
     r._splitVariantCount=1;
     if(r&&Math.round(Number(r.splitVariant)||0)!==0)r.splitVariant=0;
-    const fallback=buildSingleRegionPlan(r,cx,cy,topo,hs);
-    try{Object.defineProperty(fallback,"_timedOut",{value:true,writable:true,configurable:true});}
-    catch(_e){fallback._timedOut=true;}
-    return fallback;
+    const out=buildSingleRegionPlan(r,cx,cy,topo,hs);
+    out.variantCount=1;
+    if(timedOut){
+      try{Object.defineProperty(out,"_timedOut",{value:true,writable:true,configurable:true});}
+      catch(_e){out._timedOut=true;}
+    }
+    return out;
   };
-  if(checkCalcTimeout(budget))return singleRegionFallback();
-  const cols=Math.max(1,topo&&topo.cols||1),rows=Math.max(1,topo&&topo.rows||1);
+  if(checkCalcTimeout(budget))return makeSingle(true);
+  const cols=Math.max(1,topo&&topo.cols||1),rows=Math.max(1,topo&&topo.rows||1),hset=hs||new Set();
   const cellW=[];for(let x=0;x<r.width;x+=cx)cellW.push(Math.min(cx,r.width-x));
   const cellH=[];for(let y=0;y<r.height;y+=cy)cellH.push(Math.min(cy,r.height-y));
   const prefSum=a=>{const p=[0];for(let i=0;i<a.length;i++)p.push(p[i]+a[i]);return p};
   const colPref=prefSum(cellW),rowPref=prefSum(cellH);
-  const hset=hs||new Set();
   const visible=Array.from({length:rows},(_,iy)=>Array.from({length:cols},(_,ix)=>!hset.has(maskCellKey(ix,iy))));
-  const visiblePrefix=Array.from({length:rows+1},()=>new Int32Array(cols+1));
-  for(let y=0;y<rows;y++){
-    let rowAcc=0;
-    for(let x=0;x<cols;x++){
-      rowAcc+=visible[y][x]?1:0;
-      visiblePrefix[y+1][x+1]=visiblePrefix[y][x+1]+rowAcc;
-    }
-  }
-  const visibleCountRect=(c0,c1,r0,r1)=>{
-    const x0=Math.max(0,Math.min(cols,Math.round(c0||0))),x1=Math.max(0,Math.min(cols,Math.round(c1||0))),y0=Math.max(0,Math.min(rows,Math.round(r0||0))),y1=Math.max(0,Math.min(rows,Math.round(r1||0)));
-    if(x1<=x0||y1<=y0)return 0;
-    return visiblePrefix[y1][x1]-visiblePrefix[y0][x1]-visiblePrefix[y1][x0]+visiblePrefix[y0][x0];
-  };
-  const compIds=(topo&&Array.isArray(topo.comp)?topo.comp:new Array(rows*cols).fill(0));
-  const compCount=Math.max(1,(topo&&Array.isArray(topo.seed)?topo.seed.length:0),...compIds.map(v=>(v|0)+1));
-  const compBounds=Array.from({length:compCount},()=>({c0:1e9,c1:-1,r0:1e9,r1:-1,vc0:1e9,vc1:-1,vr0:1e9,vr1:-1,hasVisible:false}));
-  const compCellKeys=Array.from({length:compCount},()=>[]);
+  let c0=cols,c1=-1,r0=rows,r1=-1;
   for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
-    if(checkCalcTimeout(budget))return singleRegionFallback();
-    const id=((compIds[y*cols+x]|0)>=0?(compIds[y*cols+x]|0):0),b=compBounds[id];
-    if(x<b.c0)b.c0=x;if(x+1>b.c1)b.c1=x+1;if(y<b.r0)b.r0=y;if(y+1>b.r1)b.r1=y+1;
-    if(visible[y][x]){
-      b.hasVisible=true;
-      if(x<b.vc0)b.vc0=x;if(x+1>b.vc1)b.vc1=x+1;if(y<b.vr0)b.vr0=y;if(y+1>b.vr1)b.vr1=y+1;
-    }
-    compCellKeys[id].push(y*cols+x);
+    if(!visible[y][x])continue;
+    if(x<c0)c0=x;if(x+1>c1)c1=x+1;if(y<r0)r0=y;if(y+1>r1)r1=y+1;
   }
-  for(let i=0;i<compBounds.length;i++){
-    const b=compBounds[i];
-    if(b.c1<0){b.c0=0;b.c1=0;b.r0=0;b.r1=0;}
-    if(b.vc1<0){b.vc0=0;b.vc1=0;b.vr0=0;b.vr1=0;}
-  }
-  const compCovered=new Array(compCount).fill(false);
-  const occupied=Array.from({length:rows},()=>Array(cols).fill(false));
-  const cellKey=(x,y)=>y*cols+x;
+  if(c1<0)return makeSingle(false);
+  const areaRect=(ac0,ac1,ar0,ar1)=>(colPref[ac1]-colPref[ac0])*(rowPref[ar1]-rowPref[ar0]);
   const maxAreaPx=(Math.max(1,r.scale||256)*Math.max(1,r.scale||256)*655360)/Math.max(1,r.areaM2Px||65536);
-  const areaMemo=new Map(),shapeMemo=new Map();
-  const rectKey=(c0,c1,r0,r1)=>`${c0}|${c1}|${r0}|${r1}`;
-  const areaRect=(c0,c1,r0,r1)=>{
-    const k=rectKey(c0,c1,r0,r1);
-    if(areaMemo.has(k))return areaMemo.get(k);
-    const v=(colPref[c1]-colPref[c0])*(rowPref[r1]-rowPref[r0]);
-    areaMemo.set(k,v);
-    return v;
-  };
-  const shapePenaltyRect=(c0,c1,r0,r1)=>{
-    const k=rectKey(c0,c1,r0,r1);
-    if(shapeMemo.has(k))return shapeMemo.get(k);
-    const w=Math.max(1e-6,colPref[c1]-colPref[c0]),h=Math.max(1e-6,rowPref[r1]-rowPref[r0]);
-    const v=(Math.max(w,h)/Math.min(w,h))-1;
-    shapeMemo.set(k,v);
-    return v;
-  };
-  const mixCost=(bad,shape)=>bad+(maxAreaPx*shape);
-  const activeBounds=(()=>{
-    let c0=1e9,c1=-1,r0=1e9,r1=-1;
-    for(let id=0;id<compBounds.length;id++){
-      const b=compBounds[id];
-      if(!b.hasVisible)continue;
-      if(b.vc0<c0)c0=b.vc0;if(b.vc1>c1)c1=b.vc1;if(b.vr0<r0)r0=b.vr0;if(b.vr1>r1)r1=b.vr1;
+  const visibleAreaPx=Math.max(1,areaRect(c0,c1,r0,r1));
+  const optimalCount=Math.max(1,Math.ceil(visibleAreaPx/Math.max(1,maxAreaPx)));
+  const maxAllowedCount=optimalCount+2;
+  const splitStrategies=[];
+  const splitRots=[0,90,-90];
+  for(let seed=0;seed<3;seed++){
+    for(const rot of splitRots){
+      splitStrategies.push({kind:"vertical",seed,rot});
+      splitStrategies.push({kind:"horizontal",seed,rot});
+      splitStrategies.push({kind:"block",seed,rot});
     }
-    if(c1<0)return{c0:0,c1:cols,r0:0,r1:rows};
-    return{c0,c1,r0,r1};
-  })();
-  const fullArea=Math.max(1,areaRect(activeBounds.c0,activeBounds.c1,activeBounds.r0,activeBounds.r1));
-  const targetRegionCount=Math.max(1,Math.ceil(fullArea/Math.max(1,maxAreaPx)));
-  const variantRegionSoftCap=Math.max(4,targetRegionCount+8);
-  let visibleCompCount=0;
-  for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible)visibleCompCount++;
-  const clusterModes=[{sx:2,sy:2,name:"2x2"},{sx:2,sy:1,name:"2x1"},{sx:1,sy:2,name:"1x2"},{sx:1,sy:1,name:"1x1"}];
-  const buildBounds=(n,step)=>{
-    const s=Math.max(1,Math.round(step)||1),out=[0];
-    for(let i=s;i<n;i+=s)out.push(i);
-    if(out[out.length-1]!==n)out.push(n);
+  }
+  const variants=[],seen=new Set();
+  const topoComp=Array.isArray(topo&&topo.comp)?topo.comp:null;
+  const compRegionMap=new Map();
+  const variantRespectsMergedCells=regs=>{
+    if(!topoComp||!topoComp.length)return true;
+    compRegionMap.clear();
+    for(let y=r0;y<r1;y++)for(let x=c0;x<c1;x++){
+      if(!visible[y][x])continue;
+      const cellIdx=y*cols+x,compId=topoComp[cellIdx];
+      if(compId===undefined||compId===null)continue;
+      let rid=-1;
+      for(let i=0;i<regs.length;i++){
+        const z=regs[i];
+        if(x>=z.c0&&x<z.c1&&y>=z.r0&&y<z.r1){rid=i;break;}
+      }
+      if(rid<0)continue;
+      const prev=compRegionMap.get(compId);
+      if(prev===undefined)compRegionMap.set(compId,rid);
+      else if(prev!==rid)return false;
+    }
+    return true;
+  };
+  const rectHasVisible=(ac0,ac1,ar0,ar1)=>{
+    for(let y=ar0;y<ar1;y++)for(let x=ac0;x<ac1;x++)if(visible[y][x])return true;
+    return false;
+  };
+  const trimVisibleRects=regs=>{
+    const out=[];
+    for(const z of regs){
+      let tc0=cols,tc1=-1,tr0=rows,tr1=-1;
+      for(let y=z.r0;y<z.r1;y++)for(let x=z.c0;x<z.c1;x++){
+        if(!visible[y][x])continue;
+        if(x<tc0)tc0=x;if(x+1>tc1)tc1=x+1;if(y<tr0)tr0=y;if(y+1>tr1)tr1=y+1;
+      }
+      if(tc1<0)continue;
+      out.push({c0:tc0,c1:tc1,r0:tr0,r1:tr1});
+    }
     return out;
   };
-  const uniqueSortedNums=arr=>[...new Set(arr)].sort((a,b)=>a-b);
-  calcProfile.scanMs=Math.max(0,calcNow()-calcStartedAt);
-  calcProfile.targetRegionCount=targetRegionCount;
-  calcProfile.visibleCompCount=visibleCompCount;
-  const maxR1ByHeight=(r0,maxH)=>{
-    let lo=r0+1,hi=rows,best=r0;
-    while(lo<=hi){
-      const mid=(lo+hi)>>1,hv=rowPref[mid]-rowPref[r0];
-      if(hv<=maxH+AREA_LIMIT_EPS){best=mid;lo=mid+1;}
-      else hi=mid-1;
-    }
-    return Math.max(r0+1,best);
-  };
-  const canSplitByCol=k=>{
-    for(let id=0;id<compBounds.length;id++){
-      const b=compBounds[id];
-      if(!b.hasVisible)continue;
-      if(b.vc0<k&&b.vc1>k)return false;
-    }
-    return true;
-  };
-  const canSplitByRow=k=>{
-    for(let id=0;id<compBounds.length;id++){
-      const b=compBounds[id];
-      if(!b.hasVisible)continue;
-      if(b.vr0<k&&b.vr1>k)return false;
-    }
-    return true;
-  };
-  const twoSplit=(()=>{
-    const cand=[];
-    for(let k=activeBounds.c0+1;k<activeBounds.c1;k++){
-      if(!canSplitByCol(k))continue;
-      const a0=areaRect(activeBounds.c0,k,activeBounds.r0,activeBounds.r1),a1=areaRect(k,activeBounds.c1,activeBounds.r0,activeBounds.r1);
-      if(a0<=maxAreaPx+AREA_LIMIT_EPS&&a1<=maxAreaPx+AREA_LIMIT_EPS){
-        cand.push({dir:"v",k,a0,a1,bad:Math.abs(maxAreaPx-a0)+Math.abs(maxAreaPx-a1),sq:shapePenaltyRect(activeBounds.c0,k,activeBounds.r0,activeBounds.r1)+shapePenaltyRect(k,activeBounds.c1,activeBounds.r0,activeBounds.r1)});
-      }
-    }
-    for(let k=activeBounds.r0+1;k<activeBounds.r1;k++){
-      if(!canSplitByRow(k))continue;
-      const a0=areaRect(activeBounds.c0,activeBounds.c1,activeBounds.r0,k),a1=areaRect(activeBounds.c0,activeBounds.c1,k,activeBounds.r1);
-      if(a0<=maxAreaPx+AREA_LIMIT_EPS&&a1<=maxAreaPx+AREA_LIMIT_EPS){
-        cand.push({dir:"h",k,a0,a1,bad:Math.abs(maxAreaPx-a0)+Math.abs(maxAreaPx-a1),sq:shapePenaltyRect(activeBounds.c0,activeBounds.c1,activeBounds.r0,k)+shapePenaltyRect(activeBounds.c0,activeBounds.c1,k,activeBounds.r1)});
-      }
-    }
-    if(!cand.length)return null;
-    cand.sort((p,q)=>(mixCost(p.bad,p.sq)-mixCost(q.bad,q.sq))||(p.bad-q.bad)||(p.sq-q.sq));
-    return cand[0];
-  })();
-  const overlapsOccupied=(c0,c1,r0,r1)=>{
-    for(let y=r0;y<r1;y++)for(let x=c0;x<c1;x++)if(occupied[y][x])return true;
-    return false;
-  };
-  const rectsOverlap=(a,b)=>!(a.c1<=b.c0||a.c0>=b.c1||a.r1<=b.r0||a.r0>=b.r1);
-  const overlapHasVisible=(a,b)=>{
-    if(!rectsOverlap(a,b))return false;
-    const c0=Math.max(a.c0,b.c0),c1=Math.min(a.c1,b.c1),r0=Math.max(a.r0,b.r0),r1=Math.min(a.r1,b.r1);
-    return visibleCountRect(c0,c1,r0,r1)>0;
-  };
-  const rectCompStats=(c0,c1,r0,r1,onlyUncovered)=>{
-    let visibleComps=0,uncoveredVisibleComps=0;
-    const inside=[];
-    for(let id=0;id<compBounds.length;id++){
-      const b=compBounds[id];
-      if(b.vc1<=c0||b.vc0>=c1||b.vr1<=r0||b.vr0>=r1)continue;
-      const fullInside=(b.vc0>=c0&&b.vc1<=c1&&b.vr0>=r0&&b.vr1<=r1);
-      if(!fullInside)return null;
-      inside.push(id);
-      if(b.hasVisible){
-        visibleComps++;
-        if(!onlyUncovered||!compCovered[id])uncoveredVisibleComps++;
-      }
-    }
-    return{inside,visibleComps,uncoveredVisibleComps};
-  };
-  const regions=[];
-  if(twoSplit){
-    if(twoSplit.dir==="v"){
-      const k=twoSplit.k;
-      regions.push({id:0,label:"A",c0:activeBounds.c0,c1:k,r0:activeBounds.r0,r1:activeBounds.r1,w:colPref[k]-colPref[activeBounds.c0],h:rowPref[activeBounds.r1]-rowPref[activeBounds.r0],gx:0,gy:0});
-      regions.push({id:1,label:"B",c0:k,c1:activeBounds.c1,r0:activeBounds.r0,r1:activeBounds.r1,w:colPref[activeBounds.c1]-colPref[k],h:rowPref[activeBounds.r1]-rowPref[activeBounds.r0],gx:1,gy:0});
-    }else{
-      const k=twoSplit.k;
-      regions.push({id:0,label:"A",c0:activeBounds.c0,c1:activeBounds.c1,r0:activeBounds.r0,r1:k,w:colPref[activeBounds.c1]-colPref[activeBounds.c0],h:rowPref[k]-rowPref[activeBounds.r0],gx:0,gy:0});
-      regions.push({id:1,label:"B",c0:activeBounds.c0,c1:activeBounds.c1,r0:k,r1:activeBounds.r1,w:colPref[activeBounds.c1]-colPref[activeBounds.c0],h:rowPref[activeBounds.r1]-rowPref[k],gx:1,gy:0});
-    }
-    for(const rg of regions){
-      for(let y=rg.r0;y<rg.r1;y++)for(let x=rg.c0;x<rg.c1;x++)occupied[y][x]=true;
-      for(let id=0;id<compBounds.length;id++){
-        const b=compBounds[id];
-        if(!b.hasVisible)continue;
-        if(b.vc0>=rg.c0&&b.vc1<=rg.c1&&b.vr0>=rg.r0&&b.vr1<=rg.r1)compCovered[id]=true;
-      }
-    }
-  }
-  const greedyStartedAt=calcNow();
-  let guard=0;
-  while(guard<4096){
-    if(checkCalcTimeout(budget))return singleRegionFallback();
-    guard++;
-    let remain=0;
-    for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible&&!compCovered[id])remain++;
-    if(!remain)break;
-    let best=null;
-    const considerRect=(c0,c1,r0,r1)=>{
-      if(c0<0||r0<0||c1>cols||r1>rows||c1<=c0||r1<=r0)return;
-      if(overlapsOccupied(c0,c1,r0,r1))return;
-      const a=areaRect(c0,c1,r0,r1);
-      if(a>maxAreaPx+AREA_LIMIT_EPS)return;
-      const stats=rectCompStats(c0,c1,r0,r1,true);
-      if(!stats||stats.uncoveredVisibleComps<=0)return;
-      const score={a,uncComps:stats.uncoveredVisibleComps,visComps:stats.visibleComps,w:(c1-c0),h:(r1-r0),sq:shapePenaltyRect(c0,c1,r0,r1),inside:stats.inside};
-      if(!best||score.uncComps>best.score.uncComps||(score.uncComps===best.score.uncComps&&score.a>best.score.a)||(score.uncComps===best.score.uncComps&&score.a===best.score.a&&score.visComps>best.score.visComps)||(score.uncComps===best.score.uncComps&&score.a===best.score.a&&score.visComps===best.score.visComps&&score.sq<best.score.sq)||(score.uncComps===best.score.uncComps&&score.a===best.score.a&&score.visComps===best.score.visComps&&score.sq===best.score.sq&&score.h>best.score.h)){
-        best={c0,c1,r0,r1,score,inside:stats.inside};
-      }
-    };
-    let usedCluster="1x1";
-    for(const mode of clusterModes){
-      const cBase=buildBounds(cols,mode.sx),rBase=buildBounds(rows,mode.sy);
-      const cCandidates=uniqueSortedNums(cBase.concat(compBounds.filter(b=>b.hasVisible).flatMap(b=>[b.vc0,b.vc1]))).filter(v=>v>=0&&v<=cols);
-      const rCandidates=uniqueSortedNums(rBase.concat(compBounds.filter(b=>b.hasVisible).flatMap(b=>[b.vr0,b.vr1]))).filter(v=>v>=0&&v<=rows);
-      const prevBest=best;
-      for(let ci=0;ci<cCandidates.length;ci++){
-        const c0=cCandidates[ci];
-        for(let cj=ci+1;cj<cCandidates.length;cj++){
-          if(checkCalcTimeout(budget))return singleRegionFallback();
-          const c1=cCandidates[cj],w=colPref[c1]-colPref[c0];
-          if(w<=0||w>maxAreaPx+AREA_LIMIT_EPS)continue;
-          const maxH=maxAreaPx/Math.max(1e-9,w);
-          for(let ri=0;ri<rCandidates.length;ri++){
-            const r0=rCandidates[ri],r1Max=Math.min(rows,maxR1ByHeight(r0,maxH));
-            for(let rj=ri+1;rj<rCandidates.length;rj++){
-              const r1=rCandidates[rj];
-              if(r1>r1Max)break;
-              if(checkCalcTimeout(budget))return singleRegionFallback();
-              considerRect(c0,c1,r0,r1);
-            }
-          }
-        }
-      }
-      if(best&&best!==prevBest){usedCluster=mode.name;break;}
-    }
-    calcProfile.clusterMode=usedCluster;
-    if(best==null){
-      for(let id=0;id<compBounds.length;id++){
-        if(checkCalcTimeout(budget))return singleRegionFallback();
-        const b=compBounds[id];
-        if(!b.hasVisible||compCovered[id])continue;
-        considerRect(b.vc0,b.vc1,b.vr0,b.vr1);
-      }
-    }
-    if(!best){
-      let pick=-1,pickArea=-1;
-      for(let id=0;id<compBounds.length;id++){
-        if(!compBounds[id].hasVisible||compCovered[id])continue;
-        const b=compBounds[id],a=areaRect(b.vc0,b.vc1,b.vr0,b.vr1);
-        if(a>pickArea){pick=id;pickArea=a;}
-      }
-      if(pick<0)break;
-      const b=compBounds[pick],a=areaRect(b.vc0,b.vc1,b.vr0,b.vr1);
-      best={c0:b.vc0,c1:b.vc1,r0:b.vr0,r1:b.vr1,score:{a,uncComps:1,visComps:1,w:(b.vc1-b.vc0),h:(b.vr1-b.vr0),inside:[pick]},inside:[pick]};
-    }
-    const id=regions.length,label=toLetters(id),w=colPref[best.c1]-colPref[best.c0],h=rowPref[best.r1]-rowPref[best.r0];
-    const reg={id,label,c0:best.c0,c1:best.c1,r0:best.r0,r1:best.r1,w,h,gx:id,gy:0};
-    regions.push(reg);
-    for(let y=best.r0;y<best.r1;y++)for(let x=best.c0;x<best.c1;x++)occupied[y][x]=true;
-    const inside=Array.isArray(best.inside)?best.inside:[];
-    for(const cid of inside)if(compBounds[cid]&&compBounds[cid].hasVisible)compCovered[cid]=true;
-  }
-  if(regions.length>1){
-    const owner=Array.from({length:rows},()=>Array(cols).fill(-1));
-    for(const rg of regions)for(let y=rg.r0;y<rg.r1;y++)for(let x=rg.c0;x<rg.c1;x++)owner[y][x]=rg.id;
-    const mergeable=(a,b)=>{
-      const c0=Math.min(a.c0,b.c0),c1=Math.max(a.c1,b.c1),r0=Math.min(a.r0,b.r0),r1=Math.max(a.r1,b.r1);
-      const area=areaRect(c0,c1,r0,r1);
-      if(area>maxAreaPx+AREA_LIMIT_EPS)return null;
-      for(let y=r0;y<r1;y++)for(let x=c0;x<c1;x++){
-        const o=owner[y][x];
-        if(o!==-1&&o!==a.id&&o!==b.id)return null;
-      }
-      const stats=rectCompStats(c0,c1,r0,r1,false);
-      if(!stats||stats.visibleComps<=0)return null;
-      return{c0,c1,r0,r1,area};
-    };
-    let changed=true;
-    while(changed){
-      if(checkCalcTimeout(budget))return singleRegionFallback();
-      changed=false;
-      let bestPair=null;
-      for(let i=0;i<regions.length;i++){
-        if(checkCalcTimeout(budget))return singleRegionFallback();
-        const a=regions[i];
-        if(!a)continue;
-        for(let j=i+1;j<regions.length;j++){
-          if(checkCalcTimeout(budget))return singleRegionFallback();
-          const b=regions[j];
-          if(!b)continue;
-          const m=mergeable(a,b);
-          if(!m)continue;
-          const sa=(a.c1-a.c0)*(a.r1-a.r0),sb=(b.c1-b.c0)*(b.r1-b.r0),gain=(m.c1-m.c0)*(m.r1-m.r0)-Math.max(sa,sb);
-          if(!bestPair||m.area>bestPair.m.area||(m.area===bestPair.m.area&&gain<bestPair.gain))bestPair={i,j,m,gain};
-        }
-      }
-      if(bestPair){
-        const a=regions[bestPair.i],b=regions[bestPair.j],m=bestPair.m;
-        a.c0=m.c0;a.c1=m.c1;a.r0=m.r0;a.r1=m.r1;
-        a.w=colPref[a.c1]-colPref[a.c0];a.h=rowPref[a.r1]-rowPref[a.r0];
-        for(let y=m.r0;y<m.r1;y++)for(let x=m.c0;x<m.c1;x++)owner[y][x]=a.id;
-        regions[bestPair.j]=null;
-        changed=true;
-      }
-    }
-  }
-  calcProfile.greedyMs=Math.max(0,calcNow()-greedyStartedAt);
-  const compactRegions=regions.filter(Boolean);
-  const visibleCompIds=[];for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible)visibleCompIds.push(id);
-  const regionContainsComp=(rg,id)=>{const b=compBounds[id];return b.vc0>=rg.c0&&b.vc1<=rg.c1&&b.vr0>=rg.r0&&b.vr1<=rg.r1};
-  const hasOverlapWithOthers=(regs,idx,c0,c1,r0,r1)=>{
-    const cur={c0,c1,r0,r1};
-    for(let j=0;j<regs.length;j++){
-      if(j===idx)continue;
-      const o=regs[j];
-      if(overlapHasVisible(cur,o))return true;
-    }
-    return false;
-  };
-  const coversAllVisible=(regs)=>{
-    for(const id of visibleCompIds){
+  const coversAllVisible=regs=>{
+    for(let y=r0;y<r1;y++)for(let x=c0;x<c1;x++){
+      if(!visible[y][x])continue;
       let ok=false;
-      for(const rg of regs){if(regionContainsComp(rg,id)){ok=true;break}}
+      for(const z of regs){if(x>=z.c0&&x<z.c1&&y>=z.r0&&y<z.r1){ok=true;break;}}
       if(!ok)return false;
     }
     return true;
   };
-  const pruneEmpty=(regs)=>{
-    const out=[];
-    for(const rg of regs){
-      let cnt=0;
-      for(const id of visibleCompIds){if(regionContainsComp(rg,id))cnt++;}
-      if(cnt>0)out.push(rg);
+  const addVariant=regs=>{
+    if(!Array.isArray(regs)||!regs.length)return;
+    if(checkCalcTimeout(budget))return;
+    const pruned=trimVisibleRects(regs);
+    if(!pruned.length)return;
+    for(const z of pruned){
+      if(areaRect(z.c0,z.c1,z.r0,z.r1)>maxAreaPx+AREA_LIMIT_EPS)return;
+    }
+    if(!coversAllVisible(pruned))return;
+    if(!variantRespectsMergedCells(pruned))return;
+    const sig=pruned.map(z=>`${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
+    if(seen.has(sig))return;
+    seen.add(sig);
+    variants.push(pruned);
+  };
+  const regionArea=z=>areaRect(z.c0,z.c1,z.r0,z.r1);
+  const variantBad=regs=>{
+    let bad=0;
+    for(const z of regs)bad+=Math.abs(maxAreaPx-regionArea(z));
+    return bad;
+  };
+  const variantShape=regs=>{
+    let s=0;
+    for(const z of regs){
+      const w=Math.max(1e-6,colPref[z.c1]-colPref[z.c0]),h=Math.max(1e-6,rowPref[z.r1]-rowPref[z.r0]);
+      s+=(Math.max(w,h)/Math.min(w,h))-1;
+    }
+    return s;
+  };
+  const canSplitByComp=(z,dir,cut)=>{
+    if(!topoComp||!topoComp.length)return true;
+    if(dir==="v"){
+      if(cut<=z.c0||cut>=z.c1)return false;
+      for(let y=z.r0;y<z.r1;y++){
+        if(!visible[y][cut-1]||!visible[y][cut])continue;
+        const a=topoComp[y*cols+(cut-1)],b=topoComp[y*cols+cut];
+        if(a===b)return false;
+      }
+      return true;
+    }
+    if(cut<=z.r0||cut>=z.r1)return false;
+    for(let x=z.c0;x<z.c1;x++){
+      if(!visible[cut-1][x]||!visible[cut][x])continue;
+      const a=topoComp[(cut-1)*cols+x],b=topoComp[cut*cols+x];
+      if(a===b)return false;
+    }
+    return true;
+  };
+  const resolvePreferredDirs=(z,strategy)=>{
+    const kind=(strategy&&strategy.kind)||"block";
+    const rot=((strategy&&strategy.rot)|0);
+    let pref="v",alt="h";
+    if(kind==="horizontal"){pref="h";alt="v";}
+    else if(kind==="block"){
+      let ww=colPref[z.c1]-colPref[z.c0],hh=rowPref[z.r1]-rowPref[z.r0];
+      if(rot===90||rot===-90){const t=ww;ww=hh;hh=t;}
+      if(ww<hh){pref="h";alt="v";}
+    }
+    if(rot===90||rot===-90){const t=pref;pref=alt;alt=t;}
+    return{pref,alt,rot};
+  };
+  const listCuts=(z,dir,strategy)=>{
+    const cuts=[];
+    const total=regionArea(z);
+    const target=Math.min(maxAreaPx,Math.max(1,total/2));
+    const rot=((strategy&&strategy.rot)|0);
+    if(dir==="v"){
+      for(let cut=z.c0+1;cut<z.c1;cut++){
+        if(!canSplitByComp(z,"v",cut))continue;
+        if(!rectHasVisible(z.c0,cut,z.r0,z.r1))continue;
+        if(!rectHasVisible(cut,z.c1,z.r0,z.r1))continue;
+        const a1=areaRect(z.c0,cut,z.r0,z.r1),a2=areaRect(cut,z.c1,z.r0,z.r1);
+        const balance=Math.abs(a1-a2);
+        const targetFit=Math.abs(a1-target)+Math.abs(a2-target);
+        const centerBias=Math.abs(((z.c0+z.c1)/2)-cut)*0.05*cx*cy;
+        let seam=0;
+        for(let y=z.r0;y<z.r1;y++)if(visible[y][cut-1]&&visible[y][cut])seam++;
+        const seamPenalty=seam*cx*cy*4;
+        const sideBias=(rot===90?((cut-z.c0)*0.02*cx*cy):(rot===-90?((z.c1-cut)*0.02*cx*cy):0));
+        const score=balance*0.45+targetFit*0.35+seamPenalty+centerBias+sideBias;
+        cuts.push({cut,score});
+      }
+    }else{
+      for(let cut=z.r0+1;cut<z.r1;cut++){
+        if(!canSplitByComp(z,"h",cut))continue;
+        if(!rectHasVisible(z.c0,z.c1,z.r0,cut))continue;
+        if(!rectHasVisible(z.c0,z.c1,cut,z.r1))continue;
+        const a1=areaRect(z.c0,z.c1,z.r0,cut),a2=areaRect(z.c0,z.c1,cut,z.r1);
+        const balance=Math.abs(a1-a2);
+        const targetFit=Math.abs(a1-target)+Math.abs(a2-target);
+        const centerBias=Math.abs(((z.r0+z.r1)/2)-cut)*0.05*cx*cy;
+        let seam=0;
+        for(let x=z.c0;x<z.c1;x++)if(visible[cut-1][x]&&visible[cut][x])seam++;
+        const seamPenalty=seam*cx*cy*4;
+        const sideBias=(rot===90?((cut-z.r0)*0.02*cx*cy):(rot===-90?((z.r1-cut)*0.02*cx*cy):0));
+        const score=balance*0.45+targetFit*0.35+seamPenalty+centerBias+sideBias;
+        cuts.push({cut,score});
+      }
+    }
+    cuts.sort((a,b)=>a.score-b.score);
+    return cuts.map(it=>it.cut);
+  };
+  const tryMergeRects=(a,b)=>{
+    if(!a||!b)return null;
+    const touch=(a.c1===b.c0)||(b.c1===a.c0)||(a.r1===b.r0)||(b.r1===a.r0);
+    if(!touch)return null;
+    const overlapW=Math.min(a.c1,b.c1)-Math.max(a.c0,b.c0);
+    const overlapH=Math.min(a.r1,b.r1)-Math.max(a.r0,b.r0);
+    if(overlapW>0&&overlapH>0)return null;
+    const u={c0:Math.min(a.c0,b.c0),c1:Math.max(a.c1,b.c1),r0:Math.min(a.r0,b.r0),r1:Math.max(a.r1,b.r1)};
+    const uArea=regionArea(u);
+    if(uArea<=maxAreaPx+AREA_LIMIT_EPS)return u;
+    return null;
+  };
+  const rectsOverlap=(a,b)=>{
+    const ow=Math.min(a.c1,b.c1)-Math.max(a.c0,b.c0);
+    const oh=Math.min(a.r1,b.r1)-Math.max(a.r0,b.r0);
+    return ow>0&&oh>0;
+  };
+  const mergeWouldConflict=(regs,i,j,u)=>{
+    for(let k=0;k<regs.length;k++){
+      if(k===i||k===j)continue;
+      if(rectsOverlap(u,regs[k]))return true;
+    }
+    return false;
+  };
+  const mergeNeighborRects=regs=>{
+    const out=Array.isArray(regs)?regs.map(z=>({c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1})):[];
+    let changed=true,safe=0;
+    while(changed&&safe<1024){
+      safe++;
+      changed=false;
+      let best=null;
+      for(let i=0;i<out.length;i++){
+        for(let j=i+1;j<out.length;j++){
+          const a=out[i],b=out[j],u=tryMergeRects(a,b);
+          if(!u)continue;
+          if(mergeWouldConflict(out,i,j,u))continue;
+          const before=Math.abs(maxAreaPx-regionArea(a))+Math.abs(maxAreaPx-regionArea(b));
+          const after=Math.abs(maxAreaPx-regionArea(u));
+          const improve=before-after;
+          const score=(-improve*1e9)+after;
+          if(!best||score<best.score)best={i,j,u,score};
+        }
+      }
+      if(best){
+        out.splice(best.j,1);
+        out.splice(best.i,1,best.u);
+        changed=true;
+      }
     }
     return out;
   };
-  const tryDirectMerge=(regs)=>{
-    let best=null;
-    for(let i=0;i<regs.length;i++)for(let j=i+1;j<regs.length;j++){
-      const a=regs[i],b=regs[j],c0=Math.min(a.c0,b.c0),c1=Math.max(a.c1,b.c1),r0=Math.min(a.r0,b.r0),r1=Math.max(a.r1,b.r1);
-      const area=areaRect(c0,c1,r0,r1);
-      if(area>maxAreaPx+AREA_LIMIT_EPS)continue;
-      let blocked=false;
-      for(let k=0;k<regs.length;k++){
-        if(k===i||k===j)continue;
-        const o=regs[k];
-        if(overlapHasVisible({c0,c1,r0,r1},o)){blocked=true;break;}
+  const estPartsForRect=z=>Math.max(1,Math.ceil(regionArea(z)/Math.max(1,maxAreaPx)));
+  const makeRng=seed0=>{
+    let s=(Math.floor(seed0)||1)>>>0;
+    if(!s)s=1;
+    return()=>{
+      s=(1664525*s+1013904223)>>>0;
+      return s/4294967296;
+    };
+  };
+  const splitRectBy=(z,dir,cut)=>{
+    if(dir==="v"){
+      return [
+        {c0:z.c0,c1:cut,r0:z.r0,r1:z.r1},
+        {c0:cut,c1:z.c1,r0:z.r0,r1:z.r1}
+      ];
+    }
+    return [
+      {c0:z.c0,c1:z.c1,r0:z.r0,r1:cut},
+      {c0:z.c0,c1:z.c1,r0:cut,r1:z.r1}
+    ];
+  };
+  const pickSplitForRect=(regs,rectIndex,strategy,iter,partsEstimate,targetParts)=>{
+    const seed=Math.max(0,Math.round(Number(strategy&&strategy.seed)||0));
+    const z=regs[rectIndex];
+    const prefAlt=resolvePreferredDirs(z,strategy),pref=prefAlt.pref,alt=prefAlt.alt;
+    const evalDir=(dir,rankBase)=>{
+      const cuts=listCuts(z,dir,strategy);
+      if(!cuts.length)return null;
+      const topN=Math.min(8,cuts.length);
+      const shift=(seed+iter)%topN;
+      let best=null;
+      const currentParts=estPartsForRect(z);
+      for(let k=0;k<topN;k++){
+        const idx=(k+shift)%topN,cut=cuts[idx],ab=splitRectBy(z,dir,cut),a=ab[0],b=ab[1];
+        if(!rectHasVisible(a.c0,a.c1,a.r0,a.r1)||!rectHasVisible(b.c0,b.c1,b.r0,b.r1))continue;
+        const aArea=regionArea(a),bArea=regionArea(b);
+        const aParts=Math.max(1,Math.ceil(aArea/Math.max(1,maxAreaPx))),bParts=Math.max(1,Math.ceil(bArea/Math.max(1,maxAreaPx)));
+        const estParts=partsEstimate-currentParts+aParts+bParts;
+        const nextCount=regs.length+1;
+        const overflow=Math.max(0,aArea-maxAreaPx)+Math.max(0,bArea-maxAreaPx);
+        const balance=Math.abs(aArea-bArea);
+        const deltaCount=Math.abs(nextCount-targetParts);
+        const deltaParts=Math.abs(estParts-targetParts);
+        const score=deltaCount*1e12+deltaParts*1e10+estParts*1e8+overflow*1e6+balance+rankBase*1e4+k*10;
+        if(!best||score<best.score)best={dir,cut,left:a,right:b,score};
       }
-      if(blocked)continue;
-      const next=regs.filter((_,k)=>k!==i&&k!==j).concat([{id:-1,label:"",c0,c1,r0,r1,w:colPref[c1]-colPref[c0],h:rowPref[r1]-rowPref[r0],gx:0,gy:0}]);
-      const pruned=pruneEmpty(next);
-      if(!coversAllVisible(pruned))continue;
-      const bad=Math.abs(maxAreaPx-area);
-      if(!best||bad<best.bad)best={next:pruned,bad};
-    }
-    return best?best.next:null;
+      return best;
+    };
+    const p=evalDir(pref,0),a=evalDir(alt,1);
+    if(p&&a)return p.score<=a.score?p:a;
+    return p||a||null;
   };
-  const reduceByDirectMerge=(regs)=>{
-    let cur=pruneEmpty(regs.map(rg=>({...rg}))),guard=0,changed=true;
-    while(changed&&guard<48){
-      guard++;changed=false;
-      const d=tryDirectMerge(cur);
-      if(d&&d.length<cur.length){cur=d;changed=true;}
-    }
-    return cur;
+  const bestSplitForRect=(regs,rectIndex,strategy,iter,targetParts)=>{
+    const z=regs[rectIndex],prefAlt=resolvePreferredDirs(z,strategy),pref=prefAlt.pref,alt=prefAlt.alt;
+    const evalDir=(dir,rankBase)=>{
+      const cuts=listCuts(z,dir,strategy);
+      if(!cuts.length)return null;
+      const topN=Math.min(12,cuts.length);
+      let best=null;
+      for(let k=0;k<topN;k++){
+        const cut=cuts[k],ab=splitRectBy(z,dir,cut),a=ab[0],b=ab[1];
+        const next=[...regs.slice(0,rectIndex),a,b,...regs.slice(rectIndex+1)];
+        const score=Math.abs(next.length-targetParts)*1e15+variantBad(next)*1e3+k*10+rankBase;
+        if(!best||score<best.score)best={dir,cut,left:a,right:b,score};
+      }
+      return best;
+    };
+    const p=evalDir(pref,0),a=evalDir(alt,1);
+    if(p&&a)return p.score<=a.score?p:a;
+    return p||a||null;
   };
-  const tryShiftAndMerge=(regs)=>{
-    const shifts=[];for(let d=1;d<=3;d++){shifts.push([0,-d],[0,d],[-d,0],[d,0]);}
+  const bestMergeForRegs=(regs,targetParts)=>{
     let best=null;
     for(let i=0;i<regs.length;i++){
-      const rg=regs[i],rw=rg.c1-rg.c0,rh=rg.r1-rg.r0;
-      for(const [dx,dy] of shifts){
-        const c0=rg.c0+dx,c1=c0+rw,r0=rg.r0+dy,r1=r0+rh;
-        if(c0<0||r0<0||c1>cols||r1>rows)continue;
-        const area=areaRect(c0,c1,r0,r1);
-        if(area>maxAreaPx+AREA_LIMIT_EPS)continue;
-        if(hasOverlapWithOthers(regs,i,c0,c1,r0,r1))continue;
-        const moved=regs.map((it,k)=>k===i?{...it,c0,c1,r0,r1,w:colPref[c1]-colPref[c0],h:rowPref[r1]-rowPref[r0]}:({...it}));
-        const merged=tryDirectMerge(pruneEmpty(moved));
-        if(!merged)continue;
-        if(!best||merged.length<best.length)best=merged;
+      for(let j=i+1;j<regs.length;j++){
+        const u=tryMergeRects(regs[i],regs[j]);
+        if(!u)continue;
+        if(mergeWouldConflict(regs,i,j,u))continue;
+        const next=[...regs];
+        next.splice(j,1);
+        next.splice(i,1,u);
+        const score=Math.abs(next.length-targetParts)*1e15+variantBad(next)*1e3;
+        if(!best||score<best.score)best={i,j,u,score};
       }
     }
     return best;
   };
-  const totalBadness=regs=>{
-    let s=0;
-    for(const rg of regs){
-      const a=areaRect(rg.c0,rg.c1,rg.r0,rg.r1);
-      s+=Math.abs(maxAreaPx-a);
-    }
-    return s;
-  };
-  const totalShapeBadness=regs=>{
-    let s=0;
-    for(const rg of regs)s+=shapePenaltyRect(rg.c0,rg.c1,rg.r0,rg.r1);
-    return s;
-  };
-  const tryGlobalShiftMerge=(regs)=>{
-    let base=reduceByDirectMerge(regs),improved=true,guard=0;
-    while(improved&&guard<24){
-      guard++;improved=false;
-      let bestRegs=base,bestCount=base.length,bestShape=totalShapeBadness(base),bestBad=totalBadness(base);
-      for(let i=0;i<base.length;i++){
-        const rg=base[i],rw=rg.c1-rg.c0,rh=rg.r1-rg.r0;
-        for(let c0=0;c0+rw<=cols;c0++)for(let r0=0;r0+rh<=rows;r0++){
-          const c1=c0+rw,r1=r0+rh;
-          if(c0===rg.c0&&c1===rg.c1&&r0===rg.r0&&r1===rg.r1)continue;
-          const a=areaRect(c0,c1,r0,r1);
-          if(a>maxAreaPx+AREA_LIMIT_EPS)continue;
-          if(hasOverlapWithOthers(base,i,c0,c1,r0,r1))continue;
-          const moved=base.map((it,k)=>k===i?{...it,c0,c1,r0,r1,w:colPref[c1]-colPref[c0],h:rowPref[r1]-rowPref[r0]}:({...it}));
-          const cand=reduceByDirectMerge(moved);
-          if(!coversAllVisible(cand))continue;
-          const cc=cand.length,cs=totalShapeBadness(cand),cb=totalBadness(cand);
-          const curMix=mixCost(bestBad,bestShape),candMix=mixCost(cb,cs);
-          if(cc<bestCount||(cc===bestCount&&candMix+1e-6<curMix)||(cc===bestCount&&Math.abs(candMix-curMix)<=1e-6&&cb<bestBad)){bestRegs=cand;bestCount=cc;bestShape=cs;bestBad=cb;}
-        }
-      }
-      const baseShape=totalShapeBadness(base),baseBad=totalBadness(base);
-      if(bestCount<base.length||(bestCount===base.length&&mixCost(bestBad,bestShape)+1e-6<mixCost(baseBad,baseShape))){
-        base=bestRegs;improved=true;
-      }
-    }
-    return base;
-  };
-  const tryExactPartition=()=>{
-    const visIds=[];for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible)visIds.push(id);
-    const compN=visIds.length;
-    if(compN===0)return [];
-    if(compN>18)return null;
-    const idToPos=new Map();for(let i=0;i<visIds.length;i++)idToPos.set(visIds[i],i);
-    const xbSet=new Set([activeBounds.c0,activeBounds.c1]),ybSet=new Set([activeBounds.r0,activeBounds.r1]);
-    for(const id of visIds){const b=compBounds[id];xbSet.add(b.vc0);xbSet.add(b.vc1);ybSet.add(b.vr0);ybSet.add(b.vr1);}
-    const xb=[...xbSet].sort((a,b)=>a-b),yb=[...ybSet].sort((a,b)=>a-b);
-    const cands=[];
-    for(let xi=0;xi<xb.length;xi++)for(let xj=xi+1;xj<xb.length;xj++){
-      const c0=xb[xi],c1=xb[xj];
-      if(c0>=c1)continue;
-      for(let yi=0;yi<yb.length;yi++)for(let yj=yi+1;yj<yb.length;yj++){
-        const r0=yb[yi],r1=yb[yj];
-        if(r0>=r1)continue;
-        const a=areaRect(c0,c1,r0,r1);
-        if(a>maxAreaPx+AREA_LIMIT_EPS)continue;
-        const stt=rectCompStats(c0,c1,r0,r1,false);
-        if(!stt||stt.visibleComps<=0)continue;
-        const coverBits=new Array(compN).fill(0);
-        let coverCount=0;
-        for(const cid of stt.inside){
-          const p=idToPos.get(cid);
-          if(p==null)continue;
-          coverBits[p]=1;coverCount++;
-        }
-        if(coverCount<=0)continue;
-        cands.push({c0,c1,r0,r1,a,coverBits,coverCount});
-      }
-    }
-    if(!cands.length||cands.length>240)return null;
-    const overlap=Array.from({length:cands.length},()=>new Array(cands.length).fill(false));
-    for(let i=0;i<cands.length;i++)for(let j=i+1;j<cands.length;j++){
-      const A=cands[i],B=cands[j],ov=overlapHasVisible(A,B);
-      overlap[i][j]=overlap[j][i]=ov;
-    }
-    const byComp=Array.from({length:compN},()=>[]);
-    for(let i=0;i<cands.length;i++)for(let p=0;p<compN;p++)if(cands[i].coverBits[p])byComp[p].push(i);
-    for(let p=0;p<compN;p++)if(!byComp[p].length)return null;
-    const maxCover=Math.max(1,...cands.map(c=>c.coverCount));
-    let bestIdxs=null;
-    let bestLen=Math.max(1,compactRegions.length);
-    const covered=new Array(compN).fill(false),picked=[],blocked=new Array(cands.length).fill(false);
-    const chooseComp=()=>{
-      let best=-1,bestOpts=1e9;
-      for(let p=0;p<compN;p++){
-        if(covered[p])continue;
-        let opts=0;for(const ci of byComp[p])if(!blocked[ci])opts++;
-        if(opts<bestOpts){bestOpts=opts;best=p;}
-      }
-      return best;
-    };
-    const mark=(ci,val,stack)=>{
-      for(let j=0;j<cands.length;j++)if(overlap[ci][j]&&!blocked[j]){blocked[j]=val;stack.push(j);}
-    };
-    const dfs=()=>{
-      let rem=0;for(let p=0;p<compN;p++)if(!covered[p])rem++;
-      if(rem===0){
-        if(picked.length<bestLen){bestLen=picked.length;bestIdxs=[...picked];}
-        return;
-      }
-      if(picked.length>=bestLen)return;
-      const lb=Math.ceil(rem/maxCover);
-      if(picked.length+lb>=bestLen)return;
-      const cp=chooseComp();
-      if(cp<0)return;
-      const options=byComp[cp].filter(ci=>!blocked[ci]).sort((a,b)=>cands[b].coverCount-cands[a].coverCount||cands[b].a-cands[a].a);
-      for(const ci of options){
-        if(picked.length+1>=bestLen)continue;
-        picked.push(ci);
-        const changedComp=[];
-        for(let p=0;p<compN;p++)if(cands[ci].coverBits[p]&&!covered[p]){covered[p]=true;changedComp.push(p);}
-        const changedBlocked=[];mark(ci,true,changedBlocked);
-        dfs();
-        for(const j of changedBlocked)blocked[j]=false;
-        for(const p of changedComp)covered[p]=false;
-        picked.pop();
-      }
-    };
-    dfs();
-    if(!bestIdxs||bestIdxs.length>=compactRegions.length)return null;
-    return bestIdxs.map((ci,idx)=>{const z=cands[ci];return{id:idx,label:toLetters(idx),c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0],gx:idx,gy:0};});
-  };
-  const tryExactComponentAssignMany=()=>{
-    const visIds=[];for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible)visIds.push(id);
-    const n=visIds.length;
-    if(n===0)return [[]];
-    if(n>24)return null;
-    const comps=visIds.map(id=>{
-      const b=compBounds[id],a=areaRect(b.vc0,b.vc1,b.vr0,b.vr1);
-      return{id,vc0:b.vc0,vc1:b.vc1,vr0:b.vr0,vr1:b.vr1,area:a};
-    }).sort((a,b)=>b.area-a.area);
-    const maxCount=Math.max(1,compactRegions.length);
-    const maxSolutions=24;
-    const sols=[],solSeen=new Set();
-    const solKey=regs=>regs.map(z=>`${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
-    const addSol=regs=>{
-      const key=solKey(regs);
-      if(solSeen.has(key))return;
-      solSeen.add(key);
-      let shape=0,bad=0;
-      for(const r0 of regs){shape+=shapePenaltyRect(r0.c0,r0.c1,r0.r0,r0.r1);bad+=Math.abs(maxAreaPx-areaRect(r0.c0,r0.c1,r0.r0,r0.r1));}
-      sols.push({regs:cloneRegs(regs),count:regs.length,shape,bad,mix:mixCost(bad,shape)});
-      sols.sort((a,b)=>(a.count-b.count)||(a.mix-b.mix)||(a.bad-b.bad));
-      if(sols.length>maxSolutions)sols.length=maxSolutions;
-    };
-    const regs=[];
-    const cloneRegs=src=>src.map(r=>({c0:r.c0,c1:r.c1,r0:r.r0,r1:r.r1,comps:[...r.comps]}));
-    const tryAdd=(r,cp)=>{
-      const c0=Math.min(r.c0,cp.vc0),c1=Math.max(r.c1,cp.vc1),r0=Math.min(r.r0,cp.vr0),r1=Math.max(r.r1,cp.vr1);
-      const a=areaRect(c0,c1,r0,r1);
-      if(a>maxAreaPx+AREA_LIMIT_EPS)return null;
-      return{c0,c1,r0,r1};
-    };
-    const dfs=idx=>{
-      if(regs.length>maxCount)return;
-      if(idx>=n){
-        addSol(regs);
-        return;
-      }
-      if(sols.length>=maxSolutions&&regs.length>=sols[sols.length-1].count)return;
-      const cp=comps[idx];
-      for(let i=0;i<regs.length;i++){
-        const upd=tryAdd(regs[i],cp);
-        if(!upd)continue;
-        const prev={c0:regs[i].c0,c1:regs[i].c1,r0:regs[i].r0,r1:regs[i].r1};
-        regs[i].c0=upd.c0;regs[i].c1=upd.c1;regs[i].r0=upd.r0;regs[i].r1=upd.r1;regs[i].comps.push(cp.id);
-        dfs(idx+1);
-        regs[i].comps.pop();
-        regs[i].c0=prev.c0;regs[i].c1=prev.c1;regs[i].r0=prev.r0;regs[i].r1=prev.r1;
-      }
-      if(regs.length+1<=maxCount&&cp.area<=maxAreaPx+AREA_LIMIT_EPS){
-        regs.push({c0:cp.vc0,c1:cp.vc1,r0:cp.vr0,r1:cp.vr1,comps:[cp.id]});
-        dfs(idx+1);
-        regs.pop();
-      }
-    };
-    dfs(0);
-    if(!sols.length)return null;
-    const mapped=sols.map(sol=>sol.regs.map((z,idx)=>({id:idx,label:toLetters(idx),c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0],gx:idx,gy:0,compSet:[...z.comps]})));
-    return mapped.filter(v=>v.length<compactRegions.length);
-  };
-  let optimized=pruneEmpty(compactRegions.map(rg=>({...rg})));
-  if(checkCalcTimeout(budget))return singleRegionFallback();
-  let exactAssigned=false;
-  const optimizeStartedAt=calcNow();
-  const exactAssignList=tryExactComponentAssignMany();
-  if(checkCalcTimeout(budget))return singleRegionFallback();
-  const exactAssign=(exactAssignList&&exactAssignList.length?exactAssignList[0]:null);
-  if(exactAssign&&exactAssign.length>0&&exactAssign.length<optimized.length){optimized=exactAssign;exactAssigned=true;}
-  const exact=tryExactPartition();
-  if(checkCalcTimeout(budget))return singleRegionFallback();
-  if(!exactAssigned&&exact&&exact.length>0&&exact.length<optimized.length)optimized=exact;
-  if(!exactAssigned)optimized=tryGlobalShiftMerge(optimized);
-  if(!exactAssigned&&optimized.length>1){
-    let improved=true,guardOpt=0;
-    while(improved&&guardOpt<24){
-      guardOpt++;improved=false;
-      const direct=tryDirectMerge(optimized);
-      if(direct&&direct.length<optimized.length){optimized=direct;improved=true;continue}
-      const shifted=tryShiftAndMerge(optimized);
-      if(shifted&&shifted.length<optimized.length){optimized=shifted;improved=true;continue}
-    }
-  }
-  calcProfile.optimizeMs=Math.max(0,calcNow()-optimizeStartedAt);
-  const variantScoreCache=new WeakMap();
-  const variantSigCache=new WeakMap();
-  const variantGeomSigCache=new WeakMap();
-  const regionScore=regs=>{
-    const cached=variantScoreCache.get(regs);
-    if(cached)return cached;
-    const value={count:regs.length,bad:totalBadness(regs),shape:totalShapeBadness(regs)};
-    variantScoreCache.set(regs,value);
-    return value;
-  };
-  const regionSig=regs=>{
-    const cached=variantSigCache.get(regs);
-    if(cached)return cached;
-    const groups=[];
-    for(const z of regs){
-      let ids=[];
-      if(Array.isArray(z.compSet)&&z.compSet.length){
-        ids=[...new Set(z.compSet.map(v=>+v).filter(v=>Number.isFinite(v)&&v>=0))].sort((a,b)=>a-b);
-      }else{
-        for(const cp of visCompList){
-          if(cp.vc0>=z.c0&&cp.vc1<=z.c1&&cp.vr0>=z.r0&&cp.vr1<=z.r1)ids.push(cp.id);
-        }
-        ids.sort((a,b)=>a-b);
-      }
-      groups.push(ids.join(","));
-    }
-    groups.sort();
-    const value=groups.join("|");
-    variantSigCache.set(regs,value);
-    return value;
-  };
-  const trimRegionsToVisible=regs=>{
-    if(!Array.isArray(regs)||!regs.length)return [];
-    const out=[];
-    for(const z of regs){
-      let c0=cols,c1=-1,r0=rows,r1=-1,has=false;
-      if(Array.isArray(z.compSet)&&z.compSet.length){
-        const s=[...new Set(z.compSet.map(v=>Math.max(0,Math.round(Number(v)||0))))];
-        for(const cid of s){
-          const b=compBounds[cid];
-          if(!b||!b.hasVisible)continue;
-          has=true;
-          if(b.vc0<c0)c0=b.vc0;if(b.vc1>c1)c1=b.vc1;if(b.vr0<r0)r0=b.vr0;if(b.vr1>r1)r1=b.vr1;
-        }
-      }else{
-        const zc0=Math.max(0,Math.round(Number(z&&z.c0)||0)),zc1=Math.min(cols,Math.round(Number(z&&z.c1)||0)),zr0=Math.max(0,Math.round(Number(z&&z.r0)||0)),zr1=Math.min(rows,Math.round(Number(z&&z.r1)||0));
-        if(visibleCountRect(zc0,zc1,zr0,zr1)<=0)continue;
-        for(let y=zr0;y<zr1;y++)for(let x=zc0;x<zc1;x++){
-          if(!visible[y][x])continue;
-          const cid=((compIds[cellKey(x,y)]|0)>=0?(compIds[cellKey(x,y)]|0):0),b=compBounds[cid];
-          if(!(b.vc0>=zc0&&b.vc1<=zc1&&b.vr0>=zr0&&b.vr1<=zr1))continue;
-          has=true;
-          if(x<c0)c0=x;if(x+1>c1)c1=x+1;if(y<r0)r0=y;if(y+1>r1)r1=y+1;
-        }
-      }
-      if(!has)continue;
-      out.push({...z,c0,c1,r0,r1});
-    }
-    return out;
-  };
-  const regionGeomSig=regs=>{
-    const cached=variantGeomSigCache.get(regs);
-    if(cached)return cached;
-    const parts=regs.map(z=>`${Math.round(Number(z&&z.c0)||0)},${Math.round(Number(z&&z.c1)||0)},${Math.round(Number(z&&z.r0)||0)},${Math.round(Number(z&&z.r1)||0)}`).sort();
-    const value=parts.join("|");
-    variantGeomSigCache.set(regs,value);
-    return value;
-  };
-  const visCompList=[];for(let id=0;id<compBounds.length;id++)if(compBounds[id].hasVisible)visCompList.push({id,vc0:compBounds[id].vc0,vc1:compBounds[id].vc1,vr0:compBounds[id].vr0,vr1:compBounds[id].vr1});
-  const regionsStrictNonOverlap=regs=>{
-    for(let i=0;i<regs.length;i++)for(let j=i+1;j<regs.length;j++){
-      const a=regs[i],b=regs[j];
-      if(!(a.c1<=b.c0||a.c0>=b.c1||a.r1<=b.r0||a.r0>=b.r1))return false;
-    }
-    return true;
-  };
-  const buildByOrder=(order,mode)=>{
-    const regs=[];
-    const fitAdd=(rg,cp)=>{
-      const c0=Math.min(rg.c0,cp.vc0),c1=Math.max(rg.c1,cp.vc1),r0=Math.min(rg.r0,cp.vr0),r1=Math.max(rg.r1,cp.vr1);
-      if(areaRect(c0,c1,r0,r1)>maxAreaPx+AREA_LIMIT_EPS)return null;
-      const tmp={c0,c1,r0,r1};
-      for(const other of regs){if(other===rg)continue;if(!(tmp.c1<=other.c0||tmp.c0>=other.c1||tmp.r1<=other.r0||tmp.r0>=other.r1))return null;}
-      return tmp;
-    };
-    for(const cp of order){
-      let candidates=[];
-      for(let i=0;i<regs.length;i++){
-        const upd=fitAdd(regs[i],cp);
-        if(!upd)continue;
-        const area=areaRect(upd.c0,upd.c1,upd.r0,upd.r1),shape=shapePenaltyRect(upd.c0,upd.c1,upd.r0,upd.r1);
-        candidates.push({i,upd,area,shape,bad:Math.abs(maxAreaPx-area)});
-      }
-      if(candidates.length){
-        candidates.sort((a,b)=>{
-          if(mode===0)return (a.bad-b.bad)||(a.shape-b.shape);
-          if(mode===1)return (a.shape-b.shape)||(a.bad-b.bad);
-          if(mode===2)return (b.area-a.area)||(a.shape-b.shape);
-          return (a.i-b.i);
-        });
-        const best=candidates[0];
-        const rg=regs[best.i];
-        rg.c0=best.upd.c0;rg.c1=best.upd.c1;rg.r0=best.upd.r0;rg.r1=best.upd.r1;
-        rg.comps.push(cp.id);
-      }else{
-        const fresh={c0:cp.vc0,c1:cp.vc1,r0:cp.vr0,r1:cp.vr1,comps:[cp.id]};
-        if(areaRect(fresh.c0,fresh.c1,fresh.r0,fresh.r1)>maxAreaPx+AREA_LIMIT_EPS)return null;
-        let ok=true;
-        for(const other of regs){if(!(fresh.c1<=other.c0||fresh.c0>=other.c1||fresh.r1<=other.r0||fresh.r0>=other.r1)){ok=false;break;}}
-        if(!ok)return null;
-        regs.push(fresh);
-      }
-    }
-    return regs.map((z,idx)=>({id:idx,label:toLetters(idx),c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0],gx:idx,gy:0,compSet:[...z.comps]}));
-  };
-  const compOrders=(()=>{
-    const arr=[...visCompList];
-    const by=(fn)=>[...arr].sort(fn);
-    const out=[];
-    out.push(by((a,b)=>areaRect(b.vc0,b.vc1,b.vr0,b.vr1)-areaRect(a.vc0,a.vc1,a.vr0,a.vr1)));
-    out.push(by((a,b)=>a.vr0-b.vr0||a.vc0-b.vc0));
-    out.push(by((a,b)=>a.vc0-b.vc0||a.vr0-b.vr0));
-    out.push(by((a,b)=>b.vr0-a.vr0||a.vc0-b.vc0));
-    out.push(by((a,b)=>b.vc0-a.vc0||a.vr0-b.vr0));
-    const seedRand=(seed)=>()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
-    for(let s=1;s<=12;s++){
+  const refineVariantToTarget=(input,strategy,targetParts)=>{
+    let regs=Array.isArray(input)?input.map(z=>({c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1})):[];
+    let safe=0;
+    while(safe<256){
+      safe++;
       if(checkCalcTimeout(budget))break;
-      const rnd=seedRand(0x9e3779b9^s),tmp=[...arr];
-      for(let i=tmp.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));const t=tmp[i];tmp[i]=tmp[j];tmp[j]=t;}
-      out.push(tmp);
-    }
-    return out;
-  })();
-  const addVariant=(list,seen,regs)=>{
-    if(!Array.isArray(regs)||!regs.length)return null;
-    const p=trimRegionsToVisible(pruneEmpty(regs.map(z=>({...z}))));
-    if(!p.length||!coversAllVisible(p)||!regionsStrictNonOverlap(p))return null;
-    const geomSig=regionGeomSig(p);
-    if(seen.has(geomSig))return null;
-    seen.add(geomSig);
-    list.push(p);
-    return regionSig(p);
-  };
-  const buildEqualPartitionVariants=()=>{
-    const out=[],maxRegions=Math.max(2,Math.min(compactRegions.length,targetRegionCount+2));
-    const addIfValid=regs=>{
-      if(!Array.isArray(regs)||!regs.length)return;
-      if(!regionsStrictNonOverlap(regs))return;
-      for(const z of regs){if(areaRect(z.c0,z.c1,z.r0,z.r1)>maxAreaPx+AREA_LIMIT_EPS)return;}
-      if(!coversAllVisible(regs))return;
-      out.push(regs.map((z,idx)=>({...z,id:idx,label:toLetters(idx),gx:idx,gy:0,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0]})));
-    };
-    const makeStripes=(count,axis)=>{
-      if(count<2)return null;
-      const cuts=axis==="x"?splitIndicesBySize(cellW,count):splitIndicesBySize(cellH,count);
-      if(!Array.isArray(cuts)||cuts.length<2)return null;
-      const regs=[];
-      for(let i=1;i<cuts.length;i++){
-        if(axis==="x"){
-          const c0=cuts[i-1],c1=cuts[i];
-          if(c1<=c0)return null;
-          regs.push({c0,c1,r0:0,r1:rows});
-        }else{
-          const r0=cuts[i-1],r1=cuts[i];
-          if(r1<=r0)return null;
-          regs.push({c0:0,c1:cols,r0,r1});
+      if(regs.length===targetParts)break;
+      if(regs.length<targetParts){
+        let best=null,bestIdx=-1;
+        for(let i=0;i<regs.length;i++){
+          const z=regs[i];
+          if(regionArea(z)<=AREA_LIMIT_EPS)continue;
+          const split=bestSplitForRect(regs,i,strategy,safe+i,targetParts);
+          if(!split)continue;
+          if(!best||split.score<best.score){best=split;bestIdx=i;}
         }
-      }
-      return regs;
-    };
-    const makeGrid=(nx,ny)=>{
-      if(nx<2||ny<2)return null;
-      const xCuts=splitIndicesBySize(cellW,nx),yCuts=splitIndicesBySize(cellH,ny);
-      if(!Array.isArray(xCuts)||!Array.isArray(yCuts)||xCuts.length<2||yCuts.length<2)return null;
-      const regs=[];
-      for(let yi=1;yi<yCuts.length;yi++){
-        for(let xi=1;xi<xCuts.length;xi++){
-          const c0=xCuts[xi-1],c1=xCuts[xi],r0=yCuts[yi-1],r1=yCuts[yi];
-          if(c1<=c0||r1<=r0)return null;
-          regs.push({c0,c1,r0,r1});
-        }
-      }
-      return regs;
-    };
-    for(let count=2;count<=maxRegions;count++){
-      addIfValid(makeStripes(count,"x"));
-      addIfValid(makeStripes(count,"y"));
-    }
-    for(let nx=2;nx<=4;nx++){
-      for(let ny=2;ny<=4;ny++){
-        const count=nx*ny;
-        if(count>maxRegions)continue;
-        addIfValid(makeGrid(nx,ny));
-      }
-    }
-    return out;
-  };
-  const variantsStartedAt=calcNow();
-  const variants=[],seenVariants=new Set(),equalVariantSigs=new Set();
-  const transformRegs=(regs,mode)=>regs.map(z=>{
-    if(mode==="flipX"){return{...z,c0:cols-z.c1,c1:cols-z.c0,r0:z.r0,r1:z.r1,compSet:undefined};}
-    if(mode==="flipY"){return{...z,c0:z.c0,c1:z.c1,r0:rows-z.r1,r1:rows-z.r0,compSet:undefined};}
-    if(mode==="rot180"){return{...z,c0:cols-z.c1,c1:cols-z.c0,r0:rows-z.r1,r1:rows-z.r0,compSet:undefined};}
-    return{...z,compSet:undefined};
-  });
-  const optimalVariantSig=addVariant(variants,seenVariants,optimized);
-  if(checkCalcTimeout(budget))return singleRegionFallback();
-  for(const eq of buildEqualPartitionVariants()){
-    if(checkCalcTimeout(budget))return singleRegionFallback();
-    const sig=addVariant(variants,seenVariants,eq);
-    if(sig)equalVariantSigs.add(sig);
-  }
-  if(exactAssign)addVariant(variants,seenVariants,exactAssign);
-  if(exactAssignList)for(const v of exactAssignList)addVariant(variants,seenVariants,v);
-  if(exact)addVariant(variants,seenVariants,exact);
-  addVariant(variants,seenVariants,compactRegions);
-  addVariant(variants,seenVariants,reduceByDirectMerge(compactRegions));
-  for(const ord of compOrders){
-    if(checkCalcTimeout(budget))return singleRegionFallback();
-    for(let mode=0;mode<4;mode++){
-      if(checkCalcTimeout(budget))return singleRegionFallback();
-      const v=buildByOrder(ord,mode);
-      addVariant(variants,seenVariants,v);
-    }
-  }
-  const baseForTransforms=[...variants];
-  for(const seed of baseForTransforms){
-    if(checkCalcTimeout(budget))return singleRegionFallback();
-    addVariant(variants,seenVariants,transformRegs(seed,"flipX"));
-    addVariant(variants,seenVariants,transformRegs(seed,"flipY"));
-    addVariant(variants,seenVariants,transformRegs(seed,"rot180"));
-  }
-  const validRegionsSet=regs=>{
-    if(!Array.isArray(regs)||!regs.length)return false;
-    if(!regionsStrictNonOverlap(regs))return false;
-    for(const z of regs){if(areaRect(z.c0,z.c1,z.r0,z.r1)>maxAreaPx+AREA_LIMIT_EPS)return false;}
-    return coversAllVisible(regs);
-  };
-  const mutateNeighbors=regs=>{
-    const out=[];
-    for(let i=0;i<regs.length;i++){
-      const z=regs[i];
-      const tries=[
-        {c0:z.c0-1,c1:z.c1,r0:z.r0,r1:z.r1},{c0:z.c0+1,c1:z.c1,r0:z.r0,r1:z.r1},
-        {c0:z.c0,c1:z.c1-1,r0:z.r0,r1:z.r1},{c0:z.c0,c1:z.c1+1,r0:z.r0,r1:z.r1},
-        {c0:z.c0,c1:z.c1,r0:z.r0-1,r1:z.r1},{c0:z.c0,c1:z.c1,r0:z.r0+1,r1:z.r1},
-        {c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1-1},{c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1+1},
-        {c0:z.c0-1,c1:z.c1-1,r0:z.r0,r1:z.r1},{c0:z.c0+1,c1:z.c1+1,r0:z.r0,r1:z.r1},
-        {c0:z.c0,c1:z.c1,r0:z.r0-1,r1:z.r1-1},{c0:z.c0,c1:z.c1,r0:z.r0+1,r1:z.r1+1}
-      ];
-      for(const t of tries){
-        if(t.c0<0||t.r0<0||t.c1>cols||t.r1>rows)continue;
-        if(t.c0>=t.c1||t.r0>=t.r1)continue;
-        const next=regs.map((rj,j)=>j===i?{...rj,c0:t.c0,c1:t.c1,r0:t.r0,r1:t.r1,compSet:undefined}:{...rj,compSet:undefined});
-        if(validRegionsSet(next))out.push(next);
-      }
-    }
-    return out;
-  };
-  if(variants.length<120){
-    let frontier=[...variants];
-    for(let depth=0;depth<3&&variants.length<120;depth++){
-      if(checkCalcTimeout(budget))return singleRegionFallback();
-      const nextFrontier=[];
-      for(const seed of frontier){
-        if(checkCalcTimeout(budget))return singleRegionFallback();
-        const neigh=mutateNeighbors(seed);
-        for(const n of neigh){
-          const before=variants.length;
-          addVariant(variants,seenVariants,n);
-          if(variants.length>before)nextFrontier.push(n);
-          if(variants.length>=120)break;
-        }
-        if(variants.length>=120)break;
-      }
-      frontier=nextFrontier;
-      if(!frontier.length)break;
-    }
-  }
-  if(variants.length<120){
-    const seeds=[...variants];
-    for(const seed of seeds){
-      if(checkCalcTimeout(budget))return singleRegionFallback();
-      const g=tryGlobalShiftMerge(seed);
-      addVariant(variants,seenVariants,g);
-      if(variants.length>=120)break;
-    }
-  }
-  variants.sort((a,b)=>{
-    const sa=regionScore(a),sb=regionScore(b);
-    return (sa.count-sb.count)||(sa.bad-sb.bad)||(sa.shape-sb.shape);
-  });
-  const optimalRegionCount=Math.max(1,targetRegionCount);
-  const maxAllowedCount=optimalRegionCount+1;
-  const flowMode=normalizeDataFlow(r&&r.dataFlow);
-  const flowLenCache=new Map();
-  const flowPathLenByGroups=groups=>{
-    let sum=0;
-    for(const g of groups||[]){
-      const pts=Array.isArray(g&&g.points)?g.points:[];
-      for(let i=1;i<pts.length;i++)sum+=flowDist(pts[i-1],pts[i]);
-    }
-    return sum;
-  };
-  const buildFlowRegionsModel=regs=>{
-    const list=regs.map((z,idx)=>({id:idx,label:toLetters(idx),c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,compSet:Array.isArray(z.compSet)?[...z.compSet]:null}));
-    const byId=new Map();for(const rg of list)byId.set(rg.id,rg);
-    const colToGroup=new Array(cols).fill(0),rowToGroup=new Array(rows).fill(0),cellToRegion=new Array(rows*cols).fill(-1);
-    for(const rg of list){
-      for(let x=rg.c0;x<rg.c1;x++)colToGroup[x]=rg.id;
-      for(let y=rg.r0;y<rg.r1;y++)rowToGroup[y]=rg.id;
-      if(Array.isArray(rg.compSet)&&rg.compSet.length){
-        const s=new Set(rg.compSet);
-        for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
-          if(!visible[y][x])continue;
-          const cid=((compIds[cellKey(x,y)]|0)>=0?(compIds[cellKey(x,y)]|0):0);
-          if(s.has(cid))cellToRegion[cellKey(x,y)]=rg.id;
-        }
+        if(bestIdx<0||!best)break;
+        regs.splice(bestIdx,1,best.left,best.right);
       }else{
-        for(let y=rg.r0;y<rg.r1;y++)for(let x=rg.c0;x<rg.c1;x++){
-          const cid=((compIds[cellKey(x,y)]|0)>=0?(compIds[cellKey(x,y)]|0):0),b=compBounds[cid];
-          if(b.vc0>=rg.c0&&b.vc1<=rg.c1&&b.vr0>=rg.r0&&b.vr1<=rg.r1&&visible[y][x])cellToRegion[cellKey(x,y)]=rg.id;
+        const m=bestMergeForRegs(regs,targetParts);
+        if(!m)break;
+        regs.splice(m.j,1);
+        regs.splice(m.i,1,m.u);
+      }
+    }
+    return mergeNeighborRects(regs);
+  };
+  const regsSignature=regs=>regs.map(z=>`${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
+  const regsScore=(regs,targetParts)=>Math.abs((regs&&regs.length||0)-targetParts)*1e15+variantBad(regs)*1e3+variantShape(regs);
+  const beamImproveVariant=(input,strategy,targetParts)=>{
+    const kind=(strategy&&strategy.kind)||"block";
+    const canUseBeam=(cols*rows)<=320&&targetParts<=12;
+    if(!canUseBeam)return input;
+    const makeOrientOrder=z=>{
+      const prefAlt=resolvePreferredDirs(z,strategy),pref=prefAlt.pref,alt=prefAlt.alt;
+      return [pref,alt];
+    };
+    const mkState=regs=>({regs,score:regsScore(regs,targetParts)});
+    let beam=[mkState(Array.isArray(input)?input.map(z=>({c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1})):[])];
+    let best=beam[0];
+    const seen=new Set([regsSignature(best.regs)]);
+    const WIDTH=24,EXPAND=8,STEPS=18;
+    for(let step=0;step<STEPS;step++){
+      if(checkCalcTimeout(budget))break;
+      beam.sort((a,b)=>a.score-b.score);
+      beam=beam.slice(0,WIDTH);
+      if(beam[0]&&beam[0].score<best.score)best=beam[0];
+      const nextStates=[];
+      const expandList=beam.slice(0,EXPAND);
+      for(const st0 of expandList){
+        if(checkCalcTimeout(budget))break;
+        const regs=st0.regs;
+        if(!Array.isArray(regs)||!regs.length)continue;
+        if(regs.length<targetParts){
+          const splitRects=[...regs.keys()].sort((ia,ib)=>regionArea(regs[ib])-regionArea(regs[ia])).slice(0,6);
+          for(const i of splitRects){
+            const z=regs[i];
+            const dirs=makeOrientOrder(z);
+            for(const dir of dirs){
+              const cuts=listCuts(z,dir,strategy).slice(0,4);
+              for(const cut of cuts){
+                const ab=splitRectBy(z,dir,cut),a=ab[0],b=ab[1];
+                if(!rectHasVisible(a.c0,a.c1,a.r0,a.r1)||!rectHasVisible(b.c0,b.c1,b.r0,b.r1))continue;
+                const nr=[...regs.slice(0,i),a,b,...regs.slice(i+1)];
+                const merged=mergeNeighborRects(nr);
+                const sig=regsSignature(merged);
+                if(seen.has(sig))continue;
+                seen.add(sig);
+                nextStates.push(mkState(merged));
+              }
+            }
+          }
+        }else if(regs.length>targetParts){
+          const pairs=[];
+          for(let i=0;i<regs.length;i++)for(let j=i+1;j<regs.length;j++){
+            const u=tryMergeRects(regs[i],regs[j]);
+            if(!u)continue;
+            if(mergeWouldConflict(regs,i,j,u))continue;
+            const nr=[...regs];
+            nr.splice(j,1);
+            nr.splice(i,1,u);
+            pairs.push(nr);
+          }
+          pairs.sort((a,b)=>regsScore(a,targetParts)-regsScore(b,targetParts));
+          for(const nr0 of pairs.slice(0,16)){
+            const nr=mergeNeighborRects(nr0),sig=regsSignature(nr);
+            if(seen.has(sig))continue;
+            seen.add(sig);
+            nextStates.push(mkState(nr));
+          }
+        }else{
+          const splitRects=[...regs.keys()].sort((ia,ib)=>regionArea(regs[ib])-regionArea(regs[ia])).slice(0,2);
+          for(const i of splitRects){
+            const z=regs[i],dirs=makeOrientOrder(z);
+            for(const dir of dirs){
+              const cut=listCuts(z,dir,strategy)[0];
+              if(cut==null)continue;
+              const ab=splitRectBy(z,dir,cut),a=ab[0],b=ab[1];
+              const tmp=[...regs.slice(0,i),a,b,...regs.slice(i+1)];
+              const merged=bestMergeForRegs(tmp,targetParts);
+              if(!merged)continue;
+              const nr=[...tmp];
+              nr.splice(merged.j,1);
+              nr.splice(merged.i,1,merged.u);
+              const fin=mergeNeighborRects(nr),sig=regsSignature(fin);
+              if(seen.has(sig))continue;
+              seen.add(sig);
+              nextStates.push(mkState(fin));
+            }
+          }
+        }
+      }
+      if(!nextStates.length)break;
+      beam=nextStates;
+    }
+    return best&&Array.isArray(best.regs)?best.regs:input;
+  };
+  const buildVariantByStrategy=strategy=>{
+    const kind=(strategy&&strategy.kind)||"block";
+    const seed=Math.max(0,Math.round(Number(strategy&&strategy.seed)||0));
+    const rot=((strategy&&strategy.rot)|0);
+    const regs=[{c0,c1,r0,r1}];
+    if(kind==="block"){
+      const base=regs[0];
+      const wCells=Math.max(1,base.c1-base.c0),hCells=Math.max(1,base.r1-base.r0);
+      if(wCells>=3&&hCells>=3){
+        const rng=makeRng(((r&&r.id)||0)*2654435761+(seed+1)*1013904223+wCells*73856093+hCells*19349663);
+        let sx=base.c0+1+Math.floor(rng()*(wCells-1));
+        let sy=base.r0+1+Math.floor(rng()*(hCells-1));
+        if(rot===90){sx=base.c0+1+Math.floor(rng()*(wCells-1));sy=base.r1-1-Math.floor(rng()*(hCells-1));}
+        else if(rot===-90){sx=base.c1-1-Math.floor(rng()*(wCells-1));sy=base.r0+1+Math.floor(rng()*(hCells-1));}
+        const canV=canSplitByComp(base,"v",sx)&&rectHasVisible(base.c0,sx,base.r0,base.r1)&&rectHasVisible(sx,base.c1,base.r0,base.r1);
+        const canH=canSplitByComp(base,"h",sy)&&rectHasVisible(base.c0,base.c1,base.r0,sy)&&rectHasVisible(base.c0,base.c1,sy,base.r1);
+        if(canV||canH){
+          regs.length=0;
+          if(canV&&canH){
+            const chunks=[
+              {c0:base.c0,c1:sx,r0:base.r0,r1:sy},
+              {c0:sx,c1:base.c1,r0:base.r0,r1:sy},
+              {c0:base.c0,c1:sx,r0:sy,r1:base.r1},
+              {c0:sx,c1:base.c1,r0:sy,r1:base.r1}
+            ];
+            for(const z of chunks)if(rectHasVisible(z.c0,z.c1,z.r0,z.r1))regs.push(z);
+          }else if(canV){
+            regs.push({c0:base.c0,c1:sx,r0:base.r0,r1:base.r1},{c0:sx,c1:base.c1,r0:base.r0,r1:base.r1});
+          }else{
+            regs.push({c0:base.c0,c1:base.c1,r0:base.r0,r1:sy},{c0:base.c0,c1:base.c1,r0:sy,r1:base.r1});
+          }
         }
       }
     }
-    return{nx:Math.max(1,list.length),colToGroup,rowToGroup,cellToRegion,regionsById:byId,regions:list};
-  };
-  const variantFlowLen=regs=>{
-    if(flowMode==="none")return 0;
-    const sig=regionSig(regs);
-    if(flowLenCache.has(sig))return flowLenCache.get(sig);
-    let len=Number.POSITIVE_INFINITY;
-    try{
-      const regionModel=buildFlowRegionsModel(regs);
-      const groups=getDataFlowGroupsUncached(r,cx,cy,topo,hset,regionModel,budget);
-      len=flowPathLenByGroups(groups);
-      if(!Number.isFinite(len))len=Number.POSITIVE_INFINITY;
-    }catch(_e){len=Number.POSITIVE_INFINITY;}
-    flowLenCache.set(sig,len);
-    return len;
-  };
-  const variantRegionEntropy=regs=>{
-    if(!Array.isArray(regs)||!regs.length)return 0;
-    const freq=new Map();
-    let total=0;
-    for(const z of regs){
-      const cw=Math.max(1,Math.round(Number(z&&z.c1)-Number(z&&z.c0)||0));
-      const rh=Math.max(1,Math.round(Number(z&&z.r1)-Number(z&&z.r0)||0));
-      const key=`${cw}x${rh}`;
-      freq.set(key,(freq.get(key)||0)+1);
-      total++;
+    let safe=0;
+    while(safe<4096){
+      safe++;
+      if(checkCalcTimeout(budget))return null;
+      let partsEstimate=0;
+      for(const z of regs)partsEstimate+=estPartsForRect(z);
+      let bestGlobal=null,bestIdx=-1;
+      for(let i=0;i<regs.length;i++){
+        const z=regs[i],a=regionArea(z),over=a-maxAreaPx;
+        if(over<=AREA_LIMIT_EPS)continue;
+        const pick=pickSplitForRect(regs,i,strategy,safe+i,partsEstimate,optimalCount);
+        if(!pick)continue;
+        if(!bestGlobal||pick.score<bestGlobal.score){bestGlobal=pick;bestIdx=i;}
+      }
+      if(bestIdx<0||!bestGlobal)break;
+      regs.splice(bestIdx,1,bestGlobal.left,bestGlobal.right);
     }
-    if(total<=1)return 0;
-    let h=0;
-    for(const c of freq.values()){
-      const p=c/total;
-      h+=-p*Math.log2(Math.max(1e-12,p));
-    }
-    return h;
+    return mergeNeighborRects(regs);
   };
-  const rankedAll=variants
-    .map(v=>{
-      const score=regionScore(v),sig=regionSig(v);
-      return{v,sig,score,delta:Math.abs(score.count-optimalRegionCount),flowLen:Number.POSITIVE_INFINITY,entropy:variantRegionEntropy(v),isEqual:equalVariantSigs.has(sig)};
-    });
-  rankedAll.sort((a,b)=>(a.delta-b.delta)||(a.entropy-b.entropy)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
-  const flowEvalLimit=Math.max(1,Math.min(rankedAll.length,Math.max(8,Math.min(16,targetRegionCount*2))));
-  for(let i=0;i<flowEvalLimit;i++)rankedAll[i].flowLen=variantFlowLen(rankedAll[i].v);
-  calcProfile.flowEvalCount=flowEvalLimit;
-  const ordered=[];
-  rankedAll.sort((a,b)=>(a.delta-b.delta)||(a.flowLen-b.flowLen)||(a.entropy-b.entropy)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
-  if(rankedAll.length){
-    ordered.push(rankedAll[0].v);
-    calcProfile.bestVariantDelta=rankedAll[0].delta;
-    calcProfile.bestVariantFlowLen=rankedAll[0].flowLen;
-    calcProfile.bestVariantEntropy=rankedAll[0].entropy;
-    calcProfile.bestVariantRegionCount=rankedAll[0].score.count;
+  addVariant([{c0,c1,r0,r1}]);
+  for(const strategy of splitStrategies){
+    if(checkCalcTimeout(budget))return makeSingle(true);
+    const regs=buildVariantByStrategy(strategy);
+    if(!regs)return makeSingle(true);
+    addVariant(regs);
+    const tuned=refineVariantToTarget(regs,strategy,optimalCount);
+    addVariant(tuned);
+    const tunedBeam=beamImproveVariant(tuned,strategy,optimalCount);
+    addVariant(tunedBeam);
+    const tunedPlus=refineVariantToTarget(regs,strategy,Math.min(maxAllowedCount,optimalCount+1));
+    addVariant(tunedPlus);
   }
-  const hardMaxCount=optimalRegionCount+2;
-  const rankedNear=rankedAll.slice(1).filter(it=>it.score.count<=maxAllowedCount);
-  const rankedRest=rankedAll.slice(1).filter(it=>it.score.count>maxAllowedCount&&it.score.count<=hardMaxCount);
-  rankedNear.sort((a,b)=>(a.delta-b.delta)||(a.flowLen-b.flowLen)||(a.entropy-b.entropy)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
-  rankedRest.sort((a,b)=>(a.delta-b.delta)||(a.flowLen-b.flowLen)||(a.entropy-b.entropy)||(a.score.bad-b.score.bad)||(a.score.shape-b.score.shape)||(a.score.count-b.score.count));
-  for(const it of rankedNear)ordered.push(it.v);
-  for(const it of rankedRest)ordered.push(it.v);
-  const limited=ordered.slice(0,SPLIT_VARIANT_MAX);
-  calcProfile.variantsMs=Math.max(0,calcNow()-variantsStartedAt);
-  calcProfile.totalMs=Math.max(0,calcNow()-calcStartedAt);
-  const variantCount=Math.max(1,limited.length);
-  calcProfile.variantCount=variantCount;
+  if(!variants.length)return makeSingle(false);
+  const compactVariant=regs=>{
+    let cur=trimVisibleRects(Array.isArray(regs)?regs:[]);
+    let safe=0;
+    while(safe<64){
+      safe++;
+      const sig0=cur.map(z=>`${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
+      const merged=mergeNeighborRects(cur);
+      const next=trimVisibleRects(merged);
+      const sig1=next.map(z=>`${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
+      cur=next;
+      if(sig0===sig1)break;
+    }
+    if(!cur.length)return null;
+    for(const z of cur)if(areaRect(z.c0,z.c1,z.r0,z.r1)>maxAreaPx+AREA_LIMIT_EPS)return null;
+    if(!coversAllVisible(cur))return null;
+    if(!variantRespectsMergedCells(cur))return null;
+    return cur;
+  };
+  const compacted=[],compSeen=new Set();
+  for(const v of variants){
+    const c=compactVariant(v);
+    if(!c)continue;
+    const sig=c.map(z=>`${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
+    if(compSeen.has(sig))continue;
+    compSeen.add(sig);
+    compacted.push(c);
+  }
+  if(compacted.length){
+    variants.length=0;
+    for(const v of compacted)variants.push(v);
+  }
+  if(!variants.length)return makeSingle(false);
+  const shapeScore=variantShape;
+  const sizeEntropyScore=regs=>{
+    if(!Array.isArray(regs)||regs.length<=1)return 0;
+    const areas=regs.map(z=>Math.max(1e-6,areaRect(z.c0,z.c1,z.r0,z.r1)));
+    const mean=areas.reduce((a,b)=>a+b,0)/areas.length;
+    let sumSq=0;
+    for(const a of areas){const d=a-mean;sumSq+=d*d;}
+    const std=Math.sqrt(sumSq/areas.length);
+    return std/Math.max(1e-6,mean);
+  };
+  const regularityScore=regs=>{
+    if(!Array.isArray(regs)||!regs.length)return 1e9;
+    const ws=regs.map(z=>Math.max(1e-6,colPref[z.c1]-colPref[z.c0]));
+    const hs=regs.map(z=>Math.max(1e-6,rowPref[z.r1]-rowPref[z.r0]));
+    const wMean=ws.reduce((a,b)=>a+b,0)/ws.length,hMean=hs.reduce((a,b)=>a+b,0)/hs.length;
+    let wVar=0,hVar=0;
+    for(const w of ws){const d=w-wMean;wVar+=d*d;}
+    for(const h of hs){const d=h-hMean;hVar+=d*d;}
+    const wCv=Math.sqrt(wVar/ws.length)/Math.max(1e-6,wMean);
+    const hCv=Math.sqrt(hVar/hs.length)/Math.max(1e-6,hMean);
+    const sameRows=regs.every(z=>z.r0===regs[0].r0&&z.r1===regs[0].r1);
+    const sameCols=regs.every(z=>z.c0===regs[0].c0&&z.c1===regs[0].c1);
+    const stripePenalty=(sameRows||sameCols)?0:1;
+    return stripePenalty*10+Math.min(wCv,hCv)*5+Math.max(wCv,hCv);
+  };
+  const cmpRank=(a,b)=>
+    (a.delta-b.delta)||
+    (a.regularity-b.regularity)||
+    (a.entropy-b.entropy)||
+    (a.bad-b.bad)||
+    (a.shape-b.shape)||
+    (a.count-b.count);
+  const ranked=variants.map(v=>{
+    const count=v.length,delta=Math.abs(count-optimalCount),shape=shapeScore(v),entropy=sizeEntropyScore(v),regularity=regularityScore(v),bad=v.reduce((acc,z)=>acc+Math.abs(maxAreaPx-areaRect(z.c0,z.c1,z.r0,z.r1)),0);
+    return{v,count,delta,regularity,entropy,shape,bad};
+  }).sort(cmpRank);
+  const rankedWithinLimit=ranked.filter(it=>it.count<=maxAllowedCount);
+  const notAboveOptimal=rankedWithinLimit.filter(it=>it.count<=optimalCount);
+  const sourceList=(notAboveOptimal.length?notAboveOptimal:rankedWithinLimit);
+  const ordered=sourceList.slice(0,SPLIT_VARIANT_MAX);
+  if(!ordered.length)return makeSingle(false);
+  const variantCount=Math.max(1,ordered.length);
   r._splitVariantCount=variantCount;
-  const variantIndex=Math.max(0,Math.min(Math.max(0,SPLIT_VARIANT_MAX-1),Math.round(Number(r&&r.splitVariant)||0)));
-  const chosenIndex=Math.min(variantIndex,Math.max(0,limited.length-1));
-  if(r&&Math.round(Number(r.splitVariant)||0)!==chosenIndex)r.splitVariant=chosenIndex;
-  const finalRegions=trimRegionsToVisible((limited[chosenIndex]||optimized).map(z=>({...z})));
-  if(!finalRegions.length){
-    const byId=new Map();byId.set(0,{id:0,gx:0,gy:0,c0:0,c1:cols,r0:0,r1:rows,w:r.width,h:r.height,label:"A"});
-    const outSingle={nx:1,ny:1,colToGroup:new Array(cols).fill(0),rowToGroup:new Array(rows).fill(0),regionsById:byId,xCutsPx:[0,r.width],yCutsPx:[0,r.height],cellToRegion:new Array(rows*cols).fill(0),regions:[...byId.values()],variantCount:1};
-    try{Object.defineProperty(outSingle,"_profile",{value:calcProfile,writable:true,configurable:true});}catch(_e){outSingle._profile=calcProfile;}
-    return outSingle;
-  }
-  for(let i=0;i<finalRegions.length;i++){
-    const rg=finalRegions[i];
-    rg.id=i;rg.label=toLetters(i);rg.gx=i;rg.gy=0;
-    rg.w=colPref[rg.c1]-colPref[rg.c0];rg.h=rowPref[rg.r1]-rowPref[rg.r0];
-  }
-  const byId=new Map();
-  for(const rg of finalRegions)byId.set(rg.id,rg);
+  const variantIndex=Math.max(0,Math.min(variantCount-1,Math.round(Number(r&&r.splitVariant)||0)));
+  if(r&&Math.round(Number(r.splitVariant)||0)!==variantIndex)r.splitVariant=variantIndex;
+  const finalRegions=(ordered[variantIndex]?ordered[variantIndex].v:best.v).map((z,idx)=>({id:idx,label:toLetters(idx),gx:idx,gy:0,c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0]}));
+  const byId=new Map();for(const rg of finalRegions)byId.set(rg.id,rg);
   const colToGroup=new Array(cols).fill(-1),rowToGroup=new Array(rows).fill(-1),cellToRegion=new Array(rows*cols).fill(-1);
   for(const rg of finalRegions){
     for(let x=rg.c0;x<rg.c1;x++)if(colToGroup[x]===-1)colToGroup[x]=rg.id;
     for(let y=rg.r0;y<rg.r1;y++)if(rowToGroup[y]===-1)rowToGroup[y]=rg.id;
-    if(Array.isArray(rg.compSet)&&rg.compSet.length){
-      const s=new Set(rg.compSet);
-      for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
-        if(!visible[y][x])continue;
-        const cid=((compIds[cellKey(x,y)]|0)>=0?(compIds[cellKey(x,y)]|0):0);
-        if(s.has(cid))cellToRegion[cellKey(x,y)]=rg.id;
-      }
-    }else{
-      for(let y=rg.r0;y<rg.r1;y++)for(let x=rg.c0;x<rg.c1;x++){
-        const cid=((compIds[cellKey(x,y)]|0)>=0?(compIds[cellKey(x,y)]|0):0),b=compBounds[cid];
-        if(b.vc0>=rg.c0&&b.vc1<=rg.c1&&b.vr0>=rg.r0&&b.vr1<=rg.r1&&visible[y][x])cellToRegion[cellKey(x,y)]=rg.id;
-      }
-    }
+    for(let y=rg.r0;y<rg.r1;y++)for(let x=rg.c0;x<rg.c1;x++)if(visible[y][x])cellToRegion[y*cols+x]=rg.id;
   }
   for(let i=0;i<cols;i++)if(colToGroup[i]===-1)colToGroup[i]=0;
   for(let i=0;i<rows;i++)if(rowToGroup[i]===-1)rowToGroup[i]=0;
-  const xCutsPx=[0,r.width],yCutsPx=[0,r.height];
-  const outPlan={nx:finalRegions.length,ny:1,colToGroup,rowToGroup,regionsById:byId,xCutsPx,yCutsPx,cellToRegion,regions:finalRegions,variantCount};
-  try{Object.defineProperty(outPlan,"_profile",{value:calcProfile,writable:true,configurable:true});}catch(_e){outPlan._profile=calcProfile;}
-  return outPlan;
+  const out={nx:finalRegions.length,ny:1,colToGroup,rowToGroup,regionsById:byId,xCutsPx:[0,r.width],yCutsPx:[0,r.height],cellToRegion,regions:finalRegions,variantCount};
+  const profile={variantCount,optimalCount,maxAllowedCount,totalMs:Math.max(0,calcNow()-startedAt)};
+  try{Object.defineProperty(out,"_profile",{value:profile,writable:true,configurable:true});}
+  catch(_e){out._profile=profile;}
+  return out;
 };
 let regionCalcWorker=null,regionCalcReqSeq=1;
 const regionCalcPending=new Map();
@@ -4170,9 +3843,11 @@ const updateSplitVariantControl=r=>{
   const cur=Math.max(0,Math.min(maxv,Math.round(Number(r&&r.splitVariant)||0)));
   el.splitVariant.value=String(cur);
   if(r&&hasCnt)r.splitVariant=cur;
+  if(el.splitVariantDec)el.splitVariantDec.disabled=!r||cur<=0;
+  if(el.splitVariantInc)el.splitVariantInc.disabled=!r||cur>=maxv;
   updateSplitVariantLabel(r);
 };
-function syncProps(){const r=cur(),on=!!r;[el.name,el.rectTextSize,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnResetFlowLocks)el.btnResetFlowLocks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;updateThemeUi();updateRegionsToggleUi();el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){el.name.value="";el.rectTextSize.value="0";updateRectTextSizeLabel(null);el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.dataFlow.value="none";el.dataFlowZ.checked=false;el.numCells.checked=false;el.splitVariant.max=String(Math.max(0,SPLIT_VARIANT_MAX-1));el.splitVariant.value="0";updateSplitVariantLabel(null);if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
+function syncProps(){const r=cur(),on=!!r;[el.name,el.rectTextSize,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnResetFlowLocks)el.btnResetFlowLocks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;updateThemeUi();updateRegionsToggleUi();el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){el.name.value="";el.rectTextSize.value="0";updateRectTextSizeLabel(null);el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.dataFlow.value="none";el.dataFlowZ.checked=false;el.numCells.checked=false;el.splitVariant.max=String(Math.max(0,SPLIT_VARIANT_MAX-1));el.splitVariant.value="0";if(el.splitVariantDec)el.splitVariantDec.disabled=true;if(el.splitVariantInc)el.splitVariantInc.disabled=true;updateSplitVariantLabel(null);if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
 metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.rectTextSize.value=String(Math.max(0,Math.min(128,Math.round(Number(r.textSize)||0))));updateRectTextSizeLabel(r);el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;{const globalMode=normalizeDataFlow(r.dataFlow),rid=(st.mode==="flowEdit"&&Number.isFinite(Number(st.flowRegionRid)))?Math.max(0,Math.round(Number(st.flowRegionRid)||0)):null,cfg=(rid!=null)?getFlowRegionConfig(r,rid):null,pts=(rid!=null)?(st.flowEditPoints||[]).filter(p=>p.rid===rid):[],computedMode=(rid!=null)?resolveFlowModeFromStartAndDir(pts,cfg,getFlowModeRegion(r,rid,globalMode)):"none";el.dataFlow.value=(computedMode!=="none")?computedMode:globalMode;}el.dataFlowZ.checked=!!r.dataFlowZ;el.numCells.checked=!!r.numberCells;updateSplitVariantControl(r);if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
 let listDragId=null;
 const reorderRects=(dragId,targetId,after=false)=>{
@@ -4204,7 +3879,7 @@ function listRects(){
     el.list.appendChild(d);
   }
 }
-function applyProps(opts){const o=(opts&&typeof opts==="object")?opts:{},needList=o.list!==false,needPersist=o.persist!==false,needRender=o.render!==false;const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));r.areaM2Px=parseAreaM2PxInput(el.areaM2.value,r.areaM2Px||65536);pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));{const selectedMode=normalizeDataFlow(el.dataFlow.value),rid=(st.mode==="flowEdit"&&Number.isFinite(Number(st.flowRegionRid)))?Math.max(0,Math.round(Number(st.flowRegionRid)||0)):null;if(rid!=null){const cfg=getFlowRegionConfig(r,rid),curMode=normalizeDataFlow(cfg&&cfg.mode||"none");if(curMode!==selectedMode)setFlowRegionMode(r,rid,selectedMode);}else{r.dataFlow=selectedMode;}}r.dataFlowZ=!!el.dataFlowZ.checked;r.numberCells=!!el.numCells.checked;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,Math.max(0,SPLIT_VARIANT_MAX-1))));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));updateSplitVariantControl(r);el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;if(needList)listRects();if(needPersist)schedulePersist("project");if(needRender)render()}
+function applyProps(opts){const o=(opts&&typeof opts==="object")?opts:{},needList=o.list!==false,needPersist=o.persist!==false,needRender=o.render!==false;const r=cur();if(!r)return;r.name=el.name.value||`Rect ${r.id}`;r.x=Math.round(evalExpr(el.x.value,r.x));r.y=Math.round(evalExpr(el.y.value,r.y));r.rotation=evalExpr(el.rot.value,r.rotation||0);r.widthM=Math.max(0.001,evalExpr(el.wm.value,r.widthM||0.001));r.heightM=Math.max(0.001,evalExpr(el.hm.value,r.heightM||0.001));r.scale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));r.areaM2Px=parseAreaM2PxInput(el.areaM2.value,r.areaM2Px||65536);pxFromMetric(r);r.colorA=el.a.value||"#2fcaaf";if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);else r.colorB=el.b.value||r.colorB;r.cellX=Math.max(1,Math.round(evalExpr(el.cx.value,r.cellX||128)));r.cellY=Math.max(1,Math.round(evalExpr(el.cy.value,r.cellY||128)));{const selectedMode=normalizeDataFlow(el.dataFlow.value),rid=(st.mode==="flowEdit"&&Number.isFinite(Number(st.flowRegionRid)))?Math.max(0,Math.round(Number(st.flowRegionRid)||0)):null;if(rid!=null){const cfg=getFlowRegionConfig(r,rid),curMode=normalizeDataFlow(cfg&&cfg.mode||"none");if(curMode!==selectedMode)setFlowRegionMode(r,rid,selectedMode);}else{r.dataFlow=selectedMode;}}r.dataFlowZ=!!el.dataFlowZ.checked;r.numberCells=!!el.numCells.checked;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,Math.max(0,SPLIT_VARIANT_MAX-1))));const prevSplit=Math.max(0,Math.round(Number(r.splitVariant)||0));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));if(r.splitVariant!==prevSplit){try{delete r._splitVariantCount;}catch(_e){r._splitVariantCount=NaN;}}updateSplitVariantControl(r);el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;if(needList)listRects();if(needPersist)schedulePersist("project");if(needRender)render()}
 let propsInputRaf=0;
 const scheduleApplyPropsInput=()=>{if(propsInputRaf)return;propsInputRaf=requestAnimationFrame(()=>{propsInputRaf=0;applyProps({list:false,persist:false,render:true});});};
 [el.name,el.x,el.y,el.rot,el.scale,el.a,el.cx,el.cy].forEach(v=>v.addEventListener("input",scheduleApplyPropsInput));
@@ -4216,7 +3891,13 @@ el.b.addEventListener("change",()=>{const r=cur();if(!r)return;r.autoContrastB=f
 let rectTextInputRaf=0,rectTextFontTimer=0;
 [el.rectTextSize].forEach(v=>v.addEventListener("input",()=>{const r=cur();if(!r)return;r.textSize=Math.max(0,Math.min(128,Math.round(evalExpr(el.rectTextSize.value,r.textSize||0))));updateRectTextSizeLabel(r);if(!rectTextInputRaf)rectTextInputRaf=requestAnimationFrame(()=>{rectTextInputRaf=0;render();});if(rectTextFontTimer)clearTimeout(rectTextFontTimer);rectTextFontTimer=setTimeout(()=>ensureFontReady().then(()=>render()).catch(()=>{}),140);}));
 let splitVariantInputTimer=0;
-if(el.splitVariant)el.splitVariant.addEventListener("input",()=>{const r=cur();if(!r)return;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,Math.max(0,SPLIT_VARIANT_MAX-1))));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));updateSplitVariantLabel(r);if(splitVariantInputTimer)clearTimeout(splitVariantInputTimer);splitVariantInputTimer=setTimeout(()=>{splitVariantInputTimer=0;render();},50);});
+if(el.splitVariant)el.splitVariant.addEventListener("input",()=>{const r=cur();if(!r)return;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,Math.max(0,SPLIT_VARIANT_MAX-1))));r.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));updateSplitVariantLabel(r);if(splitVariantInputTimer)clearTimeout(splitVariantInputTimer);splitVariantInputTimer=setTimeout(()=>{splitVariantInputTimer=0;render();},180);});
+if(el.splitVariant)el.splitVariant.addEventListener("change",()=>{if(splitVariantInputTimer){clearTimeout(splitVariantInputTimer);splitVariantInputTimer=0;}});
+if(el.splitVariant)el.splitVariant.addEventListener("keydown",e=>e.preventDefault());
+if(el.splitVariant)el.splitVariant.addEventListener("wheel",e=>e.preventDefault(),{passive:false});
+const stepSplitVariant=delta=>{const r=cur();if(!r||!el.splitVariant)return;const maxSplit=Math.max(0,Math.round(evalExpr(el.splitVariant.max,Math.max(0,SPLIT_VARIANT_MAX-1))));const curV=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,r.splitVariant||0))));const nextV=Math.max(0,Math.min(maxSplit,curV+Math.max(-1,Math.min(1,Math.round(Number(delta)||0)))));if(nextV===curV)return;el.splitVariant.value=String(nextV);el.splitVariant.dispatchEvent(new Event("input",{bubbles:true}));el.splitVariant.dispatchEvent(new Event("change",{bubbles:true}));};
+if(el.splitVariantDec)el.splitVariantDec.addEventListener("click",()=>stepSplitVariant(-1));
+if(el.splitVariantInc)el.splitVariantInc.addEventListener("click",()=>stepSplitVariant(1));
 [el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.cx,el.cy].forEach(v=>{v.addEventListener("change",()=>{applyProps();syncProps()});v.addEventListener("keydown",e=>{if(e.key==="Enter"){applyProps();syncProps()}})});
 const applyTextSettings=()=>{st.textSize=Math.max(6,evalExpr(el.textSize.value,st.textSize||12));st.fontFamily=(el.font.value||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.fontReady=false;render();ensureFontReady().then(()=>render()).catch(()=>{})};
 let textSettingsRaf=0,textSettingsFontTimer=0;
@@ -4574,3 +4255,4 @@ syncActiveTabSnapshot();
 renderProjectTabs();
 ensureFontReady().then(()=>{render()}).catch(()=>{});
 </script></body></html>
+
