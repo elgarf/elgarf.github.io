@@ -190,8 +190,11 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   <button id="toolFlowEdit" class="icon-btn" title="Правка потока" aria-label="Правка потока">
     <i class="fa-solid fa-route"></i>
   </button>
+  <button id="toolClusterEdit" class="icon-btn" title="Ручная кластеризация" aria-label="Ручная кластеризация">
+    <i class="fa-solid fa-table-cells-large"></i>
+  </button>
   <button id="toolRegions" class="icon-btn" title="Подсветка областей (переключатель)" aria-label="Подсветка областей">
-    <i class="fa-solid fa-border-all"></i>
+    <i class="fa-solid fa-eye"></i>
   </button>
 </div>
 <div class="group mobile-hide">
@@ -281,9 +284,8 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   </div>
 </div>
 <div class="field"><div class="form-check"><input id="propNumberCells" class="form-check-input" type="checkbox"><label class="form-check-label" for="propNumberCells">Нумеровать кабинеты</label></div></div>
-<div class="field"><label for="propSplitVariant">Вариант разделения по сигналам</label><div class="input-group input-group-sm"><button id="propSplitVariantDec" class="btn btn-outline-secondary" type="button" aria-label="Предыдущий вариант">-</button><input id="propSplitVariant" class="form-control text-center" type="number" min="0" max="24" step="1" value="0" readonly inputmode="none"><button id="propSplitVariantInc" class="btn btn-outline-secondary" type="button" aria-label="Следующий вариант">+</button></div></div>
-<div class="field"><button id="btnClearMasks" type="button" style="width:100%">Удалить все маски</button></div>
-<div class="field"><button id="btnResetFlowLocks" type="button" style="width:100%">Сброс правки потока</button></div>
+<div id="splitVariantField" class="field"><label for="propSplitVariant">Вариант разделения по сигналам</label><div id="splitVariantControl" class="input-group input-group-sm"><button id="propSplitVariantDec" class="btn btn-outline-secondary" type="button" aria-label="Предыдущий вариант">-</button><input id="propSplitVariant" class="form-control text-center" type="number" min="0" max="24" step="1" value="0" readonly inputmode="none"><button id="propSplitVariantInc" class="btn btn-outline-secondary" type="button" aria-label="Следующий вариант">+</button></div><div id="splitVariantManualBadge" class="form-control text-center d-none">Ручное разбиение</div></div>
+<div class="field d-flex flex-nowrap gap-2"><button id="btnClearMasks" class="btn btn-outline-secondary btn-sm flex-fill" type="button">Удалить маски</button><button id="btnResetFlowLocks" class="btn btn-outline-secondary btn-sm flex-fill" type="button">Сброс потока</button><button id="btnResetManualClusters" class="btn btn-outline-secondary btn-sm flex-fill" type="button">Сброс регионов</button></div>
 <div class="rect-list" id="rectList"></div></aside></div></div>
 <div id="installBanner" class="install-banner">
   <span id="installBannerText">Установить приложение на главный экран?</span>
@@ -327,7 +329,8 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
       <div class="help-item"><i class="fa-solid fa-square-minus"></i><div><b>- Маска (показать)</b><span>Возвращает ранее скрытые области по замкнутому контуру.</span></div></div>
       <div class="help-item"><i class="fa-solid fa-link"></i><div><b>Объединение/деление кабинетов</b><span>Клик по общей границе кабинетов включает или выключает склейку.</span></div></div>
       <div class="help-item"><i class="fa-solid fa-route"></i><div><b>Правка потока</b><span>Перетащите точку потока в пределах региона. Стартовую точку можно перенести, направление задаётся стрелками рядом со стартом, двойной клик по старту сбрасывает правки региона.</span></div></div>
-      <div class="help-item"><i class="fa-solid fa-border-all"></i><div><b>Подсветка областей</b><span>Переключатель: показывает зоны подэкранов сразу на всех экранах в дизайнере.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-table-cells-large"></i><div><b>Ручная кластеризация</b><span>Клик по кабинету создаёт регион. Клик по метке региона удаляет регион. Стрелки вокруг старта растягивают регион с учётом лимита площади.</span></div></div>
+      <div class="help-item"><i class="fa-solid fa-eye"></i><div><b>Подсветка областей</b><span>Переключатель: показывает зоны подэкранов сразу на всех экранах в дизайнере.</span></div></div>
       <div class="help-item"><i class="fa-regular fa-clone"></i><div><b>Копировать</b><span>Создаёт копию выбранного экрана со смещением.</span></div></div>
       <div class="help-item"><i class="fa-regular fa-clone fa-flip-horizontal"></i><div><b>Копировать и отразить</b><span>Создаёт копию с отражением масок и связей клеток по вертикали.</span></div></div>
       <div class="help-item"><i class="fa-solid fa-trash"></i><div><b>Удалить</b><span>Удаляет выбранный экран.</span></div></div>
@@ -346,7 +349,8 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   <button id="mToolMaskSub" class="icon-btn" title="- Маска (показать)" aria-label="- Маска"><i class="fa-solid fa-square-minus"></i></button>
   <button id="mToolCellEdit" class="icon-btn" title="Объединение/деление кабинетов" aria-label="Кабинеты"><i class="fa-solid fa-link"></i></button>
   <button id="mToolFlowEdit" class="icon-btn" title="Правка потока" aria-label="Правка потока"><i class="fa-solid fa-route"></i></button>
-  <button id="mToolRegions" class="icon-btn" title="Подсветка областей (переключатель)" aria-label="Подсветка областей"><i class="fa-solid fa-border-all"></i></button>
+  <button id="mToolClusterEdit" class="icon-btn" title="Ручная кластеризация" aria-label="Ручная кластеризация"><i class="fa-solid fa-table-cells-large"></i></button>
+  <button id="mToolRegions" class="icon-btn" title="Подсветка областей (переключатель)" aria-label="Подсветка областей"><i class="fa-solid fa-eye"></i></button>
   <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><i class="fa-regular fa-clone"></i></button>
   <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
   <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i class="fa-solid fa-trash"></i></button>
@@ -369,7 +373,8 @@ const ensureMobileDock=()=>{
   <button id="mToolMaskSub" class="icon-btn" title="- Маска (показать)" aria-label="- Маска"><i class="fa-solid fa-square-minus"></i></button>
   <button id="mToolCellEdit" class="icon-btn" title="Объединение/деление кабинетов" aria-label="Кабинеты"><i class="fa-solid fa-link"></i></button>
   <button id="mToolFlowEdit" class="icon-btn" title="Правка потока" aria-label="Правка потока"><i class="fa-solid fa-route"></i></button>
-  <button id="mToolRegions" class="icon-btn" title="Подсветка областей (переключатель)" aria-label="Подсветка областей"><i class="fa-solid fa-border-all"></i></button>
+  <button id="mToolClusterEdit" class="icon-btn" title="Ручная кластеризация" aria-label="Ручная кластеризация"><i class="fa-solid fa-table-cells-large"></i></button>
+  <button id="mToolRegions" class="icon-btn" title="Подсветка областей (переключатель)" aria-label="Подсветка областей"><i class="fa-solid fa-eye"></i></button>
   <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><i class="fa-regular fa-clone"></i></button>
   <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
   <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i class="fa-solid fa-trash"></i></button>
@@ -379,10 +384,10 @@ const ensureMobileDock=()=>{
   if(dock.parentElement!==host)host.appendChild(dock);
 };
 ensureMobileDock();
-const el={projectTabs:$("projectTabs"),projectTabsList:$("projectTabsList"),projectTabAdd:$("projectTabAdd"),toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),saveIndicator:$("saveIndicator"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolFlowEdit:$("mToolFlowEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolFlowEdit:$("toolFlowEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),exp:$("exportPng"),expFlow:$("exportPngFlow"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),dataFlow:$("propDataFlow"),dataFlowZ:$("propDataFlowZ"),numCells:$("propNumberCells"),splitVariant:$("propSplitVariant"),splitVariantDec:$("propSplitVariantDec"),splitVariantInc:$("propSplitVariantInc"),splitVariantLabel:$("propSplitVariantLabel"),btnClearMasks:$("btnClearMasks"),btnResetFlowLocks:$("btnResetFlowLocks"),list:$("rectList")};
-const desktopToolButtons=[el.toolSelect,el.toolDraw,el.toolMaskAdd,el.toolMaskSub,el.toolCellEdit,el.toolFlowEdit].filter(Boolean);
-const mobileToolButtons=[el.mToolSelect,el.mToolDraw,el.mToolMaskAdd,el.mToolMaskSub,el.mToolCellEdit,el.mToolFlowEdit].filter(Boolean);
-const overflowButtonIds=["toolSelect","toolDraw","toolMaskAdd","toolMaskSub","toolCellEdit","toolFlowEdit","toolRegions","btnCopy","btnCopyMirror","btnDelete","zoomOut","zoomIn","zoomReset","zoomFit","newProject","save","load","exp","expFlow","themeToggle"];
+const el={projectTabs:$("projectTabs"),projectTabsList:$("projectTabsList"),projectTabAdd:$("projectTabAdd"),toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),saveIndicator:$("saveIndicator"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolMaskSub:$("mToolMaskSub"),mToolCellEdit:$("mToolCellEdit"),mToolFlowEdit:$("mToolFlowEdit"),mToolClusterEdit:$("mToolClusterEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolMaskSub:$("toolMaskSub"),toolCellEdit:$("toolCellEdit"),toolFlowEdit:$("toolFlowEdit"),toolClusterEdit:$("toolClusterEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),exp:$("exportPng"),expFlow:$("exportPngFlow"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),dataFlow:$("propDataFlow"),dataFlowZ:$("propDataFlowZ"),numCells:$("propNumberCells"),splitVariantField:$("splitVariantField"),splitVariantControl:$("splitVariantControl"),splitVariantManualBadge:$("splitVariantManualBadge"),splitVariant:$("propSplitVariant"),splitVariantDec:$("propSplitVariantDec"),splitVariantInc:$("propSplitVariantInc"),splitVariantLabel:$("propSplitVariantLabel"),btnClearMasks:$("btnClearMasks"),btnResetFlowLocks:$("btnResetFlowLocks"),btnResetManualClusters:$("btnResetManualClusters"),list:$("rectList")};
+const desktopToolButtons=[el.toolSelect,el.toolDraw,el.toolMaskAdd,el.toolMaskSub,el.toolCellEdit,el.toolFlowEdit,el.toolClusterEdit].filter(Boolean);
+const mobileToolButtons=[el.mToolSelect,el.mToolDraw,el.mToolMaskAdd,el.mToolMaskSub,el.mToolCellEdit,el.mToolFlowEdit,el.mToolClusterEdit].filter(Boolean);
+const overflowButtonIds=["toolSelect","toolDraw","toolMaskAdd","toolMaskSub","toolCellEdit","toolFlowEdit","toolClusterEdit","toolRegions","btnCopy","btnCopyMirror","btnDelete","zoomOut","zoomIn","zoomReset","zoomFit","newProject","save","load","exp","expFlow","themeToggle"];
 const overflowButtons=overflowButtonIds.map(id=>el[id]).filter(Boolean);
 const overflowGroups=[...new Set(overflowButtons.map(b=>b.closest(".group")).filter(Boolean))];
 let overflowHiddenButtons=[];
@@ -527,7 +532,7 @@ const updateToolbarOverflow=()=>{
   }
   overflowHiddenButtons=hidden;
 };
-const st={rects:[],sel:null,mode:"select",regionsHighlight:false,camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,flowDrag:null,flowHover:null,flowDirHover:null,flowRegionRid:null,flowEditPoints:[],flowStartHandles:[],flowDirButtons:[],pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",saveLocationId:"proj-project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null,tabs:[],activeTabId:null,nextTabId:1};
+const st={rects:[],sel:null,mode:"select",regionsHighlight:false,camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,flowDrag:null,flowHover:null,flowDirHover:null,flowRegionRid:null,flowEditPoints:[],flowStartHandles:[],flowDirButtons:[],clusterActiveId:null,clusterHandles:[],clusterHandleHover:null,clusterCellHover:null,clusterStartHover:null,clusterBorderHover:null,clusterDrag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",saveLocationId:"proj-project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null,tabs:[],activeTabId:null,nextTabId:1};
 const FLOW_DRAW_BATCH_THRESHOLD=280;
 const FLOW_DRAW_BATCH_STEP=360;
 const FLOW_POINT_INDEX_CELL=48;
@@ -615,6 +620,194 @@ const normalizeHiddenCells=v=>{if(!Array.isArray(v))return[];const out=[];const 
 const hiddenCache=new WeakMap();
 const getHiddenSet=r=>{if(!r)return new Set();const rec=hiddenCache.get(r);if(!rec||rec.src!==r.hiddenCells){const next={src:r.hiddenCells,set:new Set(Array.isArray(r.hiddenCells)?r.hiddenCells:[])};hiddenCache.set(r,next);return next.set}return rec.set};
 const setHiddenSet=r=>{const src=[...getHiddenSet(r)];r.hiddenCells=src;hiddenCache.set(r,{src:r.hiddenCells,set:new Set(src)});const cache=getRectCalcCache(r);if(cache){cache.maskRender=null;cache.boundarySegs=null;cache.fillLayer=null;cache.decorLayer=null;cache.regions=null;cache.flow=null;}};
+const normalizeManualClusters=raw=>{
+  if(!Array.isArray(raw))return[];
+  const out=[],seen=new Set();
+  for(const it of raw){
+    if(!it||typeof it!=="object")continue;
+    const sx=Math.max(0,Math.round(Number(it.sx)||0)),sy=Math.max(0,Math.round(Number(it.sy)||0));
+    const c0=Math.max(0,Math.round(Number(it.c0)||0)),c1=Math.max(c0+1,Math.round(Number(it.c1)||0));
+    const r0=Math.max(0,Math.round(Number(it.r0)||0)),r1=Math.max(r0+1,Math.round(Number(it.r1)||0));
+    const id=Math.max(1,Math.round(Number(it.id)||0)||out.length+1),key=`${id}|${sx}|${sy}|${c0}|${c1}|${r0}|${r1}`;
+    if(seen.has(key))continue;
+    seen.add(key);
+    out.push({id,sx,sy,c0,c1,r0,r1});
+  }
+  return out;
+};
+const getManualClusters=r=>{
+  if(!r||typeof r!=="object")return[];
+  const norm=normalizeManualClusters(r.manualClusters);
+  r.manualClusters=norm;
+  return norm;
+};
+const manualClustersSignature=r=>{
+  const list=getManualClusters(r);
+  if(!list.length)return"";
+  return list.map(z=>`${z.id}:${z.sx},${z.sy},${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join(";");
+};
+const clearRectRegionsAndFlow=r=>{
+  const cache=getRectCalcCache(r);
+  if(!cache)return;
+  cache.regions=null;
+  cache.flow=null;
+};
+const getMaxRegionAreaPx=r=>(Math.max(1,Number(r&&r.scale)||256)*Math.max(1,Number(r&&r.scale)||256)*655360)/Math.max(1,Number(r&&r.areaM2Px)||65536);
+const getCellMetrics=(r,cx,cy)=>{
+  const cols=Math.max(1,Math.ceil((Number(r&&r.width)||1)/Math.max(1,cx||1))),rows=Math.max(1,Math.ceil((Number(r&&r.height)||1)/Math.max(1,cy||1)));
+  const cellW=[],cellH=[];
+  for(let x=0;x<r.width;x+=cx)cellW.push(Math.min(cx,r.width-x));
+  for(let y=0;y<r.height;y+=cy)cellH.push(Math.min(cy,r.height-y));
+  const colPref=[0],rowPref=[0];
+  for(let i=0;i<cellW.length;i++)colPref.push(colPref[i]+cellW[i]);
+  for(let i=0;i<cellH.length;i++)rowPref.push(rowPref[i]+cellH[i]);
+  return{cols,rows,colPref,rowPref};
+};
+const clusterAreaPx=(cluster,m)=>{
+  if(!cluster||!m)return 0;
+  const c0=Math.max(0,Math.min(m.cols,Math.round(Number(cluster.c0)||0))),c1=Math.max(c0+1,Math.min(m.cols,Math.round(Number(cluster.c1)||0)));
+  const r0=Math.max(0,Math.min(m.rows,Math.round(Number(cluster.r0)||0))),r1=Math.max(r0+1,Math.min(m.rows,Math.round(Number(cluster.r1)||0)));
+  return Math.max(0,(m.colPref[c1]-m.colPref[c0])*(m.rowPref[r1]-m.rowPref[r0]));
+};
+const rectsOverlapCells=(a,b)=>Math.min(a.c1,b.c1)>Math.max(a.c0,b.c0)&&Math.min(a.r1,b.r1)>Math.max(a.r0,b.r0);
+const cellFromWorldPoint=(r,wx,wy,skipHidden=true)=>{
+  if(!r)return null;
+  const cx=drawCellX(r),cy=drawCellY(r),p=worldToRectUV(r,wx,wy);
+  if(p.u<0||p.u>r.width||p.v<0||p.v>r.height)return null;
+  const cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy));
+  const col=Math.max(0,Math.min(cols-1,Math.floor(p.u/Math.max(1,cx)))),row=Math.max(0,Math.min(rows-1,Math.floor(p.v/Math.max(1,cy))));
+  if(skipHidden&&getHiddenSet(r).has(maskCellKey(col,row)))return null;
+  return{col,row,cx,cy,cols,rows};
+};
+const findManualClusterById=(r,id)=>getManualClusters(r).find(z=>Math.round(Number(z.id)||0)===Math.round(Number(id)||0))||null;
+const findManualClusterAtCell=(r,col,row)=>getManualClusters(r).find(z=>col>=z.c0&&col<z.c1&&row>=z.r0&&row<z.r1)||null;
+const normalizeClusterByMergedComponents=(r,cand)=>{
+  if(!r||!cand)return null;
+  const cx=drawCellX(r),cy=drawCellY(r),topo=getCellTopologyCached(r,cx,cy),cols=Math.max(1,topo&&topo.cols||1),rows=Math.max(1,topo&&topo.rows||1);
+  let out={c0:Math.max(0,Math.min(cols-1,Math.round(Number(cand.c0)||0))),c1:Math.max(1,Math.min(cols,Math.round(Number(cand.c1)||0))),r0:Math.max(0,Math.min(rows-1,Math.round(Number(cand.r0)||0))),r1:Math.max(1,Math.min(rows,Math.round(Number(cand.r1)||0)))};
+  if(out.c1<=out.c0||out.r1<=out.r0)return null;
+  const compBBoxes=new Map();
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      const idx=y*cols+x,cid=topo.comp[idx];
+      let b=compBBoxes.get(cid);
+      if(!b){b={c0:x,c1:x+1,r0:y,r1:y+1};compBBoxes.set(cid,b);}
+      else{
+        if(x<b.c0)b.c0=x;
+        if(x+1>b.c1)b.c1=x+1;
+        if(y<b.r0)b.r0=y;
+        if(y+1>b.r1)b.r1=y+1;
+      }
+    }
+  }
+  let changed=true,safe=0;
+  while(changed&&safe<128){
+    safe++;
+    changed=false;
+    for(const b of compBBoxes.values()){
+      const intersects=Math.min(out.c1,b.c1)>Math.max(out.c0,b.c0)&&Math.min(out.r1,b.r1)>Math.max(out.r0,b.r0);
+      if(!intersects)continue;
+      const fullyInside=(b.c0>=out.c0&&b.c1<=out.c1&&b.r0>=out.r0&&b.r1<=out.r1);
+      if(fullyInside)continue;
+      const n={c0:Math.min(out.c0,b.c0),c1:Math.max(out.c1,b.c1),r0:Math.min(out.r0,b.r0),r1:Math.max(out.r1,b.r1)};
+      if(n.c0!==out.c0||n.c1!==out.c1||n.r0!==out.r0||n.r1!==out.r1){out=n;changed=true;}
+    }
+    if(out.c0<0||out.r0<0||out.c1>cols||out.r1>rows)return null;
+  }
+  return out;
+};
+const clusterCanPlace=(r,cand,ignoreId=null)=>{
+  if(!r||!cand)return false;
+  const norm=normalizeClusterByMergedComponents(r,cand);
+  if(!norm)return false;
+  const cx=drawCellX(r),cy=drawCellY(r),m=getCellMetrics(r,cx,cy),maxArea=getMaxRegionAreaPx(r);
+  if(norm.c0<0||norm.r0<0||norm.c1>m.cols||norm.r1>m.rows||norm.c1<=norm.c0||norm.r1<=norm.r0)return false;
+  if(clusterAreaPx(norm,m)>maxArea+AREA_LIMIT_EPS)return false;
+  const clusters=getManualClusters(r);
+  for(const z of clusters){
+    if(ignoreId!=null&&Math.round(Number(z.id)||0)===Math.round(Number(ignoreId)||0))continue;
+    if(rectsOverlapCells(norm,z))return false;
+  }
+  return true;
+};
+const upsertManualCluster=(r,cluster)=>{
+  if(!r||!cluster)return false;
+  const list=getManualClusters(r);
+  const id=Math.max(1,Math.round(Number(cluster.id)||0)||1),idx=list.findIndex(z=>Math.round(Number(z.id)||0)===id);
+  const base={id,sx:Math.max(0,Math.round(Number(cluster.sx)||0)),sy:Math.max(0,Math.round(Number(cluster.sy)||0)),c0:Math.max(0,Math.round(Number(cluster.c0)||0)),c1:Math.max(1,Math.round(Number(cluster.c1)||1)),r0:Math.max(0,Math.round(Number(cluster.r0)||0)),r1:Math.max(1,Math.round(Number(cluster.r1)||1))};
+  const norm=normalizeClusterByMergedComponents(r,base);
+  if(!norm)return false;
+  const next={...base,...norm};
+  if(idx>=0)list[idx]=next;else list.push(next);
+  r.manualClusters=normalizeManualClusters(list);
+  r.splitVariant=0;
+  r.flowLocks={};
+  clearRectRegionsAndFlow(r);
+  return true;
+};
+const removeManualCluster=(r,id)=>{
+  if(!r)return false;
+  const list=getManualClusters(r),next=list.filter(z=>Math.round(Number(z.id)||0)!==Math.round(Number(id)||0));
+  if(next.length===list.length)return false;
+  r.manualClusters=normalizeManualClusters(next);
+  r.splitVariant=0;
+  r.flowLocks={};
+  clearRectRegionsAndFlow(r);
+  if(st.clusterActiveId!=null&&Math.round(Number(st.clusterActiveId)||0)===Math.round(Number(id)||0))st.clusterActiveId=null;
+  return true;
+};
+const nextManualClusterId=r=>{
+  const used=new Set(getManualClusters(r).map(z=>Math.max(1,Math.round(Number(z.id)||0))));
+  let id=1;
+  while(used.has(id))id++;
+  return id;
+};
+const expandManualCluster=(r,id,dir)=>{
+  const z=findManualClusterById(r,id);
+  if(!z)return false;
+  const cand={...z};
+  if(dir==="left")cand.c0--;
+  else if(dir==="right")cand.c1++;
+  else if(dir==="up")cand.r0--;
+  else if(dir==="down")cand.r1++;
+  else return false;
+  const norm=normalizeClusterByMergedComponents(r,cand);
+  if(!norm)return false;
+  if(!clusterCanPlace(r,norm,id))return false;
+  return upsertManualCluster(r,{...cand,...norm});
+};
+const findShrinkCandidate=(r,z,dir)=>{
+  if(!r||!z)return null;
+  const w=Math.max(1,Math.round(Number(z.c1-z.c0)||1)),h=Math.max(1,Math.round(Number(z.r1-z.r0)||1));
+  const maxStep=(dir==="left"||dir==="right")?(w-1):(h-1);
+  if(maxStep<=0)return null;
+  const sx=Math.max(0,Math.round(Number(z.sx)||0)),sy=Math.max(0,Math.round(Number(z.sy)||0));
+  for(let step=1;step<=maxStep;step++){
+    const cand={...z};
+    if(dir==="left")cand.c0+=step;
+    else if(dir==="right")cand.c1-=step;
+    else if(dir==="up")cand.r0+=step;
+    else if(dir==="down")cand.r1-=step;
+    else return null;
+    if(cand.c1<=cand.c0||cand.r1<=cand.r0)continue;
+    const norm=normalizeClusterByMergedComponents(r,cand);
+    if(!norm)continue;
+    const same=(norm.c0===z.c0&&norm.c1===z.c1&&norm.r0===z.r0&&norm.r1===z.r1);
+    if(same)continue;
+    if(!(sx>=norm.c0&&sx<norm.c1&&sy>=norm.r0&&sy<norm.r1))continue;
+    if(!clusterCanPlace(r,norm,z.id))continue;
+    return {...cand,...norm};
+  }
+  return null;
+};
+const shrinkManualCluster=(r,id,dir)=>{
+  const z=findManualClusterById(r,id);
+  if(!z)return false;
+  const next=findShrinkCandidate(r,z,dir);
+  if(!next)return false;
+  return upsertManualCluster(r,next);
+};
+const isClusterEditMode=()=>st.mode==="clusterEdit";
 const maskCellKey=(ix,iy)=>`${ix},${iy}`;
 const pointInPoly=(x,y,poly)=>{let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;const inter=((yi>y)!==(yj>y))&&(x<((xj-xi)*(y-yi))/((yj-yi)||1e-9)+xi);if(inter)inside=!inside}return inside};
 const isMaskMode=()=>st.mode==="maskAdd"||st.mode==="maskSub";
@@ -717,7 +910,10 @@ const buildSnakeOrder=(items,primaryKey,primaryDir,secondaryKey,secondaryStartDi
   const primaryVals=sortNums([...new Set(items.map(it=>it[primaryKey]))],primaryDir);
   const out=[];let dir=secondaryStartDir;
   for(const pv of primaryVals){
-    const band=items.filter(it=>it[primaryKey]===pv).sort((a,b)=>dir==="asc"?a[secondaryKey]-b[secondaryKey]:b[secondaryKey]-a[secondaryKey]||a.cid-b.cid);
+    const band=items.filter(it=>it[primaryKey]===pv).sort((a,b)=>{
+      const delta=dir==="asc"?(a[secondaryKey]-b[secondaryKey]):(b[secondaryKey]-a[secondaryKey]);
+      return delta||((a.cid|0)-(b.cid|0));
+    });
     out.push(...band);
     dir=dir==="asc"?"desc":"asc";
   }
@@ -727,7 +923,10 @@ const buildZOrder=(items,primaryKey,primaryDir,secondaryKey,secondaryDir)=>{
   const primaryVals=sortNums([...new Set(items.map(it=>it[primaryKey]))],primaryDir);
   const out=[];
   for(const pv of primaryVals){
-    const band=items.filter(it=>it[primaryKey]===pv).sort((a,b)=>secondaryDir==="asc"?a[secondaryKey]-b[secondaryKey]:b[secondaryKey]-a[secondaryKey]||a.cid-b.cid);
+    const band=items.filter(it=>it[primaryKey]===pv).sort((a,b)=>{
+      const delta=secondaryDir==="asc"?(a[secondaryKey]-b[secondaryKey]):(b[secondaryKey]-a[secondaryKey]);
+      return delta||((a.cid|0)-(b.cid|0));
+    });
     out.push(...band);
   }
   return out;
@@ -1085,7 +1284,8 @@ const regionCalcKey=(r,cx,cy,topo)=>[
   topo&&topo.rows||0,
   Math.max(0,Math.round(Number(r&&r.splitVariant)||0)),
   listSignature(r&&r.cellLinks),
-  listSignature(r&&r.hiddenCells)
+  listSignature(r&&r.hiddenCells),
+  manualClustersSignature(r)
 ].join("|");
 const flowCalcKey=(r,cx,cy,topo,regions)=>[
   normalizeDataFlow(r&&r.dataFlow),
@@ -1409,6 +1609,7 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
   const mode=normalizeDataFlow(r&&r.dataFlow);
   const zMode=!!(r&&r.dataFlowZ);
   if(mode==="none")return[];
+  const manualRegionsActive=Array.isArray(r&&r.manualClusters)&&r.manualClusters.length>0;
   let regionFlowCache=getDataFlowGroupsUncached._regionFlowCache;
   if(!(regionFlowCache instanceof Map)){
     regionFlowCache=new Map();
@@ -1460,7 +1661,7 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
   const regionOfCell=(ix,iy)=>{
     if(regions&&Array.isArray(regions.cellToRegion)){
       const rid=regions.cellToRegion[iy*topo.cols+ix];
-      if(Number.isFinite(rid)&&rid>=0)return Math.max(0,Math.round(Number(rid)||0));
+      if(Number.isFinite(rid))return rid>=0?Math.max(0,Math.round(Number(rid)||0)):-1;
     }
     if(regions&&regions.regionsById&&typeof regions.regionsById.values==="function"){
       for(const rg of regions.regionsById.values()){
@@ -1473,47 +1674,131 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
     return -1;
   };
   const stat=new Map();
+  const manualStatKey=(rid,cid)=>`${rid}|${cid}`;
   for(let iy=0;iy<topo.rows;iy++){
     if(checkCalcTimeout(budget))return [];
     for(let ix=0;ix<topo.cols;ix++){
       if(checkCalcTimeout(budget))return [];
       if(hs&&hs.has(maskCellKey(ix,iy)))continue;
+      const ridCell=regionOfCell(ix,iy);
+      if(ridCell<0)continue;
       const idx=iy*topo.cols+ix,cid=topo.comp[idx],cw=Math.min(cx,r.width-ix*cx),ch=Math.min(cy,r.height-iy*cy),u=ix*cx+cw/2,v=iy*cy+ch/2,seed=topo.seed[cid]||{col:ix,row:iy};
-      let s=stat.get(cid);
-      if(!s){s={cid,col:seed.col,row:seed.row,sumU:0,sumV:0,count:0,minCol:ix,maxCol:ix,minRow:iy,maxRow:iy,ridCounts:{}};stat.set(cid,s)}
+      const key=manualRegionsActive?manualStatKey(ridCell,cid):String(cid);
+      let s=stat.get(key);
+      if(!s){s={cid,rid:ridCell,col:seed.col,row:seed.row,sumU:0,sumV:0,count:0,minCol:ix,maxCol:ix,minRow:iy,maxRow:iy,ridCounts:{}};stat.set(key,s)}
       s.sumU+=u;s.sumV+=v;s.count++;
       if(ix<s.minCol)s.minCol=ix;if(ix>s.maxCol)s.maxCol=ix;if(iy<s.minRow)s.minRow=iy;if(iy>s.maxRow)s.maxRow=iy;
-      const ridCell=regionOfCell(ix,iy);
-      if(ridCell>=0){
+      if(!manualRegionsActive){
         const k=String(ridCell);
         s.ridCounts[k]=(s.ridCounts[k]|0)+1;
+      }else{
+        s.rid=ridCell;
       }
     }
   }
   const list=[...stat.values()].filter(s=>s.count>0).map(s=>{
     const u=s.sumU/s.count,v=s.sumV/s.count;
-    const rowBand=Math.max(0,Math.min(topo.rows-1,Math.round(v/Math.max(1,cy)-0.5)));
-    const colBand=Math.max(0,Math.min(topo.cols-1,Math.round(u/Math.max(1,cx)-0.5)));
-    let rid=-1,best=0;
-    for(const [rk,rv] of Object.entries(s.ridCounts||{})){
-      const c=rv|0,id=Math.max(0,Math.round(Number(rk)||0));
-      if(c>best){best=c;rid=id;}
+    const rowBand=Math.max(0,Math.min(topo.rows-1,Math.round(Number(s.minRow)||0)));
+    const colBand=Math.max(0,Math.min(topo.cols-1,Math.round(Number(s.minCol)||0)));
+    let rid=Math.max(0,Math.round(Number(s.rid)||0));
+    if(!manualRegionsActive){
+      rid=-1;
+      let best=0;
+      for(const [rk,rv] of Object.entries(s.ridCounts||{})){
+        const c=rv|0,id=Math.max(0,Math.round(Number(rk)||0));
+        if(c>best){best=c;rid=id;}
+      }
     }
     return{cid:s.cid,col:colBand,row:rowBand,u,v,minCol:s.minCol,maxCol:s.maxCol,minRow:s.minRow,maxRow:s.maxRow,rid};
   });
   if(!list.length)return[];
   const orderByMode=(arr,m,useZ=zMode)=>{
+    const src=(Array.isArray(arr)?arr:[]).map(it=>({
+      ...it,
+      _rowTop:Math.max(0,Math.round(Number(it&&it.minRow)||Number(it&&it.row)||0)),
+      _rowBottom:Math.max(0,Math.round(Number(it&&it.maxRow)||Number(it&&it.row)||0)),
+      _colLeft:Math.max(0,Math.round(Number(it&&it.minCol)||Number(it&&it.col)||0)),
+      _colRight:Math.max(0,Math.round(Number(it&&it.maxCol)||Number(it&&it.col)||0))
+    }));
     switch(m){
-      case "h_bl_lr":return useZ?buildZOrder(arr,"row","desc","col","asc"):buildSnakeOrder(arr,"row","desc","col","asc");
-      case "h_tl_lr":return useZ?buildZOrder(arr,"row","asc","col","asc"):buildSnakeOrder(arr,"row","asc","col","asc");
-      case "h_br_rl":return useZ?buildZOrder(arr,"row","desc","col","desc"):buildSnakeOrder(arr,"row","desc","col","desc");
-      case "h_tr_rl":return useZ?buildZOrder(arr,"row","asc","col","desc"):buildSnakeOrder(arr,"row","asc","col","desc");
-      case "v_lb_bu":return useZ?buildZOrder(arr,"col","asc","row","desc"):buildSnakeOrder(arr,"col","asc","row","desc");
-      case "v_rb_bu":return useZ?buildZOrder(arr,"col","desc","row","desc"):buildSnakeOrder(arr,"col","desc","row","desc");
-      case "v_lt_td":return useZ?buildZOrder(arr,"col","asc","row","asc"):buildSnakeOrder(arr,"col","asc","row","asc");
-      case "v_rt_td":return useZ?buildZOrder(arr,"col","desc","row","asc"):buildSnakeOrder(arr,"col","desc","row","asc");
-      default:return buildSnakeOrder(arr,"row","asc","col","asc");
+      case "h_bl_lr":return useZ?buildZOrder(src,"_rowBottom","desc","_colLeft","asc"):buildSnakeOrder(src,"_rowBottom","desc","_colLeft","asc");
+      case "h_tl_lr":return useZ?buildZOrder(src,"_rowTop","asc","_colLeft","asc"):buildSnakeOrder(src,"_rowTop","asc","_colLeft","asc");
+      case "h_br_rl":return useZ?buildZOrder(src,"_rowBottom","desc","_colRight","desc"):buildSnakeOrder(src,"_rowBottom","desc","_colRight","desc");
+      case "h_tr_rl":return useZ?buildZOrder(src,"_rowTop","asc","_colRight","desc"):buildSnakeOrder(src,"_rowTop","asc","_colRight","desc");
+      case "v_lb_bu":return useZ?buildZOrder(src,"_colLeft","asc","_rowBottom","desc"):buildSnakeOrder(src,"_colLeft","asc","_rowBottom","desc");
+      case "v_rb_bu":return useZ?buildZOrder(src,"_colRight","desc","_rowBottom","desc"):buildSnakeOrder(src,"_colRight","desc","_rowBottom","desc");
+      case "v_lt_td":return useZ?buildZOrder(src,"_colLeft","asc","_rowTop","asc"):buildSnakeOrder(src,"_colLeft","asc","_rowTop","asc");
+      case "v_rt_td":return useZ?buildZOrder(src,"_colRight","desc","_rowTop","asc"):buildSnakeOrder(src,"_colRight","desc","_rowTop","asc");
+      default:return buildSnakeOrder(src,"_rowTop","asc","_colLeft","asc");
     }
+  };
+  const modeAxes=(m)=>{
+    switch(String(m||"")){
+      case "h_bl_lr":return{primary:"row",primaryDir:"desc",secondaryStart:"asc"};
+      case "h_tl_lr":return{primary:"row",primaryDir:"asc",secondaryStart:"asc"};
+      case "h_br_rl":return{primary:"row",primaryDir:"desc",secondaryStart:"desc"};
+      case "h_tr_rl":return{primary:"row",primaryDir:"asc",secondaryStart:"desc"};
+      case "v_lb_bu":return{primary:"col",primaryDir:"asc",secondaryStart:"desc"};
+      case "v_rb_bu":return{primary:"col",primaryDir:"desc",secondaryStart:"desc"};
+      case "v_lt_td":return{primary:"col",primaryDir:"asc",secondaryStart:"asc"};
+      case "v_rt_td":return{primary:"col",primaryDir:"desc",secondaryStart:"asc"};
+      default:return{primary:"row",primaryDir:"asc",secondaryStart:"asc"};
+    }
+  };
+  const buildManualRegionOrdered=(arr,rid,m,useZ)=>{
+    const items=Array.isArray(arr)?arr:[];
+    if(!items.length)return items;
+    const byCid=new Map(items.map(it=>[Math.max(0,Math.round(Number(it&&it.cid)||0)),it]));
+    const cfg=modeAxes(m),cellsByPrimary=new Map();
+    for(let iy=0;iy<topo.rows;iy++){
+      for(let ix=0;ix<topo.cols;ix++){
+        if(hs&&hs.has(maskCellKey(ix,iy)))continue;
+        const rr=regionOfCell(ix,iy);
+        if(rr!==rid)continue;
+        const cid=Math.max(0,Math.round(Number(topo.comp[iy*topo.cols+ix])||0));
+        if(!byCid.has(cid))continue;
+        const primary=(cfg.primary==="row")?iy:ix,secondary=(cfg.primary==="row")?ix:iy,third=(cfg.primary==="row")?iy:ix;
+        const key=String(primary),bucket=cellsByPrimary.get(key)||[];
+        bucket.push({primary,secondary,third,cid});
+        cellsByPrimary.set(key,bucket);
+      }
+    }
+    const primaryVals=[...cellsByPrimary.values()].map(v=>v[0].primary).sort((a,b)=>cfg.primaryDir==="asc"?a-b:b-a);
+    const cidOrder=[],seen=new Set();
+    let dir=cfg.secondaryStart;
+    for(const pv of primaryVals){
+      const key=String(pv),band=(cellsByPrimary.get(key)||[]).slice().sort((a,b)=>{
+        const d=dir==="asc"?(a.secondary-b.secondary):(b.secondary-a.secondary);
+        return d||(a.third-b.third)||((a.cid|0)-(b.cid|0));
+      });
+      for(const c of band){
+        if(seen.has(c.cid))continue;
+        seen.add(c.cid);
+        cidOrder.push(c.cid);
+      }
+      if(!useZ)dir=(dir==="asc")?"desc":"asc";
+    }
+    const ordered=[];
+    for(const cid of cidOrder){
+      const it=byCid.get(cid);
+      if(it)ordered.push(it);
+    }
+    if(ordered.length!==items.length){
+      for(const it of items){
+        const cid=Math.max(0,Math.round(Number(it&&it.cid)||0));
+        if(seen.has(cid))continue;
+        ordered.push(it);
+      }
+    }
+    return ordered;
+  };
+  const orientEndpointsByMode=(arr,m,routing)=>{
+    const src=Array.isArray(arr)?arr:[];
+    return src;
+  };
+  const alignEndpointByMode=(arr,m,routing)=>{
+    const src=Array.isArray(arr)?arr:[];
+    return src;
   };
   const groupOf=it=>{
     if(Number.isFinite(Number(it&&it.rid))&&Number(it.rid)>=0)return Math.max(0,Math.round(Number(it.rid)||0));
@@ -1521,6 +1806,7 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
       const idx=it.row*topo.cols+it.col;
       const rid=regions.cellToRegion[idx];
       if(rid>=0)return rid;
+      return -1;
     }
     if(regions&&regions.regionsById&&typeof regions.regionsById.values==="function"){
       for(const rg of regions.regionsById.values()){
@@ -1538,12 +1824,14 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
       const gy=regions.rowToGroup[Math.max(0,Math.min(regions.rowToGroup.length-1,it.row))];
       if(Number.isFinite(gy))return Math.max(0,Math.round(Number(gy)||0));
     }
-    return 0;
+    return -1;
   };
   const byRegion=new Map();
   for(const it of list){
     if(checkCalcTimeout(budget))return [];
-    const rid=groupOf(it),arr=byRegion.get(rid)||[];
+    const rid=groupOf(it);
+    if(!(Number.isFinite(rid)&&rid>=0))continue;
+    const arr=byRegion.get(rid)||[];
     arr.push(it);byRegion.set(rid,arr);
   }
   const out=[];
@@ -1552,15 +1840,18 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
     const cfgRegion=getFlowRegionConfig(r,rid);
     if(cfgRegion&&cfgRegion.startPinned&&cfgRegion.startCid!=null){
       const hasStartCid=arr.some(it=>Math.max(0,Math.round(Number(it&&it.cid)||0))===Math.max(0,Math.round(Number(cfgRegion.startCid)||0)));
-      if(!hasStartCid){cfgRegion.startCid=null;cfgRegion.startPinned=false;}
+      if(!hasStartCid){cfgRegion.startCid=null;cfgRegion.startPinned=false;cfgRegion.startDir="";}
     }
     const routing=getFlowStartRoutingRegion(r,rid);
     const localMode=resolveFlowModeFromStartAndDir(arr,routing,getFlowModeRegion(r,rid,mode));
     const regionLocks=getFlowLocksRegion(r,rid);
-    const baseOrdered=orderByMode(arr,localMode,zMode).map((it,idx)=>({...it,baseIdx:idx}));
+    let baseOrderedRaw=orderByMode(arr,localMode,zMode);
+    if(manualRegionsActive)baseOrderedRaw=buildManualRegionOrdered(arr,rid,localMode,zMode);
+    const baseAligned=alignEndpointByMode(baseOrderedRaw,localMode,routing);
+    const baseOrdered=baseAligned.map((it,idx)=>({...it,baseIdx:idx}));
     const manualRoute=(routing&&(((routing.startPinned&&routing.startCid!=null)||FLOW_DIR_SET.has(String(routing.startDir||"").toLowerCase()))));
     const hasLocks=Array.isArray(regionLocks)&&regionLocks.length>0;
-    const canUseRegionCache=!manualRoute&&!hasLocks;
+    const canUseRegionCache=!manualRegionsActive&&!manualRoute&&!hasLocks;
     const cachePrefix=`${localMode}|${zMode?1:0}|`;
     const cacheKey=canUseRegionCache?`${cachePrefix}${regionGeomKey(arr)}`:"";
     let zFallbackUsed=false;
@@ -1603,6 +1894,9 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
     }
     if(!fromCache){
       if(!manualRoute){
+        if(manualRegionsActive&&!hasLocks){
+          ordered=baseOrdered;
+        }else{
         ordered=(zMode?baseOrdered:refineFlowOrder(baseOrdered));
         if(!zMode&&ordered.length<=FLOW_OPTIMIZE_MAX_POINTS)ordered=optimizeFlowPathShortest(ordered);
         if(pathSelfCrosses(ordered)){
@@ -1615,6 +1909,7 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
         }else if(!zMode){
           const baseCost=flowPathCost(baseOrdered),optCost=flowPathCost(ordered);
           if(baseCost+1e-6<optCost)ordered=baseOrdered;
+        }
         }
       }
       ordered=applyFlowStartRouting(ordered,routing,budget);
@@ -1634,6 +1929,7 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
           }
         }
       }
+      ordered=orientEndpointsByMode(ordered,localMode,routing);
       if(canUseRegionCache&&cacheKey){
         const points=ordered.map(v=>({cid:Math.max(0,Math.round(Number(v&&v.cid)||0))}));
         const cidSet=new Set(points.map(p=>p.cid));
@@ -1669,7 +1965,7 @@ const collectFlowEditPoints=(r,groups)=>{
   }
 };
 const findFlowStartHandle=(wx,wy,rid=null)=>{
-  const pts=Array.isArray(st.flowStartHandles)?st.flowStartHandles:[],maxDist=Math.max(11,20/Math.max(0.2,st.zoom||1));
+  const pts=Array.isArray(st.flowStartHandles)?st.flowStartHandles:[],maxDist=Math.min(20,Math.max(11,18/Math.max(0.2,st.zoom||1)));
   let best=null,bestD=Infinity;
   for(const p of pts){
     if(rid!=null&&p.rid!==rid)continue;
@@ -1761,16 +2057,16 @@ const drawFlowEditOverlay=(c,w,h)=>{
     c.fillStyle=selected?"rgba(255,153,0,.98)":(hover?"rgba(255,193,7,.98)":"rgba(255,235,59,.95)");
     c.strokeStyle="rgba(0,0,0,.8)";
     c.lineWidth=2;
-    c.beginPath();c.arc(x,y,9.6,0,Math.PI*2);c.fill();c.stroke();
+    c.beginPath();c.arc(x,y,14.4,0,Math.PI*2);c.fill();c.stroke();
     if(p.zFallback){
       c.fillStyle="rgba(25,135,84,.98)";
       c.strokeStyle="rgba(255,255,255,.95)";
       c.lineWidth=1;
-      c.beginPath();c.arc(x+11,y-11,6.8,0,Math.PI*2);c.fill();c.stroke();
+      c.beginPath();c.arc(x+15,y-15,6.8,0,Math.PI*2);c.fill();c.stroke();
       c.fillStyle="#fff";
       c.font=`700 9px ${fontFamilyCss(st.fontFamily)}`;
       c.textAlign="center";c.textBaseline="middle";
-      c.fillText("Z",x+11,y-11.2);
+      c.fillText("Z",x+15,y-15.2);
     }
   }
   for(const p of points){
@@ -1781,6 +2077,160 @@ const drawFlowEditOverlay=(c,w,h)=>{
     if(hover){c.fillStyle="rgba(173,216,255,.95)";c.strokeStyle="rgba(51,125,255,.95)"}
     c.lineWidth=1.2;
     c.beginPath();c.arc(x,y,5.4,0,Math.PI*2);c.fill();c.stroke();
+  }
+  c.restore();
+};
+const collectClusterHandles=(r,clusters,cx,cy)=>{
+  st.clusterHandles=[];
+  if(!r||!Array.isArray(clusters)||!clusters.length)return;
+  const canExpandDir=(z,dir)=>{
+    const cand={...z};
+    if(dir==="left")cand.c0--;
+    else if(dir==="right")cand.c1++;
+    else if(dir==="up")cand.r0--;
+    else if(dir==="down")cand.r1++;
+    else return false;
+    return clusterCanPlace(r,cand,z.id);
+  };
+  const canShrinkDir=(z,dir)=>{
+    return !!findShrinkCandidate(r,z,dir);
+  };
+  for(const z of clusters){
+    const c0=Math.max(0,Math.round(Number(z&&z.c0)||0)),c1=Math.max(c0+1,Math.round(Number(z&&z.c1)||0));
+    const r0=Math.max(0,Math.round(Number(z&&z.r0)||0)),r1=Math.max(r0+1,Math.round(Number(z&&z.r1)||0));
+    const u0=c0*cx,u1=Math.min(r.width,c1*cx),v0=r0*cy,v1=Math.min(r.height,r1*cy),uc=(u0+u1)/2,vc=(v0+v1)/2,outOff=18,inOff=12;
+    const pts=[
+      {action:"expand",dir:"left",label:"◀",u:u0-outOff,v:vc},
+      {action:"expand",dir:"right",label:"▶",u:u1+outOff,v:vc},
+      {action:"expand",dir:"up",label:"▲",u:uc,v:v0-outOff},
+      {action:"expand",dir:"down",label:"▼",u:uc,v:v1+outOff},
+      {action:"shrink",dir:"left",label:"▶",u:u0+inOff,v:vc},
+      {action:"shrink",dir:"right",label:"◀",u:u1-inOff,v:vc},
+      {action:"shrink",dir:"up",label:"▼",u:uc,v:v0+inOff},
+      {action:"shrink",dir:"down",label:"▲",u:uc,v:v1-inOff}
+    ];
+    for(const p of pts){
+      if(p.action==="expand"&&!canExpandDir(z,p.dir))continue;
+      if(p.action==="shrink"&&!canShrinkDir(z,p.dir))continue;
+      const wp=rectUVToWorld(r,p.u,p.v);
+      st.clusterHandles.push({id:Math.max(1,Math.round(Number(z.id)||1)),action:p.action,dir:p.dir,label:p.label,u:p.u,v:p.v,x:wp.x,y:wp.y});
+    }
+  }
+};
+const findClusterHandle=(wx,wy)=>{
+  const pts=Array.isArray(st.clusterHandles)?st.clusterHandles:[],maxDist=Math.max(10,18/Math.max(0.2,st.zoom||1));
+  let best=null,bestD=Infinity;
+  for(const p of pts){
+    const d=Math.hypot((+p.x||0)-wx,(+p.y||0)-wy);
+    if(d<bestD){bestD=d;best=p;}
+  }
+  if(best&&bestD<=maxDist)return best;
+  return null;
+};
+const findClusterStartMarker=(r,wx,wy)=>{
+  if(!r)return null;
+  const clusters=getManualClusters(r),cx=drawCellX(r),cy=drawCellY(r),maxDist=Math.max(10,20/Math.max(0.2,st.zoom||1));
+  let best=null,bestD=Infinity;
+  for(const z of clusters){
+    const sx=Math.max(0,Math.round(Number(z&&z.sx)||0)),sy=Math.max(0,Math.round(Number(z&&z.sy)||0));
+    const su=sx*cx+Math.min(cx,Math.max(1,r.width-sx*cx))/2,sv=sy*cy+Math.min(cy,Math.max(1,r.height-sy*cy))/2,wp=rectUVToWorld(r,su,sv);
+    const d=Math.hypot((+wp.x||0)-wx,(+wp.y||0)-wy);
+    if(d<bestD){bestD=d;best={id:Math.max(1,Math.round(Number(z.id)||1)),x:wp.x,y:wp.y};}
+  }
+  if(best&&bestD<=maxDist)return best;
+  return null;
+};
+const findActiveClusterBorder=(r,wx,wy)=>{
+  if(!r)return null;
+  const aid=Math.max(1,Math.round(Number(st.clusterActiveId)||0));
+  if(!aid)return null;
+  const z=findManualClusterById(r,aid);
+  if(!z)return null;
+  const cx=drawCellX(r),cy=drawCellY(r),tol=Math.max(8,14/Math.max(0.2,st.zoom||1)),p=worldToRectUV(r,wx,wy);
+  const u0=z.c0*cx,u1=z.c1*cx,v0=z.r0*cy,v1=z.r1*cy,inV=(p.v>=v0-tol&&p.v<=v1+tol),inU=(p.u>=u0-tol&&p.u<=u1+tol);
+  const cand=[];
+  if(inV)cand.push({dir:"left",d:Math.abs(p.u-u0),id:aid});
+  if(inV)cand.push({dir:"right",d:Math.abs(p.u-u1),id:aid});
+  if(inU)cand.push({dir:"up",d:Math.abs(p.v-v0),id:aid});
+  if(inU)cand.push({dir:"down",d:Math.abs(p.v-v1),id:aid});
+  cand.sort((a,b)=>a.d-b.d);
+  if(cand.length&&cand[0].d<=tol)return cand[0];
+  return null;
+};
+const updateClusterEditCursor=()=>{
+  if(!cv)return;
+  if(!isClusterEditMode()){cv.style.cursor="";return;}
+  const h=st.clusterHandleHover;
+  if(h){
+    const dir=String(h.dir||"");
+    cv.style.cursor=(dir==="left"||dir==="right")?"ew-resize":"ns-resize";
+    return;
+  }
+  const b=st.clusterBorderHover;
+  if(b){
+    const dir=String(b.dir||"");
+    cv.style.cursor=(dir==="left"||dir==="right")?"ew-resize":"ns-resize";
+    return;
+  }
+  if(st.clusterStartHover){cv.style.cursor="pointer";return;}
+  cv.style.cursor="";
+};
+const drawClusterEditOverlay=(c,r,w,h,cx,cy)=>{
+  if(!isClusterEditMode())return;
+  const clusters=getManualClusters(r);
+  const aid=Number(st.clusterActiveId);
+  c.save();
+  if(st.clusterCellHover&&Math.round(Number(st.clusterCellHover.rectId)||0)===Math.round(Number(r.id)||0)){
+    const hc=Math.max(0,Math.round(Number(st.clusterCellHover.col)||0)),hr=Math.max(0,Math.round(Number(st.clusterCellHover.row)||0));
+    const hx=-w/2+hc*cx,hy=-h/2+hr*cy,hw=Math.min(cx,Math.max(1,r.width-hc*cx)),hh=Math.min(cy,Math.max(1,r.height-hr*cy));
+    c.fillStyle="rgba(255,255,255,.16)";
+    c.strokeStyle="rgba(255,255,255,.65)";
+    c.lineWidth=1.2;
+    c.fillRect(hx,hy,hw,hh);
+    c.strokeRect(hx,hy,hw,hh);
+  }
+  if(!clusters.length){
+    st.clusterHandles=[];
+    c.restore();
+    return;
+  }
+  for(const z of clusters){
+    const x=-w/2+z.c0*cx,y=-h/2+z.r0*cy,ww=Math.max(1,(z.c1-z.c0)*cx),hh=Math.max(1,(z.r1-z.r0)*cy),isActive=(Number.isFinite(aid)&&Math.round(aid)===Math.round(Number(z.id)||0));
+    c.strokeStyle=isActive?"rgba(255,193,7,.98)":"rgba(13,202,240,.9)";
+    c.fillStyle=isActive?"rgba(255,193,7,.13)":"rgba(13,202,240,.08)";
+    c.lineWidth=isActive?2.2:1.4;
+    c.fillRect(x,y,ww,hh);
+    c.strokeRect(x,y,ww,hh);
+    const sx=Math.max(0,Math.round(Number(z.sx)||0)),sy=Math.max(0,Math.round(Number(z.sy)||0));
+    const su=sx*cx+Math.min(cx,Math.max(1,r.width-sx*cx))/2,sv=sy*cy+Math.min(cy,Math.max(1,r.height-sy*cy))/2,spx=-w/2+su,spy=-h/2+sv;
+    const regionLabelSize=50.4,regionLabelHalf=regionLabelSize/2;
+    c.fillStyle="#fff";
+    c.strokeStyle=isActive?"rgba(255,153,0,.98)":"rgba(0,0,0,.78)";
+    c.lineWidth=isActive?2.4:2;
+    c.fillRect(spx-regionLabelHalf,spy-regionLabelHalf,regionLabelSize,regionLabelSize);
+    c.strokeRect(spx-regionLabelHalf,spy-regionLabelHalf,regionLabelSize,regionLabelSize);
+    c.fillStyle="#000";
+    c.font=`700 30px ${fontFamilyCss(st.fontFamily)}`;
+    c.textAlign="center";c.textBaseline="middle";
+    c.fillText(String(toLetters(Math.max(0,Math.round(Number(z.id)||1)-1))),spx,spy+0.6);
+  }
+  const activeClusters=clusters.filter(z=>Math.round(Number(z.id)||0)===Math.round(Number(st.clusterActiveId)||0));
+  if(activeClusters.length){
+    collectClusterHandles(r,activeClusters,cx,cy);
+    for(const hnd of st.clusterHandles){
+      const x=-w/2+(+hnd.u||0),y=-h/2+(+hnd.v||0),hover=!!(st.clusterHandleHover&&Math.round(Number(st.clusterHandleHover.id)||0)===Math.round(Number(hnd.id)||0)&&st.clusterHandleHover.dir===hnd.dir&&String(st.clusterHandleHover.action||"expand")===String(hnd.action||"expand"));
+      const isShrink=String(hnd.action||"expand")==="shrink";
+      c.fillStyle=hover?(isShrink?"rgba(220,53,69,.96)":"rgba(25,135,84,.96)"):(isShrink?"rgba(108,17,30,.82)":"rgba(33,37,41,.78)");
+      c.strokeStyle="rgba(255,255,255,.8)";
+      c.lineWidth=1.1;
+      c.beginPath();c.arc(x,y,8,0,Math.PI*2);c.fill();c.stroke();
+      c.fillStyle="#fff";
+      c.font=`700 9px ${fontFamilyCss(st.fontFamily)}`;
+      c.textAlign="center";c.textBaseline="middle";
+      c.fillText(String(hnd.label||""),x,y+0.2);
+    }
+  }else{
+    st.clusterHandles=[];
   }
   c.restore();
 };
@@ -2158,6 +2608,63 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
   const visibleAreaPx=Math.max(1,areaRect(c0,c1,r0,r1));
   const optimalCount=Math.max(1,Math.ceil(visibleAreaPx/Math.max(1,maxAreaPx)));
   const maxAllowedCount=optimalCount+2;
+  const normalizeManual=raw=>{
+    if(!Array.isArray(raw))return[];
+    const out=[];
+    for(const it of raw){
+      if(!it||typeof it!=="object")continue;
+      const sx=Math.max(0,Math.round(Number(it.sx)||0)),sy=Math.max(0,Math.round(Number(it.sy)||0));
+      const mc0=Math.max(0,Math.round(Number(it.c0)||0)),mc1=Math.max(mc0+1,Math.round(Number(it.c1)||0));
+      const mr0=Math.max(0,Math.round(Number(it.r0)||0)),mr1=Math.max(mr0+1,Math.round(Number(it.r1)||0));
+      const mid=Math.max(1,Math.round(Number(it.id)||out.length+1));
+      out.push({id:mid,sx,sy,c0:mc0,c1:mc1,r0:mr0,r1:mr1});
+    }
+    return out;
+  };
+  const buildPlanFromRects=rects=>{
+    const assigned=new Array(rows*cols).fill(-1),regs=[];
+    const addRect=(z)=>{
+      let tc0=cols,tc1=-1,tr0=rows,tr1=-1,count=0;
+      for(let y=z.r0;y<z.r1;y++)for(let x=z.c0;x<z.c1;x++){
+        if(x<0||x>=cols||y<0||y>=rows)continue;
+        if(!visible[y][x])continue;
+        const idx=y*cols+x;
+        if(assigned[idx]>=0)continue;
+        assigned[idx]=regs.length;
+        if(x<tc0)tc0=x;if(x+1>tc1)tc1=x+1;if(y<tr0)tr0=y;if(y+1>tr1)tr1=y+1;
+        count++;
+      }
+      if(count<=0)return false;
+      regs.push({c0:tc0,c1:tc1,r0:tr0,r1:tr1});
+      return true;
+    };
+    const manual=Array.isArray(rects)?rects:[];
+    for(const z of manual){
+      const nz={c0:Math.max(0,Math.min(cols-1,Math.round(Number(z&&z.c0)||0))),c1:Math.max(1,Math.min(cols,Math.round(Number(z&&z.c1)||0))),r0:Math.max(0,Math.min(rows-1,Math.round(Number(z&&z.r0)||0))),r1:Math.max(1,Math.min(rows,Math.round(Number(z&&z.r1)||0)))};if(nz.c1<=nz.c0||nz.r1<=nz.r0)continue;
+      if(areaRect(nz.c0,nz.c1,nz.r0,nz.r1)>maxAreaPx+AREA_LIMIT_EPS)continue;
+      addRect(nz);
+    }
+    if(!regs.length)return null;
+    regs.sort((a,b)=>(a.r0-b.r0)||(a.c0-b.c0)||(a.r1-b.r1)||(a.c1-b.c1));
+    const finalRegions=regs.map((z,idx)=>({id:idx,label:toLetters(idx),gx:idx,gy:0,c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0]}));
+    const byId=new Map();for(const rg of finalRegions)byId.set(rg.id,rg);
+    const cellToRegion=new Array(rows*cols).fill(-1);
+    for(const rg of finalRegions){
+      for(let y=rg.r0;y<rg.r1;y++)for(let x=rg.c0;x<rg.c1;x++)if(visible[y][x])cellToRegion[y*cols+x]=rg.id;
+    }
+    return{nx:finalRegions.length,ny:1,colToGroup:[],rowToGroup:[],regionsById:byId,xCutsPx:[0,r.width],yCutsPx:[0,r.height],cellToRegion,regions:finalRegions,variantCount:1};
+  };
+  const manualRects=normalizeManual(r&&r.manualClusters);
+  if(manualRects.length){
+    const manualPlan=buildPlanFromRects(manualRects);
+    if(manualPlan){
+      r._splitVariantCount=1;
+      if(r&&Math.round(Number(r.splitVariant)||0)!==0)r.splitVariant=0;
+      try{Object.defineProperty(manualPlan,"_profile",{value:{variantCount:1,optimalCount,maxAllowedCount,totalMs:Math.max(0,calcNow()-startedAt),manual:true},writable:true,configurable:true});}
+      catch(_e){manualPlan._profile={variantCount:1,optimalCount,maxAllowedCount,totalMs:Math.max(0,calcNow()-startedAt),manual:true};}
+      return manualPlan;
+    }
+  }
   const splitStrategies=[];
   const splitRots=[0,90,-90];
   for(let seed=0;seed<3;seed++){
@@ -2716,7 +3223,7 @@ const planNumberRegionsUncached=(r,cx,cy,topo,hs,budget)=>{
   r._splitVariantCount=variantCount;
   const variantIndex=Math.max(0,Math.min(variantCount-1,Math.round(Number(r&&r.splitVariant)||0)));
   if(r&&Math.round(Number(r.splitVariant)||0)!==variantIndex)r.splitVariant=variantIndex;
-  const finalRegions=(ordered[variantIndex]?ordered[variantIndex].v:best.v).map((z,idx)=>({id:idx,label:toLetters(idx),gx:idx,gy:0,c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0]}));
+  const finalRegions=(ordered[variantIndex]?ordered[variantIndex].v:ordered[0].v).map((z,idx)=>({id:idx,label:toLetters(idx),gx:idx,gy:0,c0:z.c0,c1:z.c1,r0:z.r0,r1:z.r1,w:colPref[z.c1]-colPref[z.c0],h:rowPref[z.r1]-rowPref[z.r0]}));
   const byId=new Map();for(const rg of finalRegions)byId.set(rg.id,rg);
   const colToGroup=new Array(cols).fill(-1),rowToGroup=new Array(rows).fill(-1),cellToRegion=new Array(rows*cols).fill(-1);
   for(const rg of finalRegions){
@@ -3042,7 +3549,7 @@ const scheduleRegionCalcWorker=(r,key,cx,cy,topo,hs)=>{
   },REGION_WORKER_TIMEOUT_MS+5000);
   regionCalcPending.set(reqId,{rectId,key,cx,cy,topo,hs,timer});
   try{console.info("[regions-worker] scheduled",{rectId,key});}catch(_e){}
-  const rPayload={id:r&&r.id||0,width:r&&r.width||0,height:r&&r.height||0,widthM:r&&r.widthM||0,heightM:r&&r.heightM||0,scale:r&&r.scale||256,areaM2Px:r&&r.areaM2Px||65536,splitVariant:r&&r.splitVariant||0,cellLinks:Array.isArray(r&&r.cellLinks)?r.cellLinks:[]};
+  const rPayload={id:r&&r.id||0,width:r&&r.width||0,height:r&&r.height||0,widthM:r&&r.widthM||0,heightM:r&&r.heightM||0,scale:r&&r.scale||256,areaM2Px:r&&r.areaM2Px||65536,splitVariant:r&&r.splitVariant||0,cellLinks:Array.isArray(r&&r.cellLinks)?r.cellLinks:[],manualClusters:normalizeManualClusters(r&&r.manualClusters)};
   worker.postMessage({kind:"regions",reqId,payload:{r:rPayload,cx,cy,topo,hs:[...(hs&&typeof hs.forEach==="function"?hs:new Set())]}});
 };
 const scheduleFlowCalcWorker=(r,key,cx,cy,topo,hs,regions)=>{
@@ -3071,7 +3578,7 @@ const scheduleFlowCalcWorker=(r,key,cx,cy,topo,hs,regions)=>{
     return;
   }
   flowCalcPending.set(reqId,{rectId,key,cx,cy,topo,hs,regions});
-  const rPayload={id:r&&r.id||0,width:r&&r.width||0,height:r&&r.height||0,dataFlow:r&&r.dataFlow||"none",dataFlowZ:!!(r&&r.dataFlowZ),flowLocks:normalizeFlowLocks(r&&r.flowLocks)};
+  const rPayload={id:r&&r.id||0,width:r&&r.width||0,height:r&&r.height||0,dataFlow:r&&r.dataFlow||"none",dataFlowZ:!!(r&&r.dataFlowZ),flowLocks:normalizeFlowLocks(r&&r.flowLocks),manualClusters:normalizeManualClusters(r&&r.manualClusters)};
   const regionsPayload=regions?{nx:regions.nx||1,colToGroup:Array.isArray(regions.colToGroup)?regions.colToGroup:[],rowToGroup:Array.isArray(regions.rowToGroup)?regions.rowToGroup:[],cellToRegion:Array.isArray(regions.cellToRegion)?regions.cellToRegion:[],labels:Array.isArray(regions.regions)?Object.fromEntries(regions.regions.map(it=>[String(it.id),String(it.label||toLetters(it.id))])):{}}:null;
   worker.postMessage({kind:"flow",reqId,payload:{r:rPayload,cx,cy,topo,hs:[...(hs&&typeof hs.forEach==="function"?hs:new Set())],regions:regionsPayload}});
 };
@@ -3092,6 +3599,7 @@ const getDataFlowGroups=(r,cx,cy,topo,hs,regions)=>{
     markCalcMetric("flow",0,true);
     return[];
   }
+  const manualRegionsActive=Array.isArray(r&&r.manualClusters)&&r.manualClusters.length>0;
   const cache=getRectCalcCache(r);
   const regionKey=(regions&&regions._calcKey)||"";
   if(cache.regions&&cache.regions.key===regionKey&&cache.regions.pending){
@@ -3100,6 +3608,23 @@ const getDataFlowGroups=(r,cx,cy,topo,hs,regions)=>{
   }
   const key=flowCalcKey(r,cx,cy,topo,regions);
   if(cache.flow&&cache.flow.key===key)return cache.flow.value;
+  if(manualRegionsActive){
+    try{
+      const budget=makeCalcBudget();
+      budget.deadline=calcNow()+FLOW_WORKER_TIMEOUT_MS;
+      const value=getDataFlowGroupsUncached(r,cx,cy,topo,hs,regions,budget);
+      const timedOut=!!(budget&&budget.timedOut)||!Array.isArray(value);
+      cache.flow={key,regionKey,value:timedOut?[]:value,pending:false};
+      markCalcMetric("flow",0,timedOut);
+      logFlowCalcSummary(r&&r.id||0,key,cache.flow.value,{source:"main-manual",timedOut:!!timedOut,elapsed:0});
+      return cache.flow.value;
+    }catch(_e){
+      cache.flow={key,regionKey,value:[],pending:false};
+      markCalcMetric("flow",0,true);
+      logFlowCalcSummary(r&&r.id||0,key,cache.flow.value,{source:"main-manual-error",timedOut:true,elapsed:0,error:_e&&_e.message||String(_e)});
+      return [];
+    }
+  }
   cache.flow={key,regionKey,value:[],pending:true};
   scheduleFlowCalcWorker(r,key,cx,cy,topo,hs,regions);
   return[];
@@ -3366,7 +3891,7 @@ const ensureFontReady=async()=>{
   try{ await document.fonts.ready; }catch(_e){}
   st.fontReady=true;
 };
-function applyProjectData(d,opts){resetCalcWorkers();const o=(opts&&typeof opts==="object")?opts:{},syncTabSnapshot=o.syncTabSnapshot!==false,renderTabs=o.renderTabs!==false,doRender=o.render!==false;const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=parseAreaM2PxInput(d&&d.settings?d.settings.areaM2Px:null,65536);st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:parseAreaM2PxInput(r.areaM2Px,legacyAreaM2),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(Math.max(0,SPLIT_VARIANT_MAX-1),Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells),flowLocks:normalizeFlowLocks(r.flowLocks)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);restorePersistedRectCache(it,r&&r.projectCache);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.regionsHighlight=!!d.settings.regionsHighlight;}else st.regionsHighlight=false;st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.saveLocationId=setGlobalSaveLocationId((d&&d.saveLocationId)||getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.maskPath=[];st.maskHover=null;updateRegionsToggleUi();selRect(st.rects[0]?st.rects[0].id:null);if(syncTabSnapshot)syncActiveTabSnapshot();if(renderTabs)renderProjectTabs();if(doRender)render();}
+function applyProjectData(d,opts){resetCalcWorkers();const o=(opts&&typeof opts==="object")?opts:{},syncTabSnapshot=o.syncTabSnapshot!==false,renderTabs=o.renderTabs!==false,doRender=o.render!==false;const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=parseAreaM2PxInput(d&&d.settings?d.settings.areaM2Px:null,65536);st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:parseAreaM2PxInput(r.areaM2Px,legacyAreaM2),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(Math.max(0,SPLIT_VARIANT_MAX-1),Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells),flowLocks:normalizeFlowLocks(r.flowLocks),manualClusters:normalizeManualClusters(r&&r.manualClusters)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);restorePersistedRectCache(it,r&&r.projectCache);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.regionsHighlight=!!d.settings.regionsHighlight;}else st.regionsHighlight=false;st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.saveLocationId=setGlobalSaveLocationId((d&&d.saveLocationId)||getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.maskPath=[];st.maskHover=null;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;updateRegionsToggleUi();selRect(st.rects[0]?st.rects[0].id:null);if(syncTabSnapshot)syncActiveTabSnapshot();if(renderTabs)renderProjectTabs();if(doRender)render();}
 function restoreAutoSave(){
   try{
     const rawTabs=localStorage.getItem(TABS_SAVE_KEY);
@@ -3395,7 +3920,7 @@ function restoreAutoSave(){
     return true;
   }catch(_e){return false}
 }
-function mk(x,y,w,h){const id=st.next++;const colorA=randomColor();const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,areaM2Px:65536,textSize:0,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,dataFlow:"none",dataFlowZ:false,numberCells:false,splitVariant:0,cellLinks:[],hiddenCells:[],flowLocks:{}};metricFromPx(r);return r}
+function mk(x,y,w,h){const id=st.next++;const colorA=randomColor();const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,areaM2Px:65536,textSize:0,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,dataFlow:"none",dataFlowZ:false,numberCells:false,splitVariant:0,cellLinks:[],hiddenCells:[],flowLocks:{},manualClusters:[]};metricFromPx(r);return r}
 function updateRegionsToggleUi(){
   for(const b of [el.toolRegions,el.mToolRegions]){
     if(!b)continue;
@@ -3423,8 +3948,12 @@ function setMode(m){
   st.flowDrag=null;
   st.flowHover=null;
   st.flowDirHover=null;
+  st.clusterDrag=null;
+  st.clusterStartHover=null;
+  st.clusterBorderHover=null;
   if(m!=="flowEdit")st.flowRegionRid=null;
-  const map=[["select",el.toolSelect,el.mToolSelect],["draw",el.toolDraw,el.mToolDraw],["maskAdd",el.toolMaskAdd,el.mToolMaskAdd],["maskSub",el.toolMaskSub,el.mToolMaskSub],["cellEdit",el.toolCellEdit,el.mToolCellEdit],["flowEdit",el.toolFlowEdit,el.mToolFlowEdit]];
+  if(m!=="clusterEdit"){st.clusterHandles=[];st.clusterHandleHover=null;st.clusterCellHover=null;}
+  const map=[["select",el.toolSelect,el.mToolSelect],["draw",el.toolDraw,el.mToolDraw],["maskAdd",el.toolMaskAdd,el.mToolMaskAdd],["maskSub",el.toolMaskSub,el.mToolMaskSub],["cellEdit",el.toolCellEdit,el.mToolCellEdit],["flowEdit",el.toolFlowEdit,el.mToolFlowEdit],["clusterEdit",el.toolClusterEdit,el.mToolClusterEdit]];
   for(const [mode,...btns] of map){
     const on=m===mode;
     for(const b of btns){
@@ -3435,9 +3964,9 @@ function setMode(m){
   }
   if(!isMaskMode()){st.maskPath=[];st.maskHover=null}
   if(!isCellEditMode())st.cellHover=null;
-  wrap.dataset.mode=m;st.draft=null;st.drag=null;updateToolbarOverflow();updateRegionsToggleUi();render()
+  wrap.dataset.mode=m;st.draft=null;st.drag=null;updateToolbarOverflow();updateRegionsToggleUi();updateClusterEditCursor();render()
 }
-function selRect(id){st.sel=id;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDirHover=null;st.flowRegionRid=null;syncProps();listRects();render()}
+function selRect(id){st.sel=id;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDirHover=null;st.flowRegionRid=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;const r=st.rects.find(v=>v.id===id)||null;if(!r||!findManualClusterById(r,st.clusterActiveId))st.clusterActiveId=null;syncProps();listRects();updateClusterEditCursor();render()}
 const cur=()=>st.rects.find(r=>r.id===st.sel)||null;
 function hit(x,y){for(let i=0;i<st.rects.length;i++){const r=st.rects[i],p=worldToRectUV(r,x,y);if(p.u>=0&&p.u<=r.width&&p.v>=0&&p.v<=r.height)return r}return null}
 function snapMaskNode(r,wx,wy){if(!r)return null;const p=worldToRectUV(r,wx,wy);if(p.u<0||p.u>r.width||p.v<0||p.v>r.height)return null;const u=Math.max(0,Math.min(r.width,p.u)),v=Math.max(0,Math.min(r.height,p.v)),axes=getMaskNodeAxes(r);let gu=axes.xs[0],gv=axes.ys[0],bdx=1e9,bdy=1e9;for(const x of axes.xs){const d=Math.abs(x-u);if(d<bdx){bdx=d;gu=x}}for(const y of axes.ys){const d=Math.abs(y-v);if(d<bdy){bdy=d;gv=y}}return rectUVToWorld(r,gu,gv)}
@@ -3447,6 +3976,108 @@ function toggleCellLinkAtPoint(r,wx,wy){const cand=getCellLinkCandidateAtPoint(r
 if(cand.exists){const ks=new Set(cand.keys);r.cellLinks=arr.filter(v=>!ks.has(v));schedulePersist("project");render();return true}
 if(!cand.canToggle)return false;
 const next=new Set(arr);for(const k of cand.keys)next.add(k);r.cellLinks=[...next];schedulePersist("project");render();return true}
+const clusterDragProjection=(dir,dx,dy)=>{
+  if(dir==="left")return -dx;
+  if(dir==="right")return dx;
+  if(dir==="up")return -dy;
+  if(dir==="down")return dy;
+  return 0;
+};
+const applyClusterHandleStep=(r,drag,sign=1)=>{
+  if(!r||!drag)return false;
+  return sign<0?shrinkManualCluster(r,drag.id,drag.dir):expandManualCluster(r,drag.id,drag.dir);
+};
+function beginClusterHandleDragAtPoint(wx,wy){
+  const h=hit(wx,wy);
+  if(!h)return false;
+  if(h.id!==st.sel)selRect(h.id);
+  const r=cur();if(!r)return false;
+  const border=findActiveClusterBorder(r,wx,wy);
+  if(!border||Number(border.id)!==Number(st.clusterActiveId))return false;
+  const axisStep=(border.dir==="left"||border.dir==="right")?drawCellX(r):drawCellY(r);
+  st.clusterDrag={rectId:r.id,id:Math.max(1,Math.round(Number(border.id)||1)),dir:String(border.dir||""),startX:wx,startY:wy,axisStep:Math.max(1,axisStep),lastAppliedSteps:0,moved:false,changed:false};
+  st.clusterBorderHover=border;
+  st.clusterStartHover=null;
+  updateClusterEditCursor();
+  return true;
+}
+function updateClusterHandleDragAtPoint(wx,wy){
+  const d=st.clusterDrag;
+  if(!d)return false;
+  const r=cur();
+  if(!r||r.id!==d.rectId)return false;
+  const proj=clusterDragProjection(d.dir,(+wx||0)-(+d.startX||0),(+wy||0)-(+d.startY||0));
+  const stepPx=Math.max(1,d.axisStep||1);
+  const steps=proj>=0?Math.floor(proj/stepPx):-Math.floor(Math.abs(proj)/stepPx);
+  if(steps===d.lastAppliedSteps)return d.changed;
+  if(steps>d.lastAppliedSteps){
+    for(let i=d.lastAppliedSteps;i<steps;i++){
+      if(!applyClusterHandleStep(r,d,+1)){d.lastAppliedSteps=i;return d.changed;}
+      d.lastAppliedSteps=i+1;
+      d.changed=true;
+      d.moved=true;
+    }
+  }else{
+    for(let i=d.lastAppliedSteps;i>steps;i--){
+      if(!applyClusterHandleStep(r,d,-1)){d.lastAppliedSteps=i;return d.changed;}
+      d.lastAppliedSteps=i-1;
+      d.changed=true;
+      d.moved=true;
+    }
+  }
+  return d.changed;
+}
+function endClusterHandleDrag(){
+  const d=st.clusterDrag;
+  if(!d)return false;
+  const r=cur();
+  const changed=!!d.changed;
+  st.clusterDrag=null;
+  updateClusterEditCursor();
+  return changed;
+}
+function handleClusterEditAtPoint(wx,wy){
+  const h=hit(wx,wy);
+  if(!h){selRect(null);return true;}
+  if(h.id!==st.sel){selRect(h.id);}
+  const r=cur();if(!r)return true;
+  const startMark=findClusterStartMarker(r,wx,wy);
+  if(startMark){
+    st.clusterActiveId=startMark.id;
+    if(removeManualCluster(r,startMark.id))schedulePersist("project");
+    render();
+    return true;
+  }
+  const handle=findClusterHandle(wx,wy);
+  if(handle&&Number(handle.id)===Number(st.clusterActiveId)){
+    const action=String(handle.action||"expand");
+    const changed=(action==="shrink")?shrinkManualCluster(r,handle.id,handle.dir):expandManualCluster(r,handle.id,handle.dir);
+    if(changed){
+      st.clusterHandleHover=handle;
+      schedulePersist("project");
+      render();
+    }else{
+      render();
+    }
+    return true;
+  }
+  const cell=cellFromWorldPoint(r,wx,wy,true);
+  if(!cell){render();return true;}
+  const hitCluster=findManualClusterAtCell(r,cell.col,cell.row);
+  if(hitCluster){
+    st.clusterActiveId=hitCluster.id;
+    render();
+    return true;
+  }
+  const id=nextManualClusterId(r),cluster={id,sx:cell.col,sy:cell.row,c0:cell.col,c1:cell.col+1,r0:cell.row,r1:cell.row+1};
+  if(clusterCanPlace(r,cluster,null)){
+    upsertManualCluster(r,cluster);
+    st.clusterActiveId=id;
+    schedulePersist("project");
+  }
+  render();
+  return true;
+}
 function snap(x,y,id,w,h,off){
 if(off)return{x:Math.round(x),y:Math.round(y),gx:null,gy:null,dg:null};
 const self=st.rects.find(r=>r.id===id);if(!self)return{x:Math.round(x),y:Math.round(y),gx:null,gy:null,dg:null};
@@ -3474,7 +4105,7 @@ return{x:Math.round(x+dx),y:Math.round(y+dy),gx,gy,dg}
 function drawRect(c,r,sel,z,origin,opts){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height,options=opts||{},includeFlow=options.includeFlow!==false,designerRender=!!options.designerRender,disableLod=!!options.disableLod,forceLowDetail=!!options.forceLowDetail,flowGroupsOverride=Array.isArray(options.flowGroupsOverride)?options.flowGroupsOverride:null;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
 const skeleton=!st.fontReady;
 const topo=getCellTopologyCached(r,cellX,cellY),maskRender=getMaskRenderDataCached(r,cellX,cellY,hs,topo);
-const cellCount=(topo.cols||1)*(topo.rows||1),interactiveDetail=!!(sel||st.mode==="flowEdit"||isMaskMode()||isCellEditMode()),lowDetail=!!(forceLowDetail||(!disableLod&&designerRender&&!interactiveDetail&&cellCount>3000));
+const cellCount=(topo.cols||1)*(topo.rows||1),interactiveDetail=!!(sel||st.mode==="flowEdit"||isMaskMode()||isCellEditMode()||isClusterEditMode()),lowDetail=!!(forceLowDetail||(!disableLod&&designerRender&&!interactiveDetail&&cellCount>3000));
 const flowEnabledByMode=normalizeDataFlow(r.dataFlow)!=="none",flowInteractivePause=!!(st.pan||st.drag||st.draft||(st.touch&&st.touch.type==="pinch")||lowDetail),wantsFlow=!!(includeFlow&&flowEnabledByMode&&!flowInteractivePause);
 const showRegionsOverlayRequested=!!(designerRender&&st.regionsHighlight);
 const needRegions=!!(!lowDetail&&(r.numberCells||wantsFlow||sel||showRegionsOverlayRequested));
@@ -3631,6 +4262,7 @@ if(borderSegs.length){
 }
 if(wantsFlow)drawDataFlowOnRect(c,flowGroups,w,h,z);
 if(st.mode==="flowEdit"&&sel&&r.id===st.sel)drawFlowEditOverlay(c,w,h);
+if(isClusterEditMode()&&sel&&r.id===st.sel)drawClusterEditOverlay(c,r,w,h,cellX,cellY);
 c.restore();}
 function drawMaskOverlay(c,z){if(!isMaskMode())return;const r=cur();if(!r)return;const darkTheme=(document.documentElement.getAttribute("data-bs-theme")||"light")==="dark";const nodeCol=darkTheme?"rgba(255,255,255,.18)":"rgba(0,0,0,.34)";const hoverCol=darkTheme?"rgba(255,255,255,.9)":"rgba(0,0,0,.85)";const axes=getMaskNodeAxes(r),dot=Math.max(1.8,2.6/z);
 for(const gy of axes.ys){for(const gx of axes.xs){const p=rectUVToWorld(r,gx,gy);c.fillStyle=nodeCol;c.beginPath();c.arc(p.x,p.y,dot,0,Math.PI*2);c.fill()}}
@@ -3676,7 +4308,7 @@ if(st.dg.ref)drawDim(st.dg.ref,"#ffd77a",0);
 drawDim(st.dg,"#71d7ff",18);
 }
 let renderRaf=0;
-function renderNow(){flowDrawRenderEpoch++;const r=window.devicePixelRatio||1,vm=getViewMetrics(),fastPan=!!st.pan,tabSwitching=!!(wrap&&wrap.classList&&wrap.classList.contains("tab-switching"));st.flowEditPoints=[];st.flowStartHandles=[];st.flowDirButtons=[];flowPointIndexSrc=null;flowPointIndexMap=null;ctx.setTransform(r,0,0,r,0,0);ctx.clearRect(0,0,cv.clientWidth,cv.clientHeight);drawGrid();ctx.save();ctx.translate(vm.centerX,vm.centerY);ctx.scale(st.zoom,st.zoom);ctx.translate(-st.camX,-st.camY);
+function renderNow(){flowDrawRenderEpoch++;const r=window.devicePixelRatio||1,vm=getViewMetrics(),fastPan=!!st.pan,tabSwitching=!!(wrap&&wrap.classList&&wrap.classList.contains("tab-switching"));st.flowEditPoints=[];st.flowStartHandles=[];st.flowDirButtons=[];st.clusterHandles=[];if(!isClusterEditMode()){st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;}flowPointIndexSrc=null;flowPointIndexMap=null;ctx.setTransform(r,0,0,r,0,0);ctx.clearRect(0,0,cv.clientWidth,cv.clientHeight);drawGrid();ctx.save();ctx.translate(vm.centerX,vm.centerY);ctx.scale(st.zoom,st.zoom);ctx.translate(-st.camX,-st.camY);
 const origin=getOrigin();for(let i=st.rects.length-1;i>=0;i--){const rr=st.rects[i];drawRect(ctx,rr,rr.id===st.sel,st.zoom,origin,{designerRender:true,forceLowDetail:(fastPan||tabSwitching)})}if(st.draft){const d=st.draft;ctx.strokeStyle="#7fd4f8";ctx.lineWidth=1/st.zoom;ctx.setLineDash([8/st.zoom,5/st.zoom]);ctx.strokeRect(d.x,d.y,d.width,d.height);ctx.setLineDash([])}if(!(fastPan||tabSwitching)){drawMaskOverlay(ctx,st.zoom);drawCellEditOverlay(ctx,st.zoom);drawContentBounds(ctx,st.zoom);}
 ctx.restore();drawGuides();drawDistanceGuide();el.zoomLabel.textContent=`${Math.round(st.zoom*100)}%`;wrap.dataset.panning=st.pan?"1":"0"}
 function render(immediate=false){
@@ -3727,13 +4359,14 @@ cv.addEventListener("mousedown",e=>{const b=cv.getBoundingClientRect(),sx=e.clie
 if(st.mode==="draw"){st.draft={x:p.x,y:p.y,width:0,height:0,sx:p.x,sy:p.y};render();return}
 if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);addMaskPoint(p.x,p.y);return}
 if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);return}if(h.id!==st.sel)selRect(h.id);toggleCellLinkAtPoint(h,p.x,p.y);return}
+if(isClusterEditMode()){if(beginClusterHandleDragAtPoint(p.x,p.y)){render();return}handleClusterEditAtPoint(p.x,p.y);return}
 if(st.mode==="flowEdit"){
 const h=hit(p.x,p.y);if(!h){selRect(null);render();return}
 if(h.id!==st.sel){selRect(h.id);render();return}
-const dirBtn=findFlowDirectionButton(p.x,p.y);
-if(dirBtn){st.flowRegionRid=dirBtn.rid;const r=cur();if(r){setFlowDirection(r,dirBtn.rid,dirBtn.dir,dirBtn.cid);st.flowHover=null;st.flowDirHover=dirBtn;schedulePersist("project");syncProps();}render();return}
 const startHandle=findFlowStartHandle(p.x,p.y);
 if(startHandle){st.flowRegionRid=startHandle.rid;st.flowDrag={kind:"start",rid:startHandle.rid,fromIndex:0,currentIndex:0,cid:startHandle.cid};syncProps();render();return}
+const dirBtn=findFlowDirectionButton(p.x,p.y);
+if(dirBtn){st.flowRegionRid=dirBtn.rid;const r=cur();if(r){setFlowDirection(r,dirBtn.rid,dirBtn.dir,dirBtn.cid);st.flowHover=null;st.flowDirHover=dirBtn;schedulePersist("project");syncProps();}render();return}
 const fp=findFlowEditPoint(p.x,p.y);
 if(fp){st.flowRegionRid=fp.rid;st.flowDrag={rid:fp.rid,fromIndex:fp.index,currentIndex:fp.index,cid:fp.cid};syncProps();}
 render();return}
@@ -3742,12 +4375,26 @@ window.addEventListener("mousemove",e=>{const b=cv.getBoundingClientRect(),sx=e.
 if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();return}
 if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps()}const r=h||cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();return}
 if(isCellEditMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps()}const r=h||cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();return}
-if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();render();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};render();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();return}
+if(isClusterEditMode()){
+  if(st.clusterDrag){
+    updateClusterHandleDragAtPoint(p.x,p.y);
+    updateClusterEditCursor();
+    render();
+    return;
+  }
+  const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps()}const r=h||cur();st.clusterHandleHover=r?findClusterHandle(p.x,p.y):null;st.clusterBorderHover=r?findActiveClusterBorder(r,p.x,p.y):null;st.clusterStartHover=r?findClusterStartMarker(r,p.x,p.y):null;const cc=(r?cellFromWorldPoint(r,p.x,p.y,true):null);st.clusterCellHover=(r&&cc?{rectId:r.id,col:cc.col,row:cc.row}:null);updateClusterEditCursor();render();return
+}
+if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();render();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};st.flowDirHover=null;render();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();return}
 if(st.mode==="flowEdit"&&st.flowDrag){const fp=findFlowEditPoint(p.x,p.y,st.flowDrag.rid,st.flowDrag.fromIndex);st.flowDrag.currentIndex=fp?fp.index:st.flowDrag.fromIndex;render();return}
 if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.width=Math.abs(p.x-d.sx);d.height=Math.abs(p.y-d.sy);render();return}
 if(st.drag){const r=st.rects.find(v=>v.id===st.drag.id);if(!r)return;const nx=st.drag.rx+(p.x-st.drag.sx),ny=st.drag.ry+(p.y-st.drag.sy),sn=snap(nx,ny,r.id,r.width,r.height,e.ctrlKey||st.keys.ctrl);r.x=sn.x;r.y=sn.y;st.g.x=sn.gx;st.g.y=sn.gy;st.dg=sn.dg;syncProps();render()}});
-cv.addEventListener("mouseleave",()=>{if(st.mode==="flowEdit"&&(st.flowHover||st.flowDirHover)){st.flowHover=null;st.flowDirHover=null;render()}});
+cv.addEventListener("mouseleave",()=>{if(st.mode==="flowEdit"&&(st.flowHover||st.flowDirHover)){st.flowHover=null;st.flowDirHover=null;render();return}if(isClusterEditMode()&&(st.clusterHandleHover||st.clusterCellHover||st.clusterStartHover||st.clusterBorderHover)){st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;updateClusterEditCursor();render();}});
 window.addEventListener("mouseup",()=>{const hadDrag=!!st.drag;if(st.pan){st.pan=false;st.panS=null}
+if(st.clusterDrag){
+const changed=endClusterHandleDrag();
+if(changed)schedulePersist("project");
+render();return;
+}
 if(st.flowDrag){
 const r=cur(),fd=st.flowDrag;st.flowDrag=null;
 if(r){
@@ -3782,29 +4429,45 @@ cv.addEventListener("touchstart",e=>{const rect=cv.getBoundingClientRect();if(e.
 if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);st.touch={type:"single"};if(st.mode==="draw"){st.draft={x:p.x,y:p.y,width:0,height:0,sx:p.x,sy:p.y};render();e.preventDefault();return}
 if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);addMaskPoint(p.x,p.y);e.preventDefault();return}
 if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);e.preventDefault();return}if(h.id!==st.sel)selRect(h.id);toggleCellLinkAtPoint(h,p.x,p.y);e.preventDefault();return}
-if(st.mode==="flowEdit"){const h=hit(p.x,p.y);if(!h){selRect(null);render();e.preventDefault();return}if(h.id!==st.sel){selRect(h.id);render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);if(dirBtn){st.flowRegionRid=dirBtn.rid;const r=cur();if(r){setFlowDirection(r,dirBtn.rid,dirBtn.dir,dirBtn.cid);st.flowHover=null;st.flowDirHover=dirBtn;schedulePersist("project");syncProps();}render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowRegionRid=startHandle.rid;st.flowDrag={kind:"start",rid:startHandle.rid,fromIndex:0,currentIndex:0,cid:startHandle.cid};syncProps();render();e.preventDefault();return}const fp=findFlowEditPoint(p.x,p.y);if(fp){st.flowRegionRid=fp.rid;st.flowDrag={rid:fp.rid,fromIndex:fp.index,currentIndex:fp.index,cid:fp.cid};syncProps();}render();e.preventDefault();return}
+if(isClusterEditMode()){if(beginClusterHandleDragAtPoint(p.x,p.y)){render();e.preventDefault();return}handleClusterEditAtPoint(p.x,p.y);e.preventDefault();return}
+if(st.mode==="flowEdit"){const h=hit(p.x,p.y);if(!h){selRect(null);render();e.preventDefault();return}if(h.id!==st.sel){selRect(h.id);render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowRegionRid=startHandle.rid;st.flowDrag={kind:"start",rid:startHandle.rid,fromIndex:0,currentIndex:0,cid:startHandle.cid};syncProps();render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);if(dirBtn){st.flowRegionRid=dirBtn.rid;const r=cur();if(r){setFlowDirection(r,dirBtn.rid,dirBtn.dir,dirBtn.cid);st.flowHover=null;st.flowDirHover=dirBtn;schedulePersist("project");syncProps();}render();e.preventDefault();return}const fp=findFlowEditPoint(p.x,p.y);if(fp){st.flowRegionRid=fp.rid;st.flowDrag={rid:fp.rid,fromIndex:fp.index,currentIndex:fp.index,cid:fp.cid};syncProps();}render();e.preventDefault();return}
 const h=hit(p.x,p.y);if(h){selRect(h.id);st.drag={id:h.id,sx:p.x,sy:p.y,rx:h.x,ry:h.y}}else{st.pan=true;st.panS={sx,sy,cx:st.camX,cy:st.camY}}render();e.preventDefault()},{passive:false});
 cv.addEventListener("touchmove",e=>{const rect=cv.getBoundingClientRect();if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=2){const m=touchMid(e.touches[0],e.touches[1],rect),dist=Math.max(1,touchDist(e.touches[0],e.touches[1])),vm=getViewMetrics();st.zoom=zc(st.touch.startZoom*(dist/st.touch.startDist));st.camX=st.touch.worldMid.x-(m.sx-vm.centerX)/st.zoom;st.camY=st.touch.worldMid.y-(m.sy-vm.centerY)/st.zoom;render();e.preventDefault();return}
 if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);if(isMaskMode()){const r=cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();e.preventDefault();return}if(isCellEditMode()){const r=cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();e.preventDefault();return}if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();e.preventDefault();return}
-if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};render();e.preventDefault();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();e.preventDefault();return}
+if(isClusterEditMode()){
+const r=cur();
+if(st.clusterDrag){
+  updateClusterHandleDragAtPoint(p.x,p.y);
+  updateClusterEditCursor();
+  render();
+  e.preventDefault();
+  return;
+}
+st.clusterHandleHover=r?findClusterHandle(p.x,p.y):null;st.clusterBorderHover=r?findActiveClusterBorder(r,p.x,p.y):null;st.clusterStartHover=r?findClusterStartMarker(r,p.x,p.y):null;const cc=(r?cellFromWorldPoint(r,p.x,p.y,true):null);st.clusterCellHover=(r&&cc?{rectId:r.id,col:cc.col,row:cc.row}:null);updateClusterEditCursor();render();e.preventDefault();return}
+if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){st.sel=h.id;syncProps();render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};st.flowDirHover=null;render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();e.preventDefault();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();e.preventDefault();return}
 if(st.mode==="flowEdit"&&st.flowDrag){const fp=findFlowEditPoint(p.x,p.y,st.flowDrag.rid,st.flowDrag.fromIndex);st.flowDrag.currentIndex=fp?fp.index:st.flowDrag.fromIndex;render();e.preventDefault();return}
 if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.width=Math.abs(p.x-d.sx);d.height=Math.abs(p.y-d.sy);render();e.preventDefault();return}
 if(st.drag){const r=st.rects.find(v=>v.id===st.drag.id);if(!r)return;const nx=st.drag.rx+(p.x-st.drag.sx),ny=st.drag.ry+(p.y-st.drag.sy),sn=snap(nx,ny,r.id,r.width,r.height,false);r.x=sn.x;r.y=sn.y;st.g.x=sn.gx;st.g.y=sn.gy;st.dg=sn.dg;syncProps();render();e.preventDefault()}},{passive:false});
 cv.addEventListener("touchend",e=>{if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=1){e.preventDefault();return}if(e.touches.length===0){const hadDrag=!!st.drag;st.touch=null;if(st.pan){st.pan=false;st.panS=null}
+if(st.clusterDrag){
+const changed=endClusterHandleDrag();
+if(changed)schedulePersist("project");
+render();e.preventDefault();return;
+}
 if(st.flowDrag){
 const r=cur(),fd=st.flowDrag;st.flowDrag=null;
 if(r){const isStartMove=String(fd&&fd.kind||"")==="start";const pts=(st.flowEditPoints||[]).filter(p=>p.rid===fd.rid&&(isStartMove?p.index>=0:p.index>=fd.fromIndex)),target=pts.find(p=>p.index===fd.currentIndex)||pts[0];if(isStartMove){if(target&&target.cid!==fd.cid){setFlowStart(r,fd.rid,target.cid);schedulePersist("project");}}else if(target&&target.index>=fd.fromIndex&&target.cid!==fd.cid){setFlowLock(r,fd.rid,fd.fromIndex,target.cid);schedulePersist("project");}}
 render();e.preventDefault();return;
 }
 let created=null;if(st.draft){const d=st.draft;if(d.width>=1&&d.height>=1){created=mk(d.x,d.y,d.width,d.height);st.rects.push(created)}st.draft=null}st.drag=null;st.g.x=null;st.g.y=null;st.dg=null;if(created){setMode("select");selRect(created.id)}if(hadDrag||created){listRects();schedulePersist("project")}render();e.preventDefault()}},{passive:false});
-function delSel(){if(st.sel==null)return;st.rects=st.rects.filter(r=>r.id!==st.sel);st.sel=null;st.maskPath=[];st.maskHover=null;syncProps();listRects();schedulePersist("project");render()}
-function newProject(){st.rects=[];st.sel=null;st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.saveLocationId=setGlobalSaveLocationId(getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.regionsHighlight=false;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDirHover=null;st.flowRegionRid=null;st.flowDrag=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;updateRegionsToggleUi();listRects();syncProps();setMode("select");syncActiveTabSnapshot();renderProjectTabs();schedulePersist("all");render()}
+function delSel(){if(st.sel==null)return;st.rects=st.rects.filter(r=>r.id!==st.sel);st.sel=null;st.maskPath=[];st.maskHover=null;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;syncProps();listRects();updateClusterEditCursor();schedulePersist("project");render()}
+function newProject(){st.rects=[];st.sel=null;st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.saveLocationId=setGlobalSaveLocationId(getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.regionsHighlight=false;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDirHover=null;st.flowRegionRid=null;st.flowDrag=null;st.clusterActiveId=null;st.clusterHandles=[];st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;updateRegionsToggleUi();listRects();syncProps();setMode("select");syncActiveTabSnapshot();renderProjectTabs();schedulePersist("all");render()}
 const insertCloneAboveSource=(sourceId,clone)=>{
   const idx=st.rects.findIndex(v=>v.id===sourceId);
   if(idx>=0)st.rects.splice(idx,0,clone);
   else st.rects.unshift(clone);
 };
-function dupSel(){const r=cur();if(!r)return;const c={...r,id:st.next++,name:`${r.name} copy`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[],flowLocks:normalizeFlowLocks(r&&r.flowLocks)};insertCloneAboveSource(r.id,c);selRect(c.id);setMode("select");schedulePersist("project")}
+function dupSel(){const r=cur();if(!r)return;const c={...r,id:st.next++,name:`${r.name} copy`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[],flowLocks:normalizeFlowLocks(r&&r.flowLocks),manualClusters:normalizeManualClusters(r&&r.manualClusters)};insertCloneAboveSource(r.id,c);selRect(c.id);setMode("select");schedulePersist("project")}
 function dupMirrorSel(){const r=cur();if(!r)return;const cx=drawCellX(r),cy=drawCellY(r),cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy));const mapIndex=i=>{const x=i%cols,y=Math.floor(i/cols);if(!(x>=0&&x<cols&&y>=0&&y<rows))return -1;const nx=(cols-1)-x;return y*cols+nx};
 const hiddenSrc=Array.isArray(r.hiddenCells)?r.hiddenCells:[],hiddenSet=new Set();
 for(const k of hiddenSrc){const p=String(k).split(",");if(p.length!==2)continue;const ix=+p[0],iy=+p[1];if(!(ix>=0&&ix<cols&&iy>=0&&iy<rows))continue;hiddenSet.add(`${(cols-1)-ix},${iy}`)}
@@ -3911,7 +4574,7 @@ for(const [rk,cfg] of Object.entries(srcFlowLocks||{})){
   const startNew=(startOld!=null?(cidMap.has(startOld)?cidMap.get(startOld):startOld):null);
   mirFlowLocks[String(dstRid)]={locks:mappedLocks,startCid:startNew,startDir:mirrorDir(cfg&&cfg.startDir||""),mode:mirrorMode(cfg&&cfg.mode||""),startPinned:!!(cfg&&cfg.startPinned)};
 }
-const c={...r,id:st.next++,name:`${r.name} mirror`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,splitVariant:mirroredSplitVariant,cellLinks:[...linkSet],hiddenCells:[...hiddenSet],flowLocks:mirFlowLocks};
+const c={...r,id:st.next++,name:`${r.name} mirror`,x:r.x+20,y:r.y+20,rotation:r.rotation||0,colorB:r.autoContrastB?autoContrast(r.colorA):r.colorB,autoContrastB:r.autoContrastB!==false,splitVariant:mirroredSplitVariant,cellLinks:[...linkSet],hiddenCells:[...hiddenSet],flowLocks:mirFlowLocks,manualClusters:[]};
 insertCloneAboveSource(r.id,c);selRect(c.id);setMode("select");schedulePersist("project")}
 function fit(){if(!st.rects.length){st.camX=0;st.camY=0;st.zoom=1;render();return}let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const r of st.rects){const bb=rectAABBMasked(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
 const vm=getViewMetrics(),w=Math.max(1,maxX-minX),h=Math.max(1,maxY-minY),pad=80;st.zoom=zc(Math.min((vm.viewWidth-pad)/w,(vm.viewHeight-pad)/h));st.camX=(minX+maxX)/2;st.camY=(minY+maxY)/2;render()}
@@ -3935,7 +4598,13 @@ const updateSplitVariantLabel=r=>{
   el.splitVariantLabel.textContent=String(v);
   el.splitVariantLabel.title=`Номер разбиения: ${v}`;
 };
+const updateSplitVariantModeUi=r=>{
+  const manual=!!(r&&Array.isArray(r.manualClusters)&&r.manualClusters.length>0);
+  if(el.splitVariantControl)el.splitVariantControl.classList.toggle("d-none",manual);
+  if(el.splitVariantManualBadge)el.splitVariantManualBadge.classList.toggle("d-none",!manual);
+};
 const updateSplitVariantControl=r=>{
+  updateSplitVariantModeUi(r);
   if(!el.splitVariant)return;
   const rawCnt=Number(r&&r._splitVariantCount);
   const hasCnt=Number.isFinite(rawCnt)&&rawCnt>0;
@@ -3949,7 +4618,7 @@ const updateSplitVariantControl=r=>{
   if(el.splitVariantInc)el.splitVariantInc.disabled=!r||cur>=maxv;
   updateSplitVariantLabel(r);
 };
-function syncProps(){const r=cur(),on=!!r;[el.name,el.rectTextSize,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnResetFlowLocks)el.btnResetFlowLocks.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;updateThemeUi();updateRegionsToggleUi();el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){el.name.value="";el.rectTextSize.value="0";updateRectTextSizeLabel(null);el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.dataFlow.value="none";el.dataFlowZ.checked=false;el.numCells.checked=false;el.splitVariant.max=String(Math.max(0,SPLIT_VARIANT_MAX-1));el.splitVariant.value="0";if(el.splitVariantDec)el.splitVariantDec.disabled=true;if(el.splitVariantInc)el.splitVariantInc.disabled=true;updateSplitVariantLabel(null);if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
+function syncProps(){const r=cur(),on=!!r;[el.name,el.rectTextSize,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>v.disabled=!on);if(el.areaM2)el.areaM2.disabled=!on;el.randColor.disabled=!on;if(el.btnClearMasks)el.btnClearMasks.disabled=!on;if(el.btnResetFlowLocks)el.btnResetFlowLocks.disabled=!on;if(el.btnResetManualClusters)el.btnResetManualClusters.disabled=!on;if(el.btnAutoContrast)el.btnAutoContrast.disabled=!on;if(el.project.value!==st.projectName)el.project.value=st.projectName;updateThemeUi();updateRegionsToggleUi();el.textSize.value=mFmt(st.textSize);el.font.value=st.fontFamily;if(el.areaM2)el.areaM2.value=r?mFmt(r.areaM2Px||65536):"65536";if(!r){updateSplitVariantModeUi(null);el.name.value="";el.rectTextSize.value="0";updateRectTextSizeLabel(null);el.x.value=el.y.value=el.wm.value=el.hm.value="";el.rot.value="0";el.scale.value="256";el.a.value="#2fcaaf";el.b.value=autoContrast("#2fcaaf");el.dataFlow.value="none";el.dataFlowZ.checked=false;el.numCells.checked=false;el.splitVariant.max=String(Math.max(0,SPLIT_VARIANT_MAX-1));el.splitVariant.value="0";if(el.splitVariantDec)el.splitVariantDec.disabled=true;if(el.splitVariantInc)el.splitVariantInc.disabled=true;updateSplitVariantLabel(null);if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: вкл";el.cx.value=el.cy.value="128";return}
 metricFromPx(r);if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);el.name.value=r.name;el.rectTextSize.value=String(Math.max(0,Math.min(128,Math.round(Number(r.textSize)||0))));updateRectTextSizeLabel(r);el.x.value=r.x;el.y.value=r.y;el.rot.value=mFmt(r.rotation||0);el.wm.value=mFmt(r.widthM);el.hm.value=mFmt(r.heightM);el.scale.value=r.scale;el.a.value=r.colorA;el.b.value=r.colorB;{const globalMode=normalizeDataFlow(r.dataFlow),rid=(st.mode==="flowEdit"&&Number.isFinite(Number(st.flowRegionRid)))?Math.max(0,Math.round(Number(st.flowRegionRid)||0)):null,cfg=(rid!=null)?getFlowRegionConfig(r,rid):null,pts=(rid!=null)?(st.flowEditPoints||[]).filter(p=>p.rid===rid):[],computedMode=(rid!=null)?resolveFlowModeFromStartAndDir(pts,cfg,getFlowModeRegion(r,rid,globalMode)):"none";el.dataFlow.value=(computedMode!=="none")?computedMode:globalMode;}el.dataFlowZ.checked=!!r.dataFlowZ;el.numCells.checked=!!r.numberCells;updateSplitVariantControl(r);if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;el.cx.value=r.cellX;el.cy.value=r.cellY}
 let listDragId=null;
 const reorderRects=(dragId,targetId,after=false)=>{
@@ -4018,7 +4687,7 @@ for(const btn of document.querySelectorAll("[data-area-m2-preset]")){
 el.textSize.addEventListener("change",()=>{applyTextSettings();syncProps()});
 el.textSize.addEventListener("keydown",e=>{if(e.key==="Enter"){applyTextSettings();syncProps()}});
 el.font.addEventListener("change",()=>{applyTextSettings();syncProps()});
-el.toolSelect.onclick=()=>activateToolOrSelect("select");el.toolDraw.onclick=()=>activateToolOrSelect("draw");if(el.toolMaskAdd)el.toolMaskAdd.onclick=()=>activateToolOrSelect("maskAdd");if(el.toolMaskSub)el.toolMaskSub.onclick=()=>activateToolOrSelect("maskSub");if(el.toolCellEdit)el.toolCellEdit.onclick=()=>activateToolOrSelect("cellEdit");if(el.toolFlowEdit)el.toolFlowEdit.onclick=()=>activateToolOrSelect("flowEdit");if(el.toolRegions)el.toolRegions.onclick=()=>toggleRegionsHighlight();if(el.newProject)el.newProject.onclick=newProject;el.btnCopy.onclick=dupSel;if(el.btnCopyMirror)el.btnCopyMirror.onclick=dupMirrorSel;el.btnDelete.onclick=delSel;if(el.btnAutoContrast)el.btnAutoContrast.onclick=()=>{const r=cur();if(!r)return;r.autoContrastB=!(r.autoContrastB!==false);if(r.autoContrastB)r.colorB=autoContrast(r.colorA);syncProps();listRects();schedulePersist("project");render()};el.randColor.onclick=()=>{const r=cur();if(!r)return;r.colorA=randomColor();if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);syncProps();listRects();schedulePersist("project");render()};el.zoomIn.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom*1.2)};el.zoomOut.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom/1.2)};el.zoomReset.onclick=()=>{st.zoom=1;render()};el.zoomFit.onclick=fit;
+el.toolSelect.onclick=()=>activateToolOrSelect("select");el.toolDraw.onclick=()=>activateToolOrSelect("draw");if(el.toolMaskAdd)el.toolMaskAdd.onclick=()=>activateToolOrSelect("maskAdd");if(el.toolMaskSub)el.toolMaskSub.onclick=()=>activateToolOrSelect("maskSub");if(el.toolCellEdit)el.toolCellEdit.onclick=()=>activateToolOrSelect("cellEdit");if(el.toolFlowEdit)el.toolFlowEdit.onclick=()=>activateToolOrSelect("flowEdit");if(el.toolClusterEdit)el.toolClusterEdit.onclick=()=>activateToolOrSelect("clusterEdit");if(el.toolRegions)el.toolRegions.onclick=()=>toggleRegionsHighlight();if(el.newProject)el.newProject.onclick=newProject;el.btnCopy.onclick=dupSel;if(el.btnCopyMirror)el.btnCopyMirror.onclick=dupMirrorSel;el.btnDelete.onclick=delSel;if(el.btnAutoContrast)el.btnAutoContrast.onclick=()=>{const r=cur();if(!r)return;r.autoContrastB=!(r.autoContrastB!==false);if(r.autoContrastB)r.colorB=autoContrast(r.colorA);syncProps();listRects();schedulePersist("project");render()};el.randColor.onclick=()=>{const r=cur();if(!r)return;r.colorA=randomColor();if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);syncProps();listRects();schedulePersist("project");render()};el.zoomIn.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom*1.2)};el.zoomOut.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom/1.2)};el.zoomReset.onclick=()=>{st.zoom=1;render()};el.zoomFit.onclick=fit;
 const isMobile=()=>window.matchMedia("(max-width:900px)").matches;
 const isCoarsePointer=()=>window.matchMedia&&window.matchMedia("(hover:none) and (pointer:coarse)").matches;
 const isEditableTarget=t=>{
@@ -4083,6 +4752,7 @@ if(el.mToolMaskAdd)el.mToolMaskAdd.onclick=()=>el.toolMaskAdd.click();
 if(el.mToolMaskSub)el.mToolMaskSub.onclick=()=>el.toolMaskSub.click();
 if(el.mToolCellEdit)el.mToolCellEdit.onclick=()=>el.toolCellEdit.click();
 if(el.mToolFlowEdit)el.mToolFlowEdit.onclick=()=>el.toolFlowEdit.click();
+if(el.mToolClusterEdit)el.mToolClusterEdit.onclick=()=>el.toolClusterEdit.click();
 if(el.mToolRegions)el.mToolRegions.onclick=()=>toggleRegionsHighlight();
 el.mCopy.onclick=()=>el.btnCopy.click();
 if(el.mCopyMirror)el.mCopyMirror.onclick=()=>el.btnCopyMirror.click();
@@ -4091,6 +4761,7 @@ el.mZoomOut.onclick=()=>el.zoomOut.click();
 el.mZoomIn.onclick=()=>el.zoomIn.click();
 if(el.btnClearMasks)el.btnClearMasks.onclick=()=>{const r=cur();if(!r)return;r.hiddenCells=[];hiddenCache.set(r,{src:r.hiddenCells,set:new Set()});st.maskPath=[];st.maskHover=null;schedulePersist("project");render()};
 if(el.btnResetFlowLocks)el.btnResetFlowLocks.onclick=()=>{const r=cur();if(!r)return;r.flowLocks={};st.flowHover=null;st.flowDirHover=null;st.flowDrag=null;const cache=getRectCalcCache(r);if(cache)cache.flow=null;schedulePersist("project");render()};
+if(el.btnResetManualClusters)el.btnResetManualClusters.onclick=()=>{const r=cur();if(!r)return;r.manualClusters=[];r.splitVariant=0;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;clearRectRegionsAndFlow(r);syncProps();schedulePersist("project");render()};
 const isStandalone=()=>window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
 const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent||"");
 const hideInstallBanner=()=>{if(el.installBanner)el.installBanner.classList.remove("show")};
@@ -4336,7 +5007,7 @@ if(el.side){
   el.side.addEventListener("shown.bs.offcanvas",scheduleCanvasResize);
   el.side.addEventListener("hidden.bs.offcanvas",scheduleCanvasResize);
 }
-window.addEventListener("keydown",e=>{if(e.key===" ")st.keys.space=true;if(e.key==="Control")st.keys.ctrl=true;if(e.key==="Escape"){if(el.helpModal&&el.helpModal.classList.contains("show")){closeHelpModal();e.preventDefault();return}setMode("select");e.preventDefault();return}if(isMaskMode()&&e.key==="Enter"){applyMaskPath();e.preventDefault();return}if(e.key==="Delete"){delSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="d"){dupSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="c"){const r=cur();if(r)st.clip={...r,autoContrastB:r.autoContrastB!==false,rotation:r.rotation||0,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[]};e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="v"){if(st.clip){const c={...st.clip,id:st.next++,name:`${st.clip.name} copy`,x:st.clip.x+20,y:st.clip.y+20,rotation:st.clip.rotation||0,autoContrastB:st.clip.autoContrastB!==false,colorB:(st.clip.autoContrastB!==false)?autoContrast(st.clip.colorA):st.clip.colorB,cellLinks:Array.isArray(st.clip.cellLinks)?[...st.clip.cellLinks]:[],hiddenCells:Array.isArray(st.clip.hiddenCells)?[...st.clip.hiddenCells]:[]};insertCloneAboveSource(st.clip.id,c);selRect(c.id);setMode("select");schedulePersist("project")}e.preventDefault()}
+window.addEventListener("keydown",e=>{if(e.key===" ")st.keys.space=true;if(e.key==="Control")st.keys.ctrl=true;if(e.key==="Escape"){if(el.helpModal&&el.helpModal.classList.contains("show")){closeHelpModal();e.preventDefault();return}setMode("select");e.preventDefault();return}if(isMaskMode()&&e.key==="Enter"){applyMaskPath();e.preventDefault();return}if(e.key==="Delete"){delSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="d"){dupSel();e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="c"){const r=cur();if(r)st.clip={...r,autoContrastB:r.autoContrastB!==false,rotation:r.rotation||0,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[],manualClusters:normalizeManualClusters(r&&r.manualClusters)};e.preventDefault()}if(e.ctrlKey&&e.key.toLowerCase()==="v"){if(st.clip){const c={...st.clip,id:st.next++,name:`${st.clip.name} copy`,x:st.clip.x+20,y:st.clip.y+20,rotation:st.clip.rotation||0,autoContrastB:st.clip.autoContrastB!==false,colorB:(st.clip.autoContrastB!==false)?autoContrast(st.clip.colorA):st.clip.colorB,cellLinks:Array.isArray(st.clip.cellLinks)?[...st.clip.cellLinks]:[],hiddenCells:Array.isArray(st.clip.hiddenCells)?[...st.clip.hiddenCells]:[],manualClusters:normalizeManualClusters(st.clip&&st.clip.manualClusters)};insertCloneAboveSource(st.clip.id,c);selRect(c.id);setMode("select");schedulePersist("project")}e.preventDefault()}
 const r=cur();if(r){const s=e.shiftKey?10:1;let m=false;if(e.key==="ArrowLeft"){r.x-=s;m=true}else if(e.key==="ArrowRight"){r.x+=s;m=true}else if(e.key==="ArrowUp"){r.y-=s;m=true}else if(e.key==="ArrowDown"){r.y+=s;m=true}if(m){syncProps();listRects();schedulePersist("project");render();e.preventDefault()}}});
 window.addEventListener("keyup",e=>{if(e.key===" ")st.keys.space=false;if(e.key==="Control"){st.keys.ctrl=false;st.g.x=null;st.g.y=null;st.dg=null;render()}});
 setMode(st.mode);
