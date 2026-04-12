@@ -3603,6 +3603,21 @@ const planNumberRegions=(r,cx,cy,topo,hs)=>{
   const cache=getRectCalcCache(r);
   const key=regionCalcKey(r,cx,cy,topo);
   if(cache.regions&&cache.regions.key===key)return cache.regions.value;
+  const manualRegionsActive=Array.isArray(r&&r.manualClusters)&&r.manualClusters.length>0;
+  if(manualRegionsActive){
+    try{
+      const budget=makeCalcBudget();
+      budget.deadline=calcNow()+REGION_WORKER_TIMEOUT_MS;
+      const value=planNumberRegionsUncached(r,cx,cy,topo,hs,budget);
+      try{Object.defineProperty(value,"_calcKey",{value:key,writable:true,configurable:true});}
+      catch(_e){value._calcKey=key;}
+      cache.regions={key,value,pending:false};
+      if(cache.flow&&cache.flow.regionKey!==key)cache.flow=null;
+      return value;
+    }catch(_e){
+      // fallback to async path below
+    }
+  }
   const value=buildSingleRegionPlan(r,cx,cy,topo,hs);
   try{Object.defineProperty(value,"_calcKey",{value:key,writable:true,configurable:true});}
   catch(_e){value._calcKey=key;}
@@ -4127,9 +4142,10 @@ function drawRect(c,r,sel,z,origin,opts){const cellX=drawCellX(r),cellY=drawCell
 const skeleton=!st.fontReady;
 const topo=getCellTopologyCached(r,cellX,cellY),maskRender=getMaskRenderDataCached(r,cellX,cellY,hs,topo);
 const cellCount=(topo.cols||1)*(topo.rows||1),interactiveDetail=!!(sel||st.mode==="flowEdit"||isMaskMode()||isCellEditMode()||isClusterEditMode()),lowDetail=!!(forceLowDetail||(!disableLod&&designerRender&&!interactiveDetail&&cellCount>3000));
-const flowEnabledByMode=normalizeDataFlow(r.dataFlow)!=="none",flowInteractivePause=!!(st.pan||st.drag||st.draft||(st.touch&&st.touch.type==="pinch")||lowDetail),wantsFlow=!!(includeFlow&&flowEnabledByMode&&!flowInteractivePause);
-const showRegionsOverlayRequested=!!(designerRender&&st.regionsHighlight);
-const needRegions=!!(!lowDetail&&(r.numberCells||wantsFlow||sel||showRegionsOverlayRequested));
+const clusterDraggingThisRect=!!(st.clusterDrag&&Math.round(Number(st.clusterDrag.rectId)||0)===Math.round(Number(r&&r.id)||0));
+const flowEnabledByMode=normalizeDataFlow(r.dataFlow)!=="none",flowInteractivePause=!!(st.pan||st.drag||st.draft||clusterDraggingThisRect||(st.touch&&st.touch.type==="pinch")||lowDetail),wantsFlow=!!(includeFlow&&flowEnabledByMode&&!flowInteractivePause);
+const showRegionsOverlayRequested=!!(designerRender&&st.regionsHighlight&&!clusterDraggingThisRect);
+const needRegions=!!(!lowDetail&&(r.numberCells||wantsFlow||showRegionsOverlayRequested||(sel&&!clusterDraggingThisRect)));
 const regions=(needRegions?planNumberRegions(r,cellX,cellY,topo,hs):null);
 const showRegionsOverlay=!!(regions&&showRegionsOverlayRequested);
 if(sel&&r.id===st.sel)updateSplitVariantControl(r);
