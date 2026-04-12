@@ -1852,7 +1852,7 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
     const manualRoute=(routing&&(((routing.startPinned&&routing.startCid!=null)||FLOW_DIR_SET.has(String(routing.startDir||"").toLowerCase()))));
     const hasLocks=Array.isArray(regionLocks)&&regionLocks.length>0;
     const canUseRegionCache=!manualRegionsActive&&!manualRoute&&!hasLocks;
-    const cachePrefix=`${localMode}|${zMode?1:0}|`;
+    const cachePrefix=`v2|${localMode}|${zMode?1:0}|`;
     const cacheKey=canUseRegionCache?`${cachePrefix}${regionGeomKey(arr)}`:"";
     let zFallbackUsed=false;
     let ordered=baseOrdered,fromCache=false;
@@ -1860,7 +1860,7 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
       const cached=regionFlowCache.get(cacheKey);
       if(cached&&Array.isArray(cached.points)&&cached.points.length){
         const rebuilt=rebuildOrderedFromCached(arr,cached);
-        if(rebuilt){
+        if(rebuilt&&!pathSelfCrosses(rebuilt)){
           ordered=rebuilt;
           zFallbackUsed=!!cached.zFallback;
           fromCache=true;
@@ -1885,7 +1885,7 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
       }
       if(best&&best.cached){
         const rebuilt=rebuildOrderedFromCached(arr,best.cached);
-        if(rebuilt){
+        if(rebuilt&&!pathSelfCrosses(rebuilt)){
           ordered=rebuilt;
           zFallbackUsed=!!best.cached.zFallback;
           fromCache=true;
@@ -1893,10 +1893,9 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
       }
     }
     if(!fromCache){
-      if(!manualRoute){
-        if(manualRegionsActive&&!hasLocks){
-          ordered=baseOrdered;
-        }else{
+      if(!manualRoute&&!hasLocks){
+        ordered=baseOrdered;
+      }else if(!manualRoute){
         ordered=(zMode?baseOrdered:refineFlowOrder(baseOrdered));
         if(!zMode&&ordered.length<=FLOW_OPTIMIZE_MAX_POINTS)ordered=optimizeFlowPathShortest(ordered);
         if(pathSelfCrosses(ordered)){
@@ -1909,7 +1908,6 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
         }else if(!zMode){
           const baseCost=flowPathCost(baseOrdered),optCost=flowPathCost(ordered);
           if(baseCost+1e-6<optCost)ordered=baseOrdered;
-        }
         }
       }
       ordered=applyFlowStartRouting(ordered,routing,budget);
@@ -1931,14 +1929,33 @@ const getDataFlowGroupsUncached=(r,cx,cy,topo,hs,regions,budget)=>{
       }
       ordered=orientEndpointsByMode(ordered,localMode,routing);
       if(canUseRegionCache&&cacheKey){
-        const points=ordered.map(v=>({cid:Math.max(0,Math.round(Number(v&&v.cid)||0))}));
-        const cidSet=new Set(points.map(p=>p.cid));
-        putRegionFlowCache(cacheKey,{zFallback:!!zFallbackUsed,points,cidSet});
+        if(!pathSelfCrosses(ordered)){
+          const points=ordered.map(v=>({cid:Math.max(0,Math.round(Number(v&&v.cid)||0))}));
+          const cidSet=new Set(points.map(p=>p.cid));
+          putRegionFlowCache(cacheKey,{zFallback:!!zFallbackUsed,points,cidSet});
+        }
       }
     }
     const rgb=REGION_ZONE_COLORS[((rid%REGION_ZONE_COLORS.length)+REGION_ZONE_COLORS.length)%REGION_ZONE_COLORS.length];
     const label=(regions&&regions.regionsById&&regions.regionsById.get(rid)&&regions.regionsById.get(rid).label)||toLetters(rid);
-    out.push({rid,label,rgb,zFallback:!!zFallbackUsed,points:ordered.map(v=>({u:v.u,v:v.v,cid:v.cid}))});
+    const orderedPoints=ordered.map(v=>({u:v.u,v:v.v,cid:v.cid}));
+    const debugInfo={
+      rid,
+      label,
+      localMode,
+      manualRegionsActive:!!manualRegionsActive,
+      manualRoute:!!manualRoute,
+      hasLocks:!!hasLocks,
+      lockCount:Array.isArray(regionLocks)?regionLocks.length:0,
+      fromCache:!!fromCache,
+      zFallback:!!zFallbackUsed,
+      startPinned:!!(routing&&routing.startPinned),
+      startCid:(routing&&Number.isFinite(Number(routing.startCid)))?Math.max(0,Math.round(Number(routing.startCid)||0)):null,
+      startDir:String(routing&&routing.startDir||""),
+      points:orderedPoints.length,
+      selfCross:!!pathSelfCrosses(ordered)
+    };
+    out.push({rid,label,rgb,zFallback:!!zFallbackUsed,points:orderedPoints,_dbg:debugInfo});
   }
   out.sort((a,b)=>a.rid-b.rid);
   return out;
@@ -3652,7 +3669,11 @@ const flowGroupsStats=groups=>{
 const logFlowCalcSummary=(rectId,key,groups,extra)=>{
   try{
     const stats=flowGroupsStats(groups);
-    console.info("[flow-calc]",{rectId,key,...stats,...(extra&&typeof extra==="object"?extra:{})});
+    const dbg=[];
+    for(const g of Array.isArray(groups)?groups:[]){
+      if(g&&g._dbg&&typeof g._dbg==="object")dbg.push(g._dbg);
+    }
+    console.info("[flow-calc]",{rectId,key,...stats,regions:dbg,...(extra&&typeof extra==="object"?extra:{})});
   }catch(_e){}
 };
 const metricFromPx=r=>{r.scale=Math.max(1,Math.round(+r.scale||256));r.width=Math.max(1,Math.round(+r.width||1));r.height=Math.max(1,Math.round(+r.height||1));r.widthM=Math.max(0.001,mRound(r.width/r.scale));r.heightM=Math.max(0.001,mRound(r.height/r.scale));};
