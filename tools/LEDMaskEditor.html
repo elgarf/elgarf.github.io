@@ -51,6 +51,9 @@ button,input{font:inherit}button{cursor:pointer}
 .help-modal{z-index:2000}
 .help-modal .modal-header{border-bottom-color:var(--bs-border-color)}
 .help-modal .modal-body{max-height:75vh}
+.message-modal{z-index:2050}
+.message-modal .modal-content{border-color:var(--bs-border-color)}
+.message-modal .modal-header{border-bottom-color:var(--bs-border-color)}
 .help-sub{margin:0 0 12px;color:var(--bs-secondary-color);font-size:12px}
 .help-list{display:grid;grid-template-columns:1fr;gap:8px}
 .help-item{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;padding:8px;border:1px solid var(--bs-border-color);border-radius:10px;background:var(--bs-tertiary-bg)}
@@ -246,7 +249,7 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
     <i id="themeIcon" class="fa-solid fa-circle-half-stroke"></i>
   </button>
 </div>
-<input id="fileInput" type="file" accept="application/json" style="display:none"></div>
+<input id="fileInput" type="file" accept="application/json,image/png,.json,.png" style="display:none"></div>
 <div id="toolbarOverflowPopup" class="toolbar-overflow-popup dropdown-menu"></div>
 <div id="themePopup" class="toolbar-overflow-popup dropdown-menu">
   <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-theme="auto"><i class="fa-solid fa-circle-half-stroke"></i><span>Авто</span></button>
@@ -341,6 +344,20 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
     </div>
   </div>
 </div>
+</div>
+<div id="messageModal" class="modal message-modal" tabindex="-1" aria-labelledby="messageModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="messageModalTitle" class="modal-title">Сообщение</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div id="messageModalBody" class="modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ок</button>
+      </div>
+    </div>
+  </div>
 </div>
 <div class="mobile-dock bg-body-tertiary shadow">
   <button id="mToolSelect" class="icon-btn" title="Выделение" aria-label="Выделение"><i class="fa-solid fa-arrow-pointer"></i></button>
@@ -4763,10 +4780,27 @@ const updateMobileDock=()=>{
   el.mobileDock.style.overflowX=portrait?"hidden":"auto";
 };
 let helpModalInstance=null;
+let messageModalInstance=null;
 const getHelpModal=()=>{
   if(!el.helpModal||!window.bootstrap||!window.bootstrap.Modal)return null;
   if(!helpModalInstance)helpModalInstance=window.bootstrap.Modal.getOrCreateInstance(el.helpModal,{backdrop:true,keyboard:true,focus:true});
   return helpModalInstance;
+};
+const getMessageModal=()=>{
+  const node=$("messageModal");
+  if(!node||!window.bootstrap||!window.bootstrap.Modal)return null;
+  if(!messageModalInstance)messageModalInstance=window.bootstrap.Modal.getOrCreateInstance(node,{backdrop:true,keyboard:true,focus:true});
+  return messageModalInstance;
+};
+const showMessageModal=(text,title="Сообщение")=>{
+  const modal=getMessageModal(),titleEl=$("messageModalTitle"),bodyEl=$("messageModalBody"),msg=String(text==null?"":text);
+  if(modal&&titleEl&&bodyEl){
+    titleEl.textContent=String(title||"Сообщение");
+    bodyEl.textContent=msg;
+    modal.show();
+    return;
+  }
+  console.warn(`[modal-fallback] ${title}: ${msg}`);
 };
 const openHelpModal=()=>{
   const modal=getHelpModal();
@@ -4874,7 +4908,7 @@ const saveBlobWithSystemDialog=async(blob,suggestedName,mime,ext,description,sav
       await tauriInvoke("save_file_dialog",{suggestedName,dataBase64});
       return;
     }catch(err){
-      alert(`Ошибка нативного сохранения (Tauri): ${err&&err.message?err.message:String(err)}`);
+      showMessageModal(`Ошибка нативного сохранения (Tauri): ${err&&err.message?err.message:String(err)}`,"Ошибка сохранения");
       return;
     }
   }
@@ -4898,8 +4932,164 @@ const saveBlobWithSystemDialog=async(blob,suggestedName,mime,ext,description,sav
   if(!name)return;
   const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
 };
+const PNG_PROJECT_META_KEY="ledmask-project";
+let pngCrcTable=null;
+const getPngCrcTable=()=>{
+  if(pngCrcTable)return pngCrcTable;
+  pngCrcTable=new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c=n;
+    for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+    pngCrcTable[n]=c>>>0;
+  }
+  return pngCrcTable;
+};
+const pngCrc32=bytes=>{
+  const table=getPngCrcTable();
+  let c=0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++)c=table[(c^bytes[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;
+};
+const readU32BE=(arr,off)=>(((arr[off]<<24)>>>0)|((arr[off+1]<<16)>>>0)|((arr[off+2]<<8)>>>0)|(arr[off+3]>>>0))>>>0;
+const writeU32BE=(arr,off,val)=>{arr[off]=(val>>>24)&255;arr[off+1]=(val>>>16)&255;arr[off+2]=(val>>>8)&255;arr[off+3]=val&255;};
+const pngSig=()=>new Uint8Array([137,80,78,71,13,10,26,10]);
+const bytesEq=(a,b)=>{
+  if(!a||!b||a.length!==b.length)return false;
+  for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;
+  return true;
+};
+const concatBytes=(...parts)=>{
+  let total=0;
+  for(const p of parts)total+=p.length;
+  const out=new Uint8Array(total);
+  let off=0;
+  for(const p of parts){out.set(p,off);off+=p.length;}
+  return out;
+};
+const makePngChunk=(typeStr,data)=>{
+  const type=new TextEncoder().encode(typeStr);
+  const len=data.length>>>0;
+  const out=new Uint8Array(12+len);
+  writeU32BE(out,0,len);
+  out.set(type,4);
+  out.set(data,8);
+  const crc=pngCrc32(out.subarray(4,8+len));
+  writeU32BE(out,8+len,crc);
+  return out;
+};
+const injectProjectToPngBytes=(pngBytes,projectText)=>{
+  if(!(pngBytes instanceof Uint8Array)||pngBytes.length<12)throw new Error("Некорректный PNG");
+  const sig=pngSig();
+  if(!bytesEq(pngBytes.subarray(0,8),sig))throw new Error("Некорректная PNG сигнатура");
+  let off=8,insertPos=-1;
+  while(off+12<=pngBytes.length){
+    const len=readU32BE(pngBytes,off),type=new TextDecoder().decode(pngBytes.subarray(off+4,off+8)),next=off+12+len;
+    if(next>pngBytes.length)break;
+    if(type==="IEND"){insertPos=off;break;}
+    off=next;
+  }
+  if(insertPos<0)throw new Error("PNG IEND не найден");
+  const enc=new TextEncoder(),keyword=enc.encode(PNG_PROJECT_META_KEY),text=enc.encode(String(projectText||""));
+  const data=new Uint8Array(keyword.length+1+1+1+1+1+text.length);
+  let p=0;
+  data.set(keyword,p);p+=keyword.length;
+  data[p++]=0;  // keyword separator
+  data[p++]=0;  // compression flag
+  data[p++]=0;  // compression method
+  data[p++]=0;  // language tag (empty)
+  data[p++]=0;  // translated keyword (empty)
+  data.set(text,p);
+  const chunk=makePngChunk("iTXt",data);
+  return concatBytes(pngBytes.subarray(0,insertPos),chunk,pngBytes.subarray(insertPos));
+};
+const extractProjectFromPngBytes=pngBytes=>{
+  if(!(pngBytes instanceof Uint8Array)||pngBytes.length<12)throw new Error("Некорректный PNG");
+  const sig=pngSig();
+  if(!bytesEq(pngBytes.subarray(0,8),sig))throw new Error("Некорректная PNG сигнатура");
+  const dec=new TextDecoder();
+  let off=8;
+  while(off+12<=pngBytes.length){
+    const len=readU32BE(pngBytes,off),type=dec.decode(pngBytes.subarray(off+4,off+8)),dataStart=off+8,dataEnd=dataStart+len,next=off+12+len;
+    if(dataEnd>pngBytes.length||next>pngBytes.length)break;
+    if(type==="iTXt"){
+      const d=pngBytes.subarray(dataStart,dataEnd);
+      let p=0;
+      while(p<d.length&&d[p]!==0)p++;
+      const keyword=dec.decode(d.subarray(0,p));
+      if(keyword===PNG_PROJECT_META_KEY){
+        p++;
+        const compFlag=(p<d.length?d[p]:0);p++;
+        p++; // compression method
+        while(p<d.length&&d[p]!==0)p++;
+        p++; // language tag
+        while(p<d.length&&d[p]!==0)p++;
+        p++; // translated keyword
+        if(compFlag!==0)throw new Error("Сжатые PNG метаданные не поддерживаются");
+        return dec.decode(d.subarray(Math.min(p,d.length)));
+      }
+    }else if(type==="tEXt"){
+      const d=pngBytes.subarray(dataStart,dataEnd);
+      let p=0;
+      while(p<d.length&&d[p]!==0)p++;
+      const keyword=dec.decode(d.subarray(0,p));
+      if(keyword===PNG_PROJECT_META_KEY){
+        p++;
+        return dec.decode(d.subarray(Math.min(p,d.length)));
+      }
+    }
+    if(type==="IEND")break;
+    off=next;
+  }
+  return null;
+};
+const embedProjectIntoPngBlob=async(pngBlob,projectData)=>{
+  const text=JSON.stringify(projectData);
+  const bytes=new Uint8Array(await pngBlob.arrayBuffer());
+  const outBytes=injectProjectToPngBytes(bytes,text);
+  return new Blob([outBytes],{type:"image/png"});
+};
+const loadProjectFromFile=async f=>{
+  const name=String(f&&f.name||"").toLowerCase();
+  const type=String(f&&f.type||"").toLowerCase();
+  const isPng=type==="image/png"||name.endsWith(".png");
+  if(isPng){
+    const bytes=new Uint8Array(await f.arrayBuffer());
+    const text=extractProjectFromPngBytes(bytes);
+    if(!text){
+      showMessageModal("Данное изображение не содержит данных проекта","Импорт PNG");
+      return;
+    }
+    try{
+      const d=JSON.parse(text);
+      applyProjectData(d);
+      schedulePersist("all");
+    }catch(err){
+      showMessageModal(`Ошибка данных проекта в PNG: ${err.message}`,"Ошибка импорта");
+    }
+    return;
+  }
+  const text=await f.text();
+  try{
+    const d=JSON.parse(String(text||"{}"));
+    applyProjectData(d);
+    schedulePersist("all");
+  }catch(err){
+    showMessageModal(`Ошибка JSON: ${err.message}`,"Ошибка импорта");
+  }
+};
 el.save.onclick=async()=>{const text=JSON.stringify(buildProject(),null,2);const blob=new Blob([text],{type:"application/json"});await saveBlobWithSystemDialog(blob,`${projectFileBase()}.json`,"application/json",".json","JSON files",st.saveLocationId)};
-el.load.onclick=()=>el.file.click();el.file.addEventListener("change",()=>{const f=el.file.files&&el.file.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(String(rd.result||"{}"));applyProjectData(d);schedulePersist("all")}catch(err){alert(`Ошибка JSON: ${err.message}`)}};rd.readAsText(f);el.file.value=""});
+el.load.onclick=()=>el.file.click();
+el.file.addEventListener("change",async()=>{
+  const f=el.file.files&&el.file.files[0];
+  if(!f)return;
+  try{
+    await loadProjectFromFile(f);
+  }catch(err){
+    showMessageModal(`Ошибка загрузки файла: ${err&&err.message?err.message:String(err)}`,"Ошибка загрузки");
+  }finally{
+    el.file.value="";
+  }
+});
 const fmtOne=v=>{const n=Math.round((Number(v)||0)*10)/10;return Number.isInteger(n)?`${n.toFixed(0)}`:n.toFixed(1)};
 const fmtMeters=v=>{const n=Math.round((Number(v)||0)*1000)/1000;return Number.isInteger(n)?`${n.toFixed(0)}`:String(n).replace(/\.?0+$/,"")};
 const fmtAreaM2=v=>{const n=Math.max(0,Math.round((Number(v)||0)*1000)/1000);return Number.isInteger(n)?`${n.toFixed(0)}`:String(n).replace(/\.?0+$/,"")};
@@ -4993,7 +5183,7 @@ const getExportFlowGroupsFromCache=r=>{
   return cache.flow.value;
 };
 const exportPng=async(includeFlow)=>{
-  if(!st.rects.length){alert("Нечего экспортировать");return}
+  if(!st.rects.length){showMessageModal("Нечего экспортировать","Экспорт PNG");return}
   await ensureFontReady();
   let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
   for(const r of st.rects){const bb=rectAABBMasked(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
@@ -5005,9 +5195,15 @@ const exportPng=async(includeFlow)=>{
     drawRect(c,er,false,1,{x:0,y:0},{includeFlow:includeFlowRect,disableLod:true,flowGroupsOverride:flowGroups});
   }
   out.toBlob(async b=>{
-    if(!b){alert("Ошибка экспорта");return}
+    if(!b){showMessageModal("Ошибка экспорта","Экспорт PNG");return}
     const baseName=`${projectFileBase()}${includeFlow?"-flow":""}`;
-    await saveBlobWithSystemDialog(b,`${baseName}.png`,"image/png",".png","PNG images",st.saveLocationId);
+    let pngOut=b;
+    try{
+      pngOut=await embedProjectIntoPngBlob(b,buildProject());
+    }catch(err){
+      console.warn("PNG metadata export failed, saving plain PNG:",err);
+    }
+    await saveBlobWithSystemDialog(pngOut,`${baseName}.png`,"image/png",".png","PNG images",st.saveLocationId);
     if(includeFlow){
       const specText=buildFlowSpecText();
       const specBlob=new Blob([specText],{type:"text/plain;charset=utf-8"});
