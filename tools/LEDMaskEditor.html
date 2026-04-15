@@ -1353,10 +1353,10 @@
       aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
     <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i
         class="fa-solid fa-trash"></i></button>
-    <button id="mZoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить"><i
+    <!--<button id="mZoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить"><i
         class="fa-solid fa-magnifying-glass-minus"></i></button>
     <button id="mZoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить"><i
-        class="fa-solid fa-magnifying-glass-plus"></i></button>
+        class="fa-solid fa-magnifying-glass-plus"></i></button>-->
     <button id="mViewModeArt" class="icon-btn btn btn-outline-secondary" title="Для художников"
       aria-label="Для художников" aria-pressed="true"><i class="fa-solid fa-palette"></i></button>
     <button id="mViewModeInstall" class="icon-btn btn btn-outline-secondary" title="Для монтажников"
@@ -1369,25 +1369,6 @@
     const ensureMobileDock = () => {
       const host = document.querySelector(".app") || document.body;
       let dock = document.querySelector(".mobile-dock");
-      if (!dock) {
-        dock = document.createElement("div");
-        dock.className = "mobile-dock bg-body-tertiary shadow";
-        dock.innerHTML = `
-  <button id="mToolSelect" class="icon-btn" title="Выделить" aria-label="Выделить"><i class="fa-solid fa-arrow-pointer"></i></button>
-  <button id="mToolDraw" class="icon-btn" title="Добавить" aria-label="Добавить"><i class="fa-solid fa-plus"></i></button>
-  <button id="mToolMaskAdd" class="icon-btn" title="Скрыть или показать часть экрана" aria-label="Скрыть или показать часть экрана"><i class="fa-solid fa-masks-theater"></i></button>
-  <button id="mToolCellEdit" class="icon-btn" title="Объединить или разделить кабинеты" aria-label="Объединить или разделить кабинеты"><i class="fa-solid fa-link"></i></button>
-  <button id="mToolFlowEdit" class="icon-btn" title="Исправить поток" aria-label="Исправить поток"><i class="fa-solid fa-route"></i></button>
-  <button id="mToolClusterEdit" class="icon-btn" title="Разделить на регионы вручную" aria-label="Разделить на регионы вручную"><i class="fa-solid fa-table-cells-large"></i></button>
-  <button id="mToolRigEdit" class="icon-btn" title="Установить или подвесить" aria-label="Установить или подвесить"><i class="fa-solid fa-weight-hanging"></i></button>
-  <button id="mViewModeArt" class="icon-btn btn btn-outline-secondary" title="Для художников" aria-label="Для художников" aria-pressed="true"><i class="fa-solid fa-palette"></i></button>
-  <button id="mViewModeInstall" class="icon-btn btn btn-outline-secondary" title="Для монтажников" aria-label="Для монтажников" aria-pressed="false"><i class="fa-solid fa-screwdriver-wrench"></i></button>
-  <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><i class="fa-regular fa-clone"></i></button>
-  <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
-  <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i class="fa-solid fa-trash"></i></button>
-  <button id="mZoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-  <button id="mZoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить"><i class="fa-solid fa-magnifying-glass-plus"></i></button>`;
-      }
       if (dock.parentElement !== host) host.appendChild(dock);
     };
     ensureMobileDock();
@@ -7236,8 +7217,8 @@ self.onmessage=e=>{
     el.mCopy.onclick = () => el.btnCopy.click();
     if (el.mCopyMirror) el.mCopyMirror.onclick = () => el.btnCopyMirror.click();
     el.mDelete.onclick = () => el.btnDelete.click();
-    el.mZoomOut.onclick = () => el.zoomOut.click();
-    el.mZoomIn.onclick = () => el.zoomIn.click();
+    //el.mZoomOut.onclick = () => el.zoomOut.click();
+    //el.mZoomIn.onclick = () => el.zoomIn.click();
     if (el.btnClearMasks) el.btnClearMasks.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; for (const r of ts) { r.hiddenCells = []; hiddenCache.set(r, { src: r.hiddenCells, set: new Set() }); invalidateRectCache(r, "topology"); } st.maskPath = []; st.maskHover = null; schedulePersist("project"); render() };
     if (el.btnResetFlowLocks) el.btnResetFlowLocks.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; for (const r of ts) { r.flowLocks = {}; const cache = getRectCalcCache(r); if (cache) cache.flow = null; } st.flowHover = null; st.flowDirHover = null; st.flowDrag = null; schedulePersist("project"); render() };
     if (el.btnResetManualClusters) el.btnResetManualClusters.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; for (const r of ts) { r.manualClusters = []; r.splitVariant = 0; clearRectRegionsAndFlow(r); } st.clusterActiveId = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; syncProps(); schedulePersist("project"); render() };
