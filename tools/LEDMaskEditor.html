@@ -1357,6 +1357,10 @@
         class="fa-solid fa-magnifying-glass-minus"></i></button>
     <button id="mZoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить"><i
         class="fa-solid fa-magnifying-glass-plus"></i></button>
+    <button id="mViewModeArt" class="icon-btn btn btn-outline-secondary" title="Для художников"
+      aria-label="Для художников" aria-pressed="true"><i class="fa-solid fa-palette"></i></button>
+    <button id="mViewModeInstall" class="icon-btn btn btn-outline-secondary" title="Для монтажников"
+      aria-label="Для монтажников" aria-pressed="false"><i class="fa-solid fa-screwdriver-wrench"></i></button>
   </div>
   <script src="./vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="./vendor/qrcode-generator/qrcode.js"></script>
@@ -1376,6 +1380,8 @@
   <button id="mToolFlowEdit" class="icon-btn" title="Исправить поток" aria-label="Исправить поток"><i class="fa-solid fa-route"></i></button>
   <button id="mToolClusterEdit" class="icon-btn" title="Разделить на регионы вручную" aria-label="Разделить на регионы вручную"><i class="fa-solid fa-table-cells-large"></i></button>
   <button id="mToolRigEdit" class="icon-btn" title="Установить или подвесить" aria-label="Установить или подвесить"><i class="fa-solid fa-weight-hanging"></i></button>
+  <button id="mViewModeArt" class="icon-btn btn btn-outline-secondary" title="Для художников" aria-label="Для художников" aria-pressed="true"><i class="fa-solid fa-palette"></i></button>
+  <button id="mViewModeInstall" class="icon-btn btn btn-outline-secondary" title="Для монтажников" aria-label="Для монтажников" aria-pressed="false"><i class="fa-solid fa-screwdriver-wrench"></i></button>
   <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><i class="fa-regular fa-clone"></i></button>
   <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
   <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i class="fa-solid fa-trash"></i></button>
@@ -4949,6 +4955,8 @@ self.onmessage=e=>{
     const resolveThemeMode = v => normalizeThemeMode(v) === "auto" ? (themeMedia && themeMedia.matches ? "dark" : "light") : normalizeThemeMode(v);
     const updateViewModeUi = () => {
       const isInstall = isInstallViewMode();
+      const mViewModeArt = $("mViewModeArt");
+      const mViewModeInstall = $("mViewModeInstall");
       if (el.viewModeArt) {
         el.viewModeArt.classList.remove("btn-secondary");
         el.viewModeArt.classList.toggle("btn-primary", !isInstall);
@@ -4960,6 +4968,18 @@ self.onmessage=e=>{
         el.viewModeInstall.classList.toggle("btn-primary", isInstall);
         el.viewModeInstall.classList.toggle("btn-outline-secondary", !isInstall);
         el.viewModeInstall.setAttribute("aria-pressed", isInstall ? "true" : "false");
+      }
+      if (mViewModeArt) {
+        mViewModeArt.classList.remove("btn-secondary");
+        mViewModeArt.classList.toggle("btn-primary", !isInstall);
+        mViewModeArt.classList.toggle("btn-outline-secondary", isInstall);
+        mViewModeArt.setAttribute("aria-pressed", !isInstall ? "true" : "false");
+      }
+      if (mViewModeInstall) {
+        mViewModeInstall.classList.remove("btn-secondary");
+        mViewModeInstall.classList.toggle("btn-primary", isInstall);
+        mViewModeInstall.classList.toggle("btn-outline-secondary", !isInstall);
+        mViewModeInstall.setAttribute("aria-pressed", isInstall ? "true" : "false");
       }
       updateInstallToolAvailability();
     };
@@ -7059,6 +7079,10 @@ self.onmessage=e=>{
     el.font.addEventListener("change", () => { applyTextSettings(); syncProps() });
     if (el.viewModeArt) el.viewModeArt.onclick = () => setViewMode("art", true);
     if (el.viewModeInstall) el.viewModeInstall.onclick = () => setViewMode("install", true);
+    const mViewModeArt = $("mViewModeArt");
+    const mViewModeInstall = $("mViewModeInstall");
+    if (mViewModeArt) mViewModeArt.onclick = () => setViewMode("art", true);
+    if (mViewModeInstall) mViewModeInstall.onclick = () => setViewMode("install", true);
     el.toolSelect.onclick = () => activateToolOrSelect("select"); el.toolDraw.onclick = () => activateToolOrSelect("draw"); if (el.toolMaskAdd) el.toolMaskAdd.onclick = () => activateToolOrSelect("maskEdit"); if (el.toolCellEdit) el.toolCellEdit.onclick = () => activateToolOrSelect("cellEdit"); if (el.toolFlowEdit) el.toolFlowEdit.onclick = () => activateToolOrSelect("flowEdit"); if (el.toolClusterEdit) el.toolClusterEdit.onclick = () => activateToolOrSelect("clusterEdit"); if (el.toolRigEdit) el.toolRigEdit.onclick = () => activateToolOrSelect("rigEdit"); if (el.newProject) el.newProject.onclick = newProject; el.btnCopy.onclick = dupSel; if (el.btnCopyMirror) el.btnCopyMirror.onclick = dupMirrorSel; el.btnDelete.onclick = delSel; if (el.btnAutoContrast) el.btnAutoContrast.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; const nextAuto = !(ts[0].autoContrastB !== false); for (const r of ts) { r.autoContrastB = nextAuto; if (r.autoContrastB) r.colorB = autoContrast(r.colorA); invalidateRectCache(r, "appearance"); } syncProps(); listRects(); schedulePersist("project"); render() }; el.randColor.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; const shared = randomColor(); for (const r of ts) { r.colorA = shared; if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA); invalidateRectCache(r, "appearance"); } syncProps(); listRects(); schedulePersist("project"); render() }; el.zoomIn.onclick = () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom * 1.2) }; el.zoomOut.onclick = () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom / 1.2) }; el.zoomReset.onclick = () => { st.zoom = 1; render() }; el.zoomFit.onclick = fit;
     const applyCabinetSizeQuickAction = mode => {
       const ts = getActionTargets();
