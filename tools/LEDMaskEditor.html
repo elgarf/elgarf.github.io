@@ -326,6 +326,42 @@
       border-bottom-color: var(--bs-border-color)
     }
 
+    .project-link-modal {
+      z-index: 2060
+    }
+
+    .project-link-modal .modal-dialog {
+      max-width: min(95vw, 760px)
+    }
+
+    .project-link-modal .modal-content {
+      border-color: var(--bs-border-color)
+    }
+
+    .project-link-modal .qr-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+      padding: 12px;
+      background: #000;
+      border-radius: 10px
+    }
+
+    .project-link-modal .qr-image {
+      width: 640px;
+      height: 640px;
+      border: 10px solid #000;
+      border-radius: 8px;
+      background: #fff;
+      object-fit: contain
+    }
+
+    .project-link-modal .link-text {
+      width: 100%;
+      min-height: 88px;
+      resize: vertical
+    }
+
     .help-sub {
       margin: 0 0 12px;
       color: var(--bs-secondary-color);
@@ -636,6 +672,17 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px
+    }
+
+    .cabinet-size-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 8px;
+      align-items: end
+    }
+
+    .cabinet-size-actions {
+      margin-bottom: 9px
     }
 
     .rect-list {
@@ -1087,7 +1134,7 @@
                 <li><button class="dropdown-item" type="button" data-area-m2-preset="208×208">208×208</button></li>
                 <li><button class="dropdown-item" type="button" data-area-m2-preset="256×128">256×128</button></li>
                 <li><button class="dropdown-item" type="button" data-area-m2-preset="256×256">256×256</button></li>
-                <li><button class="dropdown-item" type="button" data-area-m2-preset="392×392">392×392</button></li>
+                <li><button class="dropdown-item" type="button" data-area-m2-preset="384×384">384×384</button></li>
               </ul>
             </div>
           </div>
@@ -1101,9 +1148,19 @@
         <div class="field"><button id="btnAutoContrast" type="button" style="width:100%">Авто дополнительный:
             вкл</button></div>
         <div class="field"><button id="btnRandomColor" type="button" style="width:100%">Случайный цвет</button></div>
-        <div class="grid2">
+        <div class="cabinet-size-grid">
           <div class="field"><label for="propCellX">Размер кабинета X</label><input id="propCellX" type="text"
               inputmode="decimal" spellcheck="false" value="128"></div>
+          <div class="field cabinet-size-actions"><label>&nbsp;</label>
+            <div class="btn-group w-100" role="group" aria-label="Копирование размеров кабинета">
+              <button id="cabSizeY2ToX" type="button" class="btn btn-outline-secondary" title="← ×2 (Y в X)"
+                aria-label="Умножить Y на 2 и скопировать в X">← ×2</button>
+              <button id="cabSizeXEqY" type="button" class="btn btn-outline-secondary" title="X = Y"
+                aria-label="Скопировать X в Y">=</button>
+              <button id="cabSizeX2ToY" type="button" class="btn btn-outline-secondary" title="×2 → (X в Y)"
+                aria-label="Умножить X на 2 и скопировать в Y">×2 →</button>
+            </div>
+          </div>
           <div class="field"><label for="propCellY">Размер кабинета Y</label><input id="propCellY" type="text"
               inputmode="decimal" spellcheck="false" value="128"></div>
         </div>
@@ -1255,6 +1312,26 @@
       </div>
     </div>
   </div>
+  <div id="projectLinkModal" class="modal project-link-modal" tabindex="-1" aria-labelledby="projectLinkModalTitle"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 id="projectLinkModalTitle" class="modal-title">Ссылка проекта</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body">
+          <div class="qr-wrap"><img id="projectLinkQr" class="qr-image" alt="QR-код ссылки проекта"></div>
+          <textarea id="projectLinkText" class="form-control form-control-sm link-text" readonly spellcheck="false"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button id="projectLinkCopyBtn" type="button" class="btn btn-primary d-inline-flex align-items-center gap-2">
+            <i class="fa-regular fa-clipboard"></i><span>Скопировать ссылку</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="mobile-dock bg-body-tertiary shadow">
     <button id="mToolSelect" class="icon-btn" title="Выделить" aria-label="Выделить"><i
         class="fa-solid fa-arrow-pointer"></i></button>
@@ -1282,6 +1359,7 @@
         class="fa-solid fa-magnifying-glass-plus"></i></button>
   </div>
   <script src="./vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="./vendor/qrcode-generator/qrcode.js"></script>
   <script>
     const $ = id => document.getElementById(id), cv = $("editorCanvas"), ctx = cv.getContext("2d"), wrap = $("canvasWrap");
     const ensureMobileDock = () => {
@@ -1307,7 +1385,7 @@
       if (dock.parentElement !== host) host.appendChild(dock);
     };
     ensureMobileDock();
-    const el = { projectTabs: $("projectTabs"), projectTabsList: $("projectTabsList"), projectTabAdd: $("projectTabAdd"), toolbar: $("toolbarMain"), overflowGroup: $("overflowGroup"), overflowToggle: $("toolbarOverflowToggle"), overflowPopup: $("toolbarOverflowPopup"), project: $("projectName"), saveIndicator: $("saveIndicator"), themeToggle: $("themeToggle"), themeIcon: $("themeIcon"), themePopup: $("themePopup"), helpOpen: $("helpOpen"), viewModeArt: $("viewModeArt"), viewModeInstall: $("viewModeInstall"), mobileMenu: $("mobileMenu"), installApp: $("installApp"), installBanner: $("installBanner"), installBannerText: $("installBannerText"), installBannerAction: $("installBannerAction"), installBannerClose: $("installBannerClose"), helpModal: $("helpModal"), helpClose: $("helpClose"), side: $("sidePanel"), sideClose: $("sideClose"), multiEditBadge: $("multiEditBadge"), mobileDock: document.querySelector(".mobile-dock"), mToolSelect: $("mToolSelect"), mToolDraw: $("mToolDraw"), mToolMaskAdd: $("mToolMaskAdd"), mToolCellEdit: $("mToolCellEdit"), mToolFlowEdit: $("mToolFlowEdit"), mToolClusterEdit: $("mToolClusterEdit"), mToolRigEdit: $("mToolRigEdit"), mCopy: $("mCopy"), mCopyMirror: $("mCopyMirror"), mDelete: $("mDelete"), mZoomOut: $("mZoomOut"), mZoomIn: $("mZoomIn"), toolSelect: $("toolSelect"), toolDraw: $("toolDraw"), toolMaskAdd: $("toolMaskAdd"), toolCellEdit: $("toolCellEdit"), toolFlowEdit: $("toolFlowEdit"), toolClusterEdit: $("toolClusterEdit"), toolRigEdit: $("toolRigEdit"), btnCopy: $("btnCopy"), btnCopyMirror: $("btnCopyMirror"), btnDelete: $("btnDelete"), zoomIn: $("zoomIn"), zoomOut: $("zoomOut"), zoomReset: $("zoomReset"), zoomFit: $("zoomFit"), zoomLabel: $("zoomLabel"), undo: $("undoAction"), redo: $("redoAction"), newProject: $("newProject"), save: $("saveProject"), saveLink: $("saveProjectLink"), load: $("loadProject"), exp: $("exportPng"), file: $("fileInput"), textSize: $("globalTextSize"), font: $("globalFont"), snapGrid: $("snapGrid"), snapObjects: $("snapObjects"), snapCenters: $("snapCenters"), snapGaps: $("snapGaps"), name: $("propName"), rectTextSize: $("propTextSize"), rectTextSizeLabel: $("propTextSizeLabel"), x: $("propX"), y: $("propY"), rot: $("propRot"), wm: $("propWm"), hm: $("propHm"), scale: $("propScale"), areaM2: $("propAreaM2"), a: $("propColorA"), b: $("propColorB"), btnAutoContrast: $("btnAutoContrast"), randColor: $("btnRandomColor"), cx: $("propCellX"), cy: $("propCellY"), dataFlow: $("propDataFlow"), dataFlowZ: $("propDataFlowZ"), numCells: $("propNumberCells"), splitVariantField: $("splitVariantField"), splitVariantControl: $("splitVariantControl"), splitVariantManualBadge: $("splitVariantManualBadge"), splitVariant: $("propSplitVariant"), splitVariantDec: $("propSplitVariantDec"), splitVariantInc: $("propSplitVariantInc"), splitVariantLabel: $("propSplitVariantLabel"), btnClearMasks: $("btnClearMasks"), btnResetFlowLocks: $("btnResetFlowLocks"), btnResetManualClusters: $("btnResetManualClusters"), list: $("rectList") };
+    const el = { projectTabs: $("projectTabs"), projectTabsList: $("projectTabsList"), projectTabAdd: $("projectTabAdd"), toolbar: $("toolbarMain"), overflowGroup: $("overflowGroup"), overflowToggle: $("toolbarOverflowToggle"), overflowPopup: $("toolbarOverflowPopup"), project: $("projectName"), saveIndicator: $("saveIndicator"), themeToggle: $("themeToggle"), themeIcon: $("themeIcon"), themePopup: $("themePopup"), helpOpen: $("helpOpen"), viewModeArt: $("viewModeArt"), viewModeInstall: $("viewModeInstall"), mobileMenu: $("mobileMenu"), installApp: $("installApp"), installBanner: $("installBanner"), installBannerText: $("installBannerText"), installBannerAction: $("installBannerAction"), installBannerClose: $("installBannerClose"), helpModal: $("helpModal"), helpClose: $("helpClose"), projectLinkModal: $("projectLinkModal"), projectLinkQr: $("projectLinkQr"), projectLinkText: $("projectLinkText"), projectLinkCopyBtn: $("projectLinkCopyBtn"), side: $("sidePanel"), sideClose: $("sideClose"), multiEditBadge: $("multiEditBadge"), mobileDock: document.querySelector(".mobile-dock"), mToolSelect: $("mToolSelect"), mToolDraw: $("mToolDraw"), mToolMaskAdd: $("mToolMaskAdd"), mToolCellEdit: $("mToolCellEdit"), mToolFlowEdit: $("mToolFlowEdit"), mToolClusterEdit: $("mToolClusterEdit"), mToolRigEdit: $("mToolRigEdit"), mCopy: $("mCopy"), mCopyMirror: $("mCopyMirror"), mDelete: $("mDelete"), mZoomOut: $("mZoomOut"), mZoomIn: $("mZoomIn"), toolSelect: $("toolSelect"), toolDraw: $("toolDraw"), toolMaskAdd: $("toolMaskAdd"), toolCellEdit: $("toolCellEdit"), toolFlowEdit: $("toolFlowEdit"), toolClusterEdit: $("toolClusterEdit"), toolRigEdit: $("toolRigEdit"), btnCopy: $("btnCopy"), btnCopyMirror: $("btnCopyMirror"), btnDelete: $("btnDelete"), zoomIn: $("zoomIn"), zoomOut: $("zoomOut"), zoomReset: $("zoomReset"), zoomFit: $("zoomFit"), zoomLabel: $("zoomLabel"), undo: $("undoAction"), redo: $("redoAction"), newProject: $("newProject"), save: $("saveProject"), saveLink: $("saveProjectLink"), load: $("loadProject"), exp: $("exportPng"), file: $("fileInput"), textSize: $("globalTextSize"), font: $("globalFont"), snapGrid: $("snapGrid"), snapObjects: $("snapObjects"), snapCenters: $("snapCenters"), snapGaps: $("snapGaps"), name: $("propName"), rectTextSize: $("propTextSize"), rectTextSizeLabel: $("propTextSizeLabel"), x: $("propX"), y: $("propY"), rot: $("propRot"), wm: $("propWm"), hm: $("propHm"), scale: $("propScale"), areaM2: $("propAreaM2"), a: $("propColorA"), b: $("propColorB"), btnAutoContrast: $("btnAutoContrast"), randColor: $("btnRandomColor"), cx: $("propCellX"), cy: $("propCellY"), cabSizeY2ToX: $("cabSizeY2ToX"), cabSizeXEqY: $("cabSizeXEqY"), cabSizeX2ToY: $("cabSizeX2ToY"), dataFlow: $("propDataFlow"), dataFlowZ: $("propDataFlowZ"), numCells: $("propNumberCells"), splitVariantField: $("splitVariantField"), splitVariantControl: $("splitVariantControl"), splitVariantManualBadge: $("splitVariantManualBadge"), splitVariant: $("propSplitVariant"), splitVariantDec: $("propSplitVariantDec"), splitVariantInc: $("propSplitVariantInc"), splitVariantLabel: $("propSplitVariantLabel"), btnClearMasks: $("btnClearMasks"), btnResetFlowLocks: $("btnResetFlowLocks"), btnResetManualClusters: $("btnResetManualClusters"), list: $("rectList") };
     const desktopToolButtons = [el.toolSelect, el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean);
     const mobileToolButtons = [el.mToolSelect, el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean);
     const overflowButtonIds = ["toolSelect", "toolDraw", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "themeToggle"];
@@ -6597,7 +6675,7 @@ self.onmessage=e=>{
     const uiSetText = (node, v) => { if (!node) return; const s = String(v ?? ""); if (node.textContent !== s) node.textContent = s; };
     function syncProps() {
       const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
-      [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.scale, el.a, el.b, el.cx, el.cy, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
+      [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.scale, el.a, el.b, el.cx, el.cy, el.cabSizeY2ToX, el.cabSizeXEqY, el.cabSizeX2ToY, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
       if (multi && el.rot) uiSetDisabled(el.rot, true);
       if (multi && el.name) uiSetDisabled(el.name, true);
       if (el.multiEditBadge) {
@@ -6982,6 +7060,29 @@ self.onmessage=e=>{
     if (el.viewModeArt) el.viewModeArt.onclick = () => setViewMode("art", true);
     if (el.viewModeInstall) el.viewModeInstall.onclick = () => setViewMode("install", true);
     el.toolSelect.onclick = () => activateToolOrSelect("select"); el.toolDraw.onclick = () => activateToolOrSelect("draw"); if (el.toolMaskAdd) el.toolMaskAdd.onclick = () => activateToolOrSelect("maskEdit"); if (el.toolCellEdit) el.toolCellEdit.onclick = () => activateToolOrSelect("cellEdit"); if (el.toolFlowEdit) el.toolFlowEdit.onclick = () => activateToolOrSelect("flowEdit"); if (el.toolClusterEdit) el.toolClusterEdit.onclick = () => activateToolOrSelect("clusterEdit"); if (el.toolRigEdit) el.toolRigEdit.onclick = () => activateToolOrSelect("rigEdit"); if (el.newProject) el.newProject.onclick = newProject; el.btnCopy.onclick = dupSel; if (el.btnCopyMirror) el.btnCopyMirror.onclick = dupMirrorSel; el.btnDelete.onclick = delSel; if (el.btnAutoContrast) el.btnAutoContrast.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; const nextAuto = !(ts[0].autoContrastB !== false); for (const r of ts) { r.autoContrastB = nextAuto; if (r.autoContrastB) r.colorB = autoContrast(r.colorA); invalidateRectCache(r, "appearance"); } syncProps(); listRects(); schedulePersist("project"); render() }; el.randColor.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; const shared = randomColor(); for (const r of ts) { r.colorA = shared; if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA); invalidateRectCache(r, "appearance"); } syncProps(); listRects(); schedulePersist("project"); render() }; el.zoomIn.onclick = () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom * 1.2) }; el.zoomOut.onclick = () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom / 1.2) }; el.zoomReset.onclick = () => { st.zoom = 1; render() }; el.zoomFit.onclick = fit;
+    const applyCabinetSizeQuickAction = mode => {
+      const ts = getActionTargets();
+      if (!ts.length) return;
+      const xIn = Math.max(1, Math.round(evalExpr(el.cx && el.cx.value, ts[0].cellX || 128)));
+      const yIn = Math.max(1, Math.round(evalExpr(el.cy && el.cy.value, ts[0].cellY || 128)));
+      let nextX = xIn, nextY = yIn;
+      if (mode === "y2x") nextX = Math.max(1, yIn * 2);
+      else if (mode === "xeqy") nextY = xIn;
+      else if (mode === "x2y") nextY = Math.max(1, xIn * 2);
+      for (const r of ts) {
+        const prevX = r.cellX, prevY = r.cellY;
+        r.cellX = nextX;
+        r.cellY = nextY;
+        if (prevX !== r.cellX || prevY !== r.cellY) invalidateRectCache(r, "topology");
+      }
+      syncProps();
+      listRects();
+      schedulePersist("project");
+      render();
+    };
+    if (el.cabSizeY2ToX) el.cabSizeY2ToX.onclick = () => applyCabinetSizeQuickAction("y2x");
+    if (el.cabSizeXEqY) el.cabSizeXEqY.onclick = () => applyCabinetSizeQuickAction("xeqy");
+    if (el.cabSizeX2ToY) el.cabSizeX2ToY.onclick = () => applyCabinetSizeQuickAction("x2y");
     if (el.undo) el.undo.onclick = () => undoHistory();
     if (el.redo) el.redo.onclick = () => redoHistory();
     if (el.snapGrid) el.snapGrid.addEventListener("change", () => { st.snap.grid = !!el.snapGrid.checked; schedulePersist("project"); });
@@ -7027,6 +7128,7 @@ self.onmessage=e=>{
     };
     let helpModalInstance = null;
     let messageModalInstance = null;
+    let projectLinkModalInstance = null;
     const getHelpModal = () => {
       if (!el.helpModal || !window.bootstrap || !window.bootstrap.Modal) return null;
       if (!helpModalInstance) helpModalInstance = window.bootstrap.Modal.getOrCreateInstance(el.helpModal, { backdrop: true, keyboard: true, focus: true });
@@ -7037,6 +7139,43 @@ self.onmessage=e=>{
       if (!node || !window.bootstrap || !window.bootstrap.Modal) return null;
       if (!messageModalInstance) messageModalInstance = window.bootstrap.Modal.getOrCreateInstance(node, { backdrop: true, keyboard: true, focus: true });
       return messageModalInstance;
+    };
+    const getProjectLinkModal = () => {
+      const node = el.projectLinkModal || $("projectLinkModal");
+      if (!node || !window.bootstrap || !window.bootstrap.Modal) return null;
+      if (!projectLinkModalInstance) projectLinkModalInstance = window.bootstrap.Modal.getOrCreateInstance(node, { backdrop: true, keyboard: true, focus: true });
+      return projectLinkModalInstance;
+    };
+    const buildQrDataUrl = value => {
+      const text = String(value || "");
+      if (!text) return "";
+      if (typeof qrcode !== "function") return "";
+      try {
+        const qr = qrcode(0, "M");
+        qr.addData(text);
+        qr.make();
+        return qr.createDataURL(14, 3);
+      } catch (_e) {
+        return "";
+      }
+    };
+    const showProjectLinkModal = link => {
+      const modal = getProjectLinkModal(), qr = el.projectLinkQr || $("projectLinkQr"), txt = el.projectLinkText || $("projectLinkText");
+      const value = String(link || "");
+      if (txt) txt.value = value;
+      if (qr) {
+        const dataUrl = buildQrDataUrl(value);
+        if (dataUrl) qr.src = dataUrl;
+      }
+      if (modal) {
+        modal.show();
+        setTimeout(() => {
+          if (!txt) return;
+          try { txt.focus(); txt.select(); } catch (_e) { }
+        }, 0);
+        return;
+      }
+      showMessageModal(value, "Ссылка проекта");
     };
     const showMessageModal = (text, title = "Сообщение") => {
       const modal = getMessageModal(), titleEl = $("messageModalTitle"), bodyEl = $("messageModalBody"), msg = String(text == null ? "" : text);
@@ -7372,23 +7511,38 @@ self.onmessage=e=>{
       }
     };
     el.save.onclick = async () => { const text = JSON.stringify(buildProject(), null, 2); const blob = new Blob([text], { type: "application/json" }); await saveBlobWithSystemDialog(blob, `${projectFileBase()}.json`, "application/json", ".json", "JSON files", st.saveLocationId) };
+    let currentProjectShareLink = "";
+    const setProjectLinkCopyButtonState = (text, copied = false) => {
+      if (!el.projectLinkCopyBtn) return;
+      const label = el.projectLinkCopyBtn.querySelector("span");
+      const icon = el.projectLinkCopyBtn.querySelector("i");
+      if (label) label.textContent = text;
+      if (icon) icon.className = copied ? "fa-solid fa-check" : "fa-regular fa-clipboard";
+    };
     const onSaveProjectLinkClick = async () => {
       try {
         const value = await encodeProjectToQueryValue(buildPortableProject());
         const url = new URL(location.href);
         url.searchParams.set(PROJECT_QUERY_PARAM, value);
         const link = url.toString();
-        const copied = await copyTextSmart(link);
-        if (!copied) {
-          window.prompt("Скопируйте ссылку проекта", link);
-          showMessageModal("Ссылка проекта сформирована. Скопируйте её из поля.", "Ссылка проекта");
-          return;
-        }
-        showMessageModal("Ссылка проекта скопирована в буфер обмена", "Ссылка проекта");
+        currentProjectShareLink = link;
+        setProjectLinkCopyButtonState("Скопировать ссылку", false);
+        showProjectLinkModal(link);
       } catch (err) {
         showMessageModal(`Не удалось сформировать ссылку проекта: ${err && err.message ? err.message : String(err)}`, "Ссылка проекта");
       }
     };
+    if (el.projectLinkCopyBtn) el.projectLinkCopyBtn.addEventListener("click", async () => {
+      const link = currentProjectShareLink || (el.projectLinkText && el.projectLinkText.value) || "";
+      if (!link) return;
+      const copied = await copyTextSmart(link);
+      if (copied) {
+        setProjectLinkCopyButtonState("Ссылка скопирована", true);
+        setTimeout(() => setProjectLinkCopyButtonState("Скопировать ссылку", false), 1400);
+      } else {
+        window.prompt("Скопируйте ссылку проекта", link);
+      }
+    });
     if (el.saveLink) el.saveLink.addEventListener("click", onSaveProjectLinkClick);
     document.addEventListener("click", e => {
       const btn = e && e.target && e.target.closest ? e.target.closest("#saveProjectLink") : null;
@@ -7835,4 +7989,6 @@ self.onmessage=e=>{
 </body>
 
 </html>
+
+
 
