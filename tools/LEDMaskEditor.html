@@ -5151,6 +5151,15 @@ self.onmessage=e=>{
     const cloneProjectData = data => { try { return JSON.parse(JSON.stringify(data)) } catch (_e) { return buildProject() } };
     const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, viewMode: "art", snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, rectangles: [] });
     const getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
+    const isMobileTabStorageMode = () => {
+      try {
+        const byWidth = window.matchMedia && window.matchMedia("(max-width:900px)").matches;
+        const byPointer = window.matchMedia && window.matchMedia("(hover:none) and (pointer:coarse)").matches;
+        return !!(byWidth || byPointer);
+      } catch (_e) {
+        return false;
+      }
+    };
     let tabSwitchTimer = 0;
     const runTabSwitchTransition = task => {
       const host = wrap;
@@ -5217,6 +5226,16 @@ self.onmessage=e=>{
     };
     const buildTabsBundle = () => {
       syncActiveTabSnapshot();
+      if (isMobileTabStorageMode()) {
+        const active = getActiveTab() || st.tabs[0] || { id: 1, title: "Новый проект", data: makeEmptyProjectData("Новый проект") };
+        const activeId = Number(active && active.id) || 1;
+        return {
+          version: 1,
+          nextTabId: Math.max(2, activeId + 1),
+          activeTabId: activeId,
+          tabs: [{ id: activeId, title: active.title || "Новый проект", data: cloneProjectData(active.data || makeEmptyProjectData(active.title || "Новый проект")) }]
+        };
+      }
       return { version: 1, nextTabId: st.nextTabId, activeTabId: st.activeTabId, tabs: st.tabs.map(t => ({ id: t.id, title: t.title || "Новый проект", data: cloneProjectData(t.data || makeEmptyProjectData(t.title || "Новый проект")) })) };
     };
     const schedulePersist = (kind = "project") => {
@@ -5463,9 +5482,18 @@ self.onmessage=e=>{
         if (rawTabs) {
           const parsed = JSON.parse(rawTabs);
           if (parsed && Array.isArray(parsed.tabs) && parsed.tabs.length) {
-            st.tabs = parsed.tabs.map((t, i) => ({ id: +t.id || i + 1, title: String(t && t.title || "Новый проект"), data: cloneProjectData(t && t.data || makeEmptyProjectData("Новый проект")) }));
-            st.nextTabId = Math.max((+parsed.nextTabId || 1), st.tabs.reduce((m, t) => Math.max(m, t.id), 0) + 1);
-            st.activeTabId = st.tabs.some(t => t.id === +parsed.activeTabId) ? +parsed.activeTabId : st.tabs[0].id;
+            if (isMobileTabStorageMode()) {
+              const activeId = +parsed.activeTabId;
+              const src = parsed.tabs.find(t => (+t.id || 0) === activeId) || parsed.tabs[0];
+              const oneId = +((src && src.id) || 1) || 1;
+              st.tabs = [{ id: oneId, title: String(src && src.title || "Новый проект"), data: cloneProjectData(src && src.data || makeEmptyProjectData("Новый проект")) }];
+              st.nextTabId = Math.max(2, oneId + 1);
+              st.activeTabId = oneId;
+            } else {
+              st.tabs = parsed.tabs.map((t, i) => ({ id: +t.id || i + 1, title: String(t && t.title || "Новый проект"), data: cloneProjectData(t && t.data || makeEmptyProjectData("Новый проект")) }));
+              st.nextTabId = Math.max((+parsed.nextTabId || 1), st.tabs.reduce((m, t) => Math.max(m, t.id), 0) + 1);
+              st.activeTabId = st.tabs.some(t => t.id === +parsed.activeTabId) ? +parsed.activeTabId : st.tabs[0].id;
+            }
             const active = getActiveTab();
             loadProjectIntoActiveState(active && active.data || makeEmptyProjectData("Новый проект"));
             renderProjectTabs();
