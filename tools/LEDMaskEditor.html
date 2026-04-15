@@ -185,6 +185,12 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
 <div class="group"><span class="text-secondary" style="font-size:12px">Проект</span><input id="projectName" class="toolbar-input" type="text" value="project"></div>
 <div class="group"><button id="helpOpen" class="icon-btn" title="Инструкция" aria-label="Инструкция"><i class="fa-solid fa-circle-question"></i></button></div>
 <div class="group mobile-hide">
+  <div class="btn-group btn-group-sm" role="group" aria-label="Режим отображения">
+    <button id="viewModeArt" type="button" class="btn btn-outline-secondary" title="Для художников" aria-label="Для художников"><i class="fa-solid fa-palette"></i></button>
+    <button id="viewModeInstall" type="button" class="btn btn-outline-secondary" title="Для монтажников" aria-label="Для монтажников"><i class="fa-solid fa-screwdriver-wrench"></i></button>
+  </div>
+</div>
+<div class="group mobile-hide">
   <button id="toolSelect" class="icon-btn" title="Выделить" aria-label="Выделить">
     <i class="fa-solid fa-arrow-pointer"></i>
   </button>
@@ -202,9 +208,6 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   </button>
   <button id="toolClusterEdit" class="icon-btn" title="Разделить на регионы вручную" aria-label="Разделить на регионы вручную">
     <i class="fa-solid fa-table-cells-large"></i>
-  </button>
-  <button id="toolRegions" class="icon-btn" title="Подсветка областей (переключатель)" aria-label="Подсветка областей">
-    <i class="fa-solid fa-eye"></i>
   </button>
 </div>
 <div class="group mobile-hide">
@@ -247,8 +250,7 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   <button id="loadProject" class="icon-btn" title="Загрузить JSON" aria-label="Загрузить JSON">
     <i class="fa-solid fa-folder-open"></i>
   </button>
-  <button id="exportPng" class="icon-label-btn" title="Экспорт PNG" aria-label="Экспорт PNG"><i class="fa-regular fa-file-image"></i><span>PNG</span></button>
-  <button id="exportPngFlow" class="icon-label-btn" title="Экспорт PNG с потоками" aria-label="Экспорт PNG с потоками"><i class="fa-regular fa-file-image"></i><span>PNG+F</span></button>
+  <button id="exportPng" class="icon-btn" title="Экспорт пакета (PNG + PNG+F + спецификация)" aria-label="Экспорт пакета"><i class="fa-solid fa-download"></i></button>
 </div>
 <div id="overflowGroup" class="group overflow-group">
   <button id="toolbarOverflowToggle" class="icon-btn icon-dropdown" title="Ещё" aria-label="Ещё" aria-expanded="false">
@@ -355,7 +357,6 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
       <div class="help-item"><i class="fa-solid fa-link"></i><div><b>Объединить или разделить кабинеты</b><span>Клик по общей границе кабинетов включает или выключает склейку.</span></div></div>
       <div class="help-item"><i class="fa-solid fa-route"></i><div><b>Исправить поток</b><span>Перетащите точку потока в пределах региона. Стартовую точку можно перенести, направление задаётся стрелками рядом со стартом, двойной клик по старту сбрасывает правки региона.</span></div></div>
       <div class="help-item"><i class="fa-solid fa-table-cells-large"></i><div><b>Разделить на регионы вручную</b><span>Клик по кабинету создаёт регион. Клик по метке региона удаляет регион. Стрелки вокруг старта растягивают регион с учётом лимита площади.</span></div></div>
-      <div class="help-item"><i class="fa-solid fa-eye"></i><div><b>Подсветка областей</b><span>Переключатель: показывает зоны подэкранов сразу на всех экранах в дизайнере.</span></div></div>
       <div class="help-item"><i class="fa-regular fa-clone"></i><div><b>Копировать</b><span>Создаёт копию выбранного экрана со смещением.</span></div></div>
       <div class="help-item"><i class="fa-regular fa-clone fa-flip-horizontal"></i><div><b>Копировать и отразить</b><span>Создаёт копию с отражением масок и связей клеток по вертикали.</span></div></div>
       <div class="help-item"><i class="fa-solid fa-trash"></i><div><b>Удалить</b><span>Удаляет выбранный экран.</span></div></div>
@@ -388,7 +389,6 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   <button id="mToolCellEdit" class="icon-btn" title="Объединить или разделить кабинеты" aria-label="Объединить или разделить кабинеты"><i class="fa-solid fa-link"></i></button>
   <button id="mToolFlowEdit" class="icon-btn" title="Исправить поток" aria-label="Исправить поток"><i class="fa-solid fa-route"></i></button>
   <button id="mToolClusterEdit" class="icon-btn" title="Разделить на регионы вручную" aria-label="Разделить на регионы вручную"><i class="fa-solid fa-table-cells-large"></i></button>
-  <button id="mToolRegions" class="icon-btn" title="Подсветка областей (переключатель)" aria-label="Подсветка областей"><i class="fa-solid fa-eye"></i></button>
   <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><i class="fa-regular fa-clone"></i></button>
   <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
   <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i class="fa-solid fa-trash"></i></button>
@@ -411,7 +411,6 @@ const ensureMobileDock=()=>{
   <button id="mToolCellEdit" class="icon-btn" title="Объединить или разделить кабинеты" aria-label="Объединить или разделить кабинеты"><i class="fa-solid fa-link"></i></button>
   <button id="mToolFlowEdit" class="icon-btn" title="Исправить поток" aria-label="Исправить поток"><i class="fa-solid fa-route"></i></button>
   <button id="mToolClusterEdit" class="icon-btn" title="Разделить на регионы вручную" aria-label="Разделить на регионы вручную"><i class="fa-solid fa-table-cells-large"></i></button>
-  <button id="mToolRegions" class="icon-btn" title="Подсветка областей (переключатель)" aria-label="Подсветка областей"><i class="fa-solid fa-eye"></i></button>
   <button id="mCopy" class="icon-btn" title="Копировать" aria-label="Копировать"><i class="fa-regular fa-clone"></i></button>
   <button id="mCopyMirror" class="icon-btn" title="Копировать и отразить по вертикали" aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
   <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i class="fa-solid fa-trash"></i></button>
@@ -421,10 +420,10 @@ const ensureMobileDock=()=>{
   if(dock.parentElement!==host)host.appendChild(dock);
 };
 ensureMobileDock();
-const el={projectTabs:$("projectTabs"),projectTabsList:$("projectTabsList"),projectTabAdd:$("projectTabAdd"),toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),saveIndicator:$("saveIndicator"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),multiEditBadge:$("multiEditBadge"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolCellEdit:$("mToolCellEdit"),mToolFlowEdit:$("mToolFlowEdit"),mToolClusterEdit:$("mToolClusterEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolCellEdit:$("toolCellEdit"),toolFlowEdit:$("toolFlowEdit"),toolClusterEdit:$("toolClusterEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),undo:$("undoAction"),redo:$("redoAction"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),exp:$("exportPng"),expFlow:$("exportPngFlow"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),snapGrid:$("snapGrid"),snapObjects:$("snapObjects"),snapCenters:$("snapCenters"),snapGaps:$("snapGaps"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),dataFlow:$("propDataFlow"),dataFlowZ:$("propDataFlowZ"),numCells:$("propNumberCells"),splitVariantField:$("splitVariantField"),splitVariantControl:$("splitVariantControl"),splitVariantManualBadge:$("splitVariantManualBadge"),splitVariant:$("propSplitVariant"),splitVariantDec:$("propSplitVariantDec"),splitVariantInc:$("propSplitVariantInc"),splitVariantLabel:$("propSplitVariantLabel"),btnClearMasks:$("btnClearMasks"),btnResetFlowLocks:$("btnResetFlowLocks"),btnResetManualClusters:$("btnResetManualClusters"),list:$("rectList")};
+const el={projectTabs:$("projectTabs"),projectTabsList:$("projectTabsList"),projectTabAdd:$("projectTabAdd"),toolbar:$("toolbarMain"),overflowGroup:$("overflowGroup"),overflowToggle:$("toolbarOverflowToggle"),overflowPopup:$("toolbarOverflowPopup"),project:$("projectName"),saveIndicator:$("saveIndicator"),themeToggle:$("themeToggle"),themeIcon:$("themeIcon"),themePopup:$("themePopup"),helpOpen:$("helpOpen"),viewModeArt:$("viewModeArt"),viewModeInstall:$("viewModeInstall"),mobileMenu:$("mobileMenu"),installApp:$("installApp"),installBanner:$("installBanner"),installBannerText:$("installBannerText"),installBannerAction:$("installBannerAction"),installBannerClose:$("installBannerClose"),helpModal:$("helpModal"),helpClose:$("helpClose"),side:$("sidePanel"),sideClose:$("sideClose"),multiEditBadge:$("multiEditBadge"),mobileDock:document.querySelector(".mobile-dock"),mToolSelect:$("mToolSelect"),mToolDraw:$("mToolDraw"),mToolMaskAdd:$("mToolMaskAdd"),mToolCellEdit:$("mToolCellEdit"),mToolFlowEdit:$("mToolFlowEdit"),mToolClusterEdit:$("mToolClusterEdit"),mToolRegions:$("mToolRegions"),mCopy:$("mCopy"),mCopyMirror:$("mCopyMirror"),mDelete:$("mDelete"),mZoomOut:$("mZoomOut"),mZoomIn:$("mZoomIn"),toolSelect:$("toolSelect"),toolDraw:$("toolDraw"),toolMaskAdd:$("toolMaskAdd"),toolCellEdit:$("toolCellEdit"),toolFlowEdit:$("toolFlowEdit"),toolClusterEdit:$("toolClusterEdit"),toolRegions:$("toolRegions"),btnCopy:$("btnCopy"),btnCopyMirror:$("btnCopyMirror"),btnDelete:$("btnDelete"),zoomIn:$("zoomIn"),zoomOut:$("zoomOut"),zoomReset:$("zoomReset"),zoomFit:$("zoomFit"),zoomLabel:$("zoomLabel"),undo:$("undoAction"),redo:$("redoAction"),newProject:$("newProject"),save:$("saveProject"),load:$("loadProject"),exp:$("exportPng"),expFlow:$("exportPngFlow"),file:$("fileInput"),textSize:$("globalTextSize"),font:$("globalFont"),snapGrid:$("snapGrid"),snapObjects:$("snapObjects"),snapCenters:$("snapCenters"),snapGaps:$("snapGaps"),name:$("propName"),rectTextSize:$("propTextSize"),rectTextSizeLabel:$("propTextSizeLabel"),x:$("propX"),y:$("propY"),rot:$("propRot"),wm:$("propWm"),hm:$("propHm"),scale:$("propScale"),areaM2:$("propAreaM2"),a:$("propColorA"),b:$("propColorB"),btnAutoContrast:$("btnAutoContrast"),randColor:$("btnRandomColor"),cx:$("propCellX"),cy:$("propCellY"),dataFlow:$("propDataFlow"),dataFlowZ:$("propDataFlowZ"),numCells:$("propNumberCells"),splitVariantField:$("splitVariantField"),splitVariantControl:$("splitVariantControl"),splitVariantManualBadge:$("splitVariantManualBadge"),splitVariant:$("propSplitVariant"),splitVariantDec:$("propSplitVariantDec"),splitVariantInc:$("propSplitVariantInc"),splitVariantLabel:$("propSplitVariantLabel"),btnClearMasks:$("btnClearMasks"),btnResetFlowLocks:$("btnResetFlowLocks"),btnResetManualClusters:$("btnResetManualClusters"),list:$("rectList")};
 const desktopToolButtons=[el.toolSelect,el.toolDraw,el.toolMaskAdd,el.toolCellEdit,el.toolFlowEdit,el.toolClusterEdit].filter(Boolean);
 const mobileToolButtons=[el.mToolSelect,el.mToolDraw,el.mToolMaskAdd,el.mToolCellEdit,el.mToolFlowEdit,el.mToolClusterEdit].filter(Boolean);
-const overflowButtonIds=["toolSelect","toolDraw","toolMaskAdd","toolCellEdit","toolFlowEdit","toolClusterEdit","toolRegions","btnCopy","btnCopyMirror","btnDelete","zoomOut","zoomIn","zoomReset","zoomFit","newProject","save","load","exp","expFlow","themeToggle"];
+const overflowButtonIds=["toolSelect","toolDraw","toolMaskAdd","toolCellEdit","toolFlowEdit","toolClusterEdit","btnCopy","btnCopyMirror","btnDelete","zoomOut","zoomIn","zoomReset","zoomFit","newProject","save","load","exp","expFlow","themeToggle"];
 const overflowButtons=overflowButtonIds.map(id=>el[id]).filter(Boolean);
 const overflowGroups=[...new Set(overflowButtons.map(b=>b.closest(".group")).filter(Boolean))];
 let overflowHiddenButtons=[];
@@ -569,7 +568,7 @@ const updateToolbarOverflow=()=>{
   }
   overflowHiddenButtons=hidden;
 };
-const st={rects:[],sel:null,selSet:new Set(),selMultiBase:null,mode:"select",regionsHighlight:false,camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,selBox:null,flowDrag:null,flowHover:null,flowDirHover:null,flowRegionRid:null,flowEditPoints:[],flowStartHandles:[],flowDirButtons:[],clusterActiveId:null,clusterHandles:[],clusterHandleHover:null,clusterCellHover:null,clusterStartHover:null,clusterBorderHover:null,clusterDrag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",saveLocationId:"proj-project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null,tabs:[],activeTabId:null,nextTabId:1,snap:{grid:false,objects:true,centers:true,gaps:true},history:{undo:[],redo:[],current:null,suspend:false}};
+const st={rects:[],sel:null,selSet:new Set(),selMultiBase:null,mode:"select",viewMode:"art",regionsHighlight:false,camX:0,camY:0,zoom:1,next:1,draft:null,drag:null,selBox:null,flowDrag:null,flowHover:null,flowDirHover:null,flowRegionRid:null,flowEditPoints:[],flowStartHandles:[],flowDirButtons:[],clusterActiveId:null,clusterHandles:[],clusterHandleHover:null,clusterCellHover:null,clusterStartHover:null,clusterBorderHover:null,clusterDrag:null,pan:false,panS:null,g:{x:null,y:null},dg:null,keys:{space:false,ctrl:false},clip:null,touch:null,textSize:12,fontFamily:"Roboto, Segoe UI, Arial",fontReady:false,projectName:"project",saveLocationId:"proj-project",themeMode:"auto",maskPath:[],maskHover:null,cellHover:null,tabs:[],activeTabId:null,nextTabId:1,snap:{grid:false,objects:true,centers:true,gaps:true},history:{undo:[],redo:[],current:null,suspend:false}};
 const FLOW_DRAW_BATCH_THRESHOLD=280;
 const FLOW_DRAW_BATCH_STEP=360;
 const FLOW_POINT_INDEX_CELL=48;
@@ -3832,7 +3831,41 @@ const persistNow=()=>{
 };
 const themeMedia=window.matchMedia?window.matchMedia("(prefers-color-scheme: dark)"):null;
 const normalizeThemeMode=v=>v==="light"||v==="dark"||v==="auto"?v:"auto";
+const normalizeViewMode=v=>String(v||"")==="install"?"install":"art";
+const isInstallViewMode=()=>normalizeViewMode(st.viewMode)==="install";
+const isInstallOnlyToolMode=m=>m==="flowEdit"||m==="clusterEdit";
+const updateInstallToolAvailability=()=>{
+  const allow=isInstallViewMode();
+  for(const b of [el.toolFlowEdit,el.toolClusterEdit,el.mToolFlowEdit,el.mToolClusterEdit]){
+    if(!b)continue;
+    b.disabled=!allow;
+    b.setAttribute("aria-disabled",allow?"false":"true");
+  }
+};
 const resolveThemeMode=v=>normalizeThemeMode(v)==="auto"?(themeMedia&&themeMedia.matches?"dark":"light"):normalizeThemeMode(v);
+const updateViewModeUi=()=>{
+  const isInstall=isInstallViewMode();
+  if(el.viewModeArt){
+    el.viewModeArt.classList.remove("btn-secondary");
+    el.viewModeArt.classList.toggle("btn-primary",!isInstall);
+    el.viewModeArt.classList.toggle("btn-outline-secondary",isInstall);
+    el.viewModeArt.setAttribute("aria-pressed",!isInstall?"true":"false");
+  }
+  if(el.viewModeInstall){
+    el.viewModeInstall.classList.remove("btn-secondary");
+    el.viewModeInstall.classList.toggle("btn-primary",isInstall);
+    el.viewModeInstall.classList.toggle("btn-outline-secondary",!isInstall);
+    el.viewModeInstall.setAttribute("aria-pressed",isInstall?"true":"false");
+  }
+  updateInstallToolAvailability();
+};
+const setViewMode=(mode,persist=true)=>{
+  st.viewMode=normalizeViewMode(mode);
+  updateViewModeUi();
+  if(!isInstallViewMode()&&isInstallOnlyToolMode(st.mode)){setMode("select");return;}
+  if(persist)schedulePersist("project");
+  render();
+};
 const updateThemeUi=()=>{
   if(el.themeIcon){
     const icon=st.themeMode==="dark"?"fa-moon":st.themeMode==="light"?"fa-sun":"fa-circle-half-stroke";
@@ -3858,9 +3891,9 @@ const applyThemeMode=(mode,persist=true)=>{
   render();
 };
 const serializeRectForProject=r=>{const out={...r};delete out._calcCache;const pc=buildPersistedRectCache(r);if(pc)out.projectCache=pc;else delete out.projectCache;return out;};
-const buildProject=()=>({version:1,projectName:st.projectName,saveLocationId:st.saveLocationId,camera:{x:st.camX,y:st.camY,zoom:st.zoom},settings:{textSize:st.textSize,fontFamily:st.fontFamily,regionsHighlight:!!st.regionsHighlight,snap:{grid:!!(st.snap&&st.snap.grid),objects:!!(st.snap&&st.snap.objects),centers:!!(st.snap&&st.snap.centers),gaps:!!(st.snap&&st.snap.gaps)}},nextId:st.next,rectangles:st.rects.map(serializeRectForProject)});
+const buildProject=()=>({version:1,projectName:st.projectName,saveLocationId:st.saveLocationId,camera:{x:st.camX,y:st.camY,zoom:st.zoom},settings:{textSize:st.textSize,fontFamily:st.fontFamily,viewMode:normalizeViewMode(st.viewMode),regionsHighlight:!!st.regionsHighlight,snap:{grid:!!(st.snap&&st.snap.grid),objects:!!(st.snap&&st.snap.objects),centers:!!(st.snap&&st.snap.centers),gaps:!!(st.snap&&st.snap.gaps)}},nextId:st.next,rectangles:st.rects.map(serializeRectForProject)});
 const cloneProjectData=data=>{try{return JSON.parse(JSON.stringify(data))}catch(_e){return buildProject()}};
-const makeEmptyProjectData=(name="Новый проект")=>({version:1,projectName:name,saveLocationId:genSaveLocationId(name),camera:{x:0,y:0,zoom:1},settings:{textSize:st.textSize,fontFamily:st.fontFamily,regionsHighlight:false,snap:{grid:false,objects:true,centers:true,gaps:true}},nextId:1,rectangles:[]});
+const makeEmptyProjectData=(name="Новый проект")=>({version:1,projectName:name,saveLocationId:genSaveLocationId(name),camera:{x:0,y:0,zoom:1},settings:{textSize:st.textSize,fontFamily:st.fontFamily,viewMode:"art",regionsHighlight:false,snap:{grid:false,objects:true,centers:true,gaps:true}},nextId:1,rectangles:[]});
 const getActiveTab=()=>st.tabs.find(t=>t.id===st.activeTabId)||null;
 let tabSwitchTimer=0;
 const runTabSwitchTransition=task=>{
@@ -4040,7 +4073,7 @@ const ensureFontReady=async()=>{
   try{ await document.fonts.ready; }catch(_e){}
   st.fontReady=true;
 };
-function applyProjectData(d,opts){resetCalcWorkers();const o=(opts&&typeof opts==="object")?opts:{},syncTabSnapshot=o.syncTabSnapshot!==false,renderTabs=o.renderTabs!==false,doRender=o.render!==false;const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=parseAreaM2PxInput(d&&d.settings?d.settings.areaM2Px:null,65536);st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:parseAreaM2PxInput(r.areaM2Px,legacyAreaM2),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(Math.max(0,SPLIT_VARIANT_MAX-1),Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells),flowLocks:normalizeFlowLocks(r.flowLocks),manualClusters:normalizeManualClusters(r&&r.manualClusters),locked:!!(r&&r.locked)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);restorePersistedRectCache(it,r&&r.projectCache);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.regionsHighlight=!!d.settings.regionsHighlight;const ss=(d.settings&&d.settings.snap)||{};st.snap={grid:!!ss.grid,objects:ss.objects!==false,centers:ss.centers!==false,gaps:ss.gaps!==false};}else{st.regionsHighlight=false;st.snap={grid:false,objects:true,centers:true,gaps:true};}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.saveLocationId=setGlobalSaveLocationId((d&&d.saveLocationId)||getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.maskPath=[];st.maskHover=null;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;updateRegionsToggleUi();selRect(st.rects[0]?st.rects[0].id:null);if(syncTabSnapshot)syncActiveTabSnapshot();if(renderTabs)renderProjectTabs();if(!st.history.suspend){st.history.undo=[];st.history.redo=[];initHistoryCurrent();if(el.undo)el.undo.disabled=true;if(el.redo)el.redo.disabled=true;}if(doRender)render();}
+function applyProjectData(d,opts){resetCalcWorkers();const o=(opts&&typeof opts==="object")?opts:{},syncTabSnapshot=o.syncTabSnapshot!==false,renderTabs=o.renderTabs!==false,doRender=o.render!==false;const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=parseAreaM2PxInput(d&&d.settings?d.settings.areaM2Px:null,65536);st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:parseAreaM2PxInput(r.areaM2Px,legacyAreaM2),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(Math.max(0,SPLIT_VARIANT_MAX-1),Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells),flowLocks:normalizeFlowLocks(r.flowLocks),manualClusters:normalizeManualClusters(r&&r.manualClusters),locked:!!(r&&r.locked)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);restorePersistedRectCache(it,r&&r.projectCache);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.viewMode=normalizeViewMode(d.settings.viewMode);st.regionsHighlight=!!d.settings.regionsHighlight;const ss=(d.settings&&d.settings.snap)||{};st.snap={grid:!!ss.grid,objects:ss.objects!==false,centers:ss.centers!==false,gaps:ss.gaps!==false};}else{st.viewMode="art";st.regionsHighlight=false;st.snap={grid:false,objects:true,centers:true,gaps:true};}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.saveLocationId=setGlobalSaveLocationId((d&&d.saveLocationId)||getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.maskPath=[];st.maskHover=null;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;updateRegionsToggleUi();updateViewModeUi();selRect(st.rects[0]?st.rects[0].id:null);if(syncTabSnapshot)syncActiveTabSnapshot();if(renderTabs)renderProjectTabs();if(!st.history.suspend){st.history.undo=[];st.history.redo=[];initHistoryCurrent();if(el.undo)el.undo.disabled=true;if(el.redo)el.redo.disabled=true;}if(doRender)render();}
 function restoreAutoSave(){
   try{
     const rawTabs=localStorage.getItem(TABS_SAVE_KEY);
@@ -4089,10 +4122,12 @@ function setRegionsHighlight(on,persist=true){
 }
 function toggleRegionsHighlight(){setRegionsHighlight(!st.regionsHighlight,true)}
 function activateToolOrSelect(mode){
+  if(isInstallOnlyToolMode(mode)&&!isInstallViewMode()){setMode("select");return}
   if(mode!=="select"&&st.mode===mode){setMode("select");return}
   setMode(mode);
 }
 function setMode(m){
+  if(isInstallOnlyToolMode(m)&&!isInstallViewMode())m="select";
   st.mode=m;
   st.flowDrag=null;
   st.selBox=null;
@@ -4474,19 +4509,21 @@ if(bdy&&(!by||Math.abs(bdy.d)<=Math.abs(by.d))){dy=bdy.d;gy=null;usedY=true}
 if(usedX&&usedY)dg=Math.abs(bdx.d)<=Math.abs(bdy.d)?bdx.guide:bdy.guide;else if(usedX)dg=bdx.guide;else if(usedY)dg=bdy.guide;
 return{x:Math.round(x+dx),y:Math.round(y+dy),gx,gy,dg}
 }
-function drawRect(c,r,sel,z,origin,opts){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height,options=opts||{},includeFlow=options.includeFlow!==false,designerRender=!!options.designerRender,disableLod=!!options.disableLod,forceLowDetail=!!options.forceLowDetail,flowGroupsOverride=Array.isArray(options.flowGroupsOverride)?options.flowGroupsOverride:null;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
+function drawRect(c,r,sel,z,origin,opts){const cellX=drawCellX(r),cellY=drawCellY(r),hs=getHiddenSet(r),a=rads(r.rotation||0),center=rectCenter(r),w=r.width,h=r.height,options=opts||{},includeFlow=options.includeFlow!==false,designerRender=!!options.designerRender,disableLod=!!options.disableLod,forceLowDetail=!!options.forceLowDetail,flowGroupsOverride=Array.isArray(options.flowGroupsOverride)?options.flowGroupsOverride:null,viewModeOverride=options&&options.viewModeOverride?normalizeViewMode(options.viewModeOverride):null;c.save();c.translate(center.x,center.y);c.rotate(a);c.beginPath();c.rect(-w/2,-h/2,w,h);c.clip();
 const skeleton=!st.fontReady;
+const installView=(viewModeOverride||normalizeViewMode(st.viewMode))==="install";
 const topo=getCellTopologyCached(r,cellX,cellY),maskRender=getMaskRenderDataCached(r,cellX,cellY,hs,topo);
 const flowEditingThisRect=!!(st.mode==="flowEdit"&&sel&&r.id===st.sel);
 const cellCount=(topo.cols||1)*(topo.rows||1),interactiveDetail=!!(sel||st.mode==="flowEdit"||isMaskMode()||isCellEditMode()||isClusterEditMode()),lowDetail=!!((forceLowDetail&&!flowEditingThisRect)||(!disableLod&&designerRender&&!interactiveDetail&&cellCount>3000));
 const clusterDraggingThisRect=!!(st.clusterDrag&&Math.round(Number(st.clusterDrag.rectId)||0)===Math.round(Number(r&&r.id)||0));
-const flowEnabledByMode=normalizeDataFlow(r.dataFlow)!=="none",flowInteractivePause=!!(st.pan||st.drag||st.draft||clusterDraggingThisRect||(st.touch&&st.touch.type==="pinch")||(lowDetail&&!flowEditingThisRect)),wantsFlow=!!(includeFlow&&flowEnabledByMode&&!flowInteractivePause);
-const showRegionsOverlayRequested=!!(designerRender&&st.regionsHighlight&&!clusterDraggingThisRect);
-const needRegions=!!(!lowDetail&&(r.numberCells||wantsFlow||showRegionsOverlayRequested||(sel&&!clusterDraggingThisRect)));
+const showNumbers=!!r.numberCells;
+const flowEnabledByMode=normalizeDataFlow(r.dataFlow)!=="none",flowInteractivePause=!!(st.pan||st.drag||st.draft||clusterDraggingThisRect||(st.touch&&st.touch.type==="pinch")||(lowDetail&&!flowEditingThisRect)),wantsFlowDraw=!!(installView&&includeFlow&&flowEnabledByMode&&!flowInteractivePause),wantsFlowForNumbers=!!(showNumbers&&flowEnabledByMode&&!flowInteractivePause);
+const showRegionsOverlayRequested=!!(installView&&designerRender&&!clusterDraggingThisRect);
+const needRegions=!!(!lowDetail&&(showNumbers||wantsFlowDraw||showRegionsOverlayRequested||(installView&&sel&&!clusterDraggingThisRect)));
 const regions=(needRegions?planNumberRegions(r,cellX,cellY,topo,hs):null);
 const showRegionsOverlay=!!(regions&&showRegionsOverlayRequested);
 if(sel&&r.id===st.sel&&!(st.drag||st.clusterDrag||st.flowDrag||st.pan||st.draft))updateSplitVariantControl(r);
-const flowGroups=wantsFlow?(flowGroupsOverride||getDataFlowGroups(r,cellX,cellY,topo,hs,regions)):[];
+const flowGroups=(wantsFlowDraw||wantsFlowForNumbers)?(flowGroupsOverride||getDataFlowGroups(r,cellX,cellY,topo,hs,regions)):[];
 if(st.mode==="flowEdit"&&sel&&r.id===st.sel)collectFlowEditPoints(r,flowGroups);
 let drawContent=true,maskedClip=false;
 if(maskRender.hasMask){
@@ -4507,7 +4544,7 @@ const decorLayer=getRectDecorLayerCached(r,maskRender,z);
 if(decorLayer)c.drawImage(decorLayer,-w/2,-h/2);
 if(!lowDetail){
 const comps=getRectComponentRenderDataCached(r,cellX,cellY,topo);
-if(!skeleton&&r.numberCells&&regions&&!showRegionsOverlay){
+if(!skeleton&&showNumbers&&regions){
   const txtTheme=rectTextTheme(r);
   const nfs=9,pad=2.5;
   c.font=`${nfs}px ${fontFamilyCss(st.fontFamily)}`;
@@ -4546,8 +4583,8 @@ if(!skeleton&&r.numberCells&&regions&&!showRegionsOverlay){
     c.fillStyle=txtTheme.text;c.fillText(text,tx,ty);
   }
 }
-if(!skeleton&&!((isMaskMode()||isCellEditMode())&&sel)&&!showRegionsOverlay){
-const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),baseFs=getRectTextSizePx(r),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),pct=fillPercent(wm,hm,r.areaM2Px),ls=[r.name,`(${rx}; ${ry}) px`,`${Math.round(w)} x ${Math.round(h)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`],maxW=Math.max(20,w-6),localRect={x:-w/2,y:-h/2,width:w,height:h};
+if(!skeleton&&!((isMaskMode()||isCellEditMode())&&sel)){
+const rx=Math.round(r.x-origin.x),ry=Math.round(r.y-origin.y),baseFs=getRectTextSizePx(r),wm=(r.widthM!=null?r.widthM:r.width/Math.max(1,r.scale||256)),hm=(r.heightM!=null?r.heightM:r.height/Math.max(1,r.scale||256)),pct=fillPercent(wm,hm,r.areaM2Px),ls=installView?[r.name,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`]:[r.name,`(${rx}; ${ry}) px`,`${Math.round(w)} x ${Math.round(h)} px`,`${mFmt(wm)} x ${mFmt(hm)} m`,`${pctFmt(pct)}%`],maxW=Math.max(20,w-6),localRect={x:-w/2,y:-h/2,width:w,height:h};
 const layoutKey=["canvas",w,h,cellX,cellY,listSignature(r.hiddenCells),baseFs,maxW,st.fontFamily,ls.join("|")].join("|");
 const layout=getRectTextLayoutCached(r,layoutKey,()=>{
   const hbs=hiddenCellBoxes(localRect,cellX,cellY,hs),freeRects=computeFreeRects(localRect,cellX,cellY,hs);
@@ -4560,51 +4597,21 @@ c.fillStyle=txtTheme.bg;c.fillRect(layout.textLeft,layout.textTop,layout.tw,layo
 }
 }
 if(showRegionsOverlay){
-    const regionLabelFs=Math.max(18,Math.min(46,Math.min(w,h)*0.12));
-    c.save();
     const regList=Array.isArray(regions.regions)?regions.regions:[...regions.regionsById.values()];
-    const regionStats=new Map();
-    const regByCell=(ix,iy)=>regions&&Array.isArray(regions.cellToRegion)?regions.cellToRegion[iy*topo.cols+ix]:-1;
+    c.save();
+    c.lineWidth=4.5;
+    c.setLineDash([5,4]);
+    const inset=c.lineWidth/2;
     for(const rg of regList){
       const ci=(rg.id??(rg.gy*regions.nx+rg.gx))%REGION_ZONE_COLORS.length,col=REGION_ZONE_COLORS[ci];
-      c.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},.16)`;
-      let count=0,sumX=0,sumY=0,minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
-      for(let iy=0;iy<topo.rows;iy++)for(let ix=0;ix<topo.cols;ix++){
-        if(regByCell(ix,iy)!==rg.id)continue;
-        if(hs.has(maskCellKey(ix,iy)))continue;
-        const x0=-w/2+(ix*cellX),y0=-h/2+(iy*cellY),cw=Math.min(cellX,w-ix*cellX),ch=Math.min(cellY,h-iy*cellY);
-        if(cw<=0||ch<=0)continue;
-        c.fillRect(x0,y0,cw,ch);
-        const cx0=x0+cw/2,cy0=y0+ch/2;
-        sumX+=cx0;sumY+=cy0;count++;
-        if(x0<minX)minX=x0;if(y0<minY)minY=y0;if(x0+cw>maxX)maxX=x0+cw;if(y0+ch>maxY)maxY=y0+ch;
-      }
-      if(count>0)regionStats.set(rg.id,{cx:sumX/count,cy:sumY/count,minX,minY,maxX,maxY});
-    }
-    c.restore();
-    c.save();
-    c.strokeStyle="rgba(113,215,255,.85)";
-    c.lineWidth=Math.max(1,1.2/z);
-    c.setLineDash([5/z,4/z]);
-    for(const rg of regList){
+      c.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},.9)`;
       const x0=-w/2+(rg.c0*cellX),x1=-w/2+Math.min(w,rg.c1*cellX),y0=-h/2+(rg.r0*cellY),y1=-h/2+Math.min(h,rg.r1*cellY);
-      c.strokeRect(x0,y0,Math.max(0,x1-x0),Math.max(0,y1-y0));
+      const rw=Math.max(0,(x1-x0)-inset*2),rh=Math.max(0,(y1-y0)-inset*2);
+      if(rw<=0||rh<=0)continue;
+      c.strokeRect(x0+inset,y0+inset,rw,rh);
     }
     c.setLineDash([]);
     c.restore();
-    if(!skeleton){
-      c.save();
-      c.font=`${Math.max(8,regionLabelFs)}px ${fontFamilyCss(st.fontFamily)}`;
-      c.textAlign="center";c.textBaseline="middle";
-      for(const rg of regList){
-        const rs=regionStats.get(rg.id);
-        if(!rs)continue;
-        const cx=rs.cx,cy=rs.cy,tw=c.measureText(rg.label).width+14,th=Math.max(regionLabelFs+10,20);
-        c.fillStyle="rgba(11,17,24,.56)";c.fillRect(cx-tw/2,cy-th/2,tw,th);
-        c.fillStyle="rgba(255,255,255,.97)";c.fillText(rg.label,cx,cy);
-      }
-      c.restore();
-    }
 }
 if(maskedClip){c.restore();maskedClip=false;}
 c.strokeStyle=sel?"#ffe08a":"rgba(255,255,255,.85)";c.lineWidth=sel?7/z:1/z;
@@ -4634,7 +4641,7 @@ if(borderSegs.length){
     c.stroke();
   }
 }
-if(wantsFlow){
+if(wantsFlowDraw){
   if(st.mode==="flowEdit"&&sel&&r.id===st.sel&&Array.isArray(flowGroups)&&flowGroups.length>1){
     const activeRid=Math.max(0,Math.round(Number(st.flowRegionRid)||0)),active=flowGroups.filter(g=>Math.round(Number(g&&g.rid)||0)===activeRid);
     const passiveLayer=getRectFlowPassiveLayerCached(r,w,h,z,flowGroups,activeRid);
@@ -4941,7 +4948,7 @@ if(created){setMode("select");selRect(created.id)}
 if(hadDrag||created){syncProps();listRects();schedulePersist("project")}
 render();e.preventDefault()}},{passive:false});
 function delSel(){normSelSet();if(!st.selSet.size&&st.sel==null)return;const ids=st.selSet.size?new Set(st.selSet):new Set([st.sel]);let removed=false;st.rects=st.rects.filter(r=>{if(!ids.has(r.id))return true;if(isRectLocked(r))return true;removed=true;return false;});if(!removed)return;setSelection([],null);st.maskPath=[];st.maskHover=null;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;syncProps();listRects();updateClusterEditCursor();schedulePersist("project");render()}
-function newProject(){st.rects=[];setSelection([],null);st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.saveLocationId=setGlobalSaveLocationId(getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.regionsHighlight=false;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDirHover=null;st.flowRegionRid=null;st.flowDrag=null;st.clusterActiveId=null;st.clusterHandles=[];st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;updateRegionsToggleUi();listRects();syncProps();setMode("select");syncActiveTabSnapshot();renderProjectTabs();schedulePersist("all");render()}
+function newProject(){st.rects=[];setSelection([],null);st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.saveLocationId=setGlobalSaveLocationId(getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.viewMode="art";st.regionsHighlight=false;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDirHover=null;st.flowRegionRid=null;st.flowDrag=null;st.clusterActiveId=null;st.clusterHandles=[];st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;updateRegionsToggleUi();updateViewModeUi();listRects();syncProps();setMode("select");syncActiveTabSnapshot();renderProjectTabs();schedulePersist("all");render()}
 const insertCloneAboveSource=(sourceId,clone)=>{
   const idx=st.rects.findIndex(v=>v.id===sourceId);
   if(idx>=0)st.rects.splice(idx,0,clone);
@@ -5119,7 +5126,7 @@ function syncProps(){
   if(el.btnResetManualClusters)uiSetDisabled(el.btnResetManualClusters,!on);
   if(el.btnAutoContrast)uiSetDisabled(el.btnAutoContrast,!on);
   uiSetValue(el.project,st.projectName);
-  updateThemeUi();updateRegionsToggleUi();
+  updateThemeUi();updateRegionsToggleUi();updateViewModeUi();
   uiSetValue(el.textSize,mFmt(st.textSize));
   uiSetValue(el.font,st.fontFamily);
   if(el.snapGrid)uiSetChecked(el.snapGrid,!!(st.snap&&st.snap.grid));
@@ -5486,6 +5493,8 @@ for(const btn of document.querySelectorAll("[data-area-m2-preset]")){
 el.textSize.addEventListener("change",()=>{applyTextSettings();syncProps()});
 el.textSize.addEventListener("keydown",e=>{if(e.key==="Enter"){applyTextSettings();syncProps()}});
 el.font.addEventListener("change",()=>{applyTextSettings();syncProps()});
+if(el.viewModeArt)el.viewModeArt.onclick=()=>setViewMode("art",true);
+if(el.viewModeInstall)el.viewModeInstall.onclick=()=>setViewMode("install",true);
 el.toolSelect.onclick=()=>activateToolOrSelect("select");el.toolDraw.onclick=()=>activateToolOrSelect("draw");if(el.toolMaskAdd)el.toolMaskAdd.onclick=()=>activateToolOrSelect("maskEdit");if(el.toolCellEdit)el.toolCellEdit.onclick=()=>activateToolOrSelect("cellEdit");if(el.toolFlowEdit)el.toolFlowEdit.onclick=()=>activateToolOrSelect("flowEdit");if(el.toolClusterEdit)el.toolClusterEdit.onclick=()=>activateToolOrSelect("clusterEdit");if(el.toolRegions)el.toolRegions.onclick=()=>toggleRegionsHighlight();if(el.newProject)el.newProject.onclick=newProject;el.btnCopy.onclick=dupSel;if(el.btnCopyMirror)el.btnCopyMirror.onclick=dupMirrorSel;el.btnDelete.onclick=delSel;if(el.btnAutoContrast)el.btnAutoContrast.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;const nextAuto=!(ts[0].autoContrastB!==false);for(const r of ts){r.autoContrastB=nextAuto;if(r.autoContrastB)r.colorB=autoContrast(r.colorA);invalidateRectCache(r,"appearance");}syncProps();listRects();schedulePersist("project");render()};el.randColor.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;const shared=randomColor();for(const r of ts){r.colorA=shared;if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);invalidateRectCache(r,"appearance");}syncProps();listRects();schedulePersist("project");render()};el.zoomIn.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom*1.2)};el.zoomOut.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom/1.2)};el.zoomReset.onclick=()=>{st.zoom=1;render()};el.zoomFit.onclick=fit;
 if(el.undo)el.undo.onclick=()=>undoHistory();
 if(el.redo)el.redo.onclick=()=>redoHistory();
@@ -5932,8 +5941,9 @@ const getExportFlowGroupsFromCache=r=>{
   if(!cache||!cache.flow||cache.flow.pending||!Array.isArray(cache.flow.value))return [];
   return cache.flow.value;
 };
-const exportPng=async(includeFlow)=>{
-  if(!st.rects.length){showMessageModal("Нечего экспортировать","Экспорт PNG");return}
+const canvasToBlob=(canvas,type="image/png",quality)=>new Promise(resolve=>canvas.toBlob(resolve,type,quality));
+const renderExportPngBlob=async(includeFlow)=>{
+  if(!st.rects.length)return null;
   await ensureFontReady();
   let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
   for(const r of st.rects){const bb=rectAABBMasked(r);minX=Math.min(minX,bb.minX);minY=Math.min(minY,bb.minY);maxX=Math.max(maxX,bb.maxX);maxY=Math.max(maxY,bb.maxY)}
@@ -5942,27 +5952,49 @@ const exportPng=async(includeFlow)=>{
   const c=out.getContext("2d");
   for(let i=st.rects.length-1;i>=0;i--){
     const r=st.rects[i],er={...r,x:r.x-minX,y:r.y-minY},includeFlowRect=!!(includeFlow&&normalizeDataFlow(r&&r.dataFlow)!=="none"),flowGroups=includeFlowRect?getExportFlowGroupsFromCache(r):[];
-    drawRect(c,er,false,1,{x:0,y:0},{includeFlow:includeFlowRect,disableLod:true,flowGroupsOverride:flowGroups});
+    drawRect(c,er,false,1,{x:0,y:0},{includeFlow:includeFlowRect,disableLod:true,flowGroupsOverride:flowGroups,viewModeOverride:includeFlow?"install":"art"});
   }
-  out.toBlob(async b=>{
-    if(!b){showMessageModal("Ошибка экспорта","Экспорт PNG");return}
-    const baseName=`${projectFileBase()}${includeFlow?"-flow":""}`;
-    let pngOut=b;
-    try{
-      pngOut=await embedProjectIntoPngBlob(b,buildProject());
-    }catch(err){
-      console.warn("PNG metadata export failed, saving plain PNG:",err);
-    }
-    await saveBlobWithSystemDialog(pngOut,`${baseName}.png`,"image/png",".png","PNG images",st.saveLocationId);
-    if(includeFlow){
-      const specText=buildFlowSpecText();
-      const specBlob=new Blob([specText],{type:"text/plain;charset=utf-8"});
-      await saveBlobWithSystemDialog(specBlob,`${baseName}.md`,"text/markdown",".md","Markdown files",st.saveLocationId);
-    }
-  },"image/png");
+  const b=await canvasToBlob(out,"image/png");
+  if(!b)return null;
+  try{
+    return await embedProjectIntoPngBlob(b,buildProject());
+  }catch(err){
+    console.warn("PNG metadata export failed, saving plain PNG:",err);
+    return b;
+  }
 };
-el.exp.onclick=async()=>{await exportPng(false)};
-if(el.expFlow)el.expFlow.onclick=async()=>{await exportPng(true)};
+const writeFileToDirectory=async(dirHandle,fileName,blob)=>{
+  const fileHandle=await dirHandle.getFileHandle(fileName,{create:true});
+  const writable=await fileHandle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+};
+const exportPackage=async()=>{
+  if(!st.rects.length){showMessageModal("Нечего экспортировать","Экспорт пакета");return}
+  const [pngArt,pngFlow]=await Promise.all([renderExportPngBlob(false),renderExportPngBlob(true)]);
+  if(!pngArt||!pngFlow){showMessageModal("Ошибка экспорта","Экспорт пакета");return}
+  const specBlob=new Blob([buildFlowSpecText()],{type:"text/markdown;charset=utf-8"});
+  const baseName=projectFileBase();
+  const fileArt=`${baseName}.png`,fileFlow=`${baseName}-flow.png`,fileSpec=`${baseName}-flow.md`;
+  if(window.showDirectoryPicker){
+    try{
+      const dirHandle=await window.showDirectoryPicker({mode:"readwrite",id:setGlobalSaveLocationId(st.saveLocationId||getGlobalSaveLocationId())});
+      await writeFileToDirectory(dirHandle,fileArt,pngArt);
+      await writeFileToDirectory(dirHandle,fileFlow,pngFlow);
+      await writeFileToDirectory(dirHandle,fileSpec,specBlob);
+      setSaveIndicator("Пакет экспортирован","success");
+      return;
+    }catch(err){
+      if(err&&err.name==="AbortError")return;
+      console.warn("showDirectoryPicker failed, fallback to save dialogs:",err);
+    }
+  }
+  await saveBlobWithSystemDialog(pngArt,fileArt,"image/png",".png","PNG images",st.saveLocationId);
+  await saveBlobWithSystemDialog(pngFlow,fileFlow,"image/png",".png","PNG images",st.saveLocationId);
+  await saveBlobWithSystemDialog(specBlob,fileSpec,"text/markdown",".md","Markdown files",st.saveLocationId);
+};
+el.exp.onclick=async()=>{await exportPackage()};
+if(el.expFlow)el.expFlow.onclick=async()=>{await exportPackage()};
 el.project.addEventListener("input",()=>{st.projectName=(el.project.value||"project").trim()||"project";syncActiveTabSnapshot();renderProjectTabs();schedulePersist("all")});
 el.project.addEventListener("change",()=>{st.projectName=(el.project.value||"project").trim()||"project";syncActiveTabSnapshot();renderProjectTabs();syncProps();schedulePersist("all")});
 if(el.projectTabAdd)el.projectTabAdd.addEventListener("click",()=>createProjectTab(makeEmptyProjectData("Новый проект")));
