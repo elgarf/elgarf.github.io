@@ -8483,6 +8483,8 @@ self.onmessage=e=>{
         st.tabs.push({ id: nextTabId, title: tabTitle, data: cloneProjectData(queryProjectData) });
         st.activeTabId = nextTabId;
         loadProjectIntoActiveState(queryProjectData);
+        // Ensure the tab title reflects normalized projectName from loaded data.
+        syncActiveTabSnapshot();
         renderProjectTabs();
         clearProjectQueryParamFromUrl();
       }
