@@ -273,6 +273,15 @@
       display: none
     }
 
+    .mobile-dock.force-hidden {
+      display: none !important
+    }
+
+    .mobile-dock.force-visible {
+      display: flex !important;
+      z-index: 1070
+    }
+
     .install-banner {
       position: fixed;
       left: 10px;
@@ -1353,10 +1362,6 @@
       aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
     <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i
         class="fa-solid fa-trash"></i></button>
-    <!--<button id="mZoomOut" class="icon-btn" title="Отдалить" aria-label="Отдалить"><i
-        class="fa-solid fa-magnifying-glass-minus"></i></button>
-    <button id="mZoomIn" class="icon-btn" title="Приблизить" aria-label="Приблизить"><i
-        class="fa-solid fa-magnifying-glass-plus"></i></button>-->
     <button id="mViewModeArt" class="icon-btn btn btn-outline-secondary" title="Для художников"
       aria-label="Для художников" aria-pressed="true"><i class="fa-solid fa-palette"></i></button>
     <button id="mViewModeInstall" class="icon-btn btn btn-outline-secondary" title="Для монтажников"
@@ -1369,10 +1374,73 @@
     const ensureMobileDock = () => {
       const host = document.querySelector(".app") || document.body;
       let dock = document.querySelector(".mobile-dock");
+      if (!dock) return;
       if (dock.parentElement !== host) host.appendChild(dock);
     };
+    const pickEls = ids => Object.fromEntries(ids.map(id => [id, $(id)]));
     ensureMobileDock();
-    const el = { projectTabs: $("projectTabs"), projectTabsList: $("projectTabsList"), projectTabAdd: $("projectTabAdd"), toolbar: $("toolbarMain"), overflowGroup: $("overflowGroup"), overflowToggle: $("toolbarOverflowToggle"), overflowPopup: $("toolbarOverflowPopup"), project: $("projectName"), saveIndicator: $("saveIndicator"), themeToggle: $("themeToggle"), themeIcon: $("themeIcon"), themePopup: $("themePopup"), helpOpen: $("helpOpen"), viewModeArt: $("viewModeArt"), viewModeInstall: $("viewModeInstall"), mobileMenu: $("mobileMenu"), installApp: $("installApp"), installBanner: $("installBanner"), installBannerText: $("installBannerText"), installBannerAction: $("installBannerAction"), installBannerClose: $("installBannerClose"), helpModal: $("helpModal"), helpClose: $("helpClose"), projectLinkModal: $("projectLinkModal"), projectLinkQr: $("projectLinkQr"), projectLinkText: $("projectLinkText"), projectLinkCopyBtn: $("projectLinkCopyBtn"), side: $("sidePanel"), sideClose: $("sideClose"), multiEditBadge: $("multiEditBadge"), mobileDock: document.querySelector(".mobile-dock"), mToolSelect: $("mToolSelect"), mToolDraw: $("mToolDraw"), mToolMaskAdd: $("mToolMaskAdd"), mToolCellEdit: $("mToolCellEdit"), mToolFlowEdit: $("mToolFlowEdit"), mToolClusterEdit: $("mToolClusterEdit"), mToolRigEdit: $("mToolRigEdit"), mCopy: $("mCopy"), mCopyMirror: $("mCopyMirror"), mDelete: $("mDelete"), mZoomOut: $("mZoomOut"), mZoomIn: $("mZoomIn"), toolSelect: $("toolSelect"), toolDraw: $("toolDraw"), toolMaskAdd: $("toolMaskAdd"), toolCellEdit: $("toolCellEdit"), toolFlowEdit: $("toolFlowEdit"), toolClusterEdit: $("toolClusterEdit"), toolRigEdit: $("toolRigEdit"), btnCopy: $("btnCopy"), btnCopyMirror: $("btnCopyMirror"), btnDelete: $("btnDelete"), zoomIn: $("zoomIn"), zoomOut: $("zoomOut"), zoomReset: $("zoomReset"), zoomFit: $("zoomFit"), zoomLabel: $("zoomLabel"), undo: $("undoAction"), redo: $("redoAction"), newProject: $("newProject"), save: $("saveProject"), saveLink: $("saveProjectLink"), load: $("loadProject"), exp: $("exportPng"), file: $("fileInput"), textSize: $("globalTextSize"), font: $("globalFont"), snapGrid: $("snapGrid"), snapObjects: $("snapObjects"), snapCenters: $("snapCenters"), snapGaps: $("snapGaps"), name: $("propName"), rectTextSize: $("propTextSize"), rectTextSizeLabel: $("propTextSizeLabel"), x: $("propX"), y: $("propY"), rot: $("propRot"), wm: $("propWm"), hm: $("propHm"), scale: $("propScale"), areaM2: $("propAreaM2"), a: $("propColorA"), b: $("propColorB"), btnAutoContrast: $("btnAutoContrast"), randColor: $("btnRandomColor"), cx: $("propCellX"), cy: $("propCellY"), cabSizeY2ToX: $("cabSizeY2ToX"), cabSizeXEqY: $("cabSizeXEqY"), cabSizeX2ToY: $("cabSizeX2ToY"), dataFlow: $("propDataFlow"), dataFlowZ: $("propDataFlowZ"), numCells: $("propNumberCells"), splitVariantField: $("splitVariantField"), splitVariantControl: $("splitVariantControl"), splitVariantManualBadge: $("splitVariantManualBadge"), splitVariant: $("propSplitVariant"), splitVariantDec: $("propSplitVariantDec"), splitVariantInc: $("propSplitVariantInc"), splitVariantLabel: $("propSplitVariantLabel"), btnClearMasks: $("btnClearMasks"), btnResetFlowLocks: $("btnResetFlowLocks"), btnResetManualClusters: $("btnResetManualClusters"), list: $("rectList") };
+    const el = {
+      ...pickEls([
+        "projectTabs", "projectTabsList", "projectTabAdd", "toolbarMain", "overflowGroup", "toolbarOverflowToggle", "toolbarOverflowPopup",
+        "projectName", "saveIndicator", "themeToggle", "themeIcon", "themePopup", "helpOpen", "viewModeArt", "viewModeInstall",
+        "mobileMenu", "installApp", "installBanner", "installBannerText", "installBannerAction", "installBannerClose",
+        "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkText", "projectLinkCopyBtn",
+        "sidePanel", "sideClose", "multiEditBadge",
+        "mToolSelect", "mToolDraw", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit",
+        "mCopy", "mCopyMirror", "mDelete", "mViewModeArt", "mViewModeInstall",
+        "toolSelect", "toolDraw", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit",
+        "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
+        "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
+        "snapGrid", "snapObjects", "snapCenters", "snapGaps", "propName", "propTextSize", "propTextSizeLabel", "propX", "propY", "propRot",
+        "propWm", "propHm", "propScale", "propAreaM2", "propColorA", "propColorB", "btnAutoContrast", "btnRandomColor",
+        "propCellX", "propCellY", "cabSizeY2ToX", "cabSizeXEqY", "cabSizeX2ToY", "propDataFlow", "propDataFlowZ", "propNumberCells",
+        "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
+        "propSplitVariantLabel", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "rectList"
+      ]),
+      toolbar: $("toolbarMain"),
+      overflowToggle: $("toolbarOverflowToggle"),
+      overflowPopup: $("toolbarOverflowPopup"),
+      project: $("projectName"),
+      save: $("saveProject"),
+      saveLink: $("saveProjectLink"),
+      load: $("loadProject"),
+      exp: $("exportPng"),
+      file: $("fileInput"),
+      textSize: $("globalTextSize"),
+      font: $("globalFont"),
+      snapGrid: $("snapGrid"),
+      snapObjects: $("snapObjects"),
+      snapCenters: $("snapCenters"),
+      snapGaps: $("snapGaps"),
+      name: $("propName"),
+      rectTextSize: $("propTextSize"),
+      rectTextSizeLabel: $("propTextSizeLabel"),
+      x: $("propX"),
+      y: $("propY"),
+      rot: $("propRot"),
+      wm: $("propWm"),
+      hm: $("propHm"),
+      scale: $("propScale"),
+      areaM2: $("propAreaM2"),
+      a: $("propColorA"),
+      b: $("propColorB"),
+      randColor: $("btnRandomColor"),
+      cx: $("propCellX"),
+      cy: $("propCellY"),
+      dataFlow: $("propDataFlow"),
+      dataFlowZ: $("propDataFlowZ"),
+      numCells: $("propNumberCells"),
+      splitVariant: $("propSplitVariant"),
+      splitVariantDec: $("propSplitVariantDec"),
+      splitVariantInc: $("propSplitVariantInc"),
+      splitVariantLabel: $("propSplitVariantLabel"),
+      list: $("rectList"),
+      mobileDock: document.querySelector(".mobile-dock"),
+      side: $("sidePanel"),
+      undo: $("undoAction"),
+      redo: $("redoAction"),
+      newProject: $("newProject")
+    };
     const desktopToolButtons = [el.toolSelect, el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean);
     const mobileToolButtons = [el.mToolSelect, el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean);
     const overflowButtonIds = ["toolSelect", "toolDraw", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "themeToggle"];
@@ -4936,8 +5004,6 @@ self.onmessage=e=>{
     const resolveThemeMode = v => normalizeThemeMode(v) === "auto" ? (themeMedia && themeMedia.matches ? "dark" : "light") : normalizeThemeMode(v);
     const updateViewModeUi = () => {
       const isInstall = isInstallViewMode();
-      const mViewModeArt = $("mViewModeArt");
-      const mViewModeInstall = $("mViewModeInstall");
       if (el.viewModeArt) {
         el.viewModeArt.classList.remove("btn-secondary");
         el.viewModeArt.classList.toggle("btn-primary", !isInstall);
@@ -4950,17 +5016,17 @@ self.onmessage=e=>{
         el.viewModeInstall.classList.toggle("btn-outline-secondary", !isInstall);
         el.viewModeInstall.setAttribute("aria-pressed", isInstall ? "true" : "false");
       }
-      if (mViewModeArt) {
-        mViewModeArt.classList.remove("btn-secondary");
-        mViewModeArt.classList.toggle("btn-primary", !isInstall);
-        mViewModeArt.classList.toggle("btn-outline-secondary", isInstall);
-        mViewModeArt.setAttribute("aria-pressed", !isInstall ? "true" : "false");
+      if (el.mViewModeArt) {
+        el.mViewModeArt.classList.remove("btn-secondary");
+        el.mViewModeArt.classList.toggle("btn-primary", !isInstall);
+        el.mViewModeArt.classList.toggle("btn-outline-secondary", isInstall);
+        el.mViewModeArt.setAttribute("aria-pressed", !isInstall ? "true" : "false");
       }
-      if (mViewModeInstall) {
-        mViewModeInstall.classList.remove("btn-secondary");
-        mViewModeInstall.classList.toggle("btn-primary", isInstall);
-        mViewModeInstall.classList.toggle("btn-outline-secondary", !isInstall);
-        mViewModeInstall.setAttribute("aria-pressed", isInstall ? "true" : "false");
+      if (el.mViewModeInstall) {
+        el.mViewModeInstall.classList.remove("btn-secondary");
+        el.mViewModeInstall.classList.toggle("btn-primary", isInstall);
+        el.mViewModeInstall.classList.toggle("btn-outline-secondary", !isInstall);
+        el.mViewModeInstall.setAttribute("aria-pressed", isInstall ? "true" : "false");
       }
       updateInstallToolAvailability();
     };
@@ -5169,13 +5235,24 @@ self.onmessage=e=>{
         persistNow();
       }, PERSIST_DEBOUNCE_MS);
     };
+    const refreshPanels = () => { syncProps(); listRects(); };
+    const commitUiUpdate = (opts = {}) => {
+      const o = opts && typeof opts === "object" ? opts : {};
+      if (o.syncProps) syncProps();
+      if (o.listRects) listRects();
+      if (o.persist) schedulePersist(o.persistKind || "project");
+      if (o.render !== false) render();
+    };
+    const loadProjectIntoActiveState = data => {
+      applyProjectData(data || makeEmptyProjectData("Новый проект"), { syncTabSnapshot: false, renderTabs: false });
+    };
     function openProjectTab(tabId) {
       const next = st.tabs.find(t => t.id === tabId);
       if (!next || st.activeTabId === tabId) return;
       if (st.activeTabId !== null) syncActiveTabSnapshot();
       runTabSwitchTransition(() => {
         st.activeTabId = tabId;
-        applyProjectData(next.data || makeEmptyProjectData(next.title || "Новый проект"), { syncTabSnapshot: false, renderTabs: false });
+        loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
         renderProjectTabs();
       });
     }
@@ -5186,7 +5263,7 @@ self.onmessage=e=>{
       const tab = { id: st.nextTabId++, title, data: d };
       st.tabs.push(tab);
       st.activeTabId = tab.id;
-      applyProjectData(d, { syncTabSnapshot: false, renderTabs: false });
+      loadProjectIntoActiveState(d);
       renderProjectTabs();
       schedulePersist("all");
     }
@@ -5200,12 +5277,19 @@ self.onmessage=e=>{
       const next = st.tabs[Math.max(0, idx - 1)] || st.tabs[0];
       runTabSwitchTransition(() => {
         st.activeTabId = next.id;
-        applyProjectData(next.data || makeEmptyProjectData(next.title || "Новый проект"), { syncTabSnapshot: false, renderTabs: false });
+        loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
         renderProjectTabs();
       });
       schedulePersist("tabs");
     }
     const evalExpr = (input, fallback) => { const s = String(input ?? "").trim(); if (!s) return fallback; const n = Number(s.replace(",", ".")); if (Number.isFinite(n)) return n; const normalized = s.replace(/,/g, ".").replace(/\s+/g, ""); if (!/^[0-9+\-*/().]+$/.test(normalized)) return fallback; try { const v = Function(`"use strict";return (${normalized});`)(); return Number.isFinite(v) ? v : fallback } catch (_e) { return fallback } };
+    const toRoundedInt = (v, fallback = 0) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return Math.round(Number(fallback) || 0);
+      return Math.round(n);
+    };
+    const clampInt = (v, min, max, fallback = min) => Math.max(min, Math.min(max, toRoundedInt(v, fallback)));
+    const toPositiveInt = (v, fallback = 1) => Math.max(1, toRoundedInt(v, fallback));
     const parseAreaM2PxInput = (input, fallback) => {
       const s = String(input ?? "").trim();
       if (!s) return Math.max(1, Math.round(Number(fallback) || 65536));
@@ -5263,7 +5347,116 @@ self.onmessage=e=>{
       try { await document.fonts.ready; } catch (_e) { }
       st.fontReady = true;
     };
-    function applyProjectData(d, opts) { resetCalcWorkers(); const o = (opts && typeof opts === "object") ? opts : {}, syncTabSnapshot = o.syncTabSnapshot !== false, renderTabs = o.renderTabs !== false, doRender = o.render !== false; const rs = Array.isArray(d && d.rectangles) ? d.rectangles : []; const legacyAreaM2 = parseAreaM2PxInput(d && d.settings ? d.settings.areaM2Px : null, 65536); st.rects = rs.map((r, i) => { const colorA = String(r.colorA || "#2fcaaf"), autoB = (r.autoContrastB !== false), manualB = String(r.colorB || autoContrast(colorA)); const rawFlow = String(r && r.dataFlow || "none"); const it = { id: +r.id || i + 1, name: String(r.name || `Rect ${i + 1}`), x: Math.round(+r.x || 0), y: Math.round(+r.y || 0), rotation: evalExpr(r.rotation, 0), width: Math.max(1, Math.round(+r.width || 1)), height: Math.max(1, Math.round(+r.height || 1)), scale: Math.max(1, Math.round(+r.scale || 256)), widthM: Math.max(0.001, +r.widthM || 0), heightM: Math.max(0.001, +r.heightM || 0), areaM2Px: parseAreaM2PxInput(r.areaM2Px, legacyAreaM2), textSize: Math.max(0, Math.min(128, Math.round(evalExpr(r.textSize, 0)))), colorA, autoContrastB: autoB, colorB: autoB ? autoContrast(colorA) : manualB, cellX: Math.max(1, Math.round(+r.cellX || 128)), cellY: Math.max(1, Math.round(+r.cellY || 128)), dataFlow: normalizeDataFlow(rawFlow), dataFlowZ: normalizeDataFlowZ(rawFlow, r && r.dataFlowZ), numberCells: !!r.numberCells, splitVariant: Math.max(0, Math.min(Math.max(0, SPLIT_VARIANT_MAX - 1), Math.round(evalExpr(r.splitVariant, 0)))), cellLinks: Array.isArray(r.cellLinks) ? r.cellLinks.map(String) : [], hiddenCells: normalizeHiddenCells(r.hiddenCells), flowLocks: normalizeFlowLocks(r.flowLocks), manualClusters: normalizeManualClusters(r && r.manualClusters), rig: normalizeRigData(r && r.rig), locked: !!(r && r.locked) }; if (!(+r.widthM > 0 && +r.heightM > 0)) metricFromPx(it); else pxFromMetric(it); restorePersistedRectCache(it, r && r.projectCache); return it }); st.next = +(d && d.nextId) || (st.rects.reduce((m, r) => Math.max(m, r.id), 0) + 1); if (d && d.camera) { st.camX = +d.camera.x || 0; st.camY = +d.camera.y || 0; st.zoom = zc(+d.camera.zoom || 1) } if (d && d.settings) { st.textSize = Math.max(6, evalExpr(d.settings.textSize, 12)); st.fontFamily = String(d.settings.fontFamily || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial"; st.viewMode = normalizeViewMode(d.settings.viewMode); const ss = (d.settings && d.settings.snap) || {}; st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false }; } else { st.viewMode = "art"; st.snap = { grid: false, objects: true, centers: true, gaps: true }; } st.projectName = String((d && d.projectName) || "project").trim() || "project"; st.saveLocationId = setGlobalSaveLocationId((d && d.saveLocationId) || getGlobalSaveLocationId() || genSaveLocationId(st.projectName)); st.maskPath = []; st.maskHover = null; st.clusterActiveId = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.rigHover = null; updateViewModeUi(); selRect(st.rects[0] ? st.rects[0].id : null); if (syncTabSnapshot) syncActiveTabSnapshot(); if (renderTabs) renderProjectTabs(); if (!st.history.suspend) { st.history.undo = []; st.history.redo = []; initHistoryCurrent(); if (el.undo) el.undo.disabled = true; if (el.redo) el.redo.disabled = true; } if (doRender) render(); }
+    const resetTransientState = (full = false) => {
+      st.maskPath = [];
+      st.maskHover = null;
+      st.clusterActiveId = null;
+      st.clusterHandleHover = null;
+      st.clusterCellHover = null;
+      st.clusterStartHover = null;
+      st.clusterBorderHover = null;
+      st.clusterDrag = null;
+      st.rigHover = null;
+      if (full) {
+        st.cellHover = null;
+        st.flowHover = null;
+        st.flowDirHover = null;
+        st.flowRegionRid = null;
+        st.flowDrag = null;
+        st.clusterHandles = [];
+        st.drag = null;
+        st.draft = null;
+        st.g.x = null;
+        st.g.y = null;
+        st.dg = null;
+      }
+    };
+    const parseProjectRect = (r, i, legacyAreaM2) => {
+      const colorA = String(r.colorA || "#2fcaaf");
+      const autoB = (r.autoContrastB !== false);
+      const manualB = String(r.colorB || autoContrast(colorA));
+      const rawFlow = String(r && r.dataFlow || "none");
+      const maxSplit = Math.max(0, SPLIT_VARIANT_MAX - 1);
+      const it = {
+        id: toPositiveInt(r.id, i + 1),
+        name: String(r.name || `Rect ${i + 1}`),
+        x: toRoundedInt(r.x, 0),
+        y: toRoundedInt(r.y, 0),
+        rotation: evalExpr(r.rotation, 0),
+        width: toPositiveInt(r.width, 1),
+        height: toPositiveInt(r.height, 1),
+        scale: toPositiveInt(r.scale, 256),
+        widthM: Math.max(0.001, +r.widthM || 0),
+        heightM: Math.max(0.001, +r.heightM || 0),
+        areaM2Px: parseAreaM2PxInput(r.areaM2Px, legacyAreaM2),
+        textSize: clampInt(evalExpr(r.textSize, 0), 0, 128, 0),
+        colorA,
+        autoContrastB: autoB,
+        colorB: autoB ? autoContrast(colorA) : manualB,
+        cellX: toPositiveInt(r.cellX, 128),
+        cellY: toPositiveInt(r.cellY, 128),
+        dataFlow: normalizeDataFlow(rawFlow),
+        dataFlowZ: normalizeDataFlowZ(rawFlow, r && r.dataFlowZ),
+        numberCells: !!r.numberCells,
+        splitVariant: clampInt(evalExpr(r.splitVariant, 0), 0, maxSplit, 0),
+        cellLinks: Array.isArray(r.cellLinks) ? r.cellLinks.map(String) : [],
+        hiddenCells: normalizeHiddenCells(r.hiddenCells),
+        flowLocks: normalizeFlowLocks(r.flowLocks),
+        manualClusters: normalizeManualClusters(r && r.manualClusters),
+        rig: normalizeRigData(r && r.rig),
+        locked: !!(r && r.locked)
+      };
+      if (!(+r.widthM > 0 && +r.heightM > 0)) metricFromPx(it);
+      else pxFromMetric(it);
+      restorePersistedRectCache(it, r && r.projectCache);
+      return it;
+    };
+    const applyLoadedProjectSettings = d => {
+      if (d && d.camera) {
+        st.camX = +d.camera.x || 0;
+        st.camY = +d.camera.y || 0;
+        st.zoom = zc(+d.camera.zoom || 1);
+      }
+      if (d && d.settings) {
+        st.textSize = Math.max(6, evalExpr(d.settings.textSize, 12));
+        st.fontFamily = String(d.settings.fontFamily || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial";
+        st.viewMode = normalizeViewMode(d.settings.viewMode);
+        const ss = (d.settings && d.settings.snap) || {};
+        st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false };
+      } else {
+        st.viewMode = "art";
+        st.snap = { grid: false, objects: true, centers: true, gaps: true };
+      }
+      st.projectName = String((d && d.projectName) || "project").trim() || "project";
+      st.saveLocationId = setGlobalSaveLocationId((d && d.saveLocationId) || getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
+    };
+    const resetHistoryUi = () => {
+      if (st.history.suspend) return;
+      st.history.undo = [];
+      st.history.redo = [];
+      initHistoryCurrent();
+      if (el.undo) el.undo.disabled = true;
+      if (el.redo) el.redo.disabled = true;
+    };
+    function applyProjectData(d, opts) {
+      resetCalcWorkers();
+      const o = (opts && typeof opts === "object") ? opts : {};
+      const syncTabSnapshot = o.syncTabSnapshot !== false;
+      const renderTabs = o.renderTabs !== false;
+      const doRender = o.render !== false;
+      const rs = Array.isArray(d && d.rectangles) ? d.rectangles : [];
+      const legacyAreaM2 = parseAreaM2PxInput(d && d.settings ? d.settings.areaM2Px : null, 65536);
+      st.rects = rs.map((r, i) => parseProjectRect(r, i, legacyAreaM2));
+      st.next = +(d && d.nextId) || (st.rects.reduce((m, r) => Math.max(m, r.id), 0) + 1);
+      applyLoadedProjectSettings(d);
+      resetTransientState(false);
+      updateViewModeUi();
+      selRect(st.rects[0] ? st.rects[0].id : null);
+      if (syncTabSnapshot) syncActiveTabSnapshot();
+      if (renderTabs) renderProjectTabs();
+      resetHistoryUi();
+      if (doRender) render();
+    }
     function restoreAutoSave() {
       try {
         const rawTabs = localStorage.getItem(TABS_SAVE_KEY);
@@ -5274,7 +5467,7 @@ self.onmessage=e=>{
             st.nextTabId = Math.max((+parsed.nextTabId || 1), st.tabs.reduce((m, t) => Math.max(m, t.id), 0) + 1);
             st.activeTabId = st.tabs.some(t => t.id === +parsed.activeTabId) ? +parsed.activeTabId : st.tabs[0].id;
             const active = getActiveTab();
-            applyProjectData(active && active.data || makeEmptyProjectData("Новый проект"), { syncTabSnapshot: false, renderTabs: false });
+            loadProjectIntoActiveState(active && active.data || makeEmptyProjectData("Новый проект"));
             renderProjectTabs();
             return true;
           }
@@ -5287,7 +5480,7 @@ self.onmessage=e=>{
         st.tabs = [{ id: 1, title: String((data && data.projectName) || "Новый проект"), data: cloneProjectData(data) }];
         st.nextTabId = 2;
         st.activeTabId = 1;
-        applyProjectData(data, { syncTabSnapshot: false, renderTabs: false });
+        loadProjectIntoActiveState(data);
         renderProjectTabs();
         return true;
       } catch (_e) { return false }
@@ -6020,11 +6213,24 @@ self.onmessage=e=>{
       c.save();
       const frameW = 4.5 * 2, hover = st.rigHover && st.rigHover.rectId === r.id ? st.rigHover : null;
       const drawnSeams = new Set();
+      const isFrameDeleteHover = seam => {
+        if (!hover || hover.type !== "frame") return false;
+        const hs = resolveRigFrameSeam(layout, cy, String(hover.key || ""));
+        return !!(hs && seam && hs.key === seam.key);
+      };
+      const isLoadDeleteHover = (key, kg) => {
+        if (!hover || String(hover.key || "") !== String(key || "")) return false;
+        if (hover.type === "loadToggle") return true;
+        if (hover.type === "loadMinus" && Math.max(5, Math.round(Number(kg) || RIG_DEFAULT_LOAD_KG)) <= 5) return true;
+        return false;
+      };
       for (const key of frames) {
         const seam = resolveRigFrameSeam(layout, cy, String(key || ""));
         if (!seam) continue;
         if (drawnSeams.has(seam.key)) continue;
         drawnSeams.add(seam.key);
+        c.save();
+        c.globalAlpha = isFrameDeleteHover(seam) ? 0.5 : 1;
 
         const fx = seam.x - frameW / 2;
         const fy = seam.y0 + 0.6;
@@ -6058,11 +6264,14 @@ self.onmessage=e=>{
         c.strokeStyle = "rgba(255,255,255,.82)";
         c.lineWidth = Math.max(.9, 1.3 * ui);
         c.strokeRect(fx - .5, fy - .5, frameW + 1, fh + 1);
+        c.restore();
       }
       for (const [key, wk] of Object.entries(loads)) {
         const seam = layout.bottomLoads.get(String(key || ""));
         if (!seam) continue;
         const kg = Math.max(5, Math.round(Number(wk) || RIG_DEFAULT_LOAD_KG)), x = seam.x, y = seam.yBottom - loadSize * 0.5, bodyR = loadSize * 0.32, btnR = 8 * ui, btnDx = bodyR + Math.max(10 * ui, loadSize * 0.22);
+        c.save();
+        c.globalAlpha = isLoadDeleteHover(key, kg) ? 0.5 : 1;
         drawLoadIcon(c, x, y, Math.max(14, loadSize), { fill: "rgba(16,20,28,.94)", stroke: "rgba(255,255,255,.86)", lineWidth: 1.25, alpha: 1 });
         c.fillStyle = "rgba(255,255,255,.98)"; c.font = `${Math.max(6.8, Math.min(loadSize * 0.45, 18))}px ${fontFamilyCss(st.fontFamily)}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(`${kg}`, x, y + Math.max(7, loadSize * 0.2));
         if (isRigEditMode() && sel) {
@@ -6070,6 +6279,7 @@ self.onmessage=e=>{
           drawBtn(x - btnDx, "-");
           drawBtn(x + btnDx, "+");
         }
+        c.restore();
       }
       if (isRigEditMode() && sel && hover) {
         c.strokeStyle = "rgba(255,224,138,.97)";
@@ -6103,6 +6313,11 @@ self.onmessage=e=>{
       const showAnchorHints = !!(isRigEditMode() && sel);
       if (!suspends.length && !showAnchorHints && !(isRigEditMode() && sel && st.rigHover && st.rigHover.rectId === r.id && (st.rigHover.type === "suspend" || st.rigHover.type === "suspendLink"))) return;
       const localToWorld = (lx, ly) => rectUVToWorld(r, lx + layout.w / 2, ly + layout.h / 2);
+      const hover = isRigEditMode() && sel && st.rigHover && st.rigHover.rectId === r.id ? st.rigHover : null;
+      const hoveredSuspendCol = hover && hover.type === "suspend" ? Math.max(0, Math.round(Number(hover.col) || 0)) : -1;
+      const hoveredLink = hover && hover.type === "suspendLink"
+        ? { a: Math.min(hover.a, hover.b), b: Math.max(hover.a, hover.b), key: `${Math.min(hover.a, hover.b)}-${Math.max(hover.a, hover.b)}` }
+        : null;
       c.save();
       if (suspends.length) {
         const visited = new Set();
@@ -6116,6 +6331,10 @@ self.onmessage=e=>{
           while (links.has(`${end}-${end + 1}`) && suspends.includes(end + 1)) { end++; visited.add(end); }
           const ap = layout.anchors.get(start), bp = layout.anchors.get(end);
           if (!ap || !bp) continue;
+          const chainDeletesByHoverLink = !!(hoveredLink && hoveredLink.a >= start && hoveredLink.b <= end && links.has(hoveredLink.key));
+          const singleSuspendDelete = (start === end && start === hoveredSuspendCol && suspends.includes(start));
+          c.save();
+          c.globalAlpha = (chainDeletesByHoverLink || singleSuspendDelete) ? 0.5 : 1;
           const aW = Math.max(1, ap.x1 - ap.x0), bW = Math.max(1, bp.x1 - bp.x0), x1 = ap.x0 + aW * 0.05, x2 = bp.x1 - bW * 0.05, yTop = Math.min(ap.y, bp.y) - 2 - suspendH, tl = localToWorld(x1, yTop), tr = localToWorld(x2, yTop), bl = localToWorld(x1, yTop + suspendH), br = localToWorld(x2, yTop + suspendH);
           c.fillStyle = "rgba(22,27,34,.96)"; c.beginPath(); c.moveTo(tl.x, tl.y); c.lineTo(tr.x, tr.y); c.lineTo(br.x, br.y); c.lineTo(bl.x, bl.y); c.closePath(); c.fill();
           c.strokeStyle = "rgba(255,255,255,.82)"; c.lineWidth = Math.max(1, 1.3) * invZoom; c.stroke();
@@ -6131,12 +6350,16 @@ self.onmessage=e=>{
             c.beginPath(); c.arc(p3.x, p3.y, rInner, 0, Math.PI * 2); c.fill();
             c.restore();
           }
+          c.restore();
         }
       }
       if (showAnchorHints) {
         for (const [col, a] of layout.anchors) {
           const p = localToWorld(a.x, a.y - 2 - suspendH - ringD * 0.5), on = suspends.includes(col), rr = (on ? ringD * 0.5 : ringD * 0.42);
+          c.save();
+          c.globalAlpha = (on && col === hoveredSuspendCol) ? 0.5 : 1;
           c.beginPath(); c.arc(p.x, p.y, rr, 0, Math.PI * 2); c.fillStyle = on ? "rgba(22,27,34,.95)" : "rgba(255,255,255,.88)"; c.fill(); c.strokeStyle = on ? "rgba(255,255,255,.7)" : "rgba(22,27,34,.8)"; c.lineWidth = 1.4; c.stroke();
+          c.restore();
         }
       }
       if (isRigEditMode() && sel && st.rigHover && st.rigHover.rectId === r.id && (st.rigHover.type === "suspend" || st.rigHover.type === "suspendLink")) {
@@ -6194,7 +6417,7 @@ self.onmessage=e=>{
       contentBoundsCache.key = key; contentBoundsCache.value = value;
       return value;
     };
-    function drawContentBounds(c, z) { const b = getContentBounds(); if (!b) return; const { minX, minY, w, h } = b; const darkTheme = (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark"; const stroke = darkTheme ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.55)", labelBg = darkTheme ? "rgba(15,19,24,.85)" : "rgba(255,255,255,.88)", labelFg = darkTheme ? "rgba(255,255,255,.92)" : "rgba(17,24,39,.95)"; c.save(); c.strokeStyle = stroke; c.lineWidth = 1.5 / z; c.setLineDash([]); c.strokeRect(minX, minY, w, h); if (st.fontReady) { const label = `${w} x ${h} px`; c.font = `${Math.max(10, 12 / z)}px ${fontFamilyCss(st.fontFamily)}`; const tw = c.measureText(label).width + 10; const th = Math.max(16, 16 / z); c.fillStyle = labelBg; c.fillRect(minX, minY - th - 4 / z, tw, th); c.fillStyle = labelFg; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(label, minX + 5, minY - th / 2 - 4 / z); } c.restore() }
+    function drawContentBounds(c, z) { const b = getContentBounds(); if (!b) return; const { minX, minY, w, h } = b; const darkTheme = (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark"; const stroke = darkTheme ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.55)", labelBg = darkTheme ? "rgba(15,19,24,.85)" : "rgba(255,255,255,.88)", labelFg = darkTheme ? "rgba(255,255,255,.92)" : "rgba(17,24,39,.95)"; c.save(); c.strokeStyle = stroke; c.lineWidth = 1.5 / z; c.setLineDash([]); c.strokeRect(minX, minY, w, h); if (st.fontReady) { const label = `${w} x ${h} px`; c.font = `${Math.max(10, 12 / z)}px ${fontFamilyCss(st.fontFamily)}`; const tw = c.measureText(label).width + 10; const th = Math.max(16, 16 / z); const y0 = minY + h + 4 / z; c.fillStyle = labelBg; c.fillRect(minX, y0, tw, th); c.fillStyle = labelFg; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(label, minX + 5, y0 + th / 2); } c.restore() }
     function drawGrid() {
       let step = 64, lt = s2w(0, 0), rb = s2w(cv.clientWidth, cv.clientHeight), maxLines = 220;
       while (((rb.x - lt.x) / step) > maxLines || ((rb.y - lt.y) / step) > maxLines) step *= 2;
@@ -6354,6 +6577,81 @@ self.onmessage=e=>{
       }
       st.g.x = sn.gx; st.g.y = sn.gy; st.dg = sn.dg;
     };
+    const handleRigPointerDown = p => {
+      const rc = cur();
+      if (rc && !isRectLocked(rc)) {
+        const hover0 = getRigHitAtPoint(rc, p.x, p.y, st.zoom);
+        if (hover0 && hover0.rectId === rc.id) {
+          const changed = applyRigActionAtPoint(rc, p.x, p.y);
+          if (changed) commitUiUpdate({ syncProps: true, persist: true, render: true });
+          else render();
+          return true;
+        }
+      }
+      const h = hit(p.x, p.y);
+      if (!h) {
+        st.rigHover = null;
+        render();
+        return true;
+      }
+      if (h.id !== st.sel) selRect(h.id);
+      if (isRectLocked(h)) {
+        st.rigHover = null;
+        render();
+        return true;
+      }
+      const changed = applyRigActionAtPoint(h, p.x, p.y);
+      if (changed) commitUiUpdate({ syncProps: true, persist: true, render: true });
+      else render();
+      return true;
+    };
+    const handleFlowEditPointerDown = p => {
+      const h = hit(p.x, p.y);
+      if (!h) {
+        selRect(null);
+        render();
+        return true;
+      }
+      if (h.id !== st.sel) {
+        selRect(h.id);
+        render();
+        return true;
+      }
+      if (isRectLocked(h)) {
+        render();
+        return true;
+      }
+      const startHandle = findFlowStartHandle(p.x, p.y);
+      if (startHandle) {
+        st.flowRegionRid = startHandle.rid;
+        st.flowDrag = { kind: "start", rid: startHandle.rid, fromIndex: 0, currentIndex: 0, cid: startHandle.cid };
+        syncProps();
+        render();
+        return true;
+      }
+      const dirBtn = findFlowDirectionButton(p.x, p.y);
+      if (dirBtn) {
+        st.flowRegionRid = dirBtn.rid;
+        const r = cur();
+        if (r) {
+          setFlowDirection(r, dirBtn.rid, dirBtn.dir, dirBtn.cid);
+          st.flowHover = null;
+          st.flowDirHover = dirBtn;
+          schedulePersist("project");
+          syncProps();
+        }
+        render();
+        return true;
+      }
+      const fp = findFlowEditPoint(p.x, p.y);
+      if (fp) {
+        st.flowRegionRid = fp.rid;
+        st.flowDrag = { rid: fp.rid, fromIndex: fp.index, currentIndex: fp.index, cid: fp.cid };
+        syncProps();
+      }
+      render();
+      return true;
+    };
     cv.addEventListener("contextmenu", e => e.preventDefault());
     cv.addEventListener("mousedown", e => {
       const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy), pan = e.button === 1 || e.button === 2 || (st.keys.space && e.button === 0); if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return } if (e.button !== 0) return;
@@ -6361,19 +6659,8 @@ self.onmessage=e=>{
       if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) selRect(h.id); if (isRectLocked(cur())) return; addMaskPoint(p.x, p.y); return }
       if (isCellEditMode()) { const h = hit(p.x, p.y); if (!h) { selRect(null); return } if (h.id !== st.sel) selRect(h.id); if (isRectLocked(h)) return; toggleCellLinkAtPoint(h, p.x, p.y); return }
       if (isClusterEditMode()) { if (beginClusterHandleDragAtPoint(p.x, p.y)) { render(); return } handleClusterEditAtPoint(p.x, p.y); return }
-      if (isRigEditMode()) { const rc = cur(); if (rc && !isRectLocked(rc)) { const hover0 = getRigHitAtPoint(rc, p.x, p.y, st.zoom); if (hover0 && hover0.rectId === rc.id) { const changed = applyRigActionAtPoint(rc, p.x, p.y); if (changed) { syncProps(); schedulePersist("project"); } render(); return } } const h = hit(p.x, p.y); if (!h) { st.rigHover = null; render(); return } if (h.id !== st.sel) selRect(h.id); if (isRectLocked(h)) { st.rigHover = null; render(); return } const changed = applyRigActionAtPoint(h, p.x, p.y); if (changed) { syncProps(); schedulePersist("project"); } render(); return }
-      if (st.mode === "flowEdit") {
-        const h = hit(p.x, p.y); if (!h) { selRect(null); render(); return }
-        if (h.id !== st.sel) { selRect(h.id); render(); return }
-        if (isRectLocked(h)) { render(); return }
-        const startHandle = findFlowStartHandle(p.x, p.y);
-        if (startHandle) { st.flowRegionRid = startHandle.rid; st.flowDrag = { kind: "start", rid: startHandle.rid, fromIndex: 0, currentIndex: 0, cid: startHandle.cid }; syncProps(); render(); return }
-        const dirBtn = findFlowDirectionButton(p.x, p.y);
-        if (dirBtn) { st.flowRegionRid = dirBtn.rid; const r = cur(); if (r) { setFlowDirection(r, dirBtn.rid, dirBtn.dir, dirBtn.cid); st.flowHover = null; st.flowDirHover = dirBtn; schedulePersist("project"); syncProps(); } render(); return }
-        const fp = findFlowEditPoint(p.x, p.y);
-        if (fp) { st.flowRegionRid = fp.rid; st.flowDrag = { rid: fp.rid, fromIndex: fp.index, currentIndex: fp.index, cid: fp.cid }; syncProps(); }
-        render(); return
-      }
+      if (isRigEditMode()) { if (handleRigPointerDown(p)) return; }
+      if (st.mode === "flowEdit") { if (handleFlowEditPointerDown(p)) return; }
       const h = hit(p.x, p.y); if (h) { if (e.shiftKey) { selRect(h.id, { toggle: true }); render(); return; } if (!isSelected(h.id)) selRect(h.id); beginRectDrag(h, p); } else { beginSelectionBox(p, !!e.shiftKey, false); } render()
     });
     window.addEventListener("mousemove", e => {
@@ -6420,7 +6707,7 @@ self.onmessage=e=>{
       let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
       st.drag = null; st.g.x = null; st.g.y = null; st.dg = null;
       if (created) { setMode("select"); selRect(created.id) }
-      if (hadDrag || created) { syncProps(); listRects(); schedulePersist("project") }
+      if (hadDrag || created) { refreshPanels(); schedulePersist("project") }
       render()
     });
     cv.addEventListener("wheel", e => { e.preventDefault(); const b = cv.getBoundingClientRect(); zoomAt(e.clientX - b.left, e.clientY - b.top, st.zoom * (e.deltaY < 0 ? 1.1 : .9)) }, { passive: false });
@@ -6447,8 +6734,8 @@ self.onmessage=e=>{
       if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) selRect(h.id); if (isRectLocked(cur())) { e.preventDefault(); return } addMaskPoint(p.x, p.y); e.preventDefault(); return }
       if (isCellEditMode()) { const h = hit(p.x, p.y); if (!h) { selRect(null); e.preventDefault(); return } if (h.id !== st.sel) selRect(h.id); if (isRectLocked(h)) { e.preventDefault(); return } toggleCellLinkAtPoint(h, p.x, p.y); e.preventDefault(); return }
       if (isClusterEditMode()) { if (beginClusterHandleDragAtPoint(p.x, p.y)) { render(); e.preventDefault(); return } handleClusterEditAtPoint(p.x, p.y); e.preventDefault(); return }
-      if (isRigEditMode()) { const rc = cur(); if (rc && !isRectLocked(rc)) { const hover0 = getRigHitAtPoint(rc, p.x, p.y, st.zoom); if (hover0 && hover0.rectId === rc.id) { const changed = applyRigActionAtPoint(rc, p.x, p.y); if (changed) { syncProps(); schedulePersist("project"); } render(); e.preventDefault(); return } } const h = hit(p.x, p.y); if (!h) { st.rigHover = null; render(); e.preventDefault(); return } if (h.id !== st.sel) selRect(h.id); if (isRectLocked(h)) { st.rigHover = null; render(); e.preventDefault(); return } const changed = applyRigActionAtPoint(h, p.x, p.y); if (changed) { syncProps(); schedulePersist("project"); } render(); e.preventDefault(); return }
-      if (st.mode === "flowEdit") { const h = hit(p.x, p.y); if (!h) { selRect(null); render(); e.preventDefault(); return } if (h.id !== st.sel) { selRect(h.id); render(); e.preventDefault(); return } if (isRectLocked(h)) { render(); e.preventDefault(); return } const startHandle = findFlowStartHandle(p.x, p.y); if (startHandle) { st.flowRegionRid = startHandle.rid; st.flowDrag = { kind: "start", rid: startHandle.rid, fromIndex: 0, currentIndex: 0, cid: startHandle.cid }; syncProps(); render(); e.preventDefault(); return } const dirBtn = findFlowDirectionButton(p.x, p.y); if (dirBtn) { st.flowRegionRid = dirBtn.rid; const r = cur(); if (r) { setFlowDirection(r, dirBtn.rid, dirBtn.dir, dirBtn.cid); st.flowHover = null; st.flowDirHover = dirBtn; schedulePersist("project"); syncProps(); } render(); e.preventDefault(); return } const fp = findFlowEditPoint(p.x, p.y); if (fp) { st.flowRegionRid = fp.rid; st.flowDrag = { rid: fp.rid, fromIndex: fp.index, currentIndex: fp.index, cid: fp.cid }; syncProps(); } render(); e.preventDefault(); return }
+      if (isRigEditMode()) { if (handleRigPointerDown(p)) { e.preventDefault(); return; } }
+      if (st.mode === "flowEdit") { if (handleFlowEditPointerDown(p)) { e.preventDefault(); return; } }
       const h = hit(p.x, p.y); if (h) { if (!isSelected(h.id)) selRect(h.id); beginRectDrag(h, p); } else { beginSelectionBox(p, false, true); } render(); e.preventDefault()
     }, { passive: false });
     cv.addEventListener("touchmove", e => {
@@ -6488,12 +6775,49 @@ self.onmessage=e=>{
         let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
         st.drag = null; st.g.x = null; st.g.y = null; st.dg = null;
         if (created) { setMode("select"); selRect(created.id) }
-        if (hadDrag || created) { syncProps(); listRects(); schedulePersist("project") }
+        if (hadDrag || created) { refreshPanels(); schedulePersist("project") }
         render(); e.preventDefault()
       }
     }, { passive: false });
-    function delSel() { normSelSet(); if (!st.selSet.size && st.sel == null) return; const ids = st.selSet.size ? new Set(st.selSet) : new Set([st.sel]); let removed = false; st.rects = st.rects.filter(r => { if (!ids.has(r.id)) return true; if (isRectLocked(r)) return true; removed = true; return false; }); if (!removed) return; setSelection([], null); st.maskPath = []; st.maskHover = null; st.clusterActiveId = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; syncProps(); listRects(); updateClusterEditCursor(); schedulePersist("project"); render() }
-    function newProject() { st.rects = []; setSelection([], null); st.next = 1; st.camX = 0; st.camY = 0; st.zoom = 1; st.projectName = "Новый проект"; st.saveLocationId = setGlobalSaveLocationId(getGlobalSaveLocationId() || genSaveLocationId(st.projectName)); st.viewMode = "art"; st.maskPath = []; st.maskHover = null; st.cellHover = null; st.flowHover = null; st.flowDirHover = null; st.flowRegionRid = null; st.flowDrag = null; st.clusterActiveId = null; st.clusterHandles = []; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.rigHover = null; st.drag = null; st.draft = null; st.g.x = null; st.g.y = null; st.dg = null; updateViewModeUi(); listRects(); syncProps(); setMode("select"); syncActiveTabSnapshot(); renderProjectTabs(); schedulePersist("all"); render() }
+    function delSel() {
+      normSelSet();
+      if (!st.selSet.size && st.sel == null) return;
+      const ids = st.selSet.size ? new Set(st.selSet) : new Set([st.sel]);
+      let removed = false;
+      st.rects = st.rects.filter(r => {
+        if (!ids.has(r.id)) return true;
+        if (isRectLocked(r)) return true;
+        removed = true;
+        return false;
+      });
+      if (!removed) return;
+      setSelection([], null);
+      resetTransientState(false);
+      refreshPanels();
+      updateClusterEditCursor();
+      commitUiUpdate({ persist: true, render: true });
+    }
+    const resetProjectCore = () => {
+      st.rects = [];
+      st.next = 1;
+      st.camX = 0;
+      st.camY = 0;
+      st.zoom = 1;
+      st.projectName = "Новый проект";
+      st.saveLocationId = setGlobalSaveLocationId(getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
+      st.viewMode = "art";
+      setSelection([], null);
+      resetTransientState(true);
+    };
+    function newProject() {
+      resetProjectCore();
+      updateViewModeUi();
+      refreshPanels();
+      setMode("select");
+      syncActiveTabSnapshot();
+      renderProjectTabs();
+      commitUiUpdate({ persist: true, persistKind: "all", render: true });
+    }
     const insertCloneAboveSource = (sourceId, clone) => {
       const idx = st.rects.findIndex(v => v.id === sourceId);
       if (idx >= 0) st.rects.splice(idx, 0, clone);
@@ -7034,10 +7358,43 @@ self.onmessage=e=>{
       const r = cur();
       return r && !isRectLocked(r) ? [r] : [];
     };
+    const applyToTargets = (visitor, opts = {}) => {
+      const ts = getActionTargets();
+      if (!ts.length) return 0;
+      for (const r of ts) visitor(r);
+      const o = opts && typeof opts === "object" ? opts : {};
+      if (o.syncProps) syncProps();
+      if (o.listRects) listRects();
+      if (o.persist) schedulePersist(o.persistKind || "project");
+      if (o.render) render();
+      return ts.length;
+    };
+    const bindCommitInput = (node, onCommit) => {
+      if (!node || !onCommit) return;
+      node.addEventListener("change", onCommit);
+      node.addEventListener("keydown", e => { if (e.key === "Enter") onCommit(e); });
+    };
     let colorBInputRaf = 0;
     const scheduleColorBInput = () => { if (colorBInputRaf) return; colorBInputRaf = requestAnimationFrame(() => { colorBInputRaf = 0; render(); }); };
-    el.b.addEventListener("input", () => { const ts = getActionTargets(); if (!ts.length) return; for (const r of ts) { r.autoContrastB = false; r.colorB = el.b.value || r.colorB; invalidateRectCache(r, "appearance"); } if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл"; scheduleColorBInput() });
-    el.b.addEventListener("change", () => { const ts = getActionTargets(); if (!ts.length) return; for (const r of ts) { r.autoContrastB = false; r.colorB = el.b.value || r.colorB; invalidateRectCache(r, "appearance"); } if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл"; listRects(); schedulePersist("project"); render(); });
+    el.b.addEventListener("input", () => {
+      const count = applyToTargets(r => {
+        r.autoContrastB = false;
+        r.colorB = el.b.value || r.colorB;
+        invalidateRectCache(r, "appearance");
+      });
+      if (!count) return;
+      if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл";
+      scheduleColorBInput();
+    });
+    el.b.addEventListener("change", () => {
+      const count = applyToTargets(r => {
+        r.autoContrastB = false;
+        r.colorB = el.b.value || r.colorB;
+        invalidateRectCache(r, "appearance");
+      }, { listRects: true, persist: true, render: true });
+      if (!count) return;
+      if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл";
+    });
     [el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => v.addEventListener("change", applyProps));
     let rectTextInputRaf = 0, rectTextFontTimer = 0;
     [el.rectTextSize].forEach(v => v.addEventListener("input", () => { const r = cur(); if (!r) return; r.textSize = Math.max(0, Math.min(128, Math.round(evalExpr(el.rectTextSize.value, r.textSize || 0)))); updateRectTextSizeLabel(r); if (!rectTextInputRaf) rectTextInputRaf = requestAnimationFrame(() => { rectTextInputRaf = 0; render(); }); if (rectTextFontTimer) clearTimeout(rectTextFontTimer); rectTextFontTimer = setTimeout(() => ensureFontReady().then(() => render()).catch(() => { }), 140); }));
@@ -7049,13 +7406,13 @@ self.onmessage=e=>{
     const stepSplitVariant = delta => { const r = cur(); if (!r || !el.splitVariant) return; const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1)))); const curV = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, r.splitVariant || 0)))); const nextV = Math.max(0, Math.min(maxSplit, curV + Math.max(-1, Math.min(1, Math.round(Number(delta) || 0))))); if (nextV === curV) return; el.splitVariant.value = String(nextV); el.splitVariant.dispatchEvent(new Event("input", { bubbles: true })); el.splitVariant.dispatchEvent(new Event("change", { bubbles: true })); };
     if (el.splitVariantDec) el.splitVariantDec.addEventListener("click", () => stepSplitVariant(-1));
     if (el.splitVariantInc) el.splitVariantInc.addEventListener("click", () => stepSplitVariant(1));
-    [el.x, el.y, el.rot, el.wm, el.hm, el.scale, el.cx, el.cy].forEach(v => { v.addEventListener("change", () => { applyProps(); syncProps() }); v.addEventListener("keydown", e => { if (e.key === "Enter") { applyProps(); syncProps() } }) });
+    [el.x, el.y, el.rot, el.wm, el.hm, el.scale, el.cx, el.cy].forEach(v => bindCommitInput(v, () => { applyProps(); syncProps(); }));
     const applyTextSettings = () => { st.textSize = Math.max(6, evalExpr(el.textSize.value, st.textSize || 12)); st.fontFamily = (el.font.value || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial"; st.fontReady = false; render(); ensureFontReady().then(() => render()).catch(() => { }) };
     let textSettingsRaf = 0, textSettingsFontTimer = 0;
     const applyTextSettingsInput = () => { st.textSize = Math.max(6, evalExpr(el.textSize.value, st.textSize || 12)); st.fontFamily = (el.font.value || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial"; st.fontReady = false; if (!textSettingsRaf) textSettingsRaf = requestAnimationFrame(() => { textSettingsRaf = 0; render(); }); if (textSettingsFontTimer) clearTimeout(textSettingsFontTimer); textSettingsFontTimer = setTimeout(() => ensureFontReady().then(() => render()).catch(() => { }), 140); };
     [el.textSize, el.font].forEach(v => v.addEventListener("input", applyTextSettingsInput));
     const applyAreaM2Settings = () => { const r = cur(); if (!r || isRectLocked(r)) return; r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536); invalidateRectCache(r, "regions"); schedulePersist("project"); render() };
-    if (el.areaM2) { el.areaM2.addEventListener("change", () => { applyAreaM2Settings(); syncProps() }); el.areaM2.addEventListener("keydown", e => { if (e.key === "Enter") { applyAreaM2Settings(); syncProps() } }) }
+    if (el.areaM2) bindCommitInput(el.areaM2, () => { applyAreaM2Settings(); syncProps(); });
     for (const btn of document.querySelectorAll("[data-area-m2-preset]")) {
       btn.addEventListener("click", () => {
         if (!el.areaM2) return;
@@ -7064,35 +7421,67 @@ self.onmessage=e=>{
         syncProps();
       });
     }
-    el.textSize.addEventListener("change", () => { applyTextSettings(); syncProps() });
-    el.textSize.addEventListener("keydown", e => { if (e.key === "Enter") { applyTextSettings(); syncProps() } });
-    el.font.addEventListener("change", () => { applyTextSettings(); syncProps() });
-    if (el.viewModeArt) el.viewModeArt.onclick = () => setViewMode("art", true);
-    if (el.viewModeInstall) el.viewModeInstall.onclick = () => setViewMode("install", true);
-    const mViewModeArt = $("mViewModeArt");
-    const mViewModeInstall = $("mViewModeInstall");
-    if (mViewModeArt) mViewModeArt.onclick = () => setViewMode("art", true);
-    if (mViewModeInstall) mViewModeInstall.onclick = () => setViewMode("install", true);
-    el.toolSelect.onclick = () => activateToolOrSelect("select"); el.toolDraw.onclick = () => activateToolOrSelect("draw"); if (el.toolMaskAdd) el.toolMaskAdd.onclick = () => activateToolOrSelect("maskEdit"); if (el.toolCellEdit) el.toolCellEdit.onclick = () => activateToolOrSelect("cellEdit"); if (el.toolFlowEdit) el.toolFlowEdit.onclick = () => activateToolOrSelect("flowEdit"); if (el.toolClusterEdit) el.toolClusterEdit.onclick = () => activateToolOrSelect("clusterEdit"); if (el.toolRigEdit) el.toolRigEdit.onclick = () => activateToolOrSelect("rigEdit"); if (el.newProject) el.newProject.onclick = newProject; el.btnCopy.onclick = dupSel; if (el.btnCopyMirror) el.btnCopyMirror.onclick = dupMirrorSel; el.btnDelete.onclick = delSel; if (el.btnAutoContrast) el.btnAutoContrast.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; const nextAuto = !(ts[0].autoContrastB !== false); for (const r of ts) { r.autoContrastB = nextAuto; if (r.autoContrastB) r.colorB = autoContrast(r.colorA); invalidateRectCache(r, "appearance"); } syncProps(); listRects(); schedulePersist("project"); render() }; el.randColor.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; const shared = randomColor(); for (const r of ts) { r.colorA = shared; if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA); invalidateRectCache(r, "appearance"); } syncProps(); listRects(); schedulePersist("project"); render() }; el.zoomIn.onclick = () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom * 1.2) }; el.zoomOut.onclick = () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom / 1.2) }; el.zoomReset.onclick = () => { st.zoom = 1; render() }; el.zoomFit.onclick = fit;
+    bindCommitInput(el.textSize, () => { applyTextSettings(); syncProps(); });
+    bindCommitInput(el.font, () => { applyTextSettings(); syncProps(); });
+    const bindClick = (btn, fn) => { if (btn) btn.onclick = fn; };
+    const bindClicks = entries => { for (const [btn, fn] of entries) bindClick(btn, fn); };
+    const bindProxyClick = (source, target) => bindClick(source, () => { if (target) target.click(); });
+    bindClicks([
+      [el.viewModeArt, () => setViewMode("art", true)],
+      [el.viewModeInstall, () => setViewMode("install", true)],
+      [el.mViewModeArt, () => setViewMode("art", true)],
+      [el.mViewModeInstall, () => setViewMode("install", true)],
+      [el.toolSelect, () => activateToolOrSelect("select")],
+      [el.toolDraw, () => activateToolOrSelect("draw")],
+      [el.toolMaskAdd, () => activateToolOrSelect("maskEdit")],
+      [el.toolCellEdit, () => activateToolOrSelect("cellEdit")],
+      [el.toolFlowEdit, () => activateToolOrSelect("flowEdit")],
+      [el.toolClusterEdit, () => activateToolOrSelect("clusterEdit")],
+      [el.toolRigEdit, () => activateToolOrSelect("rigEdit")],
+      [el.newProject, newProject],
+      [el.btnCopy, dupSel],
+      [el.btnCopyMirror, dupMirrorSel],
+      [el.btnDelete, delSel],
+      [el.zoomIn, () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom * 1.2) }],
+      [el.zoomOut, () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom / 1.2) }],
+      [el.zoomReset, () => { st.zoom = 1; render(); }],
+      [el.zoomFit, fit],
+      [el.btnAutoContrast, () => {
+        const ts = getActionTargets();
+        if (!ts.length) return;
+        const nextAuto = !(ts[0].autoContrastB !== false);
+        applyToTargets(r => {
+          r.autoContrastB = nextAuto;
+          if (r.autoContrastB) r.colorB = autoContrast(r.colorA);
+          invalidateRectCache(r, "appearance");
+        }, { syncProps: true, listRects: true, persist: true, render: true });
+      }],
+      [el.randColor, () => {
+        const ts = getActionTargets();
+        if (!ts.length) return;
+        const shared = randomColor();
+        applyToTargets(r => {
+          r.colorA = shared;
+          if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA);
+          invalidateRectCache(r, "appearance");
+        }, { syncProps: true, listRects: true, persist: true, render: true });
+      }]
+    ]);
     const applyCabinetSizeQuickAction = mode => {
       const ts = getActionTargets();
       if (!ts.length) return;
-      const xIn = Math.max(1, Math.round(evalExpr(el.cx && el.cx.value, ts[0].cellX || 128)));
-      const yIn = Math.max(1, Math.round(evalExpr(el.cy && el.cy.value, ts[0].cellY || 128)));
+      const xIn = toPositiveInt(evalExpr(el.cx && el.cx.value, ts[0].cellX || 128), ts[0].cellX || 128);
+      const yIn = toPositiveInt(evalExpr(el.cy && el.cy.value, ts[0].cellY || 128), ts[0].cellY || 128);
       let nextX = xIn, nextY = yIn;
-      if (mode === "y2x") nextX = Math.max(1, yIn * 2);
+      if (mode === "y2x") nextX = toPositiveInt(yIn * 2, yIn);
       else if (mode === "xeqy") nextY = xIn;
-      else if (mode === "x2y") nextY = Math.max(1, xIn * 2);
-      for (const r of ts) {
+      else if (mode === "x2y") nextY = toPositiveInt(xIn * 2, xIn);
+      applyToTargets(r => {
         const prevX = r.cellX, prevY = r.cellY;
         r.cellX = nextX;
         r.cellY = nextY;
         if (prevX !== r.cellX || prevY !== r.cellY) invalidateRectCache(r, "topology");
-      }
-      syncProps();
-      listRects();
-      schedulePersist("project");
-      render();
+      }, { syncProps: true, listRects: true, persist: true, render: true });
     };
     if (el.cabSizeY2ToX) el.cabSizeY2ToX.onclick = () => applyCabinetSizeQuickAction("y2x");
     if (el.cabSizeXEqY) el.cabSizeXEqY.onclick = () => applyCabinetSizeQuickAction("xeqy");
@@ -7122,43 +7511,25 @@ self.onmessage=e=>{
     const updateMobileDock = () => {
       if (!el.mobileDock) return;
       const show = isMobile() || isCoarsePointer();
-      if (!show) {
-        el.mobileDock.style.display = "none";
-        return;
-      }
-      const portrait = window.innerHeight >= window.innerWidth;
-      el.mobileDock.style.display = "flex";
-      el.mobileDock.style.position = "fixed";
-      el.mobileDock.style.zIndex = "1070";
-      el.mobileDock.style.left = portrait ? "10px" : "50%";
-      el.mobileDock.style.top = portrait ? "50%" : "auto";
-      el.mobileDock.style.bottom = portrait ? "auto" : "10px";
-      el.mobileDock.style.transform = portrait ? "translateY(-50%)" : "translateX(-50%)";
-      el.mobileDock.style.flexDirection = portrait ? "column" : "row";
-      el.mobileDock.style.maxHeight = portrait ? "calc(100vh - 24px)" : "";
-      el.mobileDock.style.maxWidth = portrait ? "" : "calc(100vw - 20px)";
-      el.mobileDock.style.overflowY = portrait ? "auto" : "hidden";
-      el.mobileDock.style.overflowX = portrait ? "hidden" : "auto";
+      el.mobileDock.classList.toggle("force-visible", show);
+      el.mobileDock.classList.toggle("force-hidden", !show);
     };
-    let helpModalInstance = null;
-    let messageModalInstance = null;
-    let projectLinkModalInstance = null;
+    const modalCache = { help: null, message: null, projectLink: null };
+    const getOrCreateBootstrapModal = (node, cacheKey) => {
+      if (!node || !window.bootstrap || !window.bootstrap.Modal) return null;
+      if (!modalCache[cacheKey]) modalCache[cacheKey] = window.bootstrap.Modal.getOrCreateInstance(node, { backdrop: true, keyboard: true, focus: true });
+      return modalCache[cacheKey];
+    };
     const getHelpModal = () => {
-      if (!el.helpModal || !window.bootstrap || !window.bootstrap.Modal) return null;
-      if (!helpModalInstance) helpModalInstance = window.bootstrap.Modal.getOrCreateInstance(el.helpModal, { backdrop: true, keyboard: true, focus: true });
-      return helpModalInstance;
+      return getOrCreateBootstrapModal(el.helpModal, "help");
     };
     const getMessageModal = () => {
       const node = $("messageModal");
-      if (!node || !window.bootstrap || !window.bootstrap.Modal) return null;
-      if (!messageModalInstance) messageModalInstance = window.bootstrap.Modal.getOrCreateInstance(node, { backdrop: true, keyboard: true, focus: true });
-      return messageModalInstance;
+      return getOrCreateBootstrapModal(node, "message");
     };
     const getProjectLinkModal = () => {
       const node = el.projectLinkModal || $("projectLinkModal");
-      if (!node || !window.bootstrap || !window.bootstrap.Modal) return null;
-      if (!projectLinkModalInstance) projectLinkModalInstance = window.bootstrap.Modal.getOrCreateInstance(node, { backdrop: true, keyboard: true, focus: true });
-      return projectLinkModalInstance;
+      return getOrCreateBootstrapModal(node, "projectLink");
     };
     const buildQrDataUrl = value => {
       const text = String(value || "");
@@ -7201,6 +7572,8 @@ self.onmessage=e=>{
       }
       console.warn(`[modal-fallback] ${title}: ${msg}`);
     };
+    const formatErrorMessage = err => (err && err.message ? err.message : String(err));
+    const showErrorModal = (title, err, prefix = "Ошибка") => showMessageModal(`${prefix}: ${formatErrorMessage(err)}`, title);
     const openHelpModal = () => {
       const modal = getHelpModal();
       if (modal) { modal.show(); return }
@@ -7216,21 +7589,54 @@ self.onmessage=e=>{
     if (el.helpOpen) el.helpOpen.onclick = openHelpModal;
     if (el.helpClose) el.helpClose.onclick = closeHelpModal;
     if (el.helpModal) el.helpModal.addEventListener("hidden.bs.modal", () => { try { localStorage.setItem(HELP_SEEN_KEY, "1") } catch (_e) { } });
-    el.mToolSelect.onclick = () => el.toolSelect.click();
-    el.mToolDraw.onclick = () => el.toolDraw.click();
-    if (el.mToolMaskAdd) el.mToolMaskAdd.onclick = () => el.toolMaskAdd.click();
-    if (el.mToolCellEdit) el.mToolCellEdit.onclick = () => el.toolCellEdit.click();
-    if (el.mToolFlowEdit) el.mToolFlowEdit.onclick = () => el.toolFlowEdit.click();
-    if (el.mToolClusterEdit) el.mToolClusterEdit.onclick = () => el.toolClusterEdit.click();
-    if (el.mToolRigEdit) el.mToolRigEdit.onclick = () => el.toolRigEdit.click();
-    el.mCopy.onclick = () => el.btnCopy.click();
-    if (el.mCopyMirror) el.mCopyMirror.onclick = () => el.btnCopyMirror.click();
-    el.mDelete.onclick = () => el.btnDelete.click();
-    //el.mZoomOut.onclick = () => el.zoomOut.click();
-    //el.mZoomIn.onclick = () => el.zoomIn.click();
-    if (el.btnClearMasks) el.btnClearMasks.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; for (const r of ts) { r.hiddenCells = []; hiddenCache.set(r, { src: r.hiddenCells, set: new Set() }); invalidateRectCache(r, "topology"); } st.maskPath = []; st.maskHover = null; schedulePersist("project"); render() };
-    if (el.btnResetFlowLocks) el.btnResetFlowLocks.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; for (const r of ts) { r.flowLocks = {}; const cache = getRectCalcCache(r); if (cache) cache.flow = null; } st.flowHover = null; st.flowDirHover = null; st.flowDrag = null; schedulePersist("project"); render() };
-    if (el.btnResetManualClusters) el.btnResetManualClusters.onclick = () => { const ts = getActionTargets(); if (!ts.length) return; for (const r of ts) { r.manualClusters = []; r.splitVariant = 0; clearRectRegionsAndFlow(r); } st.clusterActiveId = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; syncProps(); schedulePersist("project"); render() };
+    bindProxyClick(el.mToolSelect, el.toolSelect);
+    bindProxyClick(el.mToolDraw, el.toolDraw);
+    bindProxyClick(el.mToolMaskAdd, el.toolMaskAdd);
+    bindProxyClick(el.mToolCellEdit, el.toolCellEdit);
+    bindProxyClick(el.mToolFlowEdit, el.toolFlowEdit);
+    bindProxyClick(el.mToolClusterEdit, el.toolClusterEdit);
+    bindProxyClick(el.mToolRigEdit, el.toolRigEdit);
+    bindProxyClick(el.mCopy, el.btnCopy);
+    bindProxyClick(el.mCopyMirror, el.btnCopyMirror);
+    bindProxyClick(el.mDelete, el.btnDelete);
+    if (el.btnClearMasks) el.btnClearMasks.onclick = () => {
+      const count = applyToTargets(r => {
+        r.hiddenCells = [];
+        hiddenCache.set(r, { src: r.hiddenCells, set: new Set() });
+        invalidateRectCache(r, "topology");
+      }, { persist: true, render: false });
+      if (!count) return;
+      st.maskPath = [];
+      st.maskHover = null;
+      render();
+    };
+    if (el.btnResetFlowLocks) el.btnResetFlowLocks.onclick = () => {
+      const count = applyToTargets(r => {
+        r.flowLocks = {};
+        const cache = getRectCalcCache(r);
+        if (cache) cache.flow = null;
+      }, { persist: true, render: false });
+      if (!count) return;
+      st.flowHover = null;
+      st.flowDirHover = null;
+      st.flowDrag = null;
+      render();
+    };
+    if (el.btnResetManualClusters) el.btnResetManualClusters.onclick = () => {
+      const count = applyToTargets(r => {
+        r.manualClusters = [];
+        r.splitVariant = 0;
+        clearRectRegionsAndFlow(r);
+      }, { syncProps: true, persist: true, render: false });
+      if (!count) return;
+      st.clusterActiveId = null;
+      st.clusterHandleHover = null;
+      st.clusterCellHover = null;
+      st.clusterStartHover = null;
+      st.clusterBorderHover = null;
+      st.clusterDrag = null;
+      render();
+    };
     const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
     const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent || "");
     const hideInstallBanner = () => { if (el.installBanner) el.installBanner.classList.remove("show") };
@@ -7305,7 +7711,7 @@ self.onmessage=e=>{
           await tauriInvoke("save_file_dialog", { suggestedName, dataBase64 });
           return;
         } catch (err) {
-          showMessageModal(`Ошибка нативного сохранения (Tauri): ${err && err.message ? err.message : String(err)}`, "Ошибка сохранения");
+          showErrorModal("Ошибка сохранения", err, "Ошибка нативного сохранения (Tauri)");
           return;
         }
       }
@@ -7508,20 +7914,20 @@ self.onmessage=e=>{
         }
         try {
           const d = JSON.parse(text);
-          applyProjectData(d);
+          loadProjectIntoActiveState(d);
           schedulePersist("all");
         } catch (err) {
-          showMessageModal(`Ошибка данных проекта в PNG: ${err.message}`, "Ошибка импорта");
+          showErrorModal("Ошибка импорта", err, "Ошибка данных проекта в PNG");
         }
         return;
       }
       const text = await f.text();
       try {
         const d = JSON.parse(String(text || "{}"));
-        applyProjectData(d);
+        loadProjectIntoActiveState(d);
         schedulePersist("all");
       } catch (err) {
-        showMessageModal(`Ошибка JSON: ${err.message}`, "Ошибка импорта");
+        showErrorModal("Ошибка импорта", err, "Ошибка JSON");
       }
     };
     el.save.onclick = async () => { const text = JSON.stringify(buildProject(), null, 2); const blob = new Blob([text], { type: "application/json" }); await saveBlobWithSystemDialog(blob, `${projectFileBase()}.json`, "application/json", ".json", "JSON files", st.saveLocationId) };
@@ -7543,7 +7949,7 @@ self.onmessage=e=>{
         setProjectLinkCopyButtonState("Скопировать ссылку", false);
         showProjectLinkModal(link);
       } catch (err) {
-        showMessageModal(`Не удалось сформировать ссылку проекта: ${err && err.message ? err.message : String(err)}`, "Ссылка проекта");
+        showErrorModal("Ссылка проекта", err, "Не удалось сформировать ссылку проекта");
       }
     };
     if (el.projectLinkCopyBtn) el.projectLinkCopyBtn.addEventListener("click", async () => {
@@ -7570,7 +7976,7 @@ self.onmessage=e=>{
       try {
         await loadProjectFromFile(f);
       } catch (err) {
-        showMessageModal(`Ошибка загрузки файла: ${err && err.message ? err.message : String(err)}`, "Ошибка загрузки");
+        showErrorModal("Ошибка загрузки", err, "Ошибка загрузки файла");
       } finally {
         el.file.value = "";
       }
@@ -7758,7 +8164,7 @@ self.onmessage=e=>{
         `- Кабинеты: ${cabinetList.length ? cabinetList.join("; ") : "—"}`,
         `- Коммутация: ${cableList.length ? cableList.join("; ") : "0м – 0 шт."}`,
         `- Подвесы: ${supportList.length ? supportList.join("; ") : "—"}`,
-        `- Рамы: ${frameCount > 0 ? `${frameCount} м` : "—"}`,
+        `- Рамы: ${frameCount > 0 ? `${frameCount} шт.` : "—"}`,
         `- Грузы: ${bottomLoadList.length ? bottomLoadList.join("; ") : "—"}`,
         `- Скоба монтажная для рамы: ${frameBracketCount} шт.`,
         `- Болт для крепления скобы: ${frameBracketCount * 4} шт.`
@@ -7817,7 +8223,7 @@ self.onmessage=e=>{
             `- Кабинеты: ${cab.length ? cab.join("; ") : "—"}`,
             `- Коммутация: ${cbl.length ? cbl.join("; ") : "0м – 0 шт."}`,
             `- Подвесы: ${sup.length ? sup.join("; ") : "—"}`,
-            `- Рамы: ${rec.frameCount > 0 ? `${rec.frameCount} м` : "—"}`,
+            `- Рамы: ${rec.frameCount > 0 ? `${rec.frameCount} шт.` : "—"}`,
             `- Грузы: ${btm.length ? btm.join("; ") : "—"}`,
             `- Скоба такелажная: ${supportCount * 2} шт.`,
             `- Стропа: ${supportCount * 2} шт.`,
@@ -7938,7 +8344,7 @@ self.onmessage=e=>{
       if (e.ctrlKey && e.key.toLowerCase() === "d") { dupSel(); e.preventDefault() }
       if (e.ctrlKey && e.key.toLowerCase() === "c") { const r = cur(); if (r) st.clip = { ...r, autoContrastB: r.autoContrastB !== false, rotation: r.rotation || 0, cellLinks: Array.isArray(r.cellLinks) ? [...r.cellLinks] : [], hiddenCells: Array.isArray(r.hiddenCells) ? [...r.hiddenCells] : [], manualClusters: normalizeManualClusters(r && r.manualClusters), rig: normalizeRigData(r && r.rig) }; e.preventDefault() }
       if (e.ctrlKey && e.key.toLowerCase() === "v") { if (st.clip) { const c = { ...st.clip, id: st.next++, name: `${st.clip.name} copy`, x: st.clip.x + 20, y: st.clip.y + 20, rotation: st.clip.rotation || 0, autoContrastB: st.clip.autoContrastB !== false, colorB: (st.clip.autoContrastB !== false) ? autoContrast(st.clip.colorA) : st.clip.colorB, cellLinks: Array.isArray(st.clip.cellLinks) ? [...st.clip.cellLinks] : [], hiddenCells: Array.isArray(st.clip.hiddenCells) ? [...st.clip.hiddenCells] : [], manualClusters: normalizeManualClusters(st.clip && st.clip.manualClusters), rig: normalizeRigData(st.clip && st.clip.rig) }; insertCloneAboveSource(st.clip.id, c); selRect(c.id); setMode("select"); schedulePersist("project") } e.preventDefault() }
-      const selected = getEditableSelectedRects(); if (selected.length) { const s = e.shiftKey ? 10 : 1; let dx = 0, dy = 0; if (e.key === "ArrowLeft") dx = -s; else if (e.key === "ArrowRight") dx = s; else if (e.key === "ArrowUp") dy = -s; else if (e.key === "ArrowDown") dy = s; if (dx || dy) { for (const it of selected) { it.x += dx; it.y += dy; } syncProps(); listRects(); schedulePersist("project"); render(); e.preventDefault(); } }
+      const selected = getEditableSelectedRects(); if (selected.length) { const s = e.shiftKey ? 10 : 1; let dx = 0, dy = 0; if (e.key === "ArrowLeft") dx = -s; else if (e.key === "ArrowRight") dx = s; else if (e.key === "ArrowUp") dy = -s; else if (e.key === "ArrowDown") dy = s; if (dx || dy) { for (const it of selected) { it.x += dx; it.y += dy; } commitUiUpdate({ syncProps: true, listRects: true, persist: true, render: true }); e.preventDefault(); } }
     });
     window.addEventListener("keyup", e => { if (e.key === " ") st.keys.space = false; if (e.key === "Control") { st.keys.ctrl = false; st.g.x = null; st.g.y = null; st.dg = null; render() } });
     setMode(st.mode);
@@ -7961,9 +8367,9 @@ self.onmessage=e=>{
       if (!loaded) {
         const a = mk(-180, -90, 260, 180); a.name = "Main";
         const b = mk(180, -30, 220, 160); b.name = "Side"; b.colorA = "#db8f37"; b.colorB = autoContrast(b.colorA);
-        st.rects.push(a, b); selRect(a.id); resize(); listRects(); syncProps(); fit();
+        st.rects.push(a, b); selRect(a.id); resize(); refreshPanels(); fit();
       } else {
-        resize(); listRects(); syncProps();
+        resize(); refreshPanels();
       }
       if (!st.tabs.length) {
         st.tabs = [{ id: 1, title: (st.projectName || "Новый проект"), data: cloneProjectData(buildProject()) }];
@@ -7976,7 +8382,7 @@ self.onmessage=e=>{
         st.nextTabId = nextTabId + 1;
         st.tabs.push({ id: nextTabId, title: tabTitle, data: cloneProjectData(queryProjectData) });
         st.activeTabId = nextTabId;
-        applyProjectData(queryProjectData, { syncTabSnapshot: false, renderTabs: false });
+        loadProjectIntoActiveState(queryProjectData);
         renderProjectTabs();
         clearProjectQueryParamFromUrl();
       }
