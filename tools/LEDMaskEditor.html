@@ -5072,6 +5072,15 @@ self.onmessage=e=>{
       if (!data || typeof data !== "object") return null;
       return data;
     };
+    const clearProjectQueryParamFromUrl = () => {
+      try {
+        const u = new URL(location.href);
+        if (!u.searchParams.has(PROJECT_QUERY_PARAM)) return;
+        u.searchParams.delete(PROJECT_QUERY_PARAM);
+        const nextUrl = `${u.pathname}${u.search}${u.hash}`;
+        history.replaceState(history.state, "", nextUrl);
+      } catch (_e) { }
+    };
     const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, viewMode: normalizeViewMode(st.viewMode), snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, rectangles: st.rects.map(serializeRectForProject) });
     const cloneProjectData = data => { try { return JSON.parse(JSON.stringify(data)) } catch (_e) { return buildProject() } };
     const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, viewMode: "art", snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, rectangles: [] });
@@ -7969,6 +7978,7 @@ self.onmessage=e=>{
         st.activeTabId = nextTabId;
         applyProjectData(queryProjectData, { syncTabSnapshot: false, renderTabs: false });
         renderProjectTabs();
+        clearProjectQueryParamFromUrl();
       }
       initHistoryCurrent();
       if (el.undo) el.undo.disabled = !st.history.undo.length;
