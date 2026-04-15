@@ -982,7 +982,7 @@
         </button>
         <button id="saveProjectLink" class="icon-btn" title="Сохранить проект в ссылку"
           aria-label="Сохранить проект в ссылку">
-          <i class="fa-solid fa-link"></i>
+          <i class="fa-solid fa-share-from-square"></i>
         </button>
         <button id="loadProject" class="icon-btn" title="Загрузить JSON" aria-label="Загрузить JSON">
           <i class="fa-solid fa-folder-open"></i>
@@ -1307,10 +1307,10 @@
       if (dock.parentElement !== host) host.appendChild(dock);
     };
     ensureMobileDock();
-    const el = { projectTabs: $("projectTabs"), projectTabsList: $("projectTabsList"), projectTabAdd: $("projectTabAdd"), toolbar: $("toolbarMain"), overflowGroup: $("overflowGroup"), overflowToggle: $("toolbarOverflowToggle"), overflowPopup: $("toolbarOverflowPopup"), project: $("projectName"), saveIndicator: $("saveIndicator"), themeToggle: $("themeToggle"), themeIcon: $("themeIcon"), themePopup: $("themePopup"), helpOpen: $("helpOpen"), viewModeArt: $("viewModeArt"), viewModeInstall: $("viewModeInstall"), mobileMenu: $("mobileMenu"), installApp: $("installApp"), installBanner: $("installBanner"), installBannerText: $("installBannerText"), installBannerAction: $("installBannerAction"), installBannerClose: $("installBannerClose"), helpModal: $("helpModal"), helpClose: $("helpClose"), side: $("sidePanel"), sideClose: $("sideClose"), multiEditBadge: $("multiEditBadge"), mobileDock: document.querySelector(".mobile-dock"), mToolSelect: $("mToolSelect"), mToolDraw: $("mToolDraw"), mToolMaskAdd: $("mToolMaskAdd"), mToolCellEdit: $("mToolCellEdit"), mToolFlowEdit: $("mToolFlowEdit"), mToolClusterEdit: $("mToolClusterEdit"), mToolRigEdit: $("mToolRigEdit"), mToolRegions: $("mToolRegions"), mCopy: $("mCopy"), mCopyMirror: $("mCopyMirror"), mDelete: $("mDelete"), mZoomOut: $("mZoomOut"), mZoomIn: $("mZoomIn"), toolSelect: $("toolSelect"), toolDraw: $("toolDraw"), toolMaskAdd: $("toolMaskAdd"), toolCellEdit: $("toolCellEdit"), toolFlowEdit: $("toolFlowEdit"), toolClusterEdit: $("toolClusterEdit"), toolRigEdit: $("toolRigEdit"), toolRegions: $("toolRegions"), btnCopy: $("btnCopy"), btnCopyMirror: $("btnCopyMirror"), btnDelete: $("btnDelete"), zoomIn: $("zoomIn"), zoomOut: $("zoomOut"), zoomReset: $("zoomReset"), zoomFit: $("zoomFit"), zoomLabel: $("zoomLabel"), undo: $("undoAction"), redo: $("redoAction"), newProject: $("newProject"), save: $("saveProject"), saveLink: $("saveProjectLink"), load: $("loadProject"), exp: $("exportPng"), expFlow: $("exportPngFlow"), file: $("fileInput"), textSize: $("globalTextSize"), font: $("globalFont"), snapGrid: $("snapGrid"), snapObjects: $("snapObjects"), snapCenters: $("snapCenters"), snapGaps: $("snapGaps"), name: $("propName"), rectTextSize: $("propTextSize"), rectTextSizeLabel: $("propTextSizeLabel"), x: $("propX"), y: $("propY"), rot: $("propRot"), wm: $("propWm"), hm: $("propHm"), scale: $("propScale"), areaM2: $("propAreaM2"), a: $("propColorA"), b: $("propColorB"), btnAutoContrast: $("btnAutoContrast"), randColor: $("btnRandomColor"), cx: $("propCellX"), cy: $("propCellY"), dataFlow: $("propDataFlow"), dataFlowZ: $("propDataFlowZ"), numCells: $("propNumberCells"), splitVariantField: $("splitVariantField"), splitVariantControl: $("splitVariantControl"), splitVariantManualBadge: $("splitVariantManualBadge"), splitVariant: $("propSplitVariant"), splitVariantDec: $("propSplitVariantDec"), splitVariantInc: $("propSplitVariantInc"), splitVariantLabel: $("propSplitVariantLabel"), btnClearMasks: $("btnClearMasks"), btnResetFlowLocks: $("btnResetFlowLocks"), btnResetManualClusters: $("btnResetManualClusters"), list: $("rectList") };
+    const el = { projectTabs: $("projectTabs"), projectTabsList: $("projectTabsList"), projectTabAdd: $("projectTabAdd"), toolbar: $("toolbarMain"), overflowGroup: $("overflowGroup"), overflowToggle: $("toolbarOverflowToggle"), overflowPopup: $("toolbarOverflowPopup"), project: $("projectName"), saveIndicator: $("saveIndicator"), themeToggle: $("themeToggle"), themeIcon: $("themeIcon"), themePopup: $("themePopup"), helpOpen: $("helpOpen"), viewModeArt: $("viewModeArt"), viewModeInstall: $("viewModeInstall"), mobileMenu: $("mobileMenu"), installApp: $("installApp"), installBanner: $("installBanner"), installBannerText: $("installBannerText"), installBannerAction: $("installBannerAction"), installBannerClose: $("installBannerClose"), helpModal: $("helpModal"), helpClose: $("helpClose"), side: $("sidePanel"), sideClose: $("sideClose"), multiEditBadge: $("multiEditBadge"), mobileDock: document.querySelector(".mobile-dock"), mToolSelect: $("mToolSelect"), mToolDraw: $("mToolDraw"), mToolMaskAdd: $("mToolMaskAdd"), mToolCellEdit: $("mToolCellEdit"), mToolFlowEdit: $("mToolFlowEdit"), mToolClusterEdit: $("mToolClusterEdit"), mToolRigEdit: $("mToolRigEdit"), mCopy: $("mCopy"), mCopyMirror: $("mCopyMirror"), mDelete: $("mDelete"), mZoomOut: $("mZoomOut"), mZoomIn: $("mZoomIn"), toolSelect: $("toolSelect"), toolDraw: $("toolDraw"), toolMaskAdd: $("toolMaskAdd"), toolCellEdit: $("toolCellEdit"), toolFlowEdit: $("toolFlowEdit"), toolClusterEdit: $("toolClusterEdit"), toolRigEdit: $("toolRigEdit"), btnCopy: $("btnCopy"), btnCopyMirror: $("btnCopyMirror"), btnDelete: $("btnDelete"), zoomIn: $("zoomIn"), zoomOut: $("zoomOut"), zoomReset: $("zoomReset"), zoomFit: $("zoomFit"), zoomLabel: $("zoomLabel"), undo: $("undoAction"), redo: $("redoAction"), newProject: $("newProject"), save: $("saveProject"), saveLink: $("saveProjectLink"), load: $("loadProject"), exp: $("exportPng"), file: $("fileInput"), textSize: $("globalTextSize"), font: $("globalFont"), snapGrid: $("snapGrid"), snapObjects: $("snapObjects"), snapCenters: $("snapCenters"), snapGaps: $("snapGaps"), name: $("propName"), rectTextSize: $("propTextSize"), rectTextSizeLabel: $("propTextSizeLabel"), x: $("propX"), y: $("propY"), rot: $("propRot"), wm: $("propWm"), hm: $("propHm"), scale: $("propScale"), areaM2: $("propAreaM2"), a: $("propColorA"), b: $("propColorB"), btnAutoContrast: $("btnAutoContrast"), randColor: $("btnRandomColor"), cx: $("propCellX"), cy: $("propCellY"), dataFlow: $("propDataFlow"), dataFlowZ: $("propDataFlowZ"), numCells: $("propNumberCells"), splitVariantField: $("splitVariantField"), splitVariantControl: $("splitVariantControl"), splitVariantManualBadge: $("splitVariantManualBadge"), splitVariant: $("propSplitVariant"), splitVariantDec: $("propSplitVariantDec"), splitVariantInc: $("propSplitVariantInc"), splitVariantLabel: $("propSplitVariantLabel"), btnClearMasks: $("btnClearMasks"), btnResetFlowLocks: $("btnResetFlowLocks"), btnResetManualClusters: $("btnResetManualClusters"), list: $("rectList") };
     const desktopToolButtons = [el.toolSelect, el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean);
     const mobileToolButtons = [el.mToolSelect, el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean);
-    const overflowButtonIds = ["toolSelect", "toolDraw", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "expFlow", "themeToggle"];
+    const overflowButtonIds = ["toolSelect", "toolDraw", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "themeToggle"];
     const overflowButtons = overflowButtonIds.map(id => el[id]).filter(Boolean);
     const overflowGroups = [...new Set(overflowButtons.map(b => b.closest(".group")).filter(Boolean))];
     let overflowHiddenButtons = [];
@@ -1455,7 +1455,7 @@
       }
       overflowHiddenButtons = hidden;
     };
-    const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", regionsHighlight: false, camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", maskPath: [], maskHover: null, cellHover: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
+    const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", maskPath: [], maskHover: null, cellHover: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
     const FLOW_DRAW_BATCH_THRESHOLD = 280;
     const FLOW_DRAW_BATCH_STEP = 360;
     const FLOW_POINT_INDEX_CELL = 48;
@@ -4993,9 +4993,9 @@ self.onmessage=e=>{
       if (!data || typeof data !== "object") return null;
       return data;
     };
-    const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, viewMode: normalizeViewMode(st.viewMode), regionsHighlight: !!st.regionsHighlight, snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, rectangles: st.rects.map(serializeRectForProject) });
+    const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, viewMode: normalizeViewMode(st.viewMode), snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, rectangles: st.rects.map(serializeRectForProject) });
     const cloneProjectData = data => { try { return JSON.parse(JSON.stringify(data)) } catch (_e) { return buildProject() } };
-    const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, viewMode: "art", regionsHighlight: false, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, rectangles: [] });
+    const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, viewMode: "art", snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, rectangles: [] });
     const getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
     let tabSwitchTimer = 0;
     const runTabSwitchTransition = task => {
@@ -5175,7 +5175,7 @@ self.onmessage=e=>{
       try { await document.fonts.ready; } catch (_e) { }
       st.fontReady = true;
     };
-    function applyProjectData(d, opts) { resetCalcWorkers(); const o = (opts && typeof opts === "object") ? opts : {}, syncTabSnapshot = o.syncTabSnapshot !== false, renderTabs = o.renderTabs !== false, doRender = o.render !== false; const rs = Array.isArray(d && d.rectangles) ? d.rectangles : []; const legacyAreaM2 = parseAreaM2PxInput(d && d.settings ? d.settings.areaM2Px : null, 65536); st.rects = rs.map((r, i) => { const colorA = String(r.colorA || "#2fcaaf"), autoB = (r.autoContrastB !== false), manualB = String(r.colorB || autoContrast(colorA)); const rawFlow = String(r && r.dataFlow || "none"); const it = { id: +r.id || i + 1, name: String(r.name || `Rect ${i + 1}`), x: Math.round(+r.x || 0), y: Math.round(+r.y || 0), rotation: evalExpr(r.rotation, 0), width: Math.max(1, Math.round(+r.width || 1)), height: Math.max(1, Math.round(+r.height || 1)), scale: Math.max(1, Math.round(+r.scale || 256)), widthM: Math.max(0.001, +r.widthM || 0), heightM: Math.max(0.001, +r.heightM || 0), areaM2Px: parseAreaM2PxInput(r.areaM2Px, legacyAreaM2), textSize: Math.max(0, Math.min(128, Math.round(evalExpr(r.textSize, 0)))), colorA, autoContrastB: autoB, colorB: autoB ? autoContrast(colorA) : manualB, cellX: Math.max(1, Math.round(+r.cellX || 128)), cellY: Math.max(1, Math.round(+r.cellY || 128)), dataFlow: normalizeDataFlow(rawFlow), dataFlowZ: normalizeDataFlowZ(rawFlow, r && r.dataFlowZ), numberCells: !!r.numberCells, splitVariant: Math.max(0, Math.min(Math.max(0, SPLIT_VARIANT_MAX - 1), Math.round(evalExpr(r.splitVariant, 0)))), cellLinks: Array.isArray(r.cellLinks) ? r.cellLinks.map(String) : [], hiddenCells: normalizeHiddenCells(r.hiddenCells), flowLocks: normalizeFlowLocks(r.flowLocks), manualClusters: normalizeManualClusters(r && r.manualClusters), rig: normalizeRigData(r && r.rig), locked: !!(r && r.locked) }; if (!(+r.widthM > 0 && +r.heightM > 0)) metricFromPx(it); else pxFromMetric(it); restorePersistedRectCache(it, r && r.projectCache); return it }); st.next = +(d && d.nextId) || (st.rects.reduce((m, r) => Math.max(m, r.id), 0) + 1); if (d && d.camera) { st.camX = +d.camera.x || 0; st.camY = +d.camera.y || 0; st.zoom = zc(+d.camera.zoom || 1) } if (d && d.settings) { st.textSize = Math.max(6, evalExpr(d.settings.textSize, 12)); st.fontFamily = String(d.settings.fontFamily || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial"; st.viewMode = normalizeViewMode(d.settings.viewMode); st.regionsHighlight = !!d.settings.regionsHighlight; const ss = (d.settings && d.settings.snap) || {}; st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false }; } else { st.viewMode = "art"; st.regionsHighlight = false; st.snap = { grid: false, objects: true, centers: true, gaps: true }; } st.projectName = String((d && d.projectName) || "project").trim() || "project"; st.saveLocationId = setGlobalSaveLocationId((d && d.saveLocationId) || getGlobalSaveLocationId() || genSaveLocationId(st.projectName)); st.maskPath = []; st.maskHover = null; st.clusterActiveId = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.rigHover = null; updateRegionsToggleUi(); updateViewModeUi(); selRect(st.rects[0] ? st.rects[0].id : null); if (syncTabSnapshot) syncActiveTabSnapshot(); if (renderTabs) renderProjectTabs(); if (!st.history.suspend) { st.history.undo = []; st.history.redo = []; initHistoryCurrent(); if (el.undo) el.undo.disabled = true; if (el.redo) el.redo.disabled = true; } if (doRender) render(); }
+    function applyProjectData(d, opts) { resetCalcWorkers(); const o = (opts && typeof opts === "object") ? opts : {}, syncTabSnapshot = o.syncTabSnapshot !== false, renderTabs = o.renderTabs !== false, doRender = o.render !== false; const rs = Array.isArray(d && d.rectangles) ? d.rectangles : []; const legacyAreaM2 = parseAreaM2PxInput(d && d.settings ? d.settings.areaM2Px : null, 65536); st.rects = rs.map((r, i) => { const colorA = String(r.colorA || "#2fcaaf"), autoB = (r.autoContrastB !== false), manualB = String(r.colorB || autoContrast(colorA)); const rawFlow = String(r && r.dataFlow || "none"); const it = { id: +r.id || i + 1, name: String(r.name || `Rect ${i + 1}`), x: Math.round(+r.x || 0), y: Math.round(+r.y || 0), rotation: evalExpr(r.rotation, 0), width: Math.max(1, Math.round(+r.width || 1)), height: Math.max(1, Math.round(+r.height || 1)), scale: Math.max(1, Math.round(+r.scale || 256)), widthM: Math.max(0.001, +r.widthM || 0), heightM: Math.max(0.001, +r.heightM || 0), areaM2Px: parseAreaM2PxInput(r.areaM2Px, legacyAreaM2), textSize: Math.max(0, Math.min(128, Math.round(evalExpr(r.textSize, 0)))), colorA, autoContrastB: autoB, colorB: autoB ? autoContrast(colorA) : manualB, cellX: Math.max(1, Math.round(+r.cellX || 128)), cellY: Math.max(1, Math.round(+r.cellY || 128)), dataFlow: normalizeDataFlow(rawFlow), dataFlowZ: normalizeDataFlowZ(rawFlow, r && r.dataFlowZ), numberCells: !!r.numberCells, splitVariant: Math.max(0, Math.min(Math.max(0, SPLIT_VARIANT_MAX - 1), Math.round(evalExpr(r.splitVariant, 0)))), cellLinks: Array.isArray(r.cellLinks) ? r.cellLinks.map(String) : [], hiddenCells: normalizeHiddenCells(r.hiddenCells), flowLocks: normalizeFlowLocks(r.flowLocks), manualClusters: normalizeManualClusters(r && r.manualClusters), rig: normalizeRigData(r && r.rig), locked: !!(r && r.locked) }; if (!(+r.widthM > 0 && +r.heightM > 0)) metricFromPx(it); else pxFromMetric(it); restorePersistedRectCache(it, r && r.projectCache); return it }); st.next = +(d && d.nextId) || (st.rects.reduce((m, r) => Math.max(m, r.id), 0) + 1); if (d && d.camera) { st.camX = +d.camera.x || 0; st.camY = +d.camera.y || 0; st.zoom = zc(+d.camera.zoom || 1) } if (d && d.settings) { st.textSize = Math.max(6, evalExpr(d.settings.textSize, 12)); st.fontFamily = String(d.settings.fontFamily || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial"; st.viewMode = normalizeViewMode(d.settings.viewMode); const ss = (d.settings && d.settings.snap) || {}; st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false }; } else { st.viewMode = "art"; st.snap = { grid: false, objects: true, centers: true, gaps: true }; } st.projectName = String((d && d.projectName) || "project").trim() || "project"; st.saveLocationId = setGlobalSaveLocationId((d && d.saveLocationId) || getGlobalSaveLocationId() || genSaveLocationId(st.projectName)); st.maskPath = []; st.maskHover = null; st.clusterActiveId = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.rigHover = null; updateViewModeUi(); selRect(st.rects[0] ? st.rects[0].id : null); if (syncTabSnapshot) syncActiveTabSnapshot(); if (renderTabs) renderProjectTabs(); if (!st.history.suspend) { st.history.undo = []; st.history.redo = []; initHistoryCurrent(); if (el.undo) el.undo.disabled = true; if (el.redo) el.redo.disabled = true; } if (doRender) render(); }
     function restoreAutoSave() {
       try {
         const rawTabs = localStorage.getItem(TABS_SAVE_KEY);
@@ -5205,24 +5205,6 @@ self.onmessage=e=>{
       } catch (_e) { return false }
     }
     function mk(x, y, w, h) { const id = st.next++; const colorA = randomColor(); const r = { id, name: `Rect ${id}`, x: Math.round(x), y: Math.round(y), rotation: 0, width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)), scale: 256, widthM: 1, heightM: 1, areaM2Px: 65536, textSize: 0, colorA, autoContrastB: true, colorB: autoContrast(colorA), cellX: 128, cellY: 128, dataFlow: "none", dataFlowZ: false, numberCells: false, splitVariant: 0, cellLinks: [], hiddenCells: [], flowLocks: {}, manualClusters: [], rig: normalizeRigData(null), locked: false }; metricFromPx(r); return r }
-    function updateRegionsToggleUi() {
-      for (const b of [el.toolRegions, el.mToolRegions]) {
-        if (!b) continue;
-        b.classList.remove("btn-success", "btn-secondary", "btn-outline-info", "btn-info", "btn-primary", "btn-outline-secondary", "active");
-        b.classList.add(st.regionsHighlight ? "btn-primary" : "btn-outline-secondary");
-        b.classList.toggle("active", !!st.regionsHighlight);
-        b.dataset.toggleOn = st.regionsHighlight ? "1" : "0";
-        b.setAttribute("aria-pressed", st.regionsHighlight ? "true" : "false");
-        b.title = st.regionsHighlight ? "Подсветка областей: вкл" : "Подсветка областей: выкл";
-      }
-    }
-    function setRegionsHighlight(on, persist = true) {
-      st.regionsHighlight = !!on;
-      updateRegionsToggleUi();
-      if (persist) schedulePersist("project");
-      render();
-    }
-    function toggleRegionsHighlight() { setRegionsHighlight(!st.regionsHighlight, true) }
     function activateToolOrSelect(mode) {
       if (isInstallOnlyToolMode(mode) && !isInstallViewMode()) { setMode("select"); return }
       if (mode !== "select" && st.mode === mode) { setMode("select"); return }
@@ -5253,7 +5235,7 @@ self.onmessage=e=>{
       if (!isMaskMode()) { st.maskPath = []; st.maskHover = null }
       if (!isCellEditMode()) st.cellHover = null;
       if (!isRigEditMode()) st.rigHover = null;
-      wrap.dataset.mode = m; st.draft = null; st.drag = null; updateToolbarOverflow(); updateRegionsToggleUi(); updateClusterEditCursor(); render()
+      wrap.dataset.mode = m; st.draft = null; st.drag = null; updateToolbarOverflow(); updateClusterEditCursor(); render()
     }
     const hasRect = id => st.rects.some(v => v.id === id);
     const isRectLocked = r => !!(r && r.locked);
@@ -5790,12 +5772,34 @@ self.onmessage=e=>{
       const w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1)), cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1)), rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1)), scalePx = Math.max(1, Number(r && r.scale) || 256);
       const hidden = hs || new Set(), isVisible = (ix, iy) => (ix >= 0 && ix < cols && iy >= 0 && iy < rows && !hidden.has(maskCellKey(ix, iy)));
       const seams = new Map(), bottomLoads = new Map(), anchors = new Map(), halfRow = Math.max(0, Math.floor(rows / 2));
+      const seamSpansByCol = new Map();
       for (let iy = 0; iy < rows; iy++)for (let c = 1; c < cols; c++) {
         if (!isVisible(c - 1, iy) || !isVisible(c, iy)) continue;
-        const key = `${c},${iy}`, x = -w / 2 + c * cx, y0 = -h / 2 + iy * cy, y1 = -h / 2 + Math.min(h, (iy + 1) * cy), yBottom = y1;
-        const seam = { key, c, row: iy, x, y0, y1, yBottom };
-        seams.set(key, seam);
+        const y0 = iy * cy, y1 = Math.min(h, (iy + 1) * cy);
+        const spans = seamSpansByCol.get(c) || [];
+        spans.push({ y0, y1 });
+        seamSpansByCol.set(c, spans);
+        const key = `${c},${iy}`, x = -w / 2 + c * cx, yy0 = -h / 2 + y0, yy1 = -h / 2 + y1, yBottom = yy1;
+        const seam = { key, c, row: iy, x, y0: yy0, y1: yy1, yBottom };
         if (iy >= halfRow) bottomLoads.set(key, seam);
+      }
+      const meterCount = Math.max(1, Math.ceil(h / scalePx));
+      for (let c = 1; c < cols; c++) {
+        const spans = seamSpansByCol.get(c);
+        if (!Array.isArray(spans) || !spans.length) continue;
+        for (let m = 0; m < meterCount; m++) {
+          const my0 = m * scalePx, my1 = Math.min(h, (m + 1) * scalePx);
+          if (my1 <= my0) continue;
+          let hasOverlap = false;
+          for (const sp of spans) {
+            const ov = Math.min(my1, sp.y1) - Math.max(my0, sp.y0);
+            if (ov > 0.5) { hasOverlap = true; break; }
+          }
+          if (!hasOverlap) continue;
+          const key = `${c},${m}`, x = -w / 2 + c * cx, y0 = -h / 2 + my0, y1 = -h / 2 + my1, yBottom = y1;
+          const seam = { key, c, meter: m, x, y0, y1, yBottom };
+          seams.set(key, seam);
+        }
       }
       for (let ix = 0; ix < cols; ix++) {
         let bestRow = null;
@@ -5811,7 +5815,18 @@ self.onmessage=e=>{
       }
       const ui = Math.max(0.6, 1 / Math.max(0.35, Number(z) || 1));
       const loadSizePx = Math.max(14, 0.25 * scalePx);
-      return { w, h, cols, rows, seams, bottomLoads, anchors, ui, loadSizePx };
+      return { w, h, cols, rows, seams, bottomLoads, anchors, ui, loadSizePx, scalePx };
+    };
+    const resolveRigFrameSeam = (layout, cellY, key) => {
+      if (!layout || !layout.seams) return null;
+      const direct = layout.seams.get(String(key || ""));
+      if (direct) return direct;
+      const p = String(key || "").split(",");
+      if (p.length !== 2) return null;
+      const c = Math.max(1, Math.round(Number(p[0]) || 0));
+      const legacyRow = Math.max(0, Math.round(Number(p[1]) || 0));
+      const meter = Math.max(0, Math.floor(((legacyRow + 0.5) * Math.max(1, Number(cellY) || 1)) / Math.max(1, Number(layout.scalePx) || 1)));
+      return layout.seams.get(`${c},${meter}`) || null;
     };
     const getRigHitAtPoint = (r, wx, wy, z) => {
       if (!r) return null;
@@ -5863,9 +5878,20 @@ self.onmessage=e=>{
       st.rigHover = hit;
       if (!hit) return false;
       const rig = getRectRigData(r), frames = new Set(Array.isArray(rig.frames) ? rig.frames : []), suspends = new Set(Array.isArray(rig.suspends) ? rig.suspends : []), links = new Set(Array.isArray(rig.suspendLinks) ? rig.suspendLinks : []), loads = { ...(rig.loads && typeof rig.loads === "object" ? rig.loads : {}) };
+      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), layout = buildRigLayout(r, cx, cy, topo, hs, st.zoom);
       let changed = false;
       if (hit.type === "frame") {
-        if (frames.has(hit.key)) frames.delete(hit.key); else frames.add(hit.key);
+        const targetSeam = resolveRigFrameSeam(layout, cy, String(hit.key || ""));
+        if (!targetSeam) return false;
+        const mappedKeys = [];
+        for (const fk of frames) {
+          const sm = resolveRigFrameSeam(layout, cy, String(fk || ""));
+          if (sm && sm.key === targetSeam.key) mappedKeys.push(String(fk || ""));
+        }
+        const hasFrame = mappedKeys.length > 0 || frames.has(targetSeam.key);
+        for (const k of mappedKeys) frames.delete(k);
+        frames.delete(targetSeam.key);
+        if (!hasFrame) frames.add(targetSeam.key);
         changed = true;
       } else if (hit.type === "loadToggle") {
         if (loads[hit.key]) delete loads[hit.key]; else loads[hit.key] = RIG_DEFAULT_LOAD_KG;
@@ -5905,9 +5931,12 @@ self.onmessage=e=>{
       const rig = getRectRigData(r), layout = buildRigLayout(r, cx, cy, topo, hs, z), ui = layout.ui, loadSize = layout.loadSizePx, frames = new Set(Array.isArray(rig.frames) ? rig.frames : []), loads = (rig && rig.loads && typeof rig.loads === "object") ? rig.loads : {}, suspends = (Array.isArray(rig.suspends) ? rig.suspends : []).filter(col => layout.anchors.has(col)).sort((a, b) => a - b), links = new Set(Array.isArray(rig.suspendLinks) ? rig.suspendLinks : []);
       c.save();
       const frameW = 4.5 * 2, hover = st.rigHover && st.rigHover.rectId === r.id ? st.rigHover : null;
+      const drawnSeams = new Set();
       for (const key of frames) {
-        const seam = layout.seams.get(String(key || ""));
+        const seam = resolveRigFrameSeam(layout, cy, String(key || ""));
         if (!seam) continue;
+        if (drawnSeams.has(seam.key)) continue;
+        drawnSeams.add(seam.key);
 
         const fx = seam.x - frameW / 2;
         const fy = seam.y0 + 0.6;
@@ -5947,7 +5976,7 @@ self.onmessage=e=>{
         if (!seam) continue;
         const kg = Math.max(5, Math.round(Number(wk) || RIG_DEFAULT_LOAD_KG)), x = seam.x, y = seam.yBottom - loadSize * 0.5, bodyR = loadSize * 0.32, btnR = 8 * ui, btnDx = bodyR + Math.max(10 * ui, loadSize * 0.22);
         drawLoadIcon(c, x, y, Math.max(14, loadSize), { fill: "rgba(16,20,28,.94)", stroke: "rgba(255,255,255,.86)", lineWidth: 1.25, alpha: 1 });
-        c.fillStyle = "rgba(255,255,255,.98)"; c.font = `${Math.max(6.8, Math.min(loadSize * 0.2, 13))}px ${fontFamilyCss(st.fontFamily)}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(`${kg}`, x, y + Math.max(7, loadSize * 0.2));
+        c.fillStyle = "rgba(255,255,255,.98)"; c.font = `${Math.max(6.8, Math.min(loadSize * 0.45, 18))}px ${fontFamilyCss(st.fontFamily)}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(`${kg}`, x, y + Math.max(7, loadSize * 0.2));
         if (isRigEditMode() && sel) {
           const drawBtn = (bx, sym) => { c.beginPath(); c.arc(bx, y, btnR, 0, Math.PI * 2); c.fillStyle = "rgba(22,27,34,.96)"; c.fill(); c.strokeStyle = "rgba(255,255,255,.6)"; c.lineWidth = Math.max(.8, 1.1 * ui); c.stroke(); c.fillStyle = "rgba(255,255,255,.95)"; c.fillText(sym, bx, y - 0.2 * ui); };
           drawBtn(x - btnDx, "-");
@@ -5959,7 +5988,7 @@ self.onmessage=e=>{
         c.lineWidth = Math.max(1.6, 2.4 * ui);
         c.setLineDash([5 * ui, 3 * ui]);
         if (hover.type === "frame") {
-          const seam = layout.seams.get(String(hover.key || ""));
+          const seam = resolveRigFrameSeam(layout, cy, String(hover.key || ""));
           if (seam) {
             const fx = seam.x - frameW / 2, fy = seam.y0 + 0.6, fh = Math.max(1, seam.y1 - seam.y0 - 1.2) * 0.99;
             c.strokeRect(fx - 1, fy - 1, frameW + 2, fh + 2);
@@ -6376,7 +6405,7 @@ self.onmessage=e=>{
       }
     }, { passive: false });
     function delSel() { normSelSet(); if (!st.selSet.size && st.sel == null) return; const ids = st.selSet.size ? new Set(st.selSet) : new Set([st.sel]); let removed = false; st.rects = st.rects.filter(r => { if (!ids.has(r.id)) return true; if (isRectLocked(r)) return true; removed = true; return false; }); if (!removed) return; setSelection([], null); st.maskPath = []; st.maskHover = null; st.clusterActiveId = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; syncProps(); listRects(); updateClusterEditCursor(); schedulePersist("project"); render() }
-    function newProject() { st.rects = []; setSelection([], null); st.next = 1; st.camX = 0; st.camY = 0; st.zoom = 1; st.projectName = "Новый проект"; st.saveLocationId = setGlobalSaveLocationId(getGlobalSaveLocationId() || genSaveLocationId(st.projectName)); st.viewMode = "art"; st.regionsHighlight = false; st.maskPath = []; st.maskHover = null; st.cellHover = null; st.flowHover = null; st.flowDirHover = null; st.flowRegionRid = null; st.flowDrag = null; st.clusterActiveId = null; st.clusterHandles = []; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.rigHover = null; st.drag = null; st.draft = null; st.g.x = null; st.g.y = null; st.dg = null; updateRegionsToggleUi(); updateViewModeUi(); listRects(); syncProps(); setMode("select"); syncActiveTabSnapshot(); renderProjectTabs(); schedulePersist("all"); render() }
+    function newProject() { st.rects = []; setSelection([], null); st.next = 1; st.camX = 0; st.camY = 0; st.zoom = 1; st.projectName = "Новый проект"; st.saveLocationId = setGlobalSaveLocationId(getGlobalSaveLocationId() || genSaveLocationId(st.projectName)); st.viewMode = "art"; st.maskPath = []; st.maskHover = null; st.cellHover = null; st.flowHover = null; st.flowDirHover = null; st.flowRegionRid = null; st.flowDrag = null; st.clusterActiveId = null; st.clusterHandles = []; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.rigHover = null; st.drag = null; st.draft = null; st.g.x = null; st.g.y = null; st.dg = null; updateViewModeUi(); listRects(); syncProps(); setMode("select"); syncActiveTabSnapshot(); renderProjectTabs(); schedulePersist("all"); render() }
     const insertCloneAboveSource = (sourceId, clone) => {
       const idx = st.rects.findIndex(v => v.id === sourceId);
       if (idx >= 0) st.rects.splice(idx, 0, clone);
@@ -6583,7 +6612,7 @@ self.onmessage=e=>{
       if (el.btnResetManualClusters) uiSetDisabled(el.btnResetManualClusters, !on);
       if (el.btnAutoContrast) uiSetDisabled(el.btnAutoContrast, !on);
       uiSetValue(el.project, st.projectName);
-      updateThemeUi(); updateRegionsToggleUi(); updateViewModeUi();
+      updateThemeUi(); updateViewModeUi();
       uiSetValue(el.textSize, mFmt(st.textSize));
       uiSetValue(el.font, st.fontFamily);
       if (el.snapGrid) uiSetChecked(el.snapGrid, !!(st.snap && st.snap.grid));
@@ -7099,7 +7128,6 @@ self.onmessage=e=>{
         setTimeout(() => showInstallBanner("Добавьте приложение на главный экран: «Поделиться» → «На экран Домой».", "Понятно", dismissInstallHint), 600);
       }
     }
-    const down = (name, text, mime) => { const b = new Blob([text], { type: mime }), u = URL.createObjectURL(b), a = document.createElement("a"); a.href = u; a.download = name; a.click(); URL.revokeObjectURL(u) };
     const askFileName = (def, ext) => { const raw = prompt("Имя файла:", def); if (raw == null) return null; let name = raw.trim(); if (!name) name = def; if (!name.toLowerCase().endsWith(ext)) name += ext; return name };
     const projectFileBase = () => { const raw = (st.projectName || "project").trim() || "project"; const sanitized = raw.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim(); return sanitized || "project" };
     const isTauriRuntime = () => !!(window.__TAURI_INTERNALS__ || window.__TAURI__ || window.__TAURI_IPC__ || /\bTauri\b/i.test(navigator.userAgent || "") || location.protocol === "tauri:" || location.protocol === "asset:");
@@ -7460,21 +7488,16 @@ self.onmessage=e=>{
         }
       }
 
-      // Рамы: всегда кратны 1м
+      // Рамы: 1 ключ = 1 метровый сегмент
       const frameRows = [];
-
+      const uniqFrameSeams = new Set();
       for (const key of frames) {
-        const seam = layout.seams.get(String(key || ""));
+        const seam = resolveRigFrameSeam(layout, cy, String(key || ""));
         if (!seam) continue;
-
-        const hPx = Math.max(1, seam.y1 - seam.y0);
-        const meters = Math.max(1, Math.round(pxToM(hPx))); // рамы только по 1м
-
-        frameCount += meters;
-        frameRows.push({
-          meters,
-          y1: seam.y1
-        });
+        if (uniqFrameSeams.has(seam.key)) continue;
+        uniqFrameSeams.add(seam.key);
+        frameCount += 1;
+        frameRows.push({ meters: 1, y1: seam.y1 });
       }
 
       // Сколько рам в нижнем ряду экрана
@@ -7709,7 +7732,6 @@ self.onmessage=e=>{
       await saveBlobWithSystemDialog(specBlob, fileSpec, "text/markdown", ".md", "Markdown files", st.saveLocationId);
     };
     el.exp.onclick = async () => { await exportPackage() };
-    if (el.expFlow) el.expFlow.onclick = async () => { await exportPackage() };
     el.project.addEventListener("input", () => { st.projectName = (el.project.value || "project").trim() || "project"; syncActiveTabSnapshot(); renderProjectTabs(); schedulePersist("all") });
     el.project.addEventListener("change", () => { st.projectName = (el.project.value || "project").trim() || "project"; syncActiveTabSnapshot(); renderProjectTabs(); syncProps(); schedulePersist("all") });
     if (el.projectTabAdd) el.projectTabAdd.addEventListener("click", () => createProjectTab(makeEmptyProjectData("Новый проект")));
@@ -7813,3 +7835,4 @@ self.onmessage=e=>{
 </body>
 
 </html>
+
