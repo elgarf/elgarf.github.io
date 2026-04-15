@@ -119,6 +119,10 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
 .rect-item.dragging{opacity:.45}
 .rect-item.drop-before{box-shadow:inset 0 2px 0 var(--bs-info)}
 .rect-item.drop-after{box-shadow:inset 0 -2px 0 var(--bs-info)}
+.rect-item.locked{opacity:.92}
+.rect-item-head{display:flex;align-items:center;gap:8px}
+.rect-item-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.rect-item-lock{width:24px;height:24px;padding:0;display:inline-flex;align-items:center;justify-content:center}
 .multi-edit-badge{font-size:11px;line-height:1.25;padding:6px 8px;border-radius:8px}
 @media (max-width:900px){
   .project-tabs{display:none}
@@ -133,6 +137,11 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
   .install-btn{display:inline-flex}
   .side-close{display:inline-flex}
   .mobile-dock{display:flex!important;position:fixed;z-index:1000;background:var(--bs-tertiary-bg);border:1px solid var(--bs-border-color);border-radius:14px;padding:6px;gap:6px}
+  .side{padding:10px 10px 14px}
+  .field{margin-bottom:7px}
+  .field label{font-size:11px;margin-bottom:3px}
+  .quick-geo-panel{position:sticky;top:0;z-index:2;padding:8px;border:1px solid var(--bs-border-color);border-radius:10px;background:var(--bs-body-bg)}
+  .settings-collapse{padding:6px}
 }
 @media (max-width:640px){
   .toolbar{overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
@@ -278,9 +287,9 @@ canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}.
 </details>
 <div class="field"><label for="propName">Имя@Группа</label><input id="propName" type="text"></div>
 <div class="field"><label for="propTextSize">Размер шрифта экрана (0 = глобальный)</label><div class="range-row"><input id="propTextSize" type="range" min="0" max="128" step="1" value="0"><div id="propTextSizeLabel" class="hint range-value" title="Глобальный размер"><i class="fa-solid fa-globe"></i></div></div></div>
-<div class="grid2"><div class="field"><label for="propX">X (px)</label><input id="propX" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propY">Y (px)</label><input id="propY" type="text" inputmode="decimal" spellcheck="false"></div></div>
+<div id="quickGeoPanel" class="quick-geo-panel"><div class="grid2"><div class="field"><label for="propX">X (px)</label><input id="propX" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propY">Y (px)</label><input id="propY" type="text" inputmode="decimal" spellcheck="false"></div></div>
 <div class="field"><label for="propRot">Поворот (°)</label><input id="propRot" type="text" inputmode="decimal" spellcheck="false" value="0"></div>
-<div class="grid2"><div class="field"><label for="propWm">Ширина (м)</label><input id="propWm" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propHm">Высота (м)</label><input id="propHm" type="text" inputmode="decimal" spellcheck="false"></div></div><div class="grid2"><div class="field"><label for="propScale">Коэффициент (px/м)</label><input id="propScale" type="text" inputmode="decimal" spellcheck="false" value="256"></div><div class="field"><label for="propAreaM2">Площадь 1м² (px²)</label><div class="input-group input-group-sm"><input id="propAreaM2" type="text" spellcheck="false" value="256×256"><button id="propAreaM2Toggle" type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false"><span class="visually-hidden">Выбрать пресет</span></button><ul class="dropdown-menu dropdown-menu-end"><li><button class="dropdown-item" type="button" data-area-m2-preset="168×168">168×168</button></li><li><button class="dropdown-item" type="button" data-area-m2-preset="208×208">208×208</button></li><li><button class="dropdown-item" type="button" data-area-m2-preset="256×128">256×128</button></li><li><button class="dropdown-item" type="button" data-area-m2-preset="256×256">256×256</button></li><li><button class="dropdown-item" type="button" data-area-m2-preset="392×392">392×392</button></li></ul></div></div></div>
+<div class="grid2"><div class="field"><label for="propWm">Ширина (м)</label><input id="propWm" type="text" inputmode="decimal" spellcheck="false"></div><div class="field"><label for="propHm">Высота (м)</label><input id="propHm" type="text" inputmode="decimal" spellcheck="false"></div></div></div><div class="grid2"><div class="field"><label for="propScale">Коэффициент (px/м)</label><input id="propScale" type="text" inputmode="decimal" spellcheck="false" value="256"></div><div class="field"><label for="propAreaM2">Площадь 1м² (px²)</label><div class="input-group input-group-sm"><input id="propAreaM2" type="text" spellcheck="false" value="256×256"><button id="propAreaM2Toggle" type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false"><span class="visually-hidden">Выбрать пресет</span></button><ul class="dropdown-menu dropdown-menu-end"><li><button class="dropdown-item" type="button" data-area-m2-preset="168×168">168×168</button></li><li><button class="dropdown-item" type="button" data-area-m2-preset="208×208">208×208</button></li><li><button class="dropdown-item" type="button" data-area-m2-preset="256×128">256×128</button></li><li><button class="dropdown-item" type="button" data-area-m2-preset="256×256">256×256</button></li><li><button class="dropdown-item" type="button" data-area-m2-preset="392×392">392×392</button></li></ul></div></div></div>
 <div class="grid2"><div class="field"><label for="propColorA">Основной</label><input id="propColorA" type="color" value="#2fcaaf"></div><div class="field"><label for="propColorB">Дополнительный</label><input id="propColorB" type="color" value="#1f3f7e"></div></div><div class="field"><button id="btnAutoContrast" type="button" style="width:100%">Авто дополнительный: вкл</button></div><div class="field"><button id="btnRandomColor" type="button" style="width:100%">Случайный цвет</button></div>
 <div class="grid2"><div class="field"><label for="propCellX">Размер кабинета X</label><input id="propCellX" type="text" inputmode="decimal" spellcheck="false" value="128"></div><div class="field"><label for="propCellY">Размер кабинета Y</label><input id="propCellY" type="text" inputmode="decimal" spellcheck="false" value="128"></div></div>
 <div class="field">
@@ -697,7 +706,7 @@ const getOrigin=()=>{if(!st.rects.length)return{x:0,y:0};let x=1e9,y=1e9;for(con
 const normalizeHiddenCells=v=>{if(!Array.isArray(v))return[];const out=[];const seen=new Set();for(const it of v){const s=String(it||"").trim();if(!/^\d+,\d+$/.test(s))continue;if(seen.has(s))continue;seen.add(s);out.push(s)}return out};
 const hiddenCache=new WeakMap();
 const getHiddenSet=r=>{if(!r)return new Set();const rec=hiddenCache.get(r);if(!rec||rec.src!==r.hiddenCells){const next={src:r.hiddenCells,set:new Set(Array.isArray(r.hiddenCells)?r.hiddenCells:[])};hiddenCache.set(r,next);return next.set}return rec.set};
-const setHiddenSet=r=>{const src=[...getHiddenSet(r)];r.hiddenCells=src;hiddenCache.set(r,{src:r.hiddenCells,set:new Set(src)});const cache=getRectCalcCache(r);if(cache){cache.maskRender=null;cache.boundarySegs=null;cache.fillLayer=null;cache.decorLayer=null;cache.regions=null;cache.flow=null;}};
+const setHiddenSet=r=>{const src=[...getHiddenSet(r)];r.hiddenCells=src;hiddenCache.set(r,{src:r.hiddenCells,set:new Set(src)});const cache=getRectCalcCache(r);if(cache){cache.maskRender=null;cache.boundarySegs=null;cache.fillLayer=null;cache.decorLayer=null;cache.flowPassiveLayer=null;cache.regions=null;cache.flow=null;cache.aabb=null;}};
 const normalizeManualClusters=raw=>{
   if(!Array.isArray(raw))return[];
   const out=[],seen=new Set();
@@ -729,6 +738,7 @@ const clearRectRegionsAndFlow=r=>{
   if(!cache)return;
   cache.regions=null;
   cache.flow=null;
+  cache.flowPassiveLayer=null;
 };
 const getMaxRegionAreaPx=r=>(Math.max(1,Number(r&&r.scale)||256)*Math.max(1,Number(r&&r.scale)||256)*655360)/Math.max(1,Number(r&&r.areaM2Px)||65536);
 const getCellMetrics=(r,cx,cy)=>{
@@ -1181,7 +1191,7 @@ const buildSingleRegionPlan=(r,cx,cy,topo,hs)=>{
 const getRectCalcCache=r=>{
   if(!r||typeof r!=="object")return{regions:null,flow:null};
   if(!r._calcCache||typeof r._calcCache!=="object"){
-    makeNonEnumerableCalcCache(r,{regions:null,flow:null,topo:null,compRender:null,maskRender:null,boundarySegs:null,fillLayer:null,decorLayer:null});
+    makeNonEnumerableCalcCache(r,{regions:null,flow:null,topo:null,compRender:null,maskRender:null,boundarySegs:null,fillLayer:null,decorLayer:null,flowPassiveLayer:null,aabb:null});
   }else if(Object.prototype.propertyIsEnumerable.call(r,"_calcCache")){
     const cur=r._calcCache;
     try{delete r._calcCache;}catch(_e){}
@@ -1195,7 +1205,20 @@ const getRectCalcCache=r=>{
   if(!r._calcCache.boundarySegs)r._calcCache.boundarySegs=null;
   if(!r._calcCache.fillLayer)r._calcCache.fillLayer=null;
   if(!r._calcCache.decorLayer)r._calcCache.decorLayer=null;
+  if(!r._calcCache.flowPassiveLayer)r._calcCache.flowPassiveLayer=null;
+  if(!r._calcCache.aabb)r._calcCache.aabb=null;
   return r._calcCache;
+};
+const invalidateRectCache=(r,kind="all")=>{
+  const c=getRectCalcCache(r);
+  if(kind==="all"){
+    c.aabb=null;c.topo=null;c.compRender=null;c.maskRender=null;c.boundarySegs=null;c.fillLayer=null;c.decorLayer=null;c.flowPassiveLayer=null;c.regions=null;c.flow=null;
+    return;
+  }
+  if(kind==="appearance"){c.fillLayer=null;c.decorLayer=null;return;}
+  if(kind==="flow"){c.flow=null;c.flowPassiveLayer=null;return;}
+  if(kind==="regions"){c.regions=null;c.flow=null;c.flowPassiveLayer=null;return;}
+  if(kind==="topology"){c.topo=null;c.compRender=null;c.maskRender=null;c.boundarySegs=null;c.fillLayer=null;c.decorLayer=null;c.regions=null;c.flow=null;c.flowPassiveLayer=null;c.aabb=null;return;}
 };
 const getCellTopologyCached=(r,cx,cy)=>{
   const cache=getRectCalcCache(r);
@@ -1208,6 +1231,7 @@ const getCellTopologyCached=(r,cx,cy)=>{
   cache.boundarySegs=null;
   cache.fillLayer=null;
   cache.decorLayer=null;
+  cache.flowPassiveLayer=null;
   return value;
 };
 const getRectComponentRenderDataCached=(r,cx,cy,topo)=>{
@@ -1351,7 +1375,29 @@ const getRectDecorLayerCached=(r,maskRender,z)=>{
   cache.decorLayer={key,canvas:layer};
   return layer;
 };
-const listSignature=v=>Array.isArray(v)&&v.length?v.join(";"):"";
+const getRectFlowPassiveLayerCached=(r,w,h,z,groups,activeRid)=>{
+  const cache=getRectCalcCache(r),zq=(Math.round((Number(z)||1)*100)/100)||1,flowKey=flowDrawKeyForGroups(groups),key=[w,h,zq,flowKey,Math.max(0,Math.round(Number(activeRid)||0))].join("|");
+  if(cache.flowPassiveLayer&&cache.flowPassiveLayer.key===key&&cache.flowPassiveLayer.canvas)return cache.flowPassiveLayer.canvas;
+  const passive=(Array.isArray(groups)?groups:[]).filter(g=>Math.round(Number(g&&g.rid)||0)!==Math.round(Number(activeRid)||0));
+  if(!passive.length){cache.flowPassiveLayer={key,canvas:null};return null;}
+  const layer=createLayerCanvas(w,h),lc=layer.getContext("2d");
+  if(!lc)return null;
+  lc.save();
+  lc.translate(w/2,h/2);
+  drawDataFlowOnRect(lc,passive,w,h,z,{noBatch:true});
+  lc.restore();
+  cache.flowPassiveLayer={key,canvas:layer};
+  return layer;
+};
+const arrSignatureCache=new WeakMap();
+const listSignature=v=>{
+  if(!Array.isArray(v)||!v.length)return"";
+  const rec=arrSignatureCache.get(v);
+  if(rec&&rec.len===v.length&&rec.first===v[0]&&rec.last===v[v.length-1])return rec.sig;
+  const sig=v.join(";");
+  arrSignatureCache.set(v,{len:v.length,first:v[0],last:v[v.length-1],sig});
+  return sig;
+};
 const regionCalcKey=(r,cx,cy,topo)=>[
   r&&r.width||0,
   r&&r.height||0,
@@ -2329,7 +2375,8 @@ const drawClusterEditOverlay=(c,r,w,h,cx,cy)=>{
   }
   c.restore();
 };
-const drawDataFlowOnRect=(c,groups,w,h,z)=>{
+const drawDataFlowOnRect=(c,groups,w,h,z,opts)=>{
+  const noBatch=!!(opts&&opts.noBatch);
   if(!Array.isArray(groups)||!groups.length)return;
   const geom=getFlowDrawGeometry(groups,w,h,st.mode==="flowEdit"),totalSegments=Math.max(0,geom.totalSegments|0),hasPoints=geom.groups.some(g=>Array.isArray(g.pts)&&g.pts.length);
   if(!hasPoints)return;
@@ -2351,7 +2398,7 @@ const drawDataFlowOnRect=(c,groups,w,h,z)=>{
     c.restore();
     return;
   }
-  const batchEnabled=totalSegments>FLOW_DRAW_BATCH_THRESHOLD;
+  const batchEnabled=!noBatch&&totalSegments>FLOW_DRAW_BATCH_THRESHOLD;
   const drawKey=flowDrawKeyForGroups(groups);
   const state=touchFlowDrawProgress(drawKey,totalSegments);
   const targetSegments=batchEnabled?Math.min(totalSegments,(state.drawn|0)+FLOW_DRAW_BATCH_STEP):totalSegments;
@@ -3993,7 +4040,7 @@ const ensureFontReady=async()=>{
   try{ await document.fonts.ready; }catch(_e){}
   st.fontReady=true;
 };
-function applyProjectData(d,opts){resetCalcWorkers();const o=(opts&&typeof opts==="object")?opts:{},syncTabSnapshot=o.syncTabSnapshot!==false,renderTabs=o.renderTabs!==false,doRender=o.render!==false;const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=parseAreaM2PxInput(d&&d.settings?d.settings.areaM2Px:null,65536);st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:parseAreaM2PxInput(r.areaM2Px,legacyAreaM2),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(Math.max(0,SPLIT_VARIANT_MAX-1),Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells),flowLocks:normalizeFlowLocks(r.flowLocks),manualClusters:normalizeManualClusters(r&&r.manualClusters)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);restorePersistedRectCache(it,r&&r.projectCache);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.regionsHighlight=!!d.settings.regionsHighlight;const ss=(d.settings&&d.settings.snap)||{};st.snap={grid:!!ss.grid,objects:ss.objects!==false,centers:ss.centers!==false,gaps:ss.gaps!==false};}else{st.regionsHighlight=false;st.snap={grid:false,objects:true,centers:true,gaps:true};}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.saveLocationId=setGlobalSaveLocationId((d&&d.saveLocationId)||getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.maskPath=[];st.maskHover=null;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;updateRegionsToggleUi();selRect(st.rects[0]?st.rects[0].id:null);if(syncTabSnapshot)syncActiveTabSnapshot();if(renderTabs)renderProjectTabs();if(!st.history.suspend){st.history.undo=[];st.history.redo=[];initHistoryCurrent();if(el.undo)el.undo.disabled=true;if(el.redo)el.redo.disabled=true;}if(doRender)render();}
+function applyProjectData(d,opts){resetCalcWorkers();const o=(opts&&typeof opts==="object")?opts:{},syncTabSnapshot=o.syncTabSnapshot!==false,renderTabs=o.renderTabs!==false,doRender=o.render!==false;const rs=Array.isArray(d&&d.rectangles)?d.rectangles:[];const legacyAreaM2=parseAreaM2PxInput(d&&d.settings?d.settings.areaM2Px:null,65536);st.rects=rs.map((r,i)=>{const colorA=String(r.colorA||"#2fcaaf"),autoB=(r.autoContrastB!==false),manualB=String(r.colorB||autoContrast(colorA));const rawFlow=String(r&&r.dataFlow||"none");const it={id:+r.id||i+1,name:String(r.name||`Rect ${i+1}`),x:Math.round(+r.x||0),y:Math.round(+r.y||0),rotation:evalExpr(r.rotation,0),width:Math.max(1,Math.round(+r.width||1)),height:Math.max(1,Math.round(+r.height||1)),scale:Math.max(1,Math.round(+r.scale||256)),widthM:Math.max(0.001,+r.widthM||0),heightM:Math.max(0.001,+r.heightM||0),areaM2Px:parseAreaM2PxInput(r.areaM2Px,legacyAreaM2),textSize:Math.max(0,Math.min(128,Math.round(evalExpr(r.textSize,0)))),colorA,autoContrastB:autoB,colorB:autoB?autoContrast(colorA):manualB,cellX:Math.max(1,Math.round(+r.cellX||128)),cellY:Math.max(1,Math.round(+r.cellY||128)),dataFlow:normalizeDataFlow(rawFlow),dataFlowZ:normalizeDataFlowZ(rawFlow,r&&r.dataFlowZ),numberCells:!!r.numberCells,splitVariant:Math.max(0,Math.min(Math.max(0,SPLIT_VARIANT_MAX-1),Math.round(evalExpr(r.splitVariant,0)))),cellLinks:Array.isArray(r.cellLinks)?r.cellLinks.map(String):[],hiddenCells:normalizeHiddenCells(r.hiddenCells),flowLocks:normalizeFlowLocks(r.flowLocks),manualClusters:normalizeManualClusters(r&&r.manualClusters),locked:!!(r&&r.locked)};if(!(+r.widthM>0&&+r.heightM>0))metricFromPx(it);else pxFromMetric(it);restorePersistedRectCache(it,r&&r.projectCache);return it});st.next=+(d&&d.nextId)||(st.rects.reduce((m,r)=>Math.max(m,r.id),0)+1);if(d&&d.camera){st.camX=+d.camera.x||0;st.camY=+d.camera.y||0;st.zoom=zc(+d.camera.zoom||1)}if(d&&d.settings){st.textSize=Math.max(6,evalExpr(d.settings.textSize,12));st.fontFamily=String(d.settings.fontFamily||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.regionsHighlight=!!d.settings.regionsHighlight;const ss=(d.settings&&d.settings.snap)||{};st.snap={grid:!!ss.grid,objects:ss.objects!==false,centers:ss.centers!==false,gaps:ss.gaps!==false};}else{st.regionsHighlight=false;st.snap={grid:false,objects:true,centers:true,gaps:true};}st.projectName=String((d&&d.projectName)||"project").trim()||"project";st.saveLocationId=setGlobalSaveLocationId((d&&d.saveLocationId)||getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.maskPath=[];st.maskHover=null;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;updateRegionsToggleUi();selRect(st.rects[0]?st.rects[0].id:null);if(syncTabSnapshot)syncActiveTabSnapshot();if(renderTabs)renderProjectTabs();if(!st.history.suspend){st.history.undo=[];st.history.redo=[];initHistoryCurrent();if(el.undo)el.undo.disabled=true;if(el.redo)el.redo.disabled=true;}if(doRender)render();}
 function restoreAutoSave(){
   try{
     const rawTabs=localStorage.getItem(TABS_SAVE_KEY);
@@ -4022,7 +4069,7 @@ function restoreAutoSave(){
     return true;
   }catch(_e){return false}
 }
-function mk(x,y,w,h){const id=st.next++;const colorA=randomColor();const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,areaM2Px:65536,textSize:0,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,dataFlow:"none",dataFlowZ:false,numberCells:false,splitVariant:0,cellLinks:[],hiddenCells:[],flowLocks:{},manualClusters:[]};metricFromPx(r);return r}
+function mk(x,y,w,h){const id=st.next++;const colorA=randomColor();const r={id,name:`Rect ${id}`,x:Math.round(x),y:Math.round(y),rotation:0,width:Math.max(1,Math.round(w)),height:Math.max(1,Math.round(h)),scale:256,widthM:1,heightM:1,areaM2Px:65536,textSize:0,colorA,autoContrastB:true,colorB:autoContrast(colorA),cellX:128,cellY:128,dataFlow:"none",dataFlowZ:false,numberCells:false,splitVariant:0,cellLinks:[],hiddenCells:[],flowLocks:{},manualClusters:[],locked:false};metricFromPx(r);return r}
 function updateRegionsToggleUi(){
   for(const b of [el.toolRegions,el.mToolRegions]){
     if(!b)continue;
@@ -4070,6 +4117,31 @@ function setMode(m){
   wrap.dataset.mode=m;st.draft=null;st.drag=null;updateToolbarOverflow();updateRegionsToggleUi();updateClusterEditCursor();render()
 }
 const hasRect=id=>st.rects.some(v=>v.id===id);
+const isRectLocked=r=>!!(r&&r.locked);
+const getEditableSelectedRects=()=>{
+  const selected=getSelectedRects();
+  return selected.filter(r=>!isRectLocked(r));
+};
+const toggleRectLockById=(id)=>{
+  const r=st.rects.find(v=>v.id===id);
+  if(!r)return false;
+  normSelSet();
+  const selected=getSelectedRects();
+  const applyToGroup=selected.length>1&&selected.some(it=>it.id===id);
+  const targets=applyToGroup?selected:[r];
+  const nextLocked=!r.locked;
+  for(const t of targets)t.locked=nextLocked;
+  st.drag=null;st.flowDrag=null;st.clusterDrag=null;st.draft=null;
+  if(nextLocked){
+    st.maskPath=[];st.maskHover=null;st.cellHover=null;
+  }
+  normSelSet();
+  syncProps();
+  listRects();
+  schedulePersist("project");
+  render();
+  return true;
+};
 const getRectsBBox=rects=>{
   const list=Array.isArray(rects)?rects:[];
   if(!list.length)return null;
@@ -4087,8 +4159,14 @@ const getRectsBBox=rects=>{
 };
 const normSelSet=()=>{
   if(!(st.selSet instanceof Set))st.selSet=new Set();
-  for(const id of [...st.selSet])if(!hasRect(id))st.selSet.delete(id);
-  if(st.sel!=null&&hasRect(st.sel))st.selSet.add(st.sel);
+  for(const id of [...st.selSet]){
+    const rr=st.rects.find(v=>v.id===id);
+    if(!rr||isRectLocked(rr))st.selSet.delete(id);
+  }
+  if(st.sel!=null){
+    const sr=st.rects.find(v=>v.id===st.sel);
+    if(sr&&!isRectLocked(sr))st.selSet.add(st.sel);
+  }
   if(!st.selSet.size)st.sel=null;
   if(st.sel!=null&&!st.selSet.has(st.sel))st.sel=[...st.selSet][0]||null;
 };
@@ -4103,7 +4181,7 @@ const refreshMultiSelectionBase=()=>{
   st.selMultiBase={idsKey:ids.join(","),bbox,items};
 };
 const setSelection=(ids,activeId=null)=>{
-  const next=new Set((Array.isArray(ids)?ids:[]).filter(id=>hasRect(id)));
+  const next=new Set((Array.isArray(ids)?ids:[]).filter(id=>{const rr=st.rects.find(v=>v.id===id);return !!rr&&!isRectLocked(rr);}));
   st.selSet=next;
   st.sel=(activeId!=null&&next.has(activeId))?activeId:([...(next||[])][0]||null);
   refreshMultiSelectionBase();
@@ -4145,7 +4223,7 @@ const finishSelectionBox=()=>{
     syncProps();listRects();render();
     return true;
   }
-  const ids=st.rects.filter(r=>rectIntersectsBox(rectAABBMasked(r),b)).map(r=>r.id);
+  const ids=st.rects.filter(r=>!isRectLocked(r)&&rectIntersectsBox(rectAABBMasked(r),b)).map(r=>r.id);
   if(box.append){
     normSelSet();
     const set=new Set(st.selSet);
@@ -4167,6 +4245,8 @@ const selectOnly=id=>setSelection(id==null?[]:[id],id);
 const toggleSelect=id=>{
   normSelSet();
   if(id==null)return;
+  const rr=st.rects.find(v=>v.id===id);
+  if(!rr||isRectLocked(rr))return;
   if(st.selSet.has(id))st.selSet.delete(id);
   else st.selSet.add(id);
   st.sel=st.selSet.has(id)?id:([...(st.selSet||[])][0]||null);
@@ -4223,6 +4303,10 @@ const redoHistory=()=>{
   schedulePersist("project");
 };
 function selRect(id,opts){
+  if(id!=null){
+    const rr=st.rects.find(v=>v.id===id);
+    if(rr&&isRectLocked(rr))return;
+  }
   const o=(opts&&typeof opts==="object")?opts:{};
   if(o.toggle){toggleSelect(id);}
   else if(o.add){normSelSet();if(id!=null&&hasRect(id)){st.selSet.add(id);st.sel=id;}}
@@ -4232,11 +4316,11 @@ function selRect(id,opts){
   syncProps();listRects();updateModeBadges(r);updateClusterEditCursor();render();
 }
 const cur=()=>st.rects.find(r=>r.id===st.sel)||null;
-function hit(x,y){for(let i=0;i<st.rects.length;i++){const r=st.rects[i],p=worldToRectUV(r,x,y);if(p.u>=0&&p.u<=r.width&&p.v>=0&&p.v<=r.height)return r}return null}
+function hit(x,y){for(let i=0;i<st.rects.length;i++){const r=st.rects[i];if(isRectLocked(r))continue;const p=worldToRectUV(r,x,y);if(p.u>=0&&p.u<=r.width&&p.v>=0&&p.v<=r.height)return r}return null}
 function snapMaskNode(r,wx,wy){if(!r)return null;const p=worldToRectUV(r,wx,wy);if(p.u<0||p.u>r.width||p.v<0||p.v>r.height)return null;const u=Math.max(0,Math.min(r.width,p.u)),v=Math.max(0,Math.min(r.height,p.v)),axes=getMaskNodeAxes(r);let gu=axes.xs[0],gv=axes.ys[0],bdx=1e9,bdy=1e9;for(const x of axes.xs){const d=Math.abs(x-u);if(d<bdx){bdx=d;gu=x}}for(const y of axes.ys){const d=Math.abs(y-v);if(d<bdy){bdy=d;gv=y}}return rectUVToWorld(r,gu,gv)}
-function addMaskPoint(wx,wy){const r=cur();if(!r)return;const p=snapMaskNode(r,wx,wy);if(!p)return;const first=st.maskPath[0],last=st.maskPath[st.maskPath.length-1],eps=6/st.zoom;if(first&&st.maskPath.length>=3&&Math.hypot(p.x-first.x,p.y-first.y)<=eps){applyMaskPath();return}if(last&&Math.abs(last.x-p.x)<0.001&&Math.abs(last.y-p.y)<0.001)return;st.maskPath.push(p);render()}
-function applyMaskPath(){const r=cur();if(!r||st.maskPath.length<3){st.maskPath=[];render();return}const cx=drawCellX(r),cy=drawCellY(r),hs=getHiddenSet(r),cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy));for(let iy=0;iy<rows;iy++){for(let ix=0;ix<cols;ix++){const cw=Math.min(cx,r.width-ix*cx),ch=Math.min(cy,r.height-iy*cy),wp=rectUVToWorld(r,ix*cx+cw/2,iy*cy+ch/2);if(!pointInPoly(wp.x,wp.y,st.maskPath))continue;const k=maskCellKey(ix,iy);if(hs.has(k))hs.delete(k);else hs.add(k);}}setHiddenSet(r);st.maskPath=[];st.maskHover=null;schedulePersist("project");render()}
-function toggleCellLinkAtPoint(r,wx,wy){const cand=getCellLinkCandidateAtPoint(r,wx,wy);if(!cand)return false;const arr=Array.isArray(r.cellLinks)?r.cellLinks:[];
+function addMaskPoint(wx,wy){const r=cur();if(!r||isRectLocked(r))return;const p=snapMaskNode(r,wx,wy);if(!p)return;const first=st.maskPath[0],last=st.maskPath[st.maskPath.length-1],eps=6/st.zoom;if(first&&st.maskPath.length>=3&&Math.hypot(p.x-first.x,p.y-first.y)<=eps){applyMaskPath();return}if(last&&Math.abs(last.x-p.x)<0.001&&Math.abs(last.y-p.y)<0.001)return;st.maskPath.push(p);render()}
+function applyMaskPath(){const r=cur();if(!r||isRectLocked(r)||st.maskPath.length<3){st.maskPath=[];render();return}const cx=drawCellX(r),cy=drawCellY(r),hs=getHiddenSet(r),cols=Math.max(1,Math.ceil(r.width/cx)),rows=Math.max(1,Math.ceil(r.height/cy));for(let iy=0;iy<rows;iy++){for(let ix=0;ix<cols;ix++){const cw=Math.min(cx,r.width-ix*cx),ch=Math.min(cy,r.height-iy*cy),wp=rectUVToWorld(r,ix*cx+cw/2,iy*cy+ch/2);if(!pointInPoly(wp.x,wp.y,st.maskPath))continue;const k=maskCellKey(ix,iy);if(hs.has(k))hs.delete(k);else hs.add(k);}}setHiddenSet(r);st.maskPath=[];st.maskHover=null;schedulePersist("project");render()}
+function toggleCellLinkAtPoint(r,wx,wy){if(!r||isRectLocked(r))return false;const cand=getCellLinkCandidateAtPoint(r,wx,wy);if(!cand)return false;const arr=Array.isArray(r.cellLinks)?r.cellLinks:[];
 if(cand.exists){const ks=new Set(cand.keys);r.cellLinks=arr.filter(v=>!ks.has(v));schedulePersist("project");render();return true}
 if(!cand.canToggle)return false;
 const next=new Set(arr);for(const k of cand.keys)next.add(k);r.cellLinks=[...next];schedulePersist("project");render();return true}
@@ -4256,6 +4340,7 @@ function beginClusterHandleDragAtPoint(wx,wy){
   if(!h)return false;
   if(h.id!==st.sel)selRect(h.id);
   const r=cur();if(!r)return false;
+  if(isRectLocked(r))return false;
   const border=findActiveClusterBorder(r,wx,wy);
   if(!border||Number(border.id)!==Number(st.clusterActiveId))return false;
   const axisStep=(border.dir==="left"||border.dir==="right")?drawCellX(r):drawCellY(r);
@@ -4269,7 +4354,7 @@ function updateClusterHandleDragAtPoint(wx,wy){
   const d=st.clusterDrag;
   if(!d)return false;
   const r=cur();
-  if(!r||r.id!==d.rectId)return false;
+  if(!r||r.id!==d.rectId||isRectLocked(r))return false;
   const proj=clusterDragProjection(d.dir,(+wx||0)-(+d.startX||0),(+wy||0)-(+d.startY||0));
   const stepPx=Math.max(1,d.axisStep||1);
   const steps=proj>=0?Math.floor(proj/stepPx):-Math.floor(Math.abs(proj)/stepPx);
@@ -4305,6 +4390,7 @@ function handleClusterEditAtPoint(wx,wy){
   if(!h){selRect(null);return true;}
   if(h.id!==st.sel){selRect(h.id);}
   const r=cur();if(!r)return true;
+  if(isRectLocked(r))return true;
   const startMark=findClusterStartMarker(r,wx,wy);
   if(startMark){
     st.clusterActiveId=startMark.id;
@@ -4548,7 +4634,16 @@ if(borderSegs.length){
     c.stroke();
   }
 }
-if(wantsFlow)drawDataFlowOnRect(c,flowGroups,w,h,z);
+if(wantsFlow){
+  if(st.mode==="flowEdit"&&sel&&r.id===st.sel&&Array.isArray(flowGroups)&&flowGroups.length>1){
+    const activeRid=Math.max(0,Math.round(Number(st.flowRegionRid)||0)),active=flowGroups.filter(g=>Math.round(Number(g&&g.rid)||0)===activeRid);
+    const passiveLayer=getRectFlowPassiveLayerCached(r,w,h,z,flowGroups,activeRid);
+    if(passiveLayer)c.drawImage(passiveLayer,-w/2,-h/2);
+    if(active.length)drawDataFlowOnRect(c,active,w,h,z);
+  }else{
+    drawDataFlowOnRect(c,flowGroups,w,h,z);
+  }
+}
 if(st.mode==="flowEdit"&&sel&&r.id===st.sel)drawFlowEditOverlay(c,w,h);
 if(isClusterEditMode()&&sel&&r.id===st.sel)drawClusterEditOverlay(c,r,w,h,cellX,cellY);
 c.restore();}
@@ -4645,9 +4740,11 @@ if(window.visualViewport&&window.visualViewport.addEventListener){
 function zoomAt(sx,sy,nz){const b=s2w(sx,sy);st.zoom=zc(nz);const a=s2w(sx,sy);st.camX+=b.x-a.x;st.camY+=b.y-a.y;render()}
 const beginRectDrag=(target,p)=>{
   if(!target)return;
+  if(isRectLocked(target))return;
   normSelSet();
   if(!isSelected(target.id))selectOnly(target.id);
-  const selected=getSelectedRects();
+  const selected=getEditableSelectedRects();
+  if(!selected.length)return;
   const items=selected.map(r=>({id:r.id,rx:r.x,ry:r.y,w:r.width,h:r.height,bb:rectAABBMasked(r)}));
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   for(const it of items){
@@ -4728,12 +4825,13 @@ const moveRectDrag=(p,disableSnap)=>{
 cv.addEventListener("contextmenu",e=>e.preventDefault());
 cv.addEventListener("mousedown",e=>{const b=cv.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=s2w(sx,sy),pan=e.button===1||e.button===2||(st.keys.space&&e.button===0);if(pan){st.pan=true;st.panS={sx,sy,cx:st.camX,cy:st.camY};render();return}if(e.button!==0)return;
 if(st.mode==="draw"){st.draft={x:p.x,y:p.y,width:0,height:0,sx:p.x,sy:p.y};render();return}
-if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);addMaskPoint(p.x,p.y);return}
-if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);return}if(h.id!==st.sel)selRect(h.id);toggleCellLinkAtPoint(h,p.x,p.y);return}
+if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);if(isRectLocked(cur()))return;addMaskPoint(p.x,p.y);return}
+if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);return}if(h.id!==st.sel)selRect(h.id);if(isRectLocked(h))return;toggleCellLinkAtPoint(h,p.x,p.y);return}
 if(isClusterEditMode()){if(beginClusterHandleDragAtPoint(p.x,p.y)){render();return}handleClusterEditAtPoint(p.x,p.y);return}
 if(st.mode==="flowEdit"){
 const h=hit(p.x,p.y);if(!h){selRect(null);render();return}
 if(h.id!==st.sel){selRect(h.id);render();return}
+if(isRectLocked(h)){render();return}
 const startHandle=findFlowStartHandle(p.x,p.y);
 if(startHandle){st.flowRegionRid=startHandle.rid;st.flowDrag={kind:"start",rid:startHandle.rid,fromIndex:0,currentIndex:0,cid:startHandle.cid};syncProps();render();return}
 const dirBtn=findFlowDirectionButton(p.x,p.y);
@@ -4745,8 +4843,8 @@ const h=hit(p.x,p.y);if(h){if(e.shiftKey){selRect(h.id,{toggle:true});render();r
 window.addEventListener("mousemove",e=>{const b=cv.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=s2w(sx,sy);
 if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();return}
 if(st.selBox){updateSelectionBox(p);render();return}
-if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncProps()}const r=h||cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();return}
-if(isCellEditMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncProps()}const r=h||cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();return}
+if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncPropsSmart()}const r=h||cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();return}
+if(isCellEditMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncPropsSmart()}const r=h||cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();return}
 if(isClusterEditMode()){
   if(st.clusterDrag){
     updateClusterHandleDragAtPoint(p.x,p.y);
@@ -4754,9 +4852,9 @@ if(isClusterEditMode()){
     render();
     return;
   }
-  const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncProps()}const r=h||cur();st.clusterHandleHover=r?findClusterHandle(p.x,p.y):null;st.clusterBorderHover=r?findActiveClusterBorder(r,p.x,p.y):null;st.clusterStartHover=r?findClusterStartMarker(r,p.x,p.y):null;const cc=(r?cellFromWorldPoint(r,p.x,p.y,true):null);st.clusterCellHover=(r&&cc?{rectId:r.id,col:cc.col,row:cc.row}:null);updateClusterEditCursor();render();return
+  const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncPropsSmart()}const r=h||cur();st.clusterHandleHover=r?findClusterHandle(p.x,p.y):null;st.clusterBorderHover=r?findActiveClusterBorder(r,p.x,p.y):null;st.clusterStartHover=r?findClusterStartMarker(r,p.x,p.y):null;const cc=(r?cellFromWorldPoint(r,p.x,p.y,true):null);st.clusterCellHover=(r&&cc?{rectId:r.id,col:cc.col,row:cc.row}:null);updateClusterEditCursor();render();return
 }
-if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncProps();render();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};st.flowDirHover=null;render();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();return}
+if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncPropsSmart();render();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};st.flowDirHover=null;render();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();return}
 if(st.mode==="flowEdit"&&st.flowDrag){const fp=findFlowEditPoint(p.x,p.y,st.flowDrag.rid,st.flowDrag.fromIndex);st.flowDrag.currentIndex=fp?fp.index:st.flowDrag.fromIndex;render();return}
 if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.width=Math.abs(p.x-d.sx);d.height=Math.abs(p.y-d.sy);render();return}
 if(st.drag){moveRectDrag(p,e.ctrlKey||st.keys.ctrl);render()}});
@@ -4804,10 +4902,10 @@ const touchDist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
 const touchMid=(a,b,rect)=>({sx:((a.clientX+b.clientX)/2)-rect.left,sy:((a.clientY+b.clientY)/2)-rect.top});
 cv.addEventListener("touchstart",e=>{const rect=cv.getBoundingClientRect();if(e.touches.length===2){const m=touchMid(e.touches[0],e.touches[1],rect);st.touch={type:"pinch",startDist:touchDist(e.touches[0],e.touches[1]),startZoom:st.zoom,worldMid:s2w(m.sx,m.sy)};st.drag=null;st.selBox=null;st.pan=false;st.draft=null;e.preventDefault();return}
 if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);st.touch={type:"single"};if(st.mode==="draw"){st.draft={x:p.x,y:p.y,width:0,height:0,sx:p.x,sy:p.y};render();e.preventDefault();return}
-if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);addMaskPoint(p.x,p.y);e.preventDefault();return}
-if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);e.preventDefault();return}if(h.id!==st.sel)selRect(h.id);toggleCellLinkAtPoint(h,p.x,p.y);e.preventDefault();return}
+if(isMaskMode()){const h=hit(p.x,p.y);if(h&&h.id!==st.sel)selRect(h.id);if(isRectLocked(cur())){e.preventDefault();return}addMaskPoint(p.x,p.y);e.preventDefault();return}
+if(isCellEditMode()){const h=hit(p.x,p.y);if(!h){selRect(null);e.preventDefault();return}if(h.id!==st.sel)selRect(h.id);if(isRectLocked(h)){e.preventDefault();return}toggleCellLinkAtPoint(h,p.x,p.y);e.preventDefault();return}
 if(isClusterEditMode()){if(beginClusterHandleDragAtPoint(p.x,p.y)){render();e.preventDefault();return}handleClusterEditAtPoint(p.x,p.y);e.preventDefault();return}
-if(st.mode==="flowEdit"){const h=hit(p.x,p.y);if(!h){selRect(null);render();e.preventDefault();return}if(h.id!==st.sel){selRect(h.id);render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowRegionRid=startHandle.rid;st.flowDrag={kind:"start",rid:startHandle.rid,fromIndex:0,currentIndex:0,cid:startHandle.cid};syncProps();render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);if(dirBtn){st.flowRegionRid=dirBtn.rid;const r=cur();if(r){setFlowDirection(r,dirBtn.rid,dirBtn.dir,dirBtn.cid);st.flowHover=null;st.flowDirHover=dirBtn;schedulePersist("project");syncProps();}render();e.preventDefault();return}const fp=findFlowEditPoint(p.x,p.y);if(fp){st.flowRegionRid=fp.rid;st.flowDrag={rid:fp.rid,fromIndex:fp.index,currentIndex:fp.index,cid:fp.cid};syncProps();}render();e.preventDefault();return}
+if(st.mode==="flowEdit"){const h=hit(p.x,p.y);if(!h){selRect(null);render();e.preventDefault();return}if(h.id!==st.sel){selRect(h.id);render();e.preventDefault();return}if(isRectLocked(h)){render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowRegionRid=startHandle.rid;st.flowDrag={kind:"start",rid:startHandle.rid,fromIndex:0,currentIndex:0,cid:startHandle.cid};syncProps();render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);if(dirBtn){st.flowRegionRid=dirBtn.rid;const r=cur();if(r){setFlowDirection(r,dirBtn.rid,dirBtn.dir,dirBtn.cid);st.flowHover=null;st.flowDirHover=dirBtn;schedulePersist("project");syncProps();}render();e.preventDefault();return}const fp=findFlowEditPoint(p.x,p.y);if(fp){st.flowRegionRid=fp.rid;st.flowDrag={rid:fp.rid,fromIndex:fp.index,currentIndex:fp.index,cid:fp.cid};syncProps();}render();e.preventDefault();return}
 const h=hit(p.x,p.y);if(h){if(!isSelected(h.id))selRect(h.id);beginRectDrag(h,p);}else{beginSelectionBox(p,false,true);}render();e.preventDefault()},{passive:false});
 cv.addEventListener("touchmove",e=>{const rect=cv.getBoundingClientRect();if(st.touch&&st.touch.type==="pinch"&&e.touches.length>=2){const m=touchMid(e.touches[0],e.touches[1],rect),dist=Math.max(1,touchDist(e.touches[0],e.touches[1])),vm=getViewMetrics();st.zoom=zc(st.touch.startZoom*(dist/st.touch.startDist));st.camX=st.touch.worldMid.x-(m.sx-vm.centerX)/st.zoom;st.camY=st.touch.worldMid.y-(m.sy-vm.centerY)/st.zoom;render();e.preventDefault();return}
 if(e.touches.length!==1)return;const t=e.touches[0],sx=t.clientX-rect.left,sy=t.clientY-rect.top,p=s2w(sx,sy);if(isMaskMode()){const r=cur();st.maskHover=r?snapMaskNode(r,p.x,p.y):null;render();e.preventDefault();return}if(isCellEditMode()){const r=cur();st.cellHover=r?getCellLinkCandidateAtPoint(r,p.x,p.y):null;render();e.preventDefault();return}if(st.selBox){updateSelectionBox(p);render();e.preventDefault();return}if(st.pan&&st.panS){st.camX=st.panS.cx-(sx-st.panS.sx)/st.zoom;st.camY=st.panS.cy-(sy-st.panS.sy)/st.zoom;render();e.preventDefault();return}
@@ -4821,7 +4919,7 @@ if(st.clusterDrag){
   return;
 }
 st.clusterHandleHover=r?findClusterHandle(p.x,p.y):null;st.clusterBorderHover=r?findActiveClusterBorder(r,p.x,p.y):null;st.clusterStartHover=r?findClusterStartMarker(r,p.x,p.y):null;const cc=(r?cellFromWorldPoint(r,p.x,p.y,true):null);st.clusterCellHover=(r&&cc?{rectId:r.id,col:cc.col,row:cc.row}:null);updateClusterEditCursor();render();e.preventDefault();return}
-if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncProps();render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};st.flowDirHover=null;render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();e.preventDefault();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();e.preventDefault();return}
+if(st.mode==="flowEdit"&&!st.flowDrag){const h=hit(p.x,p.y);if(h&&h.id!==st.sel){setSelection([h.id],h.id);syncPropsSmart();render();e.preventDefault();return}const startHandle=findFlowStartHandle(p.x,p.y);if(startHandle){st.flowHover={kind:"start",rid:startHandle.rid,cid:startHandle.cid};st.flowDirHover=null;render();e.preventDefault();return}const dirBtn=findFlowDirectionButton(p.x,p.y);st.flowDirHover=dirBtn;if(dirBtn){st.flowHover=null;render();e.preventDefault();return}st.flowHover=findFlowEditPoint(p.x,p.y);render();e.preventDefault();return}
 if(st.mode==="flowEdit"&&st.flowDrag){const fp=findFlowEditPoint(p.x,p.y,st.flowDrag.rid,st.flowDrag.fromIndex);st.flowDrag.currentIndex=fp?fp.index:st.flowDrag.fromIndex;render();e.preventDefault();return}
 if(st.draft){const d=st.draft;d.x=Math.min(d.sx,p.x);d.y=Math.min(d.sy,p.y);d.width=Math.abs(p.x-d.sx);d.height=Math.abs(p.y-d.sy);render();e.preventDefault();return}
 if(st.drag){moveRectDrag(p,false);render();e.preventDefault()}},{passive:false});
@@ -4842,7 +4940,7 @@ st.drag=null;st.g.x=null;st.g.y=null;st.dg=null;
 if(created){setMode("select");selRect(created.id)}
 if(hadDrag||created){syncProps();listRects();schedulePersist("project")}
 render();e.preventDefault()}},{passive:false});
-function delSel(){normSelSet();if(!st.selSet.size&&st.sel==null)return;const ids=st.selSet.size?new Set(st.selSet):new Set([st.sel]);st.rects=st.rects.filter(r=>!ids.has(r.id));setSelection([],null);st.maskPath=[];st.maskHover=null;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;syncProps();listRects();updateClusterEditCursor();schedulePersist("project");render()}
+function delSel(){normSelSet();if(!st.selSet.size&&st.sel==null)return;const ids=st.selSet.size?new Set(st.selSet):new Set([st.sel]);let removed=false;st.rects=st.rects.filter(r=>{if(!ids.has(r.id))return true;if(isRectLocked(r))return true;removed=true;return false;});if(!removed)return;setSelection([],null);st.maskPath=[];st.maskHover=null;st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;syncProps();listRects();updateClusterEditCursor();schedulePersist("project");render()}
 function newProject(){st.rects=[];setSelection([],null);st.next=1;st.camX=0;st.camY=0;st.zoom=1;st.projectName="Новый проект";st.saveLocationId=setGlobalSaveLocationId(getGlobalSaveLocationId()||genSaveLocationId(st.projectName));st.regionsHighlight=false;st.maskPath=[];st.maskHover=null;st.cellHover=null;st.flowHover=null;st.flowDirHover=null;st.flowRegionRid=null;st.flowDrag=null;st.clusterActiveId=null;st.clusterHandles=[];st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;st.drag=null;st.draft=null;st.g.x=null;st.g.y=null;st.dg=null;updateRegionsToggleUi();listRects();syncProps();setMode("select");syncActiveTabSnapshot();renderProjectTabs();schedulePersist("all");render()}
 const insertCloneAboveSource=(sourceId,clone)=>{
   const idx=st.rects.findIndex(v=>v.id===sourceId);
@@ -5005,11 +5103,15 @@ const uiSetChecked=(node,v)=>{if(!node)return;const n=!!v;if(node.checked!==n)no
 const uiSetDisabled=(node,v)=>{if(!node)return;const n=!!v;if(node.disabled!==n)node.disabled=n;};
 const uiSetText=(node,v)=>{if(!node)return;const s=String(v??"");if(node.textContent!==s)node.textContent=s;};
 function syncProps(){
-  const r=cur(),on=!!r,multi=getSelectedRects().length>1;
+  const r=cur(),locked=!!(r&&isRectLocked(r)),on=!!r&&!locked,multi=getSelectedRects().length>1;
   [el.name,el.rectTextSize,el.x,el.y,el.rot,el.wm,el.hm,el.scale,el.a,el.b,el.cx,el.cy,el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>uiSetDisabled(v,!on));
   if(multi&&el.rot)uiSetDisabled(el.rot,true);
   if(multi&&el.name)uiSetDisabled(el.name,true);
-  if(el.multiEditBadge)el.multiEditBadge.classList.toggle("d-none",!multi||!on);
+  if(el.multiEditBadge){
+    const show=multi&&!!r;
+    el.multiEditBadge.classList.toggle("d-none",!show);
+    if(show)el.multiEditBadge.textContent=locked?"Текущий экран заблокирован. Разблокируйте слой для редактирования.":"Групповое редактирование: W/H масштабируют расстояния, минимум — исходный bbox";
+  }
   if(el.areaM2)uiSetDisabled(el.areaM2,!on);
   uiSetDisabled(el.randColor,!on);
   if(el.btnClearMasks)uiSetDisabled(el.btnClearMasks,!on);
@@ -5070,6 +5172,25 @@ function syncProps(){
     }
   }
 }
+let syncPropsRaf=0;
+const scheduleSyncProps=()=>{
+  if(syncPropsRaf)return;
+  if(typeof requestAnimationFrame==="function"){
+    syncPropsRaf=requestAnimationFrame(()=>{syncPropsRaf=0;syncProps();});
+  }else{
+    syncPropsRaf=setTimeout(()=>{syncPropsRaf=0;syncProps();},16);
+  }
+};
+const syncPropsSmart=()=>{
+  const hot=!!(st.drag||st.flowDrag||st.clusterDrag||st.pan||(st.touch&&st.touch.type==="pinch"));
+  if(hot){scheduleSyncProps();return;}
+  if(syncPropsRaf){
+    if(typeof cancelAnimationFrame==="function")try{cancelAnimationFrame(syncPropsRaf);}catch(_e){}
+    else clearTimeout(syncPropsRaf);
+    syncPropsRaf=0;
+  }
+  syncProps();
+};
 let listDragId=null;
 let listDropNode=null,listDropAfter=false,listListBound=false;
 const listNodeCache=new Map();
@@ -5082,10 +5203,19 @@ const ensureListEvents=()=>{
   if(listListBound||!el.list)return;
   listListBound=true;
   el.list.addEventListener("click",e=>{
+    const lockBtn=e.target&&e.target.closest?e.target.closest(".rect-item-lock"):null;
+    if(lockBtn){
+      const row=lockBtn.closest(".rect-item");
+      const id=Math.round(Number(row&&row.dataset&&row.dataset.id)||0);
+      if(id)toggleRectLockById(id);
+      return;
+    }
     const it=e.target&&e.target.closest?e.target.closest(".rect-item"):null;
     if(!it)return;
     const id=Math.round(Number(it.dataset.id)||0);
     if(!id)return;
+    const rr=st.rects.find(v=>v.id===id);
+    if(rr&&isRectLocked(rr))return;
     selRect(id,{toggle:!!e.shiftKey});
   });
   el.list.addEventListener("dragstart",e=>{
@@ -5093,6 +5223,8 @@ const ensureListEvents=()=>{
     if(!it)return;
     const id=Math.round(Number(it.dataset.id)||0);
     if(!id)return;
+    const rr=st.rects.find(v=>v.id===id);
+    if(rr&&isRectLocked(rr)){e.preventDefault();return;}
     listDragId=id;
     it.classList.add("dragging");
     if(e.dataTransfer){e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",String(id))}catch(_e){}}
@@ -5156,16 +5288,37 @@ function listRects(){
       node.className="rect-item";
       node.draggable=true;
       node.dataset.id=String(id);
+      const head=document.createElement("div");
+      head.className="rect-item-head";
       const title=document.createElement("strong");
+      title.className="rect-item-title";
+      const lockBtn=document.createElement("button");
+      lockBtn.type="button";
+      lockBtn.className="btn btn-outline-secondary btn-sm rect-item-lock";
+      lockBtn.title="Блокировка экрана";
+      lockBtn.setAttribute("aria-label","Блокировка экрана");
       const meta=document.createElement("div");
       meta.className="text-secondary";
-      node.appendChild(title);
+      head.appendChild(title);
+      head.appendChild(lockBtn);
+      node.appendChild(head);
       node.appendChild(meta);
       node._title=title;
+      node._lock=lockBtn;
       node._meta=meta;
       listNodeCache.set(id,node);
     }
     node.classList.toggle("active",isSelected(id));
+    node.classList.toggle("locked",isRectLocked(r));
+    if(node._lock){
+      const on=isRectLocked(r);
+      const ic=on?"fa-solid fa-lock":"fa-solid fa-lock-open";
+      if(node._lock.innerHTML!==`<i class="${ic}"></i>`)node._lock.innerHTML=`<i class="${ic}"></i>`;
+      node._lock.classList.toggle("btn-secondary",on);
+      node._lock.classList.toggle("btn-outline-secondary",!on);
+      node._lock.title=on?"Разблокировать экран":"Заблокировать экран";
+      node._lock.setAttribute("aria-label",node._lock.title);
+    }
     const titleText=String(r.name||`Rect ${id}`);
     if(node._title.textContent!==titleText)node._title.textContent=titleText;
     const metaText=`${r.width}x${r.height} @ (${r.x}, ${r.y})`;
@@ -5183,7 +5336,8 @@ function applyProps(opts){
 const o=(opts&&typeof opts==="object")?opts:{},needList=o.list!==false,needPersist=o.persist!==false,needRender=o.render!==false;
 const applyColor=!!o.applyColor;
 const r=cur();if(!r)return;
-const selected=getSelectedRects(),targets=selected.length>1?selected:[r];
+const selected=getSelectedRects(),targetsRaw=selected.length>1?selected:[r],targets=targetsRaw.filter(t=>!isRectLocked(t));
+if(!targets.length)return;
 const multi=targets.length>1;
 if(!multi)r.name=el.name.value||`Rect ${r.id}`;
 const nextScale=Math.max(1,Math.round(evalExpr(el.scale.value,r.scale||256)));
@@ -5251,6 +5405,7 @@ if(!multi){
   }
 }
 for(const t of targets){
+  const prev={scale:t.scale,cellX:t.cellX,cellY:t.cellY,colorA:t.colorA,colorB:t.colorB,dataFlow:t.dataFlow,dataFlowZ:!!t.dataFlowZ,areaM2Px:t.areaM2Px,splitVariant:t.splitVariant};
   t.scale=nextScale;
   if(multi)metricFromPx(t);
   if(applyColor){
@@ -5271,6 +5426,13 @@ for(const t of targets){
   const prevSplit=Math.max(0,Math.round(Number(t.splitVariant)||0));
   t.splitVariant=Math.max(0,Math.min(maxSplit,Math.round(evalExpr(el.splitVariant.value,t.splitVariant||0))));
   if(t.splitVariant!==prevSplit){try{delete t._splitVariantCount;}catch(_e){t._splitVariantCount=NaN;}}
+  const topoChanged=(prev.cellX!==t.cellX||prev.cellY!==t.cellY||prev.scale!==t.scale);
+  if(topoChanged)invalidateRectCache(t,"topology");
+  else{
+    if(prev.colorA!==t.colorA||prev.colorB!==t.colorB)invalidateRectCache(t,"appearance");
+    if(prev.areaM2Px!==t.areaM2Px||prev.splitVariant!==t.splitVariant)invalidateRectCache(t,"regions");
+    if(prev.dataFlow!==t.dataFlow||prev.dataFlowZ!==!!t.dataFlowZ)invalidateRectCache(t,"flow");
+  }
 }
 updateSplitVariantControl(r);el.b.value=r.colorB;if(el.btnAutoContrast)el.btnAutoContrast.textContent=`Авто дополнительный: ${r.autoContrastB!==false?"вкл":"выкл"}`;
 if(needList)listRects();
@@ -5287,14 +5449,14 @@ if(el.a){
 }
 const getActionTargets=()=>{
   const selected=getSelectedRects();
-  if(selected&&selected.length)return selected;
+  if(selected&&selected.length)return selected.filter(r=>!isRectLocked(r));
   const r=cur();
-  return r?[r]:[];
+  return r&&!isRectLocked(r)?[r]:[];
 };
 let colorBInputRaf=0;
 const scheduleColorBInput=()=>{if(colorBInputRaf)return;colorBInputRaf=requestAnimationFrame(()=>{colorBInputRaf=0;render();});};
-el.b.addEventListener("input",()=>{const ts=getActionTargets();if(!ts.length)return;for(const r of ts){r.autoContrastB=false;r.colorB=el.b.value||r.colorB;}if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: выкл";scheduleColorBInput()});
-el.b.addEventListener("change",()=>{const ts=getActionTargets();if(!ts.length)return;for(const r of ts){r.autoContrastB=false;r.colorB=el.b.value||r.colorB;}if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: выкл";listRects();schedulePersist("project");render();});
+el.b.addEventListener("input",()=>{const ts=getActionTargets();if(!ts.length)return;for(const r of ts){r.autoContrastB=false;r.colorB=el.b.value||r.colorB;invalidateRectCache(r,"appearance");}if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: выкл";scheduleColorBInput()});
+el.b.addEventListener("change",()=>{const ts=getActionTargets();if(!ts.length)return;for(const r of ts){r.autoContrastB=false;r.colorB=el.b.value||r.colorB;invalidateRectCache(r,"appearance");}if(el.btnAutoContrast)el.btnAutoContrast.textContent="Авто дополнительный: выкл";listRects();schedulePersist("project");render();});
 [el.dataFlow,el.dataFlowZ,el.numCells,el.splitVariant].forEach(v=>v.addEventListener("change",applyProps));
 let rectTextInputRaf=0,rectTextFontTimer=0;
 [el.rectTextSize].forEach(v=>v.addEventListener("input",()=>{const r=cur();if(!r)return;r.textSize=Math.max(0,Math.min(128,Math.round(evalExpr(el.rectTextSize.value,r.textSize||0))));updateRectTextSizeLabel(r);if(!rectTextInputRaf)rectTextInputRaf=requestAnimationFrame(()=>{rectTextInputRaf=0;render();});if(rectTextFontTimer)clearTimeout(rectTextFontTimer);rectTextFontTimer=setTimeout(()=>ensureFontReady().then(()=>render()).catch(()=>{}),140);}));
@@ -5311,7 +5473,7 @@ const applyTextSettings=()=>{st.textSize=Math.max(6,evalExpr(el.textSize.value,s
 let textSettingsRaf=0,textSettingsFontTimer=0;
 const applyTextSettingsInput=()=>{st.textSize=Math.max(6,evalExpr(el.textSize.value,st.textSize||12));st.fontFamily=(el.font.value||"Roboto, Segoe UI, Arial").trim()||"Roboto, Segoe UI, Arial";st.fontReady=false;if(!textSettingsRaf)textSettingsRaf=requestAnimationFrame(()=>{textSettingsRaf=0;render();});if(textSettingsFontTimer)clearTimeout(textSettingsFontTimer);textSettingsFontTimer=setTimeout(()=>ensureFontReady().then(()=>render()).catch(()=>{}),140);};
 [el.textSize,el.font].forEach(v=>v.addEventListener("input",applyTextSettingsInput));
-const applyAreaM2Settings=()=>{const r=cur();if(!r)return;r.areaM2Px=parseAreaM2PxInput(el.areaM2.value,r.areaM2Px||65536);schedulePersist("project");render()};
+const applyAreaM2Settings=()=>{const r=cur();if(!r||isRectLocked(r))return;r.areaM2Px=parseAreaM2PxInput(el.areaM2.value,r.areaM2Px||65536);invalidateRectCache(r,"regions");schedulePersist("project");render()};
 if(el.areaM2){el.areaM2.addEventListener("change",()=>{applyAreaM2Settings();syncProps()});el.areaM2.addEventListener("keydown",e=>{if(e.key==="Enter"){applyAreaM2Settings();syncProps()}})}
 for(const btn of document.querySelectorAll("[data-area-m2-preset]")){
   btn.addEventListener("click",()=>{
@@ -5324,7 +5486,7 @@ for(const btn of document.querySelectorAll("[data-area-m2-preset]")){
 el.textSize.addEventListener("change",()=>{applyTextSettings();syncProps()});
 el.textSize.addEventListener("keydown",e=>{if(e.key==="Enter"){applyTextSettings();syncProps()}});
 el.font.addEventListener("change",()=>{applyTextSettings();syncProps()});
-el.toolSelect.onclick=()=>activateToolOrSelect("select");el.toolDraw.onclick=()=>activateToolOrSelect("draw");if(el.toolMaskAdd)el.toolMaskAdd.onclick=()=>activateToolOrSelect("maskEdit");if(el.toolCellEdit)el.toolCellEdit.onclick=()=>activateToolOrSelect("cellEdit");if(el.toolFlowEdit)el.toolFlowEdit.onclick=()=>activateToolOrSelect("flowEdit");if(el.toolClusterEdit)el.toolClusterEdit.onclick=()=>activateToolOrSelect("clusterEdit");if(el.toolRegions)el.toolRegions.onclick=()=>toggleRegionsHighlight();if(el.newProject)el.newProject.onclick=newProject;el.btnCopy.onclick=dupSel;if(el.btnCopyMirror)el.btnCopyMirror.onclick=dupMirrorSel;el.btnDelete.onclick=delSel;if(el.btnAutoContrast)el.btnAutoContrast.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;const nextAuto=!(ts[0].autoContrastB!==false);for(const r of ts){r.autoContrastB=nextAuto;if(r.autoContrastB)r.colorB=autoContrast(r.colorA);}syncProps();listRects();schedulePersist("project");render()};el.randColor.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;const shared=randomColor();for(const r of ts){r.colorA=shared;if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);}syncProps();listRects();schedulePersist("project");render()};el.zoomIn.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom*1.2)};el.zoomOut.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom/1.2)};el.zoomReset.onclick=()=>{st.zoom=1;render()};el.zoomFit.onclick=fit;
+el.toolSelect.onclick=()=>activateToolOrSelect("select");el.toolDraw.onclick=()=>activateToolOrSelect("draw");if(el.toolMaskAdd)el.toolMaskAdd.onclick=()=>activateToolOrSelect("maskEdit");if(el.toolCellEdit)el.toolCellEdit.onclick=()=>activateToolOrSelect("cellEdit");if(el.toolFlowEdit)el.toolFlowEdit.onclick=()=>activateToolOrSelect("flowEdit");if(el.toolClusterEdit)el.toolClusterEdit.onclick=()=>activateToolOrSelect("clusterEdit");if(el.toolRegions)el.toolRegions.onclick=()=>toggleRegionsHighlight();if(el.newProject)el.newProject.onclick=newProject;el.btnCopy.onclick=dupSel;if(el.btnCopyMirror)el.btnCopyMirror.onclick=dupMirrorSel;el.btnDelete.onclick=delSel;if(el.btnAutoContrast)el.btnAutoContrast.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;const nextAuto=!(ts[0].autoContrastB!==false);for(const r of ts){r.autoContrastB=nextAuto;if(r.autoContrastB)r.colorB=autoContrast(r.colorA);invalidateRectCache(r,"appearance");}syncProps();listRects();schedulePersist("project");render()};el.randColor.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;const shared=randomColor();for(const r of ts){r.colorA=shared;if(r.autoContrastB!==false)r.colorB=autoContrast(r.colorA);invalidateRectCache(r,"appearance");}syncProps();listRects();schedulePersist("project");render()};el.zoomIn.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom*1.2)};el.zoomOut.onclick=()=>{const vm=getViewMetrics();zoomAt(vm.centerX,vm.centerY,st.zoom/1.2)};el.zoomReset.onclick=()=>{st.zoom=1;render()};el.zoomFit.onclick=fit;
 if(el.undo)el.undo.onclick=()=>undoHistory();
 if(el.redo)el.redo.onclick=()=>redoHistory();
 if(el.snapGrid)el.snapGrid.addEventListener("change",()=>{st.snap.grid=!!el.snapGrid.checked;schedulePersist("project");});
@@ -5418,7 +5580,7 @@ if(el.mCopyMirror)el.mCopyMirror.onclick=()=>el.btnCopyMirror.click();
 el.mDelete.onclick=()=>el.btnDelete.click();
 el.mZoomOut.onclick=()=>el.zoomOut.click();
 el.mZoomIn.onclick=()=>el.zoomIn.click();
-if(el.btnClearMasks)el.btnClearMasks.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;for(const r of ts){r.hiddenCells=[];hiddenCache.set(r,{src:r.hiddenCells,set:new Set()});}st.maskPath=[];st.maskHover=null;schedulePersist("project");render()};
+if(el.btnClearMasks)el.btnClearMasks.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;for(const r of ts){r.hiddenCells=[];hiddenCache.set(r,{src:r.hiddenCells,set:new Set()});invalidateRectCache(r,"topology");}st.maskPath=[];st.maskHover=null;schedulePersist("project");render()};
 if(el.btnResetFlowLocks)el.btnResetFlowLocks.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;for(const r of ts){r.flowLocks={};const cache=getRectCalcCache(r);if(cache)cache.flow=null;}st.flowHover=null;st.flowDirHover=null;st.flowDrag=null;schedulePersist("project");render()};
 if(el.btnResetManualClusters)el.btnResetManualClusters.onclick=()=>{const ts=getActionTargets();if(!ts.length)return;for(const r of ts){r.manualClusters=[];r.splitVariant=0;clearRectRegionsAndFlow(r);}st.clusterActiveId=null;st.clusterHandleHover=null;st.clusterCellHover=null;st.clusterStartHover=null;st.clusterBorderHover=null;st.clusterDrag=null;syncProps();schedulePersist("project");render()};
 const isStandalone=()=>window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
@@ -5839,7 +6001,7 @@ if(e.key==="Delete"){delSel();e.preventDefault()}
 if(e.ctrlKey&&e.key.toLowerCase()==="d"){dupSel();e.preventDefault()}
 if(e.ctrlKey&&e.key.toLowerCase()==="c"){const r=cur();if(r)st.clip={...r,autoContrastB:r.autoContrastB!==false,rotation:r.rotation||0,cellLinks:Array.isArray(r.cellLinks)?[...r.cellLinks]:[],hiddenCells:Array.isArray(r.hiddenCells)?[...r.hiddenCells]:[],manualClusters:normalizeManualClusters(r&&r.manualClusters)};e.preventDefault()}
 if(e.ctrlKey&&e.key.toLowerCase()==="v"){if(st.clip){const c={...st.clip,id:st.next++,name:`${st.clip.name} copy`,x:st.clip.x+20,y:st.clip.y+20,rotation:st.clip.rotation||0,autoContrastB:st.clip.autoContrastB!==false,colorB:(st.clip.autoContrastB!==false)?autoContrast(st.clip.colorA):st.clip.colorB,cellLinks:Array.isArray(st.clip.cellLinks)?[...st.clip.cellLinks]:[],hiddenCells:Array.isArray(st.clip.hiddenCells)?[...st.clip.hiddenCells]:[],manualClusters:normalizeManualClusters(st.clip&&st.clip.manualClusters)};insertCloneAboveSource(st.clip.id,c);selRect(c.id);setMode("select");schedulePersist("project")}e.preventDefault()}
-const selected=getSelectedRects();if(selected.length){const s=e.shiftKey?10:1;let dx=0,dy=0;if(e.key==="ArrowLeft")dx=-s;else if(e.key==="ArrowRight")dx=s;else if(e.key==="ArrowUp")dy=-s;else if(e.key==="ArrowDown")dy=s;if(dx||dy){for(const it of selected){it.x+=dx;it.y+=dy;}syncProps();listRects();schedulePersist("project");render();e.preventDefault();}}
+const selected=getEditableSelectedRects();if(selected.length){const s=e.shiftKey?10:1;let dx=0,dy=0;if(e.key==="ArrowLeft")dx=-s;else if(e.key==="ArrowRight")dx=s;else if(e.key==="ArrowUp")dy=-s;else if(e.key==="ArrowDown")dy=s;if(dx||dy){for(const it of selected){it.x+=dx;it.y+=dy;}syncProps();listRects();schedulePersist("project");render();e.preventDefault();}}
 });
 window.addEventListener("keyup",e=>{if(e.key===" ")st.keys.space=false;if(e.key==="Control"){st.keys.ctrl=false;st.g.x=null;st.g.y=null;st.dg=null;render()}});
 setMode(st.mode);
