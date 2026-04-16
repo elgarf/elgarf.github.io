@@ -281,6 +281,58 @@
       display: flex !important;
       z-index: 1070
     }
+    .m-view-toggle {
+      position: relative;
+      overflow: hidden;
+      padding: 0;
+      min-width: 40px;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px
+    }
+    .m-view-toggle .half {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--bs-secondary-color);
+      background: transparent;
+      transition: background-color .18s ease, color .18s ease
+    }
+    .m-view-toggle .half-art {
+      clip-path: polygon(0 0, 100% 0, 0 100%);
+      justify-content: flex-start;
+      align-items: flex-start;
+      padding: 7px 0 0 7px
+    }
+    .m-view-toggle .half-install {
+      clip-path: polygon(100% 0, 100% 100%, 0 100%);
+      justify-content: flex-end;
+      align-items: flex-end;
+      padding: 0 7px 7px 0
+    }
+    .m-view-toggle::after {
+      content: "";
+      position: absolute;
+      left: -5px;
+      top: 50%;
+      width: calc(100% + 10px);
+      height: 1.2px;
+      background: var(--bs-border-color);
+      transform: rotate(-45deg);
+      transform-origin: center;
+      pointer-events: none
+    }
+    .m-view-toggle.mode-art .half-art {
+      background: var(--bs-primary);
+      color: #fff
+    }
+    .m-view-toggle.mode-install .half-install {
+      background: var(--bs-primary);
+      color: #fff
+    }
 
     .install-banner {
       position: fixed;
@@ -1362,10 +1414,11 @@
       aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
     <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i
         class="fa-solid fa-trash"></i></button>
-    <button id="mViewModeArt" class="icon-btn btn btn-outline-secondary" title="Для художников"
-      aria-label="Для художников" aria-pressed="true"><i class="fa-solid fa-palette"></i></button>
-    <button id="mViewModeInstall" class="icon-btn btn btn-outline-secondary" title="Для монтажников"
-      aria-label="Для монтажников" aria-pressed="false"><i class="fa-solid fa-screwdriver-wrench"></i></button>
+    <button id="mViewModeToggle" class="icon-btn btn btn-outline-secondary m-view-toggle mode-art"
+      title="Режим: Для художников" aria-label="Переключить режим отображения" aria-pressed="false">
+      <span class="half half-art" aria-hidden="true"><i class="fa-solid fa-palette"></i></span>
+      <span class="half half-install" aria-hidden="true"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+    </button>
   </div>
   <script src="./vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="./vendor/qrcode-generator/qrcode.js"></script>
@@ -1387,7 +1440,7 @@
         "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkText", "projectLinkCopyBtn",
         "sidePanel", "sideClose", "multiEditBadge",
         "mToolSelect", "mToolDraw", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit",
-        "mCopy", "mCopyMirror", "mDelete", "mViewModeArt", "mViewModeInstall",
+        "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle",
         "toolSelect", "toolDraw", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit",
         "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
         "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
@@ -2810,11 +2863,13 @@
     const getRectRigData = r => {
       if (!r || typeof r !== "object") return normalizeRigData(null);
       r.rig = normalizeRigData(r.rig);
+      sanitizeRectRigFramesToBounds(r);
       return r.rig;
     };
     const setRectRigData = r => {
       if (!r || typeof r !== "object") return;
       r.rig = normalizeRigData(r.rig);
+      sanitizeRectRigFramesToBounds(r);
       invalidateRectCache(r, "appearance");
     };
     const applyFlowStartRouting = (ordered, routing, budget) => {
@@ -5016,17 +5071,15 @@ self.onmessage=e=>{
         el.viewModeInstall.classList.toggle("btn-outline-secondary", !isInstall);
         el.viewModeInstall.setAttribute("aria-pressed", isInstall ? "true" : "false");
       }
-      if (el.mViewModeArt) {
-        el.mViewModeArt.classList.remove("btn-secondary");
-        el.mViewModeArt.classList.toggle("btn-primary", !isInstall);
-        el.mViewModeArt.classList.toggle("btn-outline-secondary", isInstall);
-        el.mViewModeArt.setAttribute("aria-pressed", !isInstall ? "true" : "false");
-      }
-      if (el.mViewModeInstall) {
-        el.mViewModeInstall.classList.remove("btn-secondary");
-        el.mViewModeInstall.classList.toggle("btn-primary", isInstall);
-        el.mViewModeInstall.classList.toggle("btn-outline-secondary", !isInstall);
-        el.mViewModeInstall.setAttribute("aria-pressed", isInstall ? "true" : "false");
+      if (el.mViewModeToggle) {
+        el.mViewModeToggle.classList.remove("btn-secondary");
+        el.mViewModeToggle.classList.remove("btn-primary");
+        el.mViewModeToggle.classList.add("btn-outline-secondary");
+        el.mViewModeToggle.classList.toggle("mode-install", isInstall);
+        el.mViewModeToggle.classList.toggle("mode-art", !isInstall);
+        el.mViewModeToggle.title = isInstall ? "Режим: Для монтажников" : "Режим: Для художников";
+        el.mViewModeToggle.setAttribute("aria-label", isInstall ? "Режим: Для монтажников. Нажмите для переключения." : "Режим: Для художников. Нажмите для переключения.");
+        el.mViewModeToggle.setAttribute("aria-pressed", isInstall ? "true" : "false");
       }
       updateInstallToolAvailability();
     };
@@ -5466,6 +5519,7 @@ self.onmessage=e=>{
       const rs = Array.isArray(d && d.rectangles) ? d.rectangles : [];
       const legacyAreaM2 = parseAreaM2PxInput(d && d.settings ? d.settings.areaM2Px : null, 65536);
       st.rects = rs.map((r, i) => parseProjectRect(r, i, legacyAreaM2));
+      for (const rr of st.rects) remapRectRigLoadsToBottomSeams(rr);
       st.next = +(d && d.nextId) || (st.rects.reduce((m, r) => Math.max(m, r.id), 0) + 1);
       applyLoadedProjectSettings(d);
       resetTransientState(false);
@@ -6126,6 +6180,57 @@ self.onmessage=e=>{
       const loadSizePx = Math.max(14, 0.25 * scalePx);
       return { w, h, cols, rows, seams, bottomLoads, anchors, ui, loadSizePx, scalePx };
     };
+    const remapRectRigLoadsToBottomSeams = r => {
+      if (!r || typeof r !== "object") return false;
+      const rig = normalizeRigData(r.rig);
+      const srcLoads = (rig && rig.loads && typeof rig.loads === "object") ? rig.loads : {};
+      const entries = Object.entries(srcLoads);
+      if (!entries.length) { r.rig = rig; return false; }
+      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), layout = buildRigLayout(r, cx, cy, topo, hs, 1);
+      const seams = Array.from(layout.bottomLoads.values());
+      if (!seams.length) {
+        rig.loads = {};
+        r.rig = rig;
+        return Object.keys(srcLoads).length > 0;
+      }
+      let maxBottomY = -Infinity;
+      for (const s of seams) maxBottomY = Math.max(maxBottomY, Number(s && s.yBottom) || -Infinity);
+      const byCol = new Map();
+      for (const s of seams) {
+        if (!s) continue;
+        const c = Math.max(1, Math.round(Number(s.c) || 0));
+        let rec = byCol.get(c);
+        if (!rec) rec = { globalBottom: null, fallback: null };
+        if (!rec.fallback || (Number(s.yBottom) || -Infinity) > (Number(rec.fallback.yBottom) || -Infinity)) rec.fallback = s;
+        if (Math.abs((Number(s.yBottom) || 0) - maxBottomY) <= 1e-6 && !rec.globalBottom) rec.globalBottom = s;
+        byCol.set(c, rec);
+      }
+      const nextLoads = {};
+      let changed = false;
+      for (const [k, v] of entries) {
+        const p = String(k || "").split(",");
+        if (p.length !== 2) { changed = true; continue; }
+        const c = Math.max(1, Math.round(Number(p[0]) || 0));
+        const kg = Math.max(5, Math.round(Math.max(0, Number(v) || 0) / 5) * 5);
+        if (!kg) { changed = true; continue; }
+        const rec = byCol.get(c);
+        const target = (rec && (rec.globalBottom || rec.fallback)) || null;
+        if (!target || !target.key) { changed = true; continue; }
+        const targetKey = String(target.key);
+        if (targetKey !== String(k)) changed = true;
+        nextLoads[targetKey] = Math.max(Math.max(0, Math.round(Number(nextLoads[targetKey]) || 0)), kg);
+      }
+      const prevKeys = Object.keys(srcLoads).sort().join("|"), nextKeys = Object.keys(nextLoads).sort().join("|");
+      if (prevKeys !== nextKeys) changed = true;
+      if (!changed) {
+        for (const kk of Object.keys(nextLoads)) {
+          if (Math.max(0, Math.round(Number(nextLoads[kk]) || 0)) !== Math.max(0, Math.round(Number(srcLoads[kk]) || 0))) { changed = true; break; }
+        }
+      }
+      rig.loads = nextLoads;
+      r.rig = rig;
+      return changed;
+    };
     const resolveRigFrameSeam = (layout, cellY, key) => {
       if (!layout || !layout.seams) return null;
       const direct = layout.seams.get(String(key || ""));
@@ -6136,6 +6241,23 @@ self.onmessage=e=>{
       const legacyRow = Math.max(0, Math.round(Number(p[1]) || 0));
       const meter = Math.max(0, Math.floor(((legacyRow + 0.5) * Math.max(1, Number(cellY) || 1)) / Math.max(1, Number(layout.scalePx) || 1)));
       return layout.seams.get(`${c},${meter}`) || null;
+    };
+    const sanitizeRectRigFramesToBounds = r => {
+      if (!r || typeof r !== "object") return false;
+      const rig = normalizeRigData(r.rig);
+      const src = Array.isArray(rig.frames) ? rig.frames : [];
+      if (!src.length) { r.rig = rig; return false; }
+      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), layout = buildRigLayout(r, cx, cy, topo, hs, 1);
+      const nextSet = new Set();
+      for (const key of src) {
+        const seam = resolveRigFrameSeam(layout, cy, String(key || ""));
+        if (seam && seam.key) nextSet.add(String(seam.key));
+      }
+      const next = [...nextSet].sort((a, b) => { const pa = a.split(",").map(Number), pb = b.split(",").map(Number); return pa[1] - pb[1] || pa[0] - pb[0]; });
+      const prevSig = src.join("|"), nextSig = next.join("|");
+      rig.frames = next;
+      r.rig = rig;
+      return prevSig !== nextSig;
     };
     const getRigHitAtPoint = (r, wx, wy, z) => {
       if (!r) return null;
@@ -7460,7 +7582,10 @@ self.onmessage=e=>{
         t.splitVariant = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, t.splitVariant || 0))));
         if (t.splitVariant !== prevSplit) { try { delete t._splitVariantCount; } catch (_e) { t._splitVariantCount = NaN; } }
         const topoChanged = (prev.cellX !== t.cellX || prev.cellY !== t.cellY || prev.scale !== t.scale);
-        if (topoChanged) invalidateRectCache(t, "topology");
+        if (topoChanged) {
+          if (prev.cellX !== t.cellX || prev.cellY !== t.cellY) remapRectRigLoadsToBottomSeams(t);
+          invalidateRectCache(t, "topology");
+        }
         else {
           if (prev.colorA !== t.colorA || prev.colorB !== t.colorB) invalidateRectCache(t, "appearance");
           if (prev.areaM2Px !== t.areaM2Px || prev.splitVariant !== t.splitVariant) invalidateRectCache(t, "regions");
@@ -7557,8 +7682,7 @@ self.onmessage=e=>{
     bindClicks([
       [el.viewModeArt, () => setViewMode("art", true)],
       [el.viewModeInstall, () => setViewMode("install", true)],
-      [el.mViewModeArt, () => setViewMode("art", true)],
-      [el.mViewModeInstall, () => setViewMode("install", true)],
+      [el.mViewModeToggle, () => setViewMode(isInstallViewMode() ? "art" : "install", true)],
       [el.toolSelect, () => activateToolOrSelect("select")],
       [el.toolDraw, () => activateToolOrSelect("draw")],
       [el.toolMaskAdd, () => activateToolOrSelect("maskEdit")],
@@ -7608,7 +7732,10 @@ self.onmessage=e=>{
         const prevX = r.cellX, prevY = r.cellY;
         r.cellX = nextX;
         r.cellY = nextY;
-        if (prevX !== r.cellX || prevY !== r.cellY) invalidateRectCache(r, "topology");
+        if (prevX !== r.cellX || prevY !== r.cellY) {
+          remapRectRigLoadsToBottomSeams(r);
+          invalidateRectCache(r, "topology");
+        }
       }, { syncProps: true, listRects: true, persist: true, render: true });
     };
     if (el.cabSizeY2ToX) el.cabSizeY2ToX.onclick = () => applyCabinetSizeQuickAction("y2x");
@@ -7638,7 +7765,7 @@ self.onmessage=e=>{
     }, { passive: false });
     const updateMobileDock = () => {
       if (!el.mobileDock) return;
-      const show = isMobile() || isCoarsePointer();
+      const show = isMobile();
       el.mobileDock.classList.toggle("force-visible", show);
       el.mobileDock.classList.toggle("force-hidden", !show);
     };
