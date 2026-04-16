@@ -557,6 +557,19 @@
     .canvas-wrap[data-panning="1"] canvas {
       cursor: grabbing
     }
+    .note-editor-overlay {
+      position: absolute;
+      z-index: 1200;
+      resize: none;
+      border: 1px solid var(--bs-primary);
+      border-radius: 8px;
+      background: rgba(255, 251, 209, .72);
+      color: #1f2937;
+      font: 500 13px/1.3 "Roboto", "Segoe UI", Arial, sans-serif;
+      padding: 8px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .24);
+      outline: none
+    }
 
     .side {
       --bs-offcanvas-width: min(88vw, 360px);
@@ -1030,6 +1043,9 @@
         <button id="toolDraw" class="icon-btn" title="Добавить" aria-label="Добавить">
           <i class="fa-solid fa-plus"></i>
         </button>
+        <button id="toolNote" class="icon-btn" title="Примечание" aria-label="Примечание">
+          <i class="fa-solid fa-note-sticky"></i>
+        </button>
         <button id="toolMaskAdd" class="icon-btn" title="Скрыть или показать часть экрана"
           aria-label="Скрыть или показать часть экрана">
           <i class="fa-solid fa-masks-theater"></i>
@@ -1260,6 +1276,8 @@
             id="btnResetFlowLocks" class="btn btn-outline-secondary btn-sm flex-fill" type="button">Сброс
             потока</button><button id="btnResetManualClusters" class="btn btn-outline-secondary btn-sm flex-fill"
             type="button">Сброс регионов</button></div>
+        <div class="field"><button id="btnConvertRegionsToScreens" class="btn btn-outline-secondary btn-sm w-100"
+            type="button">Преобразовать регионы в экраны</button></div>
         <div class="rect-list" id="rectList"></div>
       </aside>
     </div>
@@ -1311,6 +1329,9 @@
             </div>
             <div class="help-item"><i class="fa-solid fa-plus"></i>
               <div><b>Добавить</b><span>Создание нового экрана протяжкой мыши или пальцем.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-note-sticky"></i>
+              <div><b>Примечание</b><span>Создание текстового блока. Двойной клик по примечанию открывает редактирование прямо на холсте.</span></div>
             </div>
             <div class="help-item"><i class="fa-solid fa-masks-theater"></i>
               <div><b>Скрыть или показать часть экрана</b><span>Клики по узлам сетки. Замкните контур, чтобы
@@ -1398,6 +1419,8 @@
         class="fa-solid fa-arrow-pointer"></i></button>
     <button id="mToolDraw" class="icon-btn" title="Добавить" aria-label="Добавить"><i
         class="fa-solid fa-plus"></i></button>
+    <button id="mToolNote" class="icon-btn" title="Примечание" aria-label="Примечание"><i
+        class="fa-solid fa-note-sticky"></i></button>
     <button id="mToolMaskAdd" class="icon-btn" title="Скрыть или показать часть экрана"
       aria-label="Скрыть или показать часть экрана"><i class="fa-solid fa-masks-theater"></i></button>
     <button id="mToolCellEdit" class="icon-btn" title="Объединить или разделить кабинеты"
@@ -1439,16 +1462,16 @@
         "mobileMenu", "installApp", "installBanner", "installBannerText", "installBannerAction", "installBannerClose",
         "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkText", "projectLinkCopyBtn",
         "sidePanel", "sideClose", "multiEditBadge",
-        "mToolSelect", "mToolDraw", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit",
+        "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit",
         "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle",
-        "toolSelect", "toolDraw", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit",
+        "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit",
         "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
         "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
         "snapGrid", "snapObjects", "snapCenters", "snapGaps", "propName", "propTextSize", "propTextSizeLabel", "propX", "propY", "propRot",
         "propWm", "propHm", "propScale", "propAreaM2", "propColorA", "propColorB", "btnAutoContrast", "btnRandomColor",
         "propCellX", "propCellY", "cabSizeY2ToX", "cabSizeXEqY", "cabSizeX2ToY", "propDataFlow", "propDataFlowZ", "propNumberCells",
         "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
-        "propSplitVariantLabel", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "rectList"
+        "propSplitVariantLabel", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "btnConvertRegionsToScreens", "rectList"
       ]),
       toolbar: $("toolbarMain"),
       overflowToggle: $("toolbarOverflowToggle"),
@@ -1494,9 +1517,9 @@
       redo: $("redoAction"),
       newProject: $("newProject")
     };
-    const desktopToolButtons = [el.toolSelect, el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean);
-    const mobileToolButtons = [el.mToolSelect, el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean);
-    const overflowButtonIds = ["toolSelect", "toolDraw", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "themeToggle"];
+    const desktopToolButtons = [el.toolSelect, el.toolDraw, el.toolNote, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean);
+    const mobileToolButtons = [el.mToolSelect, el.mToolDraw, el.mToolNote, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean);
+    const overflowButtonIds = ["toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "themeToggle"];
     const overflowButtons = overflowButtonIds.map(id => el[id]).filter(Boolean);
     const overflowGroups = [...new Set(overflowButtons.map(b => b.closest(".group")).filter(Boolean))];
     let overflowHiddenButtons = [];
@@ -1764,6 +1787,77 @@
     };
     const w2s = (x, y) => { const vm = getViewMetrics(); return { x: (x - st.camX) * st.zoom + vm.centerX, y: (y - st.camY) * st.zoom + vm.centerY } };
     const s2w = (x, y) => { const vm = getViewMetrics(); return { x: (x - vm.centerX) / st.zoom + st.camX, y: (y - vm.centerY) / st.zoom + st.camY } };
+    let noteEditorEl = null;
+    const ensureNoteEditorEl = () => {
+      if (noteEditorEl && noteEditorEl.parentElement) return noteEditorEl;
+      if (!wrap) return null;
+      const ta = document.createElement("textarea");
+      ta.className = "note-editor-overlay";
+      ta.spellcheck = false;
+      ta.placeholder = "Введите текст примечания";
+      ta.style.display = "none";
+      ta.addEventListener("input", () => {
+        const id = Math.round(Number(ta.dataset.rectId) || 0);
+        if (!id) return;
+        const r = st.rects.find(it => it.id === id);
+        if (!r || !isNoteRect(r)) return;
+        r.noteText = String(ta.value || "");
+        invalidateRectCache(r, "appearance");
+        render();
+      });
+      ta.addEventListener("keydown", e => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeNoteEditor(true);
+        }
+      });
+      ta.addEventListener("blur", () => closeNoteEditor(true));
+      wrap.appendChild(ta);
+      noteEditorEl = ta;
+      return noteEditorEl;
+    };
+    function closeNoteEditor(commit = true) {
+      const ta = ensureNoteEditorEl();
+      if (!ta) return;
+      const id = Math.round(Number(ta.dataset.rectId) || 0);
+      if (commit && id) {
+        const r = st.rects.find(it => it.id === id);
+        if (r && isNoteRect(r)) {
+          r.noteText = String(ta.value || "");
+          invalidateRectCache(r, "appearance");
+          schedulePersist("project");
+        }
+      }
+      ta.dataset.rectId = "";
+      ta.style.display = "none";
+    }
+    function openNoteEditor(id) {
+      const r = st.rects.find(it => it.id === id);
+      if (!r || !isNoteRect(r)) return;
+      const ta = ensureNoteEditorEl();
+      if (!ta) return;
+      ta.dataset.rectId = String(id);
+      ta.value = String(r.noteText || "");
+      ta.style.display = "block";
+      updateNoteEditorOverlay();
+      try { ta.focus(); ta.select(); } catch (_e) { }
+    }
+    function updateNoteEditorOverlay() {
+      const ta = ensureNoteEditorEl();
+      if (!ta || ta.style.display === "none") return;
+      const id = Math.round(Number(ta.dataset.rectId) || 0);
+      if (!id) { ta.style.display = "none"; return; }
+      const r = st.rects.find(it => it.id === id);
+      if (!r || !isNoteRect(r)) { ta.style.display = "none"; return; }
+      const bb = rectAABB(r);
+      const p0 = w2s(bb.minX, bb.minY), p1 = w2s(bb.maxX, bb.maxY);
+      const left = Math.min(p0.x, p1.x), top = Math.min(p0.y, p1.y), width = Math.max(60, Math.abs(p1.x - p0.x)), height = Math.max(40, Math.abs(p1.y - p0.y));
+      ta.style.left = `${Math.round(left)}px`;
+      ta.style.top = `${Math.round(top)}px`;
+      ta.style.width = `${Math.round(width)}px`;
+      ta.style.height = `${Math.round(height)}px`;
+      ta.style.fontSize = `${Math.max(11, Math.min(26, Math.round(12 * Math.max(0.8, st.zoom))))}px`;
+    }
     const zc = v => Math.min(8, Math.max(window.matchMedia("(max-width:900px)").matches ? 0.01 : 0.1, v));
     const hexRgb = h => { const n = h.replace("#", ""); const v = n.length === 3 ? n.split("").map(x => x + x).join("") : n; const num = parseInt(v, 16); return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 } };
     const rgbToHsl = (r, g, b) => { const rn = r / 255, gn = g / 255, bn = b / 255, max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn), d = max - min; let h = 0, s = 0, l = (max + min) / 2; if (d !== 0) { s = l > 0.5 ? d / (2 - max - min) : d / (max + min); switch (max) { case rn: h = ((gn - bn) / d + (gn < bn ? 6 : 0)); break; case gn: h = ((bn - rn) / d + 2); break; default: h = ((rn - gn) / d + 4); break }h *= 60 } return { h, s, l } };
@@ -2038,6 +2132,7 @@
     const pointInPoly = (x, y, poly) => { let inside = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y; const inter = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-9) + xi); if (inter) inside = !inside } return inside };
     const isMaskMode = () => st.mode === "maskEdit";
     const isCellEditMode = () => st.mode === "cellEdit";
+    const isNoteMode = () => st.mode === "note";
     const drawCellX = r => Math.max(32, Math.max(1, Math.round(r.cellX || 128)));
     const drawCellY = r => Math.max(32, Math.max(1, Math.round(r.cellY || 128)));
     const getMaskNodeAxes = r => { const cx = drawCellX(r), cy = drawCellY(r), xs = [], ys = []; for (let x = 0; x <= r.width; x += cx)xs.push(x); if (xs[xs.length - 1] !== r.width) xs.push(r.width); for (let y = 0; y <= r.height; y += cy)ys.push(y); if (ys[ys.length - 1] !== r.height) ys.push(r.height); return { xs, ys } };
@@ -5476,7 +5571,9 @@ self.onmessage=e=>{
         flowLocks: normalizeFlowLocks(r.flowLocks),
         manualClusters: normalizeManualClusters(r && r.manualClusters),
         rig: normalizeRigData(r && r.rig),
-        locked: !!(r && r.locked)
+        locked: !!(r && r.locked),
+        kind: String((r && r.kind) || ""),
+        noteText: String((r && r.noteText) || "")
       };
       if (!(+r.widthM > 0 && +r.heightM > 0)) metricFromPx(it);
       else pxFromMetric(it);
@@ -5567,7 +5664,29 @@ self.onmessage=e=>{
         return true;
       } catch (_e) { return false }
     }
-    function mk(x, y, w, h) { const id = st.next++; const colorA = randomColor(); const r = { id, name: `Rect ${id}`, x: Math.round(x), y: Math.round(y), rotation: 0, width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)), scale: 256, widthM: 1, heightM: 1, areaM2Px: 65536, textSize: 0, colorA, autoContrastB: true, colorB: autoContrast(colorA), cellX: 128, cellY: 128, dataFlow: "none", dataFlowZ: false, numberCells: false, splitVariant: 0, cellLinks: [], hiddenCells: [], flowLocks: {}, manualClusters: [], rig: normalizeRigData(null), locked: false }; metricFromPx(r); return r }
+    const isNoteRect = r => String((r && r.kind) || "").toLowerCase() === "note";
+    const withNameSuffixBeforeGroup = (name, suffix) => {
+      const src = String(name || "").trim() || "Rect";
+      const add = String(suffix || "").trim();
+      if (!add) return src;
+      const at = src.indexOf("@");
+      if (at < 0) return `${src} ${add}`.trim();
+      const base = src.slice(0, at).trim() || "Rect";
+      const group = src.slice(at);
+      return `${base} ${add}${group}`.trim();
+    };
+    function mk(x, y, w, h) { const id = st.next++; const colorA = randomColor(); const r = { id, name: `Rect ${id}`, x: Math.round(x), y: Math.round(y), rotation: 0, width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)), scale: 256, widthM: 1, heightM: 1, areaM2Px: 65536, textSize: 0, colorA, autoContrastB: true, colorB: autoContrast(colorA), cellX: 128, cellY: 128, dataFlow: "none", dataFlowZ: false, numberCells: false, splitVariant: 0, cellLinks: [], hiddenCells: [], flowLocks: {}, manualClusters: [], rig: normalizeRigData(null), locked: false, kind: "", noteText: "" }; metricFromPx(r); return r }
+    function mkNote(x, y, w, h) {
+      const r = mk(x, y, w, h);
+      r.kind = "note";
+      r.name = `Примечание ${r.id}`;
+      r.noteText = "";
+      r.rotation = 0;
+      r.colorA = "#fff7c2";
+      r.autoContrastB = false;
+      r.colorB = "#1f2937";
+      return r;
+    }
     function activateToolOrSelect(mode) {
       if (isInstallOnlyToolMode(mode) && !isInstallViewMode()) { setMode("select"); return }
       if (mode !== "select" && st.mode === mode) { setMode("select"); return }
@@ -5575,6 +5694,7 @@ self.onmessage=e=>{
     }
     function setMode(m) {
       if (isInstallOnlyToolMode(m) && !isInstallViewMode()) m = "select";
+      if (st.mode !== m && m !== "note") closeNoteEditor(true);
       st.mode = m;
       st.flowDrag = null;
       st.selBox = null;
@@ -5586,7 +5706,7 @@ self.onmessage=e=>{
       st.rigHover = null;
       if (m !== "flowEdit") st.flowRegionRid = null;
       if (m !== "clusterEdit") { st.clusterHandles = []; st.clusterHandleHover = null; st.clusterCellHover = null; }
-      const map = [["select", el.toolSelect, el.mToolSelect], ["draw", el.toolDraw, el.mToolDraw], ["maskEdit", el.toolMaskAdd, el.mToolMaskAdd], ["cellEdit", el.toolCellEdit, el.mToolCellEdit], ["flowEdit", el.toolFlowEdit, el.mToolFlowEdit], ["clusterEdit", el.toolClusterEdit, el.mToolClusterEdit], ["rigEdit", el.toolRigEdit, el.mToolRigEdit]];
+      const map = [["select", el.toolSelect, el.mToolSelect], ["draw", el.toolDraw, el.mToolDraw], ["note", el.toolNote, el.mToolNote], ["maskEdit", el.toolMaskAdd, el.mToolMaskAdd], ["cellEdit", el.toolCellEdit, el.mToolCellEdit], ["flowEdit", el.toolFlowEdit, el.mToolFlowEdit], ["clusterEdit", el.toolClusterEdit, el.mToolClusterEdit], ["rigEdit", el.toolRigEdit, el.mToolRigEdit]];
       for (const [mode, ...btns] of map) {
         const on = m === mode;
         for (const b of btns) {
@@ -5796,7 +5916,7 @@ self.onmessage=e=>{
       else if (o.add) { normSelSet(); if (id != null && hasRect(id)) { st.selSet.add(id); st.sel = id; } }
       else selectOnly(id);
       st.maskPath = []; st.maskHover = null; st.cellHover = null; st.flowHover = null; st.flowDirHover = null; st.flowRegionRid = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.selBox = null;
-      const r = st.rects.find(v => v.id === st.sel) || null; if (!r || !findManualClusterById(r, st.clusterActiveId)) st.clusterActiveId = null;
+      const r = st.rects.find(v => v.id === st.sel) || null; if (!r || !findManualClusterById(r, st.clusterActiveId)) st.clusterActiveId = null; if (!r || !isNoteRect(r)) closeNoteEditor(true);
       syncProps(); listRects(); updateModeBadges(r); updateClusterEditCursor(); render();
     }
     const cur = () => st.rects.find(r => r.id === st.sel) || null;
@@ -5960,7 +6080,52 @@ self.onmessage=e=>{
       if (usedX && usedY) dg = Math.abs(bdx.d) <= Math.abs(bdy.d) ? bdx.guide : bdy.guide; else if (usedX) dg = bdx.guide; else if (usedY) dg = bdy.guide;
       return { x: Math.round(x + dx), y: Math.round(y + dy), gx, gy, dg }
     }
+    const wrapNoteText = (c, text, maxW) => {
+      const out = [];
+      const lines = String(text || "").replace(/\r/g, "").split("\n");
+      for (const ln of lines) {
+        const words = String(ln || "").split(/\s+/).filter(Boolean);
+        if (!words.length) { out.push(""); continue; }
+        let cur = words[0];
+        for (let i = 1; i < words.length; i++) {
+          const next = `${cur} ${words[i]}`;
+          if (c.measureText(next).width <= maxW) cur = next;
+          else { out.push(cur); cur = words[i]; }
+        }
+        out.push(cur);
+      }
+      return out.length ? out : [""];
+    };
+    const drawNoteRect = (c, r, sel, z) => {
+      const a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, fs = Math.max(10, getRectTextSizePx(r));
+      c.save();
+      c.translate(center.x, center.y);
+      c.rotate(a);
+      c.beginPath();
+      c.rect(-w / 2, -h / 2, w, h);
+      c.fillStyle = "rgba(255,251,209,.62)";
+      c.fill();
+      c.lineWidth = Math.max(1, 1.2 / Math.max(0.2, z || 1));
+      c.strokeStyle = sel ? "rgba(13,110,253,.96)" : "rgba(61,73,93,.78)";
+      c.stroke();
+      const pad = Math.max(6, 8 / Math.max(0.5, z || 1));
+      c.fillStyle = "#1f2937";
+      c.textAlign = "left";
+      c.textBaseline = "top";
+      c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`;
+      const text = String(r.noteText || "").trim() || "Двойной клик для ввода текста";
+      const lines = wrapNoteText(c, text, Math.max(8, w - pad * 2));
+      const lh = Math.max(12, fs * 1.3);
+      let y = -h / 2 + pad;
+      for (const line of lines) {
+        if (y + lh > h / 2 - pad) break;
+        c.fillText(line, -w / 2 + pad, y);
+        y += lh;
+      }
+      c.restore();
+    };
     function drawRect(c, r, sel, z, origin, opts) {
+      if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
       const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, options = opts || {}, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
       const skeleton = !st.fontReady;
       const installView = (viewModeOverride || normalizeViewMode(st.viewMode)) === "install";
@@ -6698,7 +6863,7 @@ self.onmessage=e=>{
       flowDrawRenderEpoch++; const r = window.devicePixelRatio || 1, vm = getViewMetrics(), fastPan = !!st.pan, tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching")), interactiveFast = !!(st.drag || st.draft || st.clusterDrag || st.flowDrag), flowEditActive = st.mode === "flowEdit", forceLowDetail = !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive)); st.flowEditPoints = []; st.flowStartHandles = []; st.flowDirButtons = []; st.clusterHandles = []; if (!isClusterEditMode()) { st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; } flowPointIndexSrc = null; flowPointIndexMap = null; ctx.setTransform(r, 0, 0, r, 0, 0); ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight); drawGrid(); ctx.save(); ctx.translate(vm.centerX, vm.centerY); ctx.scale(st.zoom, st.zoom); ctx.translate(-st.camX, -st.camY);
       const vw0 = s2w(0, 0), vw1 = s2w(vm.viewWidth, vm.viewHeight), vmargin = Math.max(48, 80 / Math.max(0.25, st.zoom)), viewMinX = Math.min(vw0.x, vw1.x) - vmargin, viewMinY = Math.min(vw0.y, vw1.y) - vmargin, viewMaxX = Math.max(vw0.x, vw1.x) + vmargin, viewMaxY = Math.max(vw0.y, vw1.y) + vmargin;
       const origin = getOrigin(); for (let i = st.rects.length - 1; i >= 0; i--) { const rr = st.rects[i], bb = rectAABB(rr); if (bb.maxX < viewMinX || bb.minX > viewMaxX || bb.maxY < viewMinY || bb.minY > viewMaxY) continue; drawRect(ctx, rr, isSelected(rr.id), st.zoom, origin, { designerRender: true, forceLowDetail }) } if (st.draft) { const d = st.draft; ctx.strokeStyle = "#7fd4f8"; ctx.lineWidth = 1 / st.zoom; ctx.setLineDash([8 / st.zoom, 5 / st.zoom]); ctx.strokeRect(d.x, d.y, d.width, d.height); ctx.setLineDash([]) } if (st.selBox) { const b = selBoxBounds(st.selBox); ctx.save(); ctx.strokeStyle = "rgba(125,208,255,.95)"; ctx.fillStyle = "rgba(125,208,255,.12)"; ctx.lineWidth = Math.max(1, 1.2 / st.zoom); ctx.setLineDash([6 / st.zoom, 4 / st.zoom]); ctx.fillRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY); ctx.strokeRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY); ctx.restore(); } if (!(fastPan || tabSwitching || (interactiveFast && !flowEditActive))) { drawMaskOverlay(ctx, st.zoom); drawCellEditOverlay(ctx, st.zoom); drawContentBounds(ctx, st.zoom); }
-      ctx.restore(); drawGuides(); drawDistanceGuide(); el.zoomLabel.textContent = `${Math.round(st.zoom * 100)}%`; wrap.dataset.panning = st.pan ? "1" : "0"
+      ctx.restore(); drawGuides(); drawDistanceGuide(); el.zoomLabel.textContent = `${Math.round(st.zoom * 100)}%`; wrap.dataset.panning = st.pan ? "1" : "0"; updateNoteEditorOverlay()
     }
     function render(immediate = false) {
       if (immediate || typeof requestAnimationFrame !== "function") {
@@ -6905,7 +7070,7 @@ self.onmessage=e=>{
     cv.addEventListener("contextmenu", e => e.preventDefault());
     cv.addEventListener("mousedown", e => {
       const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy), pan = e.button === 1 || e.button === 2 || (st.keys.space && e.button === 0); if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return } if (e.button !== 0) return;
-      if (st.mode === "draw") { st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y }; render(); return }
+      if (st.mode === "draw" || isNoteMode()) { st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y, kind: (isNoteMode() ? "note" : "rect") }; render(); return }
       if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) selRect(h.id); if (isRectLocked(cur())) return; addMaskPoint(p.x, p.y); return }
       if (isCellEditMode()) { const h = hit(p.x, p.y); if (!h) { selRect(null); return } if (h.id !== st.sel) selRect(h.id); if (isRectLocked(h)) return; toggleCellLinkAtPoint(h, p.x, p.y); return }
       if (isClusterEditMode()) { if (beginClusterHandleDragAtPoint(p.x, p.y)) { render(); return } handleClusterEditAtPoint(p.x, p.y); return }
@@ -6954,18 +7119,20 @@ self.onmessage=e=>{
         }
         render(); return;
       }
-      let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
+      let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = (String(d.kind || "") === "note") ? mkNote(d.x, d.y, d.width, d.height) : mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
       st.drag = null; st.g.x = null; st.g.y = null; st.dg = null;
-      if (created) { setMode("select"); selRect(created.id) }
+      if (created) { setMode("select"); selRect(created.id); if (isNoteRect(created)) openNoteEditor(created.id); }
       if (hadDrag || created) { refreshPanels(); schedulePersist("project") }
       render()
     });
     cv.addEventListener("wheel", e => { e.preventDefault(); const b = cv.getBoundingClientRect(); zoomAt(e.clientX - b.left, e.clientY - b.top, st.zoom * (e.deltaY < 0 ? 1.1 : .9)) }, { passive: false });
     cv.addEventListener("dblclick", e => {
+      const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
+      const h = hit(p.x, p.y); if (!h) return;
+      if (isNoteRect(h)) { if (h.id !== st.sel) selRect(h.id); openNoteEditor(h.id); e.preventDefault(); return; }
+      if (h.id !== st.sel) return;
       if (st.mode !== "flowEdit") return;
       const r = cur(); if (!r) return;
-      const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
-      const h = hit(p.x, p.y); if (!h || h.id !== st.sel) return;
       const startHandle = findFlowStartHandle(p.x, p.y);
       if (!startHandle) return;
       st.flowRegionRid = startHandle.rid;
@@ -6980,7 +7147,7 @@ self.onmessage=e=>{
     const touchMid = (a, b, rect) => ({ sx: ((a.clientX + b.clientX) / 2) - rect.left, sy: ((a.clientY + b.clientY) / 2) - rect.top });
     cv.addEventListener("touchstart", e => {
       const rect = cv.getBoundingClientRect(); if (e.touches.length === 2) { const m = touchMid(e.touches[0], e.touches[1], rect); st.touch = { type: "pinch", startDist: touchDist(e.touches[0], e.touches[1]), startZoom: st.zoom, worldMid: s2w(m.sx, m.sy) }; st.drag = null; st.selBox = null; st.pan = false; st.draft = null; e.preventDefault(); return }
-      if (e.touches.length !== 1) return; const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy); st.touch = { type: "single" }; if (st.mode === "draw") { st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y }; render(); e.preventDefault(); return }
+      if (e.touches.length !== 1) return; const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy); st.touch = { type: "single" }; if (st.mode === "draw" || isNoteMode()) { st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y, kind: (isNoteMode() ? "note" : "rect") }; render(); e.preventDefault(); return }
       if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) selRect(h.id); if (isRectLocked(cur())) { e.preventDefault(); return } addMaskPoint(p.x, p.y); e.preventDefault(); return }
       if (isCellEditMode()) { const h = hit(p.x, p.y); if (!h) { selRect(null); e.preventDefault(); return } if (h.id !== st.sel) selRect(h.id); if (isRectLocked(h)) { e.preventDefault(); return } toggleCellLinkAtPoint(h, p.x, p.y); e.preventDefault(); return }
       if (isClusterEditMode()) { if (beginClusterHandleDragAtPoint(p.x, p.y)) { render(); e.preventDefault(); return } handleClusterEditAtPoint(p.x, p.y); e.preventDefault(); return }
@@ -7022,9 +7189,9 @@ self.onmessage=e=>{
           if (r) { const isStartMove = String(fd && fd.kind || "") === "start"; const pts = (st.flowEditPoints || []).filter(p => p.rid === fd.rid && (isStartMove ? p.index >= 0 : p.index >= fd.fromIndex)), target = pts.find(p => p.index === fd.currentIndex) || pts[0]; if (isStartMove) { if (target && target.cid !== fd.cid) { setFlowStart(r, fd.rid, target.cid); schedulePersist("project"); } } else if (target && target.index >= fd.fromIndex && target.cid !== fd.cid) { setFlowLock(r, fd.rid, fd.fromIndex, target.cid); schedulePersist("project"); } }
           render(); e.preventDefault(); return;
         }
-        let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
+        let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = (String(d.kind || "") === "note") ? mkNote(d.x, d.y, d.width, d.height) : mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
         st.drag = null; st.g.x = null; st.g.y = null; st.dg = null;
-        if (created) { setMode("select"); selRect(created.id) }
+        if (created) { setMode("select"); selRect(created.id); if (isNoteRect(created)) openNoteEditor(created.id); }
         if (hadDrag || created) { refreshPanels(); schedulePersist("project") }
         render(); e.preventDefault()
       }
@@ -7073,7 +7240,7 @@ self.onmessage=e=>{
       if (idx >= 0) st.rects.splice(idx, 0, clone);
       else st.rects.unshift(clone);
     };
-    function dupSel() { normSelSet(); const src = getSelectedRects(); if (!src.length) { const r = cur(); if (!r) return; src.push(r); } const created = []; for (const r of src) { const c = { ...r, id: st.next++, name: `${r.name} copy`, x: r.x + 20, y: r.y + 20, rotation: r.rotation || 0, colorB: r.autoContrastB ? autoContrast(r.colorA) : r.colorB, autoContrastB: r.autoContrastB !== false, cellLinks: Array.isArray(r.cellLinks) ? [...r.cellLinks] : [], hiddenCells: Array.isArray(r.hiddenCells) ? [...r.hiddenCells] : [], flowLocks: normalizeFlowLocks(r && r.flowLocks), manualClusters: normalizeManualClusters(r && r.manualClusters), rig: normalizeRigData(r && r.rig) }; insertCloneAboveSource(r.id, c); created.push(c.id); } setSelection(created, created[created.length - 1] || null); syncProps(); listRects(); setMode("select"); schedulePersist("project") }
+    function dupSel() { normSelSet(); const src = getSelectedRects(); if (!src.length) { const r = cur(); if (!r) return; src.push(r); } const created = []; for (const r of src) { const c = { ...r, id: st.next++, name: withNameSuffixBeforeGroup(r.name, "copy"), x: r.x + 20, y: r.y + 20, rotation: r.rotation || 0, colorB: r.autoContrastB ? autoContrast(r.colorA) : r.colorB, autoContrastB: r.autoContrastB !== false, cellLinks: Array.isArray(r.cellLinks) ? [...r.cellLinks] : [], hiddenCells: Array.isArray(r.hiddenCells) ? [...r.hiddenCells] : [], flowLocks: normalizeFlowLocks(r && r.flowLocks), manualClusters: normalizeManualClusters(r && r.manualClusters), rig: normalizeRigData(r && r.rig) }; insertCloneAboveSource(r.id, c); created.push(c.id); } setSelection(created, created[created.length - 1] || null); syncProps(); listRects(); setMode("select"); schedulePersist("project") }
     function dupMirrorSel() {
       const r = cur(); if (!r) return; const cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); const mapIndex = i => { const x = i % cols, y = Math.floor(i / cols); if (!(x >= 0 && x < cols && y >= 0 && y < rows)) return -1; const nx = (cols - 1) - x; return y * cols + nx };
       const hiddenSrc = Array.isArray(r.hiddenCells) ? r.hiddenCells : [], hiddenSet = new Set();
@@ -7206,7 +7373,7 @@ self.onmessage=e=>{
         if (x === y) continue;
         mirRig.suspendLinks.push(`${x}-${y}`);
       }
-      const c = { ...r, id: st.next++, name: `${r.name} mirror`, x: r.x + 20, y: r.y + 20, rotation: r.rotation || 0, colorB: r.autoContrastB ? autoContrast(r.colorA) : r.colorB, autoContrastB: r.autoContrastB !== false, splitVariant: mirroredSplitVariant, cellLinks: [...linkSet], hiddenCells: [...hiddenSet], flowLocks: mirFlowLocks, manualClusters: [], rig: normalizeRigData(mirRig) };
+      const c = { ...r, id: st.next++, name: withNameSuffixBeforeGroup(r.name, "mirror"), x: r.x + 20, y: r.y + 20, rotation: r.rotation || 0, colorB: r.autoContrastB ? autoContrast(r.colorA) : r.colorB, autoContrastB: r.autoContrastB !== false, splitVariant: mirroredSplitVariant, cellLinks: [...linkSet], hiddenCells: [...hiddenSet], flowLocks: mirFlowLocks, manualClusters: [], rig: normalizeRigData(mirRig) };
       insertCloneAboveSource(r.id, c); selRect(c.id); setMode("select"); schedulePersist("project")
     }
     function fit() {
@@ -7272,6 +7439,7 @@ self.onmessage=e=>{
       if (el.btnClearMasks) uiSetDisabled(el.btnClearMasks, !on);
       if (el.btnResetFlowLocks) uiSetDisabled(el.btnResetFlowLocks, !on);
       if (el.btnResetManualClusters) uiSetDisabled(el.btnResetManualClusters, !on);
+      if (el.btnConvertRegionsToScreens) uiSetDisabled(el.btnConvertRegionsToScreens, !on || isNoteRect(r));
       if (el.btnAutoContrast) uiSetDisabled(el.btnAutoContrast, !on);
       uiSetValue(el.project, st.projectName);
       updateThemeUi(); updateViewModeUi();
@@ -7685,6 +7853,7 @@ self.onmessage=e=>{
       [el.mViewModeToggle, () => setViewMode(isInstallViewMode() ? "art" : "install", true)],
       [el.toolSelect, () => activateToolOrSelect("select")],
       [el.toolDraw, () => activateToolOrSelect("draw")],
+      [el.toolNote, () => activateToolOrSelect("note")],
       [el.toolMaskAdd, () => activateToolOrSelect("maskEdit")],
       [el.toolCellEdit, () => activateToolOrSelect("cellEdit")],
       [el.toolFlowEdit, () => activateToolOrSelect("flowEdit")],
@@ -7846,6 +8015,7 @@ self.onmessage=e=>{
     if (el.helpModal) el.helpModal.addEventListener("hidden.bs.modal", () => { try { localStorage.setItem(HELP_SEEN_KEY, "1") } catch (_e) { } });
     bindProxyClick(el.mToolSelect, el.toolSelect);
     bindProxyClick(el.mToolDraw, el.toolDraw);
+    bindProxyClick(el.mToolNote, el.toolNote);
     bindProxyClick(el.mToolMaskAdd, el.toolMaskAdd);
     bindProxyClick(el.mToolCellEdit, el.toolCellEdit);
     bindProxyClick(el.mToolFlowEdit, el.toolFlowEdit);
@@ -7891,6 +8061,47 @@ self.onmessage=e=>{
       st.clusterBorderHover = null;
       st.clusterDrag = null;
       render();
+    };
+    if (el.btnConvertRegionsToScreens) el.btnConvertRegionsToScreens.onclick = () => {
+      const r = cur();
+      if (!r || isRectLocked(r) || isNoteRect(r)) return;
+      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r);
+      const plan = planNumberRegions(r, cx, cy, topo, hs, true);
+      const regs = (plan && Array.isArray(plan.regions)) ? plan.regions : [];
+      if (regs.length <= 1) { showMessageModal("Недостаточно регионов для преобразования"); return; }
+      const srcIdx = st.rects.findIndex(it => it.id === r.id);
+      if (srcIdx < 0) return;
+      const created = [];
+      for (const rg of regs) {
+        const rw = Math.max(1, Math.round(Number(rg && rg.w) || ((Math.max(1, (Number(rg && rg.c1) || 1) - (Number(rg && rg.c0) || 0))) * cx)));
+        const rh = Math.max(1, Math.round(Number(rg && rg.h) || ((Math.max(1, (Number(rg && rg.r1) || 1) - (Number(rg && rg.r0) || 0))) * cy)));
+        const rx = Math.round(r.x + Math.max(0, Math.round(Number(rg && rg.c0) || 0)) * cx);
+        const ry = Math.round(r.y + Math.max(0, Math.round(Number(rg && rg.r0) || 0)) * cy);
+        const nr = mk(rx, ry, rw, rh);
+        nr.name = withNameSuffixBeforeGroup(r.name, String((rg && rg.label) || "").trim());
+        nr.rotation = r.rotation || 0;
+        nr.scale = r.scale;
+        nr.areaM2Px = r.areaM2Px;
+        nr.colorA = r.colorA;
+        nr.autoContrastB = r.autoContrastB !== false;
+        nr.colorB = nr.autoContrastB ? autoContrast(nr.colorA) : r.colorB;
+        nr.textSize = r.textSize || 0;
+        nr.cellX = r.cellX;
+        nr.cellY = r.cellY;
+        nr.dataFlow = r.dataFlow;
+        nr.dataFlowZ = !!r.dataFlowZ;
+        nr.numberCells = !!r.numberCells;
+        metricFromPx(nr);
+        created.push(nr);
+      }
+      if (!created.length) return;
+      st.rects.splice(srcIdx, 1, ...created);
+      setSelection(created.map(it => it.id), created[created.length - 1].id);
+      resetTransientState(false);
+      syncProps();
+      listRects();
+      render();
+      schedulePersist("project");
     };
     const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
     const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent || "");
@@ -8598,7 +8809,7 @@ self.onmessage=e=>{
       if (e.key === "Delete") { delSel(); e.preventDefault() }
       if (e.ctrlKey && e.key.toLowerCase() === "d") { dupSel(); e.preventDefault() }
       if (e.ctrlKey && e.key.toLowerCase() === "c") { const r = cur(); if (r) st.clip = { ...r, autoContrastB: r.autoContrastB !== false, rotation: r.rotation || 0, cellLinks: Array.isArray(r.cellLinks) ? [...r.cellLinks] : [], hiddenCells: Array.isArray(r.hiddenCells) ? [...r.hiddenCells] : [], manualClusters: normalizeManualClusters(r && r.manualClusters), rig: normalizeRigData(r && r.rig) }; e.preventDefault() }
-      if (e.ctrlKey && e.key.toLowerCase() === "v") { if (st.clip) { const c = { ...st.clip, id: st.next++, name: `${st.clip.name} copy`, x: st.clip.x + 20, y: st.clip.y + 20, rotation: st.clip.rotation || 0, autoContrastB: st.clip.autoContrastB !== false, colorB: (st.clip.autoContrastB !== false) ? autoContrast(st.clip.colorA) : st.clip.colorB, cellLinks: Array.isArray(st.clip.cellLinks) ? [...st.clip.cellLinks] : [], hiddenCells: Array.isArray(st.clip.hiddenCells) ? [...st.clip.hiddenCells] : [], manualClusters: normalizeManualClusters(st.clip && st.clip.manualClusters), rig: normalizeRigData(st.clip && st.clip.rig) }; insertCloneAboveSource(st.clip.id, c); selRect(c.id); setMode("select"); schedulePersist("project") } e.preventDefault() }
+      if (e.ctrlKey && e.key.toLowerCase() === "v") { if (st.clip) { const c = { ...st.clip, id: st.next++, name: withNameSuffixBeforeGroup(st.clip.name, "copy"), x: st.clip.x + 20, y: st.clip.y + 20, rotation: st.clip.rotation || 0, autoContrastB: st.clip.autoContrastB !== false, colorB: (st.clip.autoContrastB !== false) ? autoContrast(st.clip.colorA) : st.clip.colorB, cellLinks: Array.isArray(st.clip.cellLinks) ? [...st.clip.cellLinks] : [], hiddenCells: Array.isArray(st.clip.hiddenCells) ? [...st.clip.hiddenCells] : [], manualClusters: normalizeManualClusters(st.clip && st.clip.manualClusters), rig: normalizeRigData(st.clip && st.clip.rig) }; insertCloneAboveSource(st.clip.id, c); selRect(c.id); setMode("select"); schedulePersist("project") } e.preventDefault() }
       const selected = getEditableSelectedRects(); if (selected.length) { const s = e.shiftKey ? 10 : 1; let dx = 0, dy = 0; if (e.key === "ArrowLeft") dx = -s; else if (e.key === "ArrowRight") dx = s; else if (e.key === "ArrowUp") dy = -s; else if (e.key === "ArrowDown") dy = s; if (dx || dy) { for (const it of selected) { it.x += dx; it.y += dy; } commitUiUpdate({ syncProps: true, listRects: true, persist: true, render: true }); e.preventDefault(); } }
     });
     window.addEventListener("keyup", e => { if (e.key === " ") st.keys.space = false; if (e.key === "Control") { st.keys.ctrl = false; st.g.x = null; st.g.y = null; st.dg = null; render() } });
