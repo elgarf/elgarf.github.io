@@ -158,6 +158,23 @@
       line-height: 1
     }
 
+    #lockAllToggle,
+    #mLockAllToggle {
+      color: var(--bs-secondary-color)
+    }
+
+    #lockAllToggle.btn-primary,
+    #mLockAllToggle.btn-primary,
+    #lockAllToggle.btn-danger,
+    #mLockAllToggle.btn-danger {
+      color: #fff
+    }
+
+    #lockAllToggle.btn-outline-secondary,
+    #mLockAllToggle.btn-outline-secondary {
+      color: var(--bs-secondary-color)
+    }
+
     .icon-label-btn {
       width: auto;
       min-width: 74px;
@@ -1038,6 +1055,12 @@
       <div class="group"><button id="helpOpen" class="icon-btn" title="Инструкция" aria-label="Инструкция"><i
             class="fa-solid fa-circle-question"></i></button></div>
       <div class="group mobile-hide">
+        <button id="lockAllToggle" class="icon-btn btn btn-outline-secondary" title="Заблокировать всё"
+          aria-label="Заблокировать всё" aria-pressed="false">
+          <i class="fa-solid fa-unlock"></i>
+        </button>
+      </div>
+      <div class="group mobile-hide">
         <div class="btn-group btn-group-sm" role="group" aria-label="Режим отображения">
           <button id="viewModeArt" type="button" class="btn btn-outline-secondary" title="Для художников"
             aria-label="Для художников"><i class="fa-solid fa-palette"></i></button>
@@ -1439,6 +1462,8 @@
       aria-label="Копировать и отразить"><i class="fa-regular fa-clone fa-flip-horizontal"></i></button>
     <button id="mDelete" class="danger icon-btn" title="Удалить" aria-label="Удалить"><i
         class="fa-solid fa-trash"></i></button>
+    <button id="mLockAllToggle" class="icon-btn btn btn-outline-secondary" title="Заблокировать всё"
+      aria-label="Заблокировать всё" aria-pressed="false"><i class="fa-solid fa-unlock"></i></button>
     <button id="mViewModeToggle" class="icon-btn btn btn-outline-secondary m-view-toggle mode-art"
       title="Режим: Для художников" aria-label="Переключить режим отображения" aria-pressed="false">
       <span class="half half-art" aria-hidden="true"><i class="fa-solid fa-palette"></i></span>
@@ -1464,9 +1489,9 @@
         "mobileMenu", "installApp", "installBanner", "installBannerText", "installBannerAction", "installBannerClose",
         "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkText", "projectLinkCopyBtn",
         "sidePanel", "sideClose", "multiEditBadge",
-        "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit",
+        "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
         "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle",
-        "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit",
+        "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
         "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
         "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
         "snapGrid", "snapObjects", "snapCenters", "snapGaps", "propName", "propTextSize", "propTextSizeLabel", "propX", "propY", "propRot",
@@ -1522,7 +1547,7 @@
     };
     const desktopToolButtons = [el.toolSelect, el.toolDraw, el.toolNote, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean);
     const mobileToolButtons = [el.mToolSelect, el.mToolDraw, el.mToolNote, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean);
-    const overflowButtonIds = ["toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "themeToggle"];
+    const overflowButtonIds = ["toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle", "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "themeToggle"];
     const overflowButtons = overflowButtonIds.map(id => el[id]).filter(Boolean);
     const overflowGroups = [...new Set(overflowButtons.map(b => b.closest(".group")).filter(Boolean))];
     let overflowHiddenButtons = [];
@@ -1667,7 +1692,7 @@
       }
       overflowHiddenButtons = hidden;
     };
-    const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", maskPath: [], maskHover: null, cellHover: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
+    const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", lockAll: false, maskPath: [], maskHover: null, cellHover: null, cellHoverPos: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
     const FLOW_DRAW_BATCH_THRESHOLD = 280;
     const FLOW_DRAW_BATCH_STEP = 360;
     const FLOW_POINT_INDEX_CELL = 48;
@@ -4168,6 +4193,7 @@
       drag.canLink = !!(target && canLinkFlowAnchors(drag.from, target));
     };
     const drawInterScreenFlowLinks = (c, force = false) => {
+      if (isCellEditMode() || isRigEditMode()) return;
       if (!force && normalizeViewMode(st.viewMode) !== "install" && st.mode !== "flowEdit") return;
       const links = normalizeFlowLinks(st.flowLinks);
       st.flowLinkSegments = [];
@@ -4871,11 +4897,11 @@
     const mFmt = v => { const n = mRound(v); return Number.isInteger(n) ? `${n.toFixed(0)}` : `${n}` };
     const fillPercent = (wm, hm, areaM2Px) => { const area = Math.max(0, (+wm || 0) * (+hm || 0)), base = Math.max(1, +areaM2Px || 65536); return (100 * (base * area)) / 655360 };
     const buildVisibleCabinetSummary = (r, cx, cy, topo, hs) => {
-      if (!r || !topo) return { areaM2: 0, groups: [] };
+      if (!r || !topo) return { areaM2: 0, totalCount: 0, groupItems: [], groups: [] };
       const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
       const rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
       const comp = Array.isArray(topo && topo.comp) ? topo.comp : [];
-      if (!comp.length) return { areaM2: 0, groups: [] };
+      if (!comp.length) return { areaM2: 0, totalCount: 0, groupItems: [], groups: [] };
       const colPref = [0], rowPref = [0];
       for (let x = 0; x < cols; x++) colPref.push(colPref[x] + Math.min(cx, Math.max(0, r.width - x * cx)));
       for (let y = 0; y < rows; y++) rowPref.push(rowPref[y] + Math.min(cy, Math.max(0, r.height - y * cy)));
@@ -4914,8 +4940,10 @@
         rec.count += 1;
         bySize.set(key, rec);
       }
-      const groups = [...bySize.values()].sort((a, b) => (b.w * b.h) - (a.w * a.h) || b.w - a.w || b.h - a.h).map(it => `${it.wk}x${it.hk}м - ${it.count} шт.`);
-      return { areaM2: visibleAreaPx / (scalePx * scalePx), groups };
+      const groupItems = [...bySize.values()].sort((a, b) => (b.w * b.h) - (a.w * a.h) || b.w - a.w || b.h - a.h);
+      const groups = groupItems.map(it => `${it.wk}x${it.hk}м - ${it.count} шт.`);
+      const totalCount = groupItems.reduce((acc, it) => acc + Math.max(0, Math.round(Number(it && it.count) || 0)), 0);
+      return { areaM2: visibleAreaPx / (scalePx * scalePx), totalCount, groupItems, groups };
     };
     const pctFmt = v => { const n = Number.isFinite(+v) ? +v : 0; const t = Math.trunc(n * 100) / 100; return t.toFixed(2) };
     const SPLIT_VARIANT_MAX = 25;
@@ -6132,6 +6160,26 @@ self.onmessage=e=>{
       }
       updateInstallToolAvailability();
     };
+    const updateLockAllUi = () => {
+      const on = !!st.lockAll;
+      for (const b of [el.lockAllToggle, el.mLockAllToggle]) {
+        if (!b) continue;
+        b.classList.remove("btn-primary", "btn-danger", "btn-outline-secondary");
+        b.classList.add(on ? "btn-danger" : "btn-outline-secondary");
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+        b.title = on ? "Разблокировать всё" : "Заблокировать всё";
+        b.setAttribute("aria-label", b.title);
+        const icon = b.querySelector("i");
+        if (icon) icon.className = `fa-solid ${on ? "fa-lock" : "fa-unlock"}`;
+      }
+    };
+    const setLockAll = (next, persist = true) => {
+      st.lockAll = !!next;
+      updateLockAllUi();
+      syncPropsSmart();
+      if (persist) schedulePersist("project");
+      render();
+    };
     const setViewMode = (mode, persist = true) => {
       st.viewMode = normalizeViewMode(mode);
       updateViewModeUi();
@@ -6167,7 +6215,7 @@ self.onmessage=e=>{
     const PROJECT_QUERY_VERSION = "gz2";
     const PROJECT_QUERY_KEY_MAP = Object.freeze({
       version: "v", projectName: "pn", saveLocationId: "sl", camera: "c", settings: "s", nextId: "n", flowLinks: "fl", rectangles: "r",
-      x: "x", y: "y", zoom: "z", textSize: "ts", fontFamily: "ff", viewMode: "vm", snap: "sn", grid: "g", objects: "o", centers: "ct", gaps: "gp",
+      x: "x", y: "y", zoom: "z", textSize: "ts", fontFamily: "ff", viewMode: "vm", lockAll: "la", snap: "sn", grid: "g", objects: "o", centers: "ct", gaps: "gp",
       id: "i", name: "nm", rotation: "rt", width: "w", height: "h", scale: "sc", widthM: "wm", heightM: "hm", areaM2Px: "a2", colorA: "ca", autoContrastB: "ab", colorB: "cb",
       cellX: "cx", cellY: "cy", dataFlow: "df", dataFlowZ: "dz", numberCells: "nc", splitVariant: "sv", cellLinks: "cl", hiddenCells: "hc", flowLocks: "fk", manualClusters: "mc",
       rig: "rg", locked: "lk", kind: "kd", noteText: "nt", projectCache: "pc",
@@ -6344,9 +6392,9 @@ self.onmessage=e=>{
         history.replaceState(history.state, "", nextUrl);
       } catch (_e) { }
     };
-    const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: normalizeViewMode(st.viewMode), snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, flowLinks: normalizeFlowLinks(st.flowLinks), rectangles: st.rects.map(serializeRectForProject) });
+    const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: normalizeViewMode(st.viewMode), lockAll: !!st.lockAll, snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, flowLinks: normalizeFlowLinks(st.flowLinks), rectangles: st.rects.map(serializeRectForProject) });
     const cloneProjectData = data => { try { return JSON.parse(JSON.stringify(data)) } catch (_e) { return buildProject() } };
-    const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
+    const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", lockAll: !!st.lockAll, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
     const getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
     const isMobileTabStorageMode = () => {
       try {
@@ -6575,6 +6623,7 @@ self.onmessage=e=>{
       st.rigHover = null;
       if (full) {
         st.cellHover = null;
+        st.cellHoverPos = null;
         st.flowHover = null;
         st.flowDirHover = null;
         st.flowRegionRid = null;
@@ -6645,11 +6694,13 @@ self.onmessage=e=>{
         st.fontFamily = String(d.settings.fontFamily || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial";
         st.globalScale = Math.max(1, Math.round(evalExpr(d.settings.scale, 256)));
         st.viewMode = normalizeViewMode(d.settings.viewMode);
+        st.lockAll = !!(d.settings && d.settings.lockAll);
         const ss = (d.settings && d.settings.snap) || {};
         st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false };
       } else {
         st.globalScale = 256;
         st.viewMode = "art";
+        st.lockAll = false;
         st.snap = { grid: false, objects: true, centers: true, gaps: true };
       }
       st.projectName = String((d && d.projectName) || "project").trim() || "project";
@@ -6782,12 +6833,12 @@ self.onmessage=e=>{
         }
       }
       if (!isMaskMode()) { st.maskPath = []; st.maskHover = null }
-      if (!isCellEditMode()) st.cellHover = null;
+      if (!isCellEditMode()) { st.cellHover = null; st.cellHoverPos = null; }
       if (!isRigEditMode()) st.rigHover = null;
       wrap.dataset.mode = m; st.draft = null; st.drag = null; updateToolbarOverflow(); updateClusterEditCursor(); render()
     }
     const hasRect = id => st.rects.some(v => v.id === id);
-    const isRectLocked = r => !!(r && r.locked);
+    const isRectLocked = r => !!(st.lockAll || (r && r.locked));
     const getEditableSelectedRects = () => {
       const selected = getSelectedRects();
       return selected.filter(r => !isRectLocked(r));
@@ -6803,7 +6854,7 @@ self.onmessage=e=>{
       for (const t of targets) t.locked = nextLocked;
       st.drag = null; st.flowDrag = null; st.clusterDrag = null; st.draft = null;
       if (nextLocked) {
-        st.maskPath = []; st.maskHover = null; st.cellHover = null;
+        st.maskPath = []; st.maskHover = null; st.cellHover = null; st.cellHoverPos = null;
       }
       normSelSet();
       syncProps();
@@ -6981,7 +7032,7 @@ self.onmessage=e=>{
       if (o.toggle) { toggleSelect(id); }
       else if (o.add) { normSelSet(); if (id != null && hasRect(id)) { st.selSet.add(id); st.sel = id; } }
       else selectOnly(id);
-      st.maskPath = []; st.maskHover = null; st.cellHover = null; st.flowHover = null; st.flowDirHover = null; st.flowRegionRid = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.selBox = null;
+      st.maskPath = []; st.maskHover = null; st.cellHover = null; st.cellHoverPos = null; st.flowHover = null; st.flowDirHover = null; st.flowRegionRid = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.selBox = null;
       const r = st.rects.find(v => v.id === st.sel) || null; if (!r || !findManualClusterById(r, st.clusterActiveId)) st.clusterActiveId = null; if (!r || !isNoteRect(r)) closeNoteEditor(true);
       syncProps(); listRects(); updateModeBadges(r); updateClusterEditCursor(); render();
     }
@@ -7200,7 +7251,8 @@ self.onmessage=e=>{
       const cellCount = (topo.cols || 1) * (topo.rows || 1), interactiveDetail = !!(sel || st.mode === "flowEdit" || isMaskMode() || isCellEditMode() || isClusterEditMode() || isRigEditMode()), lowDetail = !!((forceLowDetail && !flowEditingThisRect) || (!disableLod && designerRender && !interactiveDetail && cellCount > 3000));
       const clusterDraggingThisRect = !!(st.clusterDrag && Math.round(Number(st.clusterDrag.rectId) || 0) === Math.round(Number(r && r.id) || 0));
       const showNumbers = !!r.numberCells;
-      const flowEnabledByMode = normalizeDataFlow(r.dataFlow) !== "none", flowInteractivePause = !!(st.pan || st.drag || st.draft || clusterDraggingThisRect || (st.touch && st.touch.type === "pinch") || (lowDetail && !flowEditingThisRect)), wantsFlowDraw = !!(installView && includeFlow && flowEnabledByMode && !flowInteractivePause), wantsFlowForNumbers = !!(showNumbers && flowEnabledByMode && !flowInteractivePause);
+      const cellEditActive = isCellEditMode(), rigEditActive = isRigEditMode(), clusterEditActive = isClusterEditMode(), flowEditActive = st.mode === "flowEdit";
+      const flowEnabledByMode = normalizeDataFlow(r.dataFlow) !== "none", flowInteractivePause = !!(cellEditActive || rigEditActive || st.pan || st.drag || st.draft || clusterDraggingThisRect || (st.touch && st.touch.type === "pinch") || (lowDetail && !flowEditingThisRect)), wantsFlowDraw = !!(installView && includeFlow && flowEnabledByMode && !flowInteractivePause), wantsFlowForNumbers = !!(showNumbers && flowEnabledByMode && !flowInteractivePause);
       const showRegionsOverlayRequested = !!(installView && designerRender && !clusterDraggingThisRect);
       const needRegions = !!(!lowDetail && (showNumbers || wantsFlowDraw || showRegionsOverlayRequested || (installView && sel && !clusterDraggingThisRect)));
       const regions = (needRegions ? planNumberRegions(r, cellX, cellY, topo, hs, !options.noCachedRegions) : null);
@@ -7349,7 +7401,7 @@ self.onmessage=e=>{
           c.stroke();
         }
       }
-      if (installView)
+      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive)
         drawRigOnRect(c, r, w, h, cellX, cellY, topo, hs, z, !!sel);
       if (wantsFlowDraw) {
         if (st.mode === "flowEdit" && sel && r.id === st.sel && Array.isArray(flowGroups) && flowGroups.length > 1) {
@@ -7375,7 +7427,7 @@ self.onmessage=e=>{
       }
       c.restore();
       c.restore();
-      if (installView)
+      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive)
         drawRigOutsideOverlay(c, r, cellX, cellY, topo, hs, z, !!sel);
     }
     const buildRigLayout = (r, cx, cy, topo, hs, z) => {
@@ -7905,6 +7957,37 @@ self.onmessage=e=>{
       const bounds = getComponentBoundarySegments(r, cx, cy, topo); c.strokeStyle = boundCol; c.lineWidth = Math.max(1.8, 2.2 / z);
       for (const s of bounds) { c.beginPath(); c.moveTo(s.p1.x, s.p1.y); c.lineTo(s.p2.x, s.p2.y); c.stroke() }
       if (st.cellHover && st.cellHover.p1 && st.cellHover.p2) { c.strokeStyle = st.cellHover.canToggle ? (st.cellHover.exists ? "rgba(255,205,92,.95)" : "rgba(94,220,143,.95)") : "rgba(255,106,106,.95)"; c.lineWidth = Math.max(2.4, 3.4 / z); c.beginPath(); c.moveTo(st.cellHover.p1.x, st.cellHover.p1.y); c.lineTo(st.cellHover.p2.x, st.cellHover.p2.y); c.stroke() }
+      const hp = st.cellHoverPos;
+      if (hp && Number.isFinite(Number(hp.x)) && Number.isFinite(Number(hp.y))) {
+        const summary = buildVisibleCabinetSummary(r, cx, cy, topo, getHiddenSet(r));
+        const lines = [`Кабинетов: ${Math.max(0, Math.round(Number(summary && summary.totalCount) || 0))}`];
+        for (const row of (summary && summary.groups ? summary.groups : [])) lines.push(String(row || ""));
+        const fs = Math.max(8, 11 / Math.max(0.45, z || 1));
+        const lh = fs + Math.max(2, 3 / Math.max(0.45, z || 1));
+        c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`;
+        c.textAlign = "left";
+        c.textBaseline = "top";
+        let tw = 0;
+        for (const line of lines) tw = Math.max(tw, c.measureText(line).width);
+        const pad = Math.max(4, 6 / Math.max(0.45, z || 1));
+        const bw = tw + pad * 2;
+        const bh = lines.length * lh + pad * 2;
+        const off = Math.max(8, 12 / Math.max(0.45, z || 1));
+        let bx = (+hp.x || 0) + off;
+        let by = (+hp.y || 0) + off;
+        const minX = r.x - 10 / Math.max(0.45, z || 1), minY = r.y - 10 / Math.max(0.45, z || 1), maxX = r.x + r.width - bw + 10 / Math.max(0.45, z || 1), maxY = r.y + r.height - bh + 10 / Math.max(0.45, z || 1);
+        if (bx > maxX) bx = (+hp.x || 0) - bw - off;
+        if (by > maxY) by = (+hp.y || 0) - bh - off;
+        bx = Math.max(minX, Math.min(maxX, bx));
+        by = Math.max(minY, Math.min(maxY, by));
+        c.fillStyle = darkTheme ? "rgba(14,18,24,.92)" : "rgba(255,255,255,.94)";
+        c.strokeStyle = darkTheme ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.32)";
+        c.lineWidth = Math.max(1, 1.2 / Math.max(0.45, z || 1));
+        c.fillRect(bx, by, bw, bh);
+        c.strokeRect(bx, by, bw, bh);
+        c.fillStyle = darkTheme ? "rgba(255,255,255,.96)" : "rgba(17,24,39,.96)";
+        for (let i = 0; i < lines.length; i++) c.fillText(lines[i], bx + pad, by + pad + i * lh);
+      }
       c.restore()
     }
     const contentBoundsCache = { key: "", value: null };
@@ -8192,7 +8275,7 @@ self.onmessage=e=>{
       if (st.pan && st.panS) { st.camX = st.panS.cx - (sx - st.panS.sx) / st.zoom; st.camY = st.panS.cy - (sy - st.panS.sy) / st.zoom; render(); return }
       if (st.selBox) { updateSelectionBox(p); render(); return }
       if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); return }
-      if (isCellEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; render(); return }
+      if (isCellEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); return }
       if (isRigEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return }
       if (isClusterEditMode()) {
         if (st.clusterDrag) {
@@ -8209,7 +8292,7 @@ self.onmessage=e=>{
       if (st.draft) { const d = st.draft; d.x = Math.min(d.sx, p.x); d.y = Math.min(d.sy, p.y); d.width = Math.abs(p.x - d.sx); d.height = Math.abs(p.y - d.sy); render(); return }
       if (st.drag) { moveRectDrag(p, e.ctrlKey || st.keys.ctrl); render() }
     });
-    cv.addEventListener("mouseleave", () => { if (st.mode === "flowEdit" && (st.flowHover || st.flowDirHover || st.flowLinkHover)) { st.flowHover = null; st.flowDirHover = null; st.flowLinkHover = null; render(); return } if (isClusterEditMode() && (st.clusterHandleHover || st.clusterCellHover || st.clusterStartHover || st.clusterBorderHover)) { st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; updateClusterEditCursor(); render(); return } if (isRigEditMode() && st.rigHover) { st.rigHover = null; render(); } });
+    cv.addEventListener("mouseleave", () => { if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) { st.cellHover = null; st.cellHoverPos = null; render(); return } if (st.mode === "flowEdit" && (st.flowHover || st.flowDirHover || st.flowLinkHover)) { st.flowHover = null; st.flowDirHover = null; st.flowLinkHover = null; render(); return } if (isClusterEditMode() && (st.clusterHandleHover || st.clusterCellHover || st.clusterStartHover || st.clusterBorderHover)) { st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; updateClusterEditCursor(); render(); return } if (isRigEditMode() && st.rigHover) { st.rigHover = null; render(); } });
     window.addEventListener("mouseup", () => {
       const hadDrag = !!st.drag; if (st.pan) { st.pan = false; st.panS = null }
       if (st.selBox) { finishSelectionBox(); return; }
@@ -8277,7 +8360,7 @@ self.onmessage=e=>{
     }, { passive: false });
     cv.addEventListener("touchmove", e => {
       const rect = cv.getBoundingClientRect(); if (st.touch && st.touch.type === "pinch" && e.touches.length >= 2) { const m = touchMid(e.touches[0], e.touches[1], rect), dist = Math.max(1, touchDist(e.touches[0], e.touches[1])), vm = getViewMetrics(); st.zoom = zc(st.touch.startZoom * (dist / st.touch.startDist)); st.camX = st.touch.worldMid.x - (m.sx - vm.centerX) / st.zoom; st.camY = st.touch.worldMid.y - (m.sy - vm.centerY) / st.zoom; render(); e.preventDefault(); return }
-      if (e.touches.length !== 1) return; const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy); if (isMaskMode()) { const r = cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); e.preventDefault(); return } if (isCellEditMode()) { const r = cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; render(); e.preventDefault(); return } if (st.selBox) { updateSelectionBox(p); render(); e.preventDefault(); return } if (st.pan && st.panS) { st.camX = st.panS.cx - (sx - st.panS.sx) / st.zoom; st.camY = st.panS.cy - (sy - st.panS.sy) / st.zoom; render(); e.preventDefault(); return }
+      if (e.touches.length !== 1) return; const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy); if (isMaskMode()) { const r = cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); e.preventDefault(); return } if (isCellEditMode()) { const r = cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); e.preventDefault(); return } if (st.selBox) { updateSelectionBox(p); render(); e.preventDefault(); return } if (st.pan && st.panS) { st.camX = st.panS.cx - (sx - st.panS.sx) / st.zoom; st.camY = st.panS.cy - (sy - st.panS.sy) / st.zoom; render(); e.preventDefault(); return }
       if (isRigEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); e.preventDefault(); return }
       if (isClusterEditMode()) {
         const r = cur();
@@ -8593,7 +8676,7 @@ self.onmessage=e=>{
       if (el.btnConvertRegionsToScreens) uiSetDisabled(el.btnConvertRegionsToScreens, !on || isNoteRect(r));
       if (el.btnAutoContrast) uiSetDisabled(el.btnAutoContrast, !on);
       uiSetValue(el.project, st.projectName);
-      updateThemeUi(); updateViewModeUi();
+      updateThemeUi(); updateViewModeUi(); updateLockAllUi();
       uiSetValue(el.textSize, mFmt(st.textSize));
       uiSetValue(el.font, st.fontFamily);
       if (el.snapGrid) uiSetChecked(el.snapGrid, !!(st.snap && st.snap.grid));
@@ -9029,6 +9112,8 @@ self.onmessage=e=>{
       [el.toolFlowEdit, () => activateToolOrSelect("flowEdit")],
       [el.toolClusterEdit, () => activateToolOrSelect("clusterEdit")],
       [el.toolRigEdit, () => activateToolOrSelect("rigEdit")],
+      [el.lockAllToggle, () => setLockAll(!st.lockAll, true)],
+      [el.mLockAllToggle, () => setLockAll(!st.lockAll, true)],
       [el.newProject, newProject],
       [el.btnCopy, dupSel],
       [el.btnCopyMirror, dupMirrorSel],
