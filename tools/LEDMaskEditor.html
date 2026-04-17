@@ -1952,6 +1952,7 @@
       if (!r || typeof r !== "object") return;
       try { delete r._flowLockRidToSig; } catch (_e) { r._flowLockRidToSig = {}; }
       try { delete r._flowLockSigToCfg; } catch (_e) { r._flowLockSigToCfg = {}; }
+      try { delete r._flowLockCidToSeed; } catch (_e) { r._flowLockCidToSeed = {}; }
     };
     const getMaxRegionAreaPx = r => (Math.max(1, Number(r && r.scale) || 256) * Math.max(1, Number(r && r.scale) || 256) * 655360) / Math.max(1, Number(r && r.areaM2Px) || 65536);
     const getCellMetrics = (r, cx, cy) => {
@@ -2790,15 +2791,60 @@
       if (!r || typeof r !== "object" || !regions || !topo) return;
       const currentSigByRid = buildRegionSignatureMap(regions, topo);
       if (!currentSigByRid.size) return;
+      const buildCidSeedMap = tp => {
+        const out = {};
+        const seeds = Array.isArray(tp && tp.seed) ? tp.seed : [];
+        for (let cid = 0; cid < seeds.length; cid++) {
+          const s = seeds[cid];
+          if (!s) continue;
+          const col = Math.max(0, Math.round(Number(s.col) || 0));
+          const row = Math.max(0, Math.round(Number(s.row) || 0));
+          out[String(Math.max(0, Math.round(Number(cid) || 0)))] = `${col},${row}`;
+        }
+        return out;
+      };
+      const prevCidToSeed = (r._flowLockCidToSeed && typeof r._flowLockCidToSeed === "object") ? r._flowLockCidToSeed : {};
+      const nextCidToSeed = buildCidSeedMap(topo);
+      const remapCidToTopo = cidRaw => {
+        if (cidRaw == null || !Number.isFinite(Number(cidRaw))) return null;
+        const cid = Math.max(0, Math.round(Number(cidRaw) || 0));
+        const seed = String(prevCidToSeed[String(cid)] || "");
+        if (!seed) return cid;
+        const p = seed.split(",");
+        if (p.length !== 2) return cid;
+        const col = Math.max(0, Math.round(Number(p[0]) || 0));
+        const row = Math.max(0, Math.round(Number(p[1]) || 0));
+        const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
+        const rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
+        if (col < 0 || col >= cols || row < 0 || row >= rows) return cid;
+        const idx = row * cols + col;
+        const comp = Array.isArray(topo && topo.comp) ? topo.comp : null;
+        if (!comp || idx < 0 || idx >= comp.length) return cid;
+        return Math.max(0, Math.round(Number(comp[idx]) || 0));
+      };
+      const remapFlowCfgToTopo = cfg => {
+        const base = cloneFlowRegionConfig(cfg);
+        if (base.startCid != null) base.startCid = remapCidToTopo(base.startCid);
+        const seenIdx = new Set();
+        const remappedLocks = [];
+        for (const it of (Array.isArray(base.locks) ? base.locks : [])) {
+          const idx = Math.max(0, Math.round(Number(it && it.index) || 0));
+          if (seenIdx.has(idx)) continue;
+          seenIdx.add(idx);
+          remappedLocks.push({ index: idx, cid: remapCidToTopo(it && it.cid) });
+        }
+        base.locks = remappedLocks.sort((a, b) => a.index - b.index);
+        return base;
+      };
       const norm = normalizeFlowLocks(r.flowLocks);
       const prevRidToSig = (r._flowLockRidToSig && typeof r._flowLockRidToSig === "object") ? r._flowLockRidToSig : {};
       const prevSigToCfgSrc = (r._flowLockSigToCfg && typeof r._flowLockSigToCfg === "object") ? r._flowLockSigToCfg : {};
       const prevSigToCfg = {};
-      for (const [sig, cfg] of Object.entries(prevSigToCfgSrc)) prevSigToCfg[String(sig)] = cloneFlowRegionConfig(cfg);
+      for (const [sig, cfg] of Object.entries(prevSigToCfgSrc)) prevSigToCfg[String(sig)] = remapFlowCfgToTopo(cfg);
       for (const [rk, cfg] of Object.entries(norm)) {
         const sig = String(prevRidToSig[rk] || "");
         if (!sig) continue;
-        if (!prevSigToCfg[sig]) prevSigToCfg[sig] = cloneFlowRegionConfig(cfg);
+        if (!prevSigToCfg[sig]) prevSigToCfg[sig] = remapFlowCfgToTopo(cfg);
       }
       let changed = false;
       const nextNorm = {};
@@ -2809,9 +2855,9 @@
         const existing = norm[key];
         const existingSig = String(prevRidToSig[key] || "");
         let cfg = null;
-        if (existing && existingSig && existingSig === sig) cfg = cloneFlowRegionConfig(existing);
+        if (existing && existingSig && existingSig === sig) cfg = remapFlowCfgToTopo(existing);
         else if (prevSigToCfg[sig]) cfg = cloneFlowRegionConfig(prevSigToCfg[sig]);
-        else if (existing && !existingSig) cfg = cloneFlowRegionConfig(existing);
+        else if (existing && !existingSig) cfg = remapFlowCfgToTopo(existing);
         if (cfg) nextNorm[key] = cfg;
         nextRidToSig[key] = sig;
         if (cfg) nextSigToCfg[sig] = cloneFlowRegionConfig(cfg);
@@ -2829,6 +2875,7 @@
       else r.flowLocks = norm;
       try { r._flowLockRidToSig = nextRidToSig; } catch (_e) { }
       try { r._flowLockSigToCfg = nextSigToCfg; } catch (_e) { }
+      try { r._flowLockCidToSeed = nextCidToSeed; } catch (_e) { }
     };
     const normalizeFlowLinks = raw => {
       const out = [];
@@ -3647,10 +3694,52 @@
       }
     };
     const flowAnchorKey = a => `${Math.max(1, Math.round(Number(a && a.rectId) || 0))}:${Math.max(0, Math.round(Number(a && a.rid) || 0))}:${Math.max(0, Math.round(Number(a && a.cid) || 0))}:${String(a && a.kind || "").toLowerCase() === "end" ? "end" : "start"}`;
-    const findFlowAnchorByEndpoint = ep => {
-      const k = flowAnchorKey(ep);
-      return (Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : []).find(a => flowAnchorKey(a) === k) || null;
-    };
+    const findFlowAnchorByEndpoint = (() => {
+      let renderEpoch = -1;
+      let computedByKey = new Map();
+      let groupsByRectId = new Map();
+      const resetCacheIfNeeded = () => {
+        if (renderEpoch === flowDrawRenderEpoch) return;
+        renderEpoch = flowDrawRenderEpoch;
+        computedByKey = new Map();
+        groupsByRectId = new Map();
+      };
+      const getRectFlowGroups = rectId => {
+        if (groupsByRectId.has(rectId)) return groupsByRectId.get(rectId);
+        const rr = (Array.isArray(st.rects) ? st.rects : []).find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === rectId) || null;
+        if (!rr) { groupsByRectId.set(rectId, null); return null; }
+        const cx = drawCellX(rr), cy = drawCellY(rr), topo = getCellTopologyCached(rr, cx, cy), hs = getHiddenSet(rr), regions = planNumberRegions(rr, cx, cy, topo, hs, true), groups = getDataFlowGroups(rr, cx, cy, topo, hs, regions);
+        const out = Array.isArray(groups) ? groups : [];
+        groupsByRectId.set(rectId, { rr, groups: out });
+        return groupsByRectId.get(rectId);
+      };
+      return ep => {
+        const k = flowAnchorKey(ep);
+        const direct = (Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : []).find(a => flowAnchorKey(a) === k) || null;
+        if (direct) return direct;
+        resetCacheIfNeeded();
+        if (computedByKey.has(k)) return computedByKey.get(k);
+        const rectId = Math.max(1, Math.round(Number(ep && ep.rectId) || 0));
+        const rid = Math.max(0, Math.round(Number(ep && ep.rid) || 0));
+        const kind = String(ep && ep.kind || "").toLowerCase() === "end" ? "end" : "start";
+        const cid = Math.max(0, Math.round(Number(ep && ep.cid) || 0));
+        const rec = getRectFlowGroups(rectId);
+        if (!rec || !rec.rr || !Array.isArray(rec.groups)) { computedByKey.set(k, null); return null; }
+        const g = rec.groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rid);
+        const pts = Array.isArray(g && g.points) ? g.points : [];
+        if (!pts.length) { computedByKey.set(k, null); return null; }
+        const p0 = kind === "end" ? pts[pts.length - 1] : pts[0];
+        const pcid = Math.max(0, Math.round(Number(p0 && p0.cid) || 0));
+        if (pcid !== cid) { computedByKey.set(k, null); return null; }
+        const split = getSplitFlowMarkerWorldPositions(rec.rr, pts);
+        const uv = { u: +p0.u || 0, v: +p0.v || 0 };
+        const w0 = rectUVToWorld(rec.rr, uv.u, uv.v);
+        const ww = (kind === "end" && split && split.end) ? split.end : ((kind === "start" && split && split.start) ? split.start : w0);
+        const out = { rectId, rid, cid, kind, x: ww.x, y: ww.y };
+        computedByKey.set(k, out);
+        return out;
+      };
+    })();
     const pruneFlowLinks = () => {
       const links = normalizeFlowLinks(st.flowLinks);
       const valid = [];
@@ -4238,6 +4327,27 @@
       const starts = Array.isArray(st.flowStartHandles) ? st.flowStartHandles : [];
       const dirs = Array.isArray(st.flowDirButtons) ? st.flowDirButtons : [];
       if (!points.length) return;
+      const drawDirGlyph = (x, y, dir) => {
+        const d = String(dir || "").toLowerCase();
+        const ux = d === "left" ? -1 : d === "right" ? 1 : 0;
+        const uy = d === "up" ? -1 : d === "down" ? 1 : 0;
+        if (!ux && !uy) return;
+        const nx = -uy, ny = ux;
+        // tip=+4, base=-2 -> centroid exactly at 0 along direction axis.
+        const tip = 4;
+        const back = 2;
+        const wing = 3;
+        const tipX = x + ux * tip, tipY = y + uy * tip;
+        const bcx = x - ux * back, bcy = y - uy * back;
+        c.lineJoin = "round";
+        c.fillStyle = "#fff";
+        c.beginPath();
+        c.moveTo(tipX, tipY);
+        c.lineTo(bcx + nx * wing, bcy + ny * wing);
+        c.lineTo(bcx - nx * wing, bcy - ny * wing);
+        c.closePath();
+        c.fill();
+      };
       c.save();
       for (const b of dirs) {
         const x = -w / 2 + (+b.u || 0), y = -h / 2 + (+b.v || 0), hover = !!(st.flowDirHover && st.flowDirHover.rid === b.rid && st.flowDirHover.dir === b.dir), on = !!b.active;
@@ -4246,10 +4356,7 @@
         c.strokeStyle = on ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.72)";
         c.lineWidth = 1.1;
         c.beginPath(); c.arc(x, y, 8.2, 0, Math.PI * 2); c.fill(); c.stroke();
-        c.fillStyle = "#fff";
-        c.font = `700 9px ${fontFamilyCss(st.fontFamily)}`;
-        c.textAlign = "center"; c.textBaseline = "middle";
-        c.fillText(String(b.label || ""), x, y + 0.2);
+        drawDirGlyph(x, y, b.dir);
       }
       for (const p of starts) {
         const x = -w / 2 + (+p.u || 0), y = -h / 2 + (+p.v || 0), hover = !!(!st.flowDrag && st.flowHover && st.flowHover.kind === "start" && st.flowHover.rid === p.rid), selected = (Number(st.flowRegionRid) === Number(p.rid));
@@ -4438,6 +4545,7 @@
       if (!Array.isArray(groups) || !groups.length) return;
       const geom = getFlowDrawGeometry(groups, w, h, st.mode === "flowEdit"), totalSegments = Math.max(0, geom.totalSegments | 0), hasPoints = geom.groups.some(g => Array.isArray(g.pts) && g.pts.length);
       if (!hasPoints) return;
+      const flowOutline = "rgba(8,12,18,.92)";
       if (totalSegments <= 0) {
         c.save();
         c.lineCap = "round";
@@ -4449,15 +4557,18 @@
           if (!g.start) continue;
           const rgb = Array.isArray(g && g.rgb) ? g.rgb : [255, 0, 0], stroke = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},.96)`;
           const sx = g.start.x, sy = g.start.y;
-          c.beginPath(); c.arc(sx, sy, dotR, 0, Math.PI * 2); c.fillStyle = "#fff"; c.fill(); c.lineWidth = 5.2; c.strokeStyle = stroke; c.stroke();
+          c.beginPath(); c.arc(sx, sy, dotR, 0, Math.PI * 2); c.fillStyle = "#fff"; c.fill(); c.lineWidth = 7.8; c.strokeStyle = flowOutline; c.stroke(); c.lineWidth = 5.2; c.strokeStyle = stroke; c.stroke();
           c.fillStyle = "#000";
           c.fillText(String(g && g.label || ""), sx, sy);
           if (g.end && (Math.hypot((g.end.x || 0) - sx, (g.end.y || 0) - sy) > 0.5)) {
             c.save();
             c.translate(g.end.x || 0, g.end.y || 0);
             c.rotate(Number(g.endAngle) || 0);
+            c.strokeStyle = flowOutline;
+            c.lineWidth = 2;
             c.fillStyle = stroke;
             c.fillRect(-endW / 2, -endH / 2, endW, endH);
+            c.strokeRect(-endW / 2, -endH / 2, endW, endH);
             c.restore();
           }
         }
@@ -4484,7 +4595,7 @@
         let drewGroup = false, lastDrawnPointIndex = 0;
         const sx = g.start.x, sy = g.start.y;
         c.strokeStyle = stroke; c.fillStyle = fill;
-        c.beginPath(); c.arc(sx, sy, dotR, 0, Math.PI * 2); c.fillStyle = "#fff"; c.fill(); c.lineWidth = 5.2; c.strokeStyle = stroke; c.stroke(); c.fillStyle = fill; c.lineWidth = 4.4;
+        c.beginPath(); c.arc(sx, sy, dotR, 0, Math.PI * 2); c.fillStyle = "#fff"; c.fill(); c.lineWidth = 7.8; c.strokeStyle = flowOutline; c.stroke(); c.lineWidth = 5.2; c.strokeStyle = stroke; c.stroke(); c.fillStyle = fill; c.lineWidth = 4.4;
         c.fillStyle = textCol; c.fillText(String(g.label || ""), sx, sy);
         drewGroup = true;
         c.strokeStyle = stroke; c.fillStyle = fill; c.beginPath();
@@ -4499,8 +4610,24 @@
         }
         drawnSegments += take;
         if (take < g.segments.length) pending = true;
-        if (hasLine) c.stroke();
+        if (hasLine) {
+          c.strokeStyle = flowOutline;
+          c.lineWidth = 6.8;
+          c.stroke();
+          c.strokeStyle = stroke;
+          c.lineWidth = 4.4;
+          c.stroke();
+        }
         if (arrows.length) {
+          c.beginPath();
+          for (const a of arrows) {
+            c.moveTo(a.tx, a.ty);
+            c.lineTo(a.bx + a.nx * (a.s * 1.22), a.by + a.ny * (a.s * 1.22));
+            c.lineTo(a.bx - a.nx * (a.s * 1.22), a.by - a.ny * (a.s * 1.22));
+            c.closePath();
+          }
+          c.fillStyle = flowOutline;
+          c.fill();
           c.beginPath();
           for (const a of arrows) {
             c.moveTo(a.tx, a.ty);
@@ -4508,7 +4635,11 @@
             c.lineTo(a.bx - a.nx * a.s, a.by - a.ny * a.s);
             c.closePath();
           }
+          c.fillStyle = fill;
           c.fill();
+          c.strokeStyle = flowOutline;
+          c.lineWidth = 1.2;
+          c.stroke();
         }
         if (drewGroup && lastDrawnPointIndex > 1) {
           c.beginPath();
@@ -4519,6 +4650,9 @@
             c.arc(px, py, nodeR, 0, Math.PI * 2);
           }
           c.fill();
+          c.strokeStyle = flowOutline;
+          c.lineWidth = 1.1;
+          c.stroke();
         }
         if (drewGroup && g.segments.length && lastDrawnPointIndex === g.lastEndIndex && !pending) {
           const e = pts[lastDrawnPointIndex], pPrev = pts[Math.max(0, lastDrawnPointIndex - 1)];
@@ -4528,6 +4662,9 @@
           c.translate(ex, ey);
           c.rotate(a);
           c.fillRect(-endW / 2, -endH / 2, endW, endH);
+          c.strokeStyle = flowOutline;
+          c.lineWidth = 1.8;
+          c.strokeRect(-endW / 2, -endH / 2, endW, endH);
           c.restore();
         }
       }
@@ -4733,6 +4870,53 @@
     const mRound = v => Math.round(v * 10000) / 10000;
     const mFmt = v => { const n = mRound(v); return Number.isInteger(n) ? `${n.toFixed(0)}` : `${n}` };
     const fillPercent = (wm, hm, areaM2Px) => { const area = Math.max(0, (+wm || 0) * (+hm || 0)), base = Math.max(1, +areaM2Px || 65536); return (100 * (base * area)) / 655360 };
+    const buildVisibleCabinetSummary = (r, cx, cy, topo, hs) => {
+      if (!r || !topo) return { areaM2: 0, groups: [] };
+      const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
+      const rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
+      const comp = Array.isArray(topo && topo.comp) ? topo.comp : [];
+      if (!comp.length) return { areaM2: 0, groups: [] };
+      const colPref = [0], rowPref = [0];
+      for (let x = 0; x < cols; x++) colPref.push(colPref[x] + Math.min(cx, Math.max(0, r.width - x * cx)));
+      for (let y = 0; y < rows; y++) rowPref.push(rowPref[y] + Math.min(cy, Math.max(0, r.height - y * cy)));
+      const stats = new Map();
+      let visibleAreaPx = 0;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (hs && hs.has(maskCellKey(x, y))) continue;
+          const idx = y * cols + x;
+          const cid = Math.max(0, Math.round(Number(comp[idx]) || 0));
+          const cw = Math.min(cx, Math.max(0, r.width - x * cx));
+          const ch = Math.min(cy, Math.max(0, r.height - y * cy));
+          if (!(cw > 0 && ch > 0)) continue;
+          visibleAreaPx += cw * ch;
+          let s = stats.get(cid);
+          if (!s) { s = { c0: x, c1: x + 1, r0: y, r1: y + 1 }; stats.set(cid, s); }
+          else {
+            if (x < s.c0) s.c0 = x;
+            if (x + 1 > s.c1) s.c1 = x + 1;
+            if (y < s.r0) s.r0 = y;
+            if (y + 1 > s.r1) s.r1 = y + 1;
+          }
+        }
+      }
+      const bySize = new Map();
+      const scalePx = Math.max(1, Number(r && r.scale) || 256);
+      for (const s of stats.values()) {
+        const wPx = Math.max(0, colPref[s.c1] - colPref[s.c0]);
+        const hPx = Math.max(0, rowPref[s.r1] - rowPref[s.r0]);
+        if (!(wPx > 0 && hPx > 0)) continue;
+        const wm = wPx / scalePx;
+        const hm = hPx / scalePx;
+        const wk = mFmt(wm), hk = mFmt(hm);
+        const key = `${wk}x${hk}`;
+        const rec = bySize.get(key) || { w: wm, h: hm, count: 0, wk, hk };
+        rec.count += 1;
+        bySize.set(key, rec);
+      }
+      const groups = [...bySize.values()].sort((a, b) => (b.w * b.h) - (a.w * a.h) || b.w - a.w || b.h - a.h).map(it => `${it.wk}x${it.hk}м - ${it.count} шт.`);
+      return { areaM2: visibleAreaPx / (scalePx * scalePx), groups };
+    };
     const pctFmt = v => { const n = Number.isFinite(+v) ? +v : 0; const t = Math.trunc(n * 100) / 100; return t.toFixed(2) };
     const SPLIT_VARIANT_MAX = 25;
     const AREA_LIMIT_EPS = 1e-6;
@@ -7026,6 +7210,7 @@ self.onmessage=e=>{
       if (Array.isArray(flowGroups) && flowGroups.length) collectFlowLinkAnchors(r, flowGroups);
       if (st.mode === "flowEdit" && sel && r.id === st.sel) collectFlowEditPoints(r, flowGroups);
       let drawContent = true, maskedClip = false;
+      let deferredTextOverlay = null;
       if (maskRender.hasMask) {
         if (!maskRender.hasVisible) drawContent = false;
         else if (Array.isArray(maskRender.hiddenRects) && maskRender.hiddenRects.length) {
@@ -7103,15 +7288,19 @@ self.onmessage=e=>{
             }
           }
           if (!skeleton && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
-            const rx = Math.round(r.x - origin.x), ry = Math.round(r.y - origin.y), baseFs = getRectTextSizePx(r), wm = (r.widthM != null ? r.widthM : r.width / Math.max(1, r.scale || 256)), hm = (r.heightM != null ? r.heightM : r.height / Math.max(1, r.scale || 256)), pct = fillPercent(wm, hm, r.areaM2Px), ls = installView ? [r.name, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`] : [r.name, `(${rx}; ${ry}) px`, `${Math.round(w)} x ${Math.round(h)} px`, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`], maxW = Math.max(20, w - 6), localRect = { x: -w / 2, y: -h / 2, width: w, height: h };
+            const rx = Math.round(r.x - origin.x), ry = Math.round(r.y - origin.y), baseFs = getRectTextSizePx(r), wm = (r.widthM != null ? r.widthM : r.width / Math.max(1, r.scale || 256)), hm = (r.heightM != null ? r.heightM : r.height / Math.max(1, r.scale || 256)), pct = fillPercent(wm, hm, r.areaM2Px);
+            const installExtra = installView ? buildVisibleCabinetSummary(r, cellX, cellY, topo, hs) : { areaM2: 0, groups: [] };
+            const installCabText = installExtra.groups.length ? installExtra.groups.join("\n") : "—";
+            const lsRaw = installView ? [r.name, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`, `${mFmt(installExtra.areaM2)} м²`, installCabText] : [r.name, `(${rx}; ${ry}) px`, `${Math.round(w)} x ${Math.round(h)} px`, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`];
+            const ls = lsRaw.flatMap(line => String(line == null ? "" : line).replace(/\r/g, "").split("\n")).filter(line => line.length > 0);
+            const maxW = Math.max(20, w - 6), localRect = { x: -w / 2, y: -h / 2, width: w, height: h };
             const layoutKey = ["canvas", w, h, cellX, cellY, listSignature(r.hiddenCells), baseFs, maxW, st.fontFamily, ls.join("|")].join("|");
             const layout = getRectTextLayoutCached(r, layoutKey, () => {
               const hbs = hiddenCellBoxes(localRect, cellX, cellY, hs), freeRects = computeFreeRects(localRect, cellX, cellY, hs);
               return chooseTextLayout(localRect, ls, (t, fs) => { c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`; return c.measureText(t).width }, maxW, baseFs, hbs, freeRects);
             });
             const txtTheme = rectTextTheme(r);
-            c.textAlign = "center"; c.textBaseline = "middle"; c.font = `${layout.fs}px ${fontFamilyCss(st.fontFamily)}`;
-            c.fillStyle = txtTheme.bg; c.fillRect(layout.textLeft, layout.textTop, layout.tw, layout.th); c.fillStyle = txtTheme.text; for (let i = 0; i < ls.length; i++)c.fillText(ls[i], layout.textX, layout.sy + i * layout.lh, maxW);
+            deferredTextOverlay = { layout, ls, maxW, txtTheme };
           }
         }
       }
@@ -7174,6 +7363,16 @@ self.onmessage=e=>{
       }
       if (st.mode === "flowEdit" && sel && r.id === st.sel) drawFlowEditOverlay(c, w, h);
       if (isClusterEditMode() && sel && r.id === st.sel) drawClusterEditOverlay(c, r, w, h, cellX, cellY);
+      if (deferredTextOverlay) {
+        const ov = deferredTextOverlay;
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.font = `${ov.layout.fs}px ${fontFamilyCss(st.fontFamily)}`;
+        c.fillStyle = ov.txtTheme.bg;
+        c.fillRect(ov.layout.textLeft, ov.layout.textTop, ov.layout.tw, ov.layout.th);
+        c.fillStyle = ov.txtTheme.text;
+        for (let i = 0; i < ov.ls.length; i++) c.fillText(ov.ls[i], ov.layout.textX, ov.layout.sy + i * ov.layout.lh, ov.maxW);
+      }
       c.restore();
       c.restore();
       if (installView)
@@ -7460,7 +7659,11 @@ self.onmessage=e=>{
 
         c.restore();
 
-        c.strokeStyle = dangerDelete ? "rgba(255,210,210,.92)" : "rgba(255,255,255,.82)";
+        c.strokeStyle = dangerDelete ? "rgba(95,10,10,.96)" : "rgba(8,12,18,.96)";
+        c.lineWidth = Math.max(1.5, 2.2 * ui);
+        c.strokeRect(fx - .5, fy - .5, frameW + 1, fh + 1);
+
+        c.strokeStyle = dangerDelete ? "rgba(255,220,220,.96)" : "rgba(255,255,255,.9)";
         c.lineWidth = Math.max(.9, 1.3 * ui);
         c.strokeRect(fx - .5, fy - .5, frameW + 1, fh + 1);
         c.restore();
