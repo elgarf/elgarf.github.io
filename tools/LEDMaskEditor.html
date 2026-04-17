@@ -2042,8 +2042,6 @@
       if (idx >= 0) list[idx] = next; else list.push(next);
       r.manualClusters = normalizeManualClusters(list);
       r.splitVariant = 0;
-      r.flowLocks = {};
-      clearFlowLockMemory(r);
       clearRectRegionsAndFlow(r);
       return true;
     };
@@ -2053,8 +2051,6 @@
       if (next.length === list.length) return false;
       r.manualClusters = normalizeManualClusters(next);
       r.splitVariant = 0;
-      r.flowLocks = {};
-      clearFlowLockMemory(r);
       clearRectRegionsAndFlow(r);
       if (st.clusterActiveId != null && Math.round(Number(st.clusterActiveId) || 0) === Math.round(Number(id) || 0)) st.clusterActiveId = null;
       return true;
@@ -3625,6 +3621,11 @@
       if (!r || !Array.isArray(groups)) return;
       for (const g of groups) {
         const rid = Math.max(0, Math.round(Number(g && g.rid) || 0)), pts = Array.isArray(g && g.points) ? g.points : [];
+        if (pts.length) {
+          const p0 = pts[0];
+          const singleCabRegion = (pts.length === 1) && (Math.max(1, Math.round(Number(p0 && p0.spanCols) || 1)) === 1) && (Math.max(1, Math.round(Number(p0 && p0.spanRows) || 1)) === 1);
+          if (singleCabRegion) continue;
+        }
         const split = getSplitFlowMarkerWorldPositions(r, pts);
         if (pts.length) {
           const s0 = pts[0], su = +s0.u || 0, sv = +s0.v || 0, scid = Math.max(0, Math.round(Number(s0 && s0.cid) || 0)), sw0 = rectUVToWorld(r, su, sv), sw = split && split.start ? split.start : sw0;
@@ -3689,8 +3690,54 @@
       const byId = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [Math.max(1, Math.round(Number(r && r.id) || 0)), r]));
       const ra = byId.get(Math.max(1, Math.round(Number(a.rectId) || 0))), rb = byId.get(Math.max(1, Math.round(Number(b.rectId) || 0)));
       if (!ra || !rb) { logCanLinkFlowAnchorsDebug(a, b, false, "rect_not_found"); return false; }
-      const links = normalizeFlowLinks(st.flowLinks);
+      const linksRaw = normalizeFlowLinks(st.flowLinks);
+      const groupsByRectId = new Map();
+      const endpointLiveCache = new Map();
+      const getRectGroups = rectId => {
+        if (groupsByRectId.has(rectId)) return groupsByRectId.get(rectId);
+        const rr = byId.get(rectId);
+        if (!rr) { groupsByRectId.set(rectId, null); return null; }
+        const cx = drawCellX(rr), cy = drawCellY(rr), topo = getCellTopologyCached(rr, cx, cy), hs = getHiddenSet(rr), regions = planNumberRegions(rr, cx, cy, topo, hs, true), groups = getDataFlowGroups(rr, cx, cy, topo, hs, regions);
+        const out = Array.isArray(groups) ? groups : [];
+        groupsByRectId.set(rectId, out);
+        return out;
+      };
+      const isEndpointLive = ep => {
+        const key = flowAnchorKey(ep);
+        if (endpointLiveCache.has(key)) return endpointLiveCache.get(key);
+        const rectId = Math.max(1, Math.round(Number(ep && ep.rectId) || 0));
+        const rid = Math.max(0, Math.round(Number(ep && ep.rid) || 0));
+        const cid = Math.max(0, Math.round(Number(ep && ep.cid) || 0));
+        const kind = String(ep && ep.kind || "").toLowerCase() === "end" ? "end" : "start";
+        const groups = getRectGroups(rectId);
+        const g = Array.isArray(groups) ? groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rid) : null;
+        const pts = Array.isArray(g && g.points) ? g.points : [];
+        if (!pts.length) { endpointLiveCache.set(key, false); return false; }
+        const p = kind === "end" ? pts[pts.length - 1] : pts[0];
+        const ok = Math.max(0, Math.round(Number(p && p.cid) || 0)) === cid;
+        endpointLiveCache.set(key, ok);
+        return ok;
+      };
+      const links = linksRaw.filter(ln => isEndpointLive(ln && ln.from) && isEndpointLive(ln && ln.to));
       const fromRectId = Math.max(1, Math.round(Number(a.rectId) || 0)), toRectId = Math.max(1, Math.round(Number(b.rectId) || 0));
+      const fromAnchorKey = flowAnchorKey(a), toAnchorKey = flowAnchorKey(b);
+      for (const ln of links) {
+        const lkFrom = flowAnchorKey(ln && ln.from), lkTo = flowAnchorKey(ln && ln.to);
+        if (lkTo === toAnchorKey && lkFrom !== fromAnchorKey) {
+          logCanLinkFlowAnchorsDebug(a, b, false, "start_already_linked", {
+            existingFrom: ln && ln.from ? { rectId: ln.from.rectId, rid: ln.from.rid, cid: ln.from.cid, kind: ln.from.kind } : null,
+            existingTo: ln && ln.to ? { rectId: ln.to.rectId, rid: ln.to.rid, cid: ln.to.cid, kind: ln.to.kind } : null
+          });
+          return false;
+        }
+        if (lkFrom === fromAnchorKey && lkTo !== toAnchorKey) {
+          logCanLinkFlowAnchorsDebug(a, b, false, "end_already_linked", {
+            existingFrom: ln && ln.from ? { rectId: ln.from.rectId, rid: ln.from.rid, cid: ln.from.cid, kind: ln.from.kind } : null,
+            existingTo: ln && ln.to ? { rectId: ln.to.rectId, rid: ln.to.rid, cid: ln.to.cid, kind: ln.to.kind } : null
+          });
+          return false;
+        }
+      }
       const edgeSet = new Set();
       const outAdj = new Map(), undirAdj = new Map();
       const addDir = (u, v) => {
@@ -3737,56 +3784,210 @@
       };
       const cycle = wouldMakeCycle();
       if (cycle) { logCanLinkFlowAnchorsDebug(a, b, false, "cycle_detected", { fromRectId, toRectId }); return false; }
-      const ufParent = new Map();
-      const ufFind = x => {
-        const v = Math.max(1, Math.round(Number(x) || 0));
-        if (!ufParent.has(v)) { ufParent.set(v, v); return v; }
-        let p = ufParent.get(v);
-        while (p !== ufParent.get(p)) p = ufParent.get(p);
-        let cur = v;
-        while (cur !== p) {
-          const nxt = ufParent.get(cur);
-          ufParent.set(cur, p);
-          cur = nxt;
+      const regionNodeKey = (rectId, rid) => `${Math.max(1, Math.round(Number(rectId) || 0))}:${Math.max(0, Math.round(Number(rid) || 0))}`;
+      const parseRegionNodeKey = key => {
+        const p = String(key || "").split(":");
+        return { rectId: Math.max(1, Math.round(Number(p[0]) || 0)), rid: Math.max(0, Math.round(Number(p[1]) || 0)) };
+      };
+      const endpointNodeKey = ep => regionNodeKey(ep && ep.rectId, ep && ep.rid);
+      const nodeMetaMap = new Map();
+      const rememberNodeMeta = ep => {
+        if (!ep) return;
+        const key = endpointNodeKey(ep);
+        const rectId = Math.max(1, Math.round(Number(ep.rectId) || 0));
+        const rid = Math.max(0, Math.round(Number(ep.rid) || 0));
+        const cidRaw = Number(ep.cid);
+        const cid = Number.isFinite(cidRaw) ? Math.max(0, Math.round(cidRaw)) : null;
+        const prev = nodeMetaMap.get(key);
+        if (!prev) {
+          nodeMetaMap.set(key, { rectId, rid, cid });
+          return;
         }
-        return p;
+        if (prev.cid == null && cid != null) prev.cid = cid;
       };
-      const ufUnion = (aId, bId) => {
-        const raId = ufFind(aId), rbId = ufFind(bId);
-        if (raId !== rbId) ufParent.set(rbId, raId);
-      };
-      ufFind(fromRectId);
-      ufFind(toRectId);
       for (const ln of links) {
-        const u = Math.max(1, Math.round(Number(ln && ln.from && ln.from.rectId) || 0));
-        const v = Math.max(1, Math.round(Number(ln && ln.to && ln.to.rectId) || 0));
-        if (!u || !v) continue;
-        ufUnion(u, v);
+        rememberNodeMeta(ln && ln.from);
+        rememberNodeMeta(ln && ln.to);
       }
-      ufUnion(fromRectId, toRectId);
-      const chainRoot = ufFind(fromRectId);
+      rememberNodeMeta(a);
+      rememberNodeMeta(b);
+      const regionAdj = new Map();
+      const addRegionEdge = (k1, k2) => {
+        if (!k1 || !k2 || k1 === k2) return;
+        const a1 = regionAdj.get(k1) || [];
+        a1.push(k2);
+        regionAdj.set(k1, a1);
+        const a2 = regionAdj.get(k2) || [];
+        a2.push(k1);
+        regionAdj.set(k2, a2);
+      };
+      for (const ln of links) addRegionEdge(endpointNodeKey(ln && ln.from), endpointNodeKey(ln && ln.to));
+      const fromNode = endpointNodeKey(a), toNode = endpointNodeKey(b);
+      addRegionEdge(fromNode, toNode);
+      const chainNodeSet = new Set([fromNode]);
+      const queue = [fromNode];
+      while (queue.length) {
+        const curNode = queue.shift();
+        const next = regionAdj.get(curNode) || [];
+        for (const v of next) {
+          if (chainNodeSet.has(v)) continue;
+          chainNodeSet.add(v);
+          queue.push(v);
+        }
+      }
+      if (!chainNodeSet.has(toNode)) { logCanLinkFlowAnchorsDebug(a, b, false, "region_chain_disconnected", { fromNode, toNode }); return false; }
+      const chainEdges = [];
+      for (const ln of links) {
+        const fk = endpointNodeKey(ln && ln.from), tk = endpointNodeKey(ln && ln.to);
+        if (!chainNodeSet.has(fk) || !chainNodeSet.has(tk)) continue;
+        chainEdges.push({ from: fk, to: tk });
+      }
+      chainEdges.push({ from: fromNode, to: toNode, candidate: true });
+      const rectRidMap = new Map();
       const chainIds = new Set();
-      for (const rid of byId.keys()) {
-        if (ufFind(rid) === chainRoot) chainIds.add(rid);
+      for (const nk of chainNodeSet) {
+        const m = nodeMetaMap.get(nk) || parseRegionNodeKey(nk);
+        const set = rectRidMap.get(m.rectId) || new Set();
+        set.add(m.rid);
+        rectRidMap.set(m.rectId, set);
+        chainIds.add(m.rectId);
       }
-      let chainArea = 0;
-      let chainMaxAllowed = 0;
-      for (const rid of chainIds) {
-        const rr = byId.get(rid);
+      const regionBBoxCache = new Map();
+      const getRegionBBoxLocalPx = (rr, rid) => {
+        const rectId = Math.max(1, Math.round(Number(rr && rr.id) || 0)), rg = Math.max(0, Math.round(Number(rid) || 0));
+        const key = `${rectId}:${rg}`;
+        if (regionBBoxCache.has(key)) return regionBBoxCache.get(key);
+        const cx = drawCellX(rr), cy = drawCellY(rr), topo = getCellTopologyCached(rr, cx, cy), hs = getHiddenSet(rr), regions = planNumberRegions(rr, cx, cy, topo, hs, true), groups = getDataFlowGroups(rr, cx, cy, topo, hs, regions), g = (Array.isArray(groups) ? groups : []).find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg);
+        if (!g || !Array.isArray(g.points) || !g.points.length) { regionBBoxCache.set(key, null); return null; }
+        let minU = Infinity, minV = Infinity, maxU = -Infinity, maxV = -Infinity;
+        for (const p of g.points) {
+          const u = +p.u || 0, v = +p.v || 0, bw = Math.max(1, Number(p && p.bw) || cx), bh = Math.max(1, Number(p && p.bh) || cy);
+          minU = Math.min(minU, u - bw / 2); maxU = Math.max(maxU, u + bw / 2);
+          minV = Math.min(minV, v - bh / 2); maxV = Math.max(maxV, v + bh / 2);
+        }
+        if (!(Number.isFinite(minU) && Number.isFinite(minV) && Number.isFinite(maxU) && Number.isFinite(maxV) && maxU > minU && maxV > minV)) { regionBBoxCache.set(key, null); return null; }
+        const out = { minU, minV, maxU, maxV, w: Math.max(1, maxU - minU), h: Math.max(1, maxV - minV) };
+        regionBBoxCache.set(key, out);
+        return out;
+      };
+      const compBBoxCache = new Map();
+      const getCompBBoxLocalPx = (rr, cid) => {
+        const rectId = Math.max(1, Math.round(Number(rr && rr.id) || 0)), compId = Math.max(0, Math.round(Number(cid) || 0));
+        const key = `${rectId}:${compId}`;
+        if (compBBoxCache.has(key)) return compBBoxCache.get(key);
+        const cx = drawCellX(rr), cy = drawCellY(rr), topo = getCellTopologyCached(rr, cx, cy);
+        const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1)), rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
+        let minU = Infinity, minV = Infinity, maxU = -Infinity, maxV = -Infinity;
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const idx = y * cols + x, c = Math.max(0, Math.round(Number(topo && Array.isArray(topo.comp) ? topo.comp[idx] : 0) || 0));
+            if (c !== compId) continue;
+            const u1 = x * cx, v1 = y * cy, u2 = Math.min(rr.width, (x + 1) * cx), v2 = Math.min(rr.height, (y + 1) * cy);
+            minU = Math.min(minU, u1); minV = Math.min(minV, v1);
+            maxU = Math.max(maxU, u2); maxV = Math.max(maxV, v2);
+          }
+        }
+        if (!(Number.isFinite(minU) && Number.isFinite(minV) && Number.isFinite(maxU) && Number.isFinite(maxV) && maxU > minU && maxV > minV)) { compBBoxCache.set(key, null); return null; }
+        const out = { minU, minV, maxU, maxV, w: Math.max(1, maxU - minU), h: Math.max(1, maxV - minV) };
+        compBBoxCache.set(key, out);
+        return out;
+      };
+      const normalizedRects = [];
+      const regionFallbackRects = [];
+      for (const nk of chainNodeSet) {
+        const nm = nodeMetaMap.get(nk) || parseRegionNodeKey(nk);
+        const rr = byId.get(nm.rectId);
         if (!rr) continue;
-        const bb = rectAABBMasked(rr), w = Math.max(1, bb.maxX - bb.minX), h = Math.max(1, bb.maxY - bb.minY);
-        chainArea += w * h;
-        chainMaxAllowed = Math.max(chainMaxAllowed, getMaxRegionAreaPx(rr));
+        let bb = getRegionBBoxLocalPx(rr, nm.rid);
+        let source = "region";
+        if (!bb && nm.cid != null) {
+          bb = getCompBBoxLocalPx(rr, nm.cid);
+          source = "component";
+        }
+        if (!bb) {
+          const rb = rectAABBMasked(rr);
+          bb = { minU: 0, minV: 0, maxU: Math.max(1, rb.maxX - rb.minX), maxV: Math.max(1, rb.maxY - rb.minY), w: Math.max(1, rb.maxX - rb.minX), h: Math.max(1, rb.maxY - rb.minY) };
+          source = "rect";
+          regionFallbackRects.push({ rectId: nm.rectId, rid: nm.rid, node: nk, source });
+        }
+        const w = Math.max(1, bb.w), h = Math.max(1, bb.h);
+        const scalePx = Math.max(1, Number(st.globalScale) || Number(rr && rr.scale) || 256);
+        const areaM2Px = Math.max(1, Number(rr && rr.areaM2Px) || 65536);
+        const k = Math.sqrt(areaM2Px) / scalePx;
+        normalizedRects.push({ id: nk, rectId: nm.rectId, rid: nm.rid, source, w: Math.max(1e-6, w * k), h: Math.max(1e-6, h * k) });
       }
-      if (!(chainArea > 0)) { logCanLinkFlowAnchorsDebug(a, b, false, "empty_chain_area", { chainIds: [...chainIds] }); return false; }
-      const allowed = Math.max(1, chainMaxAllowed) + AREA_LIMIT_EPS;
+      if (!normalizedRects.length) { logCanLinkFlowAnchorsDebug(a, b, false, "empty_chain_area", { chainIds: [...chainIds] }); return false; }
+      const packRectsCompact = rects => {
+        const src = Array.isArray(rects) ? rects : [];
+        if (!src.length) return { area: 0, width: 0, height: 0 };
+        if (src.length === 1) return { area: src[0].w * src[0].h, width: src[0].w, height: src[0].h };
+        const sumArea = src.reduce((a0, r0) => a0 + Math.max(1e-6, r0.w * r0.h), 0);
+        const sumW = src.reduce((a0, r0) => a0 + Math.max(r0.w, r0.h), 0);
+        const maxSide = src.reduce((m0, r0) => Math.max(m0, r0.w, r0.h), 0);
+        const candSet = new Set([maxSide, Math.sqrt(sumArea), sumW, sumW / 2, sumW / 3, sumW / 4]);
+        for (const r0 of src) { candSet.add(r0.w); candSet.add(r0.h); }
+        const widths = [...candSet].map(v => Math.max(maxSide, Number(v) || maxSide)).filter(v => Number.isFinite(v) && v > 0).sort((a0, b0) => a0 - b0);
+        const sortedVariants = [
+          src.slice().sort((a0, b0) => Math.max(b0.w, b0.h) - Math.max(a0.w, a0.h)),
+          src.slice().sort((a0, b0) => (b0.w * b0.h) - (a0.w * a0.h)),
+          src.slice().sort((a0, b0) => b0.w - a0.w)
+        ];
+        const placeShelf = (items, limitW, allowRotate) => {
+          let x = 0, y = 0, rowH = 0, maxX = 0;
+          for (const it of items) {
+            const vars = allowRotate ? [{ w: it.w, h: it.h }, { w: it.h, h: it.w }] : [{ w: it.w, h: it.h }];
+            let choice = vars[0], fitChoice = null;
+            for (const v of vars) {
+              if (x + v.w <= limitW + 1e-9) {
+                const score = Math.max(rowH, v.h) * 1e6 + v.w;
+                if (!fitChoice || score < fitChoice.score) fitChoice = { ...v, score };
+              }
+            }
+            if (fitChoice) choice = fitChoice;
+            else if (allowRotate && vars.length > 1 && vars[1].w < vars[0].w) choice = vars[1];
+            if (x > 0 && x + choice.w > limitW + 1e-9) {
+              y += rowH;
+              x = 0;
+              rowH = 0;
+            }
+            x += choice.w;
+            rowH = Math.max(rowH, choice.h);
+            maxX = Math.max(maxX, x);
+          }
+          const totalH = y + rowH;
+          return { area: maxX * totalH, width: maxX, height: totalH };
+        };
+        let best = { area: Infinity, width: 0, height: 0 };
+        for (const wLim of widths) {
+          for (const items of sortedVariants) {
+            const a = placeShelf(items, wLim, false);
+            if (a.area < best.area) best = a;
+            const b = placeShelf(items, wLim, true);
+            if (b.area < best.area) best = b;
+          }
+        }
+        return best.area < Infinity ? best : { area: sumArea, width: Math.sqrt(sumArea), height: Math.sqrt(sumArea) };
+      };
+      const packed = packRectsCompact(normalizedRects);
+      const chainArea = Math.max(0, Number(packed && packed.area) || 0);
+      const allowed = 655360 + AREA_LIMIT_EPS;
       const ok = chainArea <= allowed;
       logCanLinkFlowAnchorsDebug(a, b, ok, ok ? "ok" : "chain_area_limit", {
         chainIds: [...chainIds].sort((x, y) => x - y),
+        chainNodeCount: chainNodeSet.size,
+        chainNodes: [...chainNodeSet].sort(),
+        chainEdges,
+        chainRegionIds: [...rectRidMap.entries()].map(([rectId, set]) => ({ rectId, regions: [...set].sort((x, y) => x - y) })).sort((a0, b0) => a0.rectId - b0.rectId),
+        regionFallbackRects,
+        normalizedRects: normalizedRects.map(it => ({ id: it.id, rectId: it.rectId, rid: it.rid, source: it.source, w: Math.round(it.w * 1000) / 1000, h: Math.round(it.h * 1000) / 1000 })),
         chainArea: Math.round(chainArea * 1000) / 1000,
-        chainMaxAllowed: Math.round(chainMaxAllowed * 1000) / 1000,
+        packedW: Math.round((packed && packed.width || 0) * 1000) / 1000,
+        packedH: Math.round((packed && packed.height || 0) * 1000) / 1000,
+        chainMaxAllowed: 655360,
         allowed: Math.round(allowed * 1000) / 1000,
-        linkCount: links.length
+        linkCount: links.length,
+        linkCountRaw: linksRaw.length,
+        staleLinkCount: Math.max(0, linksRaw.length - links.length)
       });
       return ok;
     };
@@ -3877,8 +4078,8 @@
       drag.target = target || null;
       drag.canLink = !!(target && canLinkFlowAnchors(drag.from, target));
     };
-    const drawInterScreenFlowLinks = c => {
-      if (normalizeViewMode(st.viewMode) !== "install" && st.mode !== "flowEdit") return;
+    const drawInterScreenFlowLinks = (c, force = false) => {
+      if (!force && normalizeViewMode(st.viewMode) !== "install" && st.mode !== "flowEdit") return;
       const links = normalizeFlowLinks(st.flowLinks);
       st.flowLinkSegments = [];
       const hoverSegKey = st.flowLinkHover && st.flowLinkHover.key ? String(st.flowLinkHover.key) : "";
@@ -3901,8 +4102,15 @@
           prev = p;
         }
         c.save();
+        const baseW = Math.max(1.2, 2.2 / Math.max(0.2, st.zoom || 1));
+        c.strokeStyle = "rgba(12,16,22,.92)";
+        c.lineWidth = baseW + Math.max(1.2, 1.8 / Math.max(0.25, st.zoom || 1));
+        c.beginPath();
+        c.moveTo(a.x, a.y);
+        for (const p of pts) c.lineTo(p.x, p.y);
+        c.stroke();
         c.strokeStyle = strokeColor;
-        c.lineWidth = Math.max(1.2, 2.2 / Math.max(0.2, st.zoom || 1));
+        c.lineWidth = baseW;
         c.beginPath();
         c.moveTo(a.x, a.y);
         for (const p of pts) c.lineTo(p.x, p.y);
@@ -3918,16 +4126,23 @@
         const sag = Math.max(8, Math.min(120, len * 0.18));
         const c1 = { x: a.x + dx * 0.25, y: a.y + dy * 0.25 + sag }, c2 = { x: a.x + dx * 0.75, y: a.y + dy * 0.75 + sag };
         c.save();
-        c.strokeStyle = linkDrag.canLink ? "rgba(255,193,7,.98)" : "rgba(255,99,99,.98)";
-        c.lineWidth = Math.max(1.4, 2.4 / Math.max(0.2, st.zoom || 1));
+        const previewColor = linkDrag.canLink ? "rgba(255,193,7,.98)" : "rgba(255,99,99,.98)";
+        const previewW = Math.max(1.4, 2.4 / Math.max(0.2, st.zoom || 1));
         c.setLineDash([7 / Math.max(0.2, st.zoom || 1), 5 / Math.max(0.2, st.zoom || 1)]);
+        c.strokeStyle = "rgba(12,16,22,.92)";
+        c.lineWidth = previewW + Math.max(1.2, 1.8 / Math.max(0.25, st.zoom || 1));
+        c.beginPath();
+        c.moveTo(a.x, a.y);
+        c.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y);
+        c.stroke();
+        c.strokeStyle = previewColor;
+        c.lineWidth = previewW;
         c.beginPath();
         c.moveTo(a.x, a.y);
         c.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y);
         c.stroke();
         c.setLineDash([]);
         c.restore();
-        const previewColor = linkDrag.canLink ? "rgba(255,193,7,.98)" : "rgba(255,99,99,.98)";
         const t0 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.48);
         const t1 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.52);
         drawFlowLinkArrow(c, t0, t1, previewColor, st.zoom || 1);
@@ -9584,9 +9799,22 @@ self.onmessage=e=>{
       const out = document.createElement("canvas"), w = Math.max(1, Math.ceil(maxX - minX)), h = Math.max(1, Math.ceil(maxY - minY));
       out.width = w; out.height = h + startY;
       const c = out.getContext("2d");
-      for (let i = st.rects.length - 1; i >= 0; i--) {
-        const r = st.rects[i], er = { ...r, x: r.x - minX, y: r.y - minY + startY}, includeFlowRect = !!(includeFlow && normalizeDataFlow(r && r.dataFlow) !== "none"), flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(r) : [];
-        drawRect(c, er, false, 1, { x: 0, y: 0 }, { noCachedRegions: true, includeFlow: includeFlowRect, disableLod: true, flowGroupsOverride: flowGroups, viewModeOverride: includeFlow ? "install" : "art" });
+      const prevFlowAnchors = st.flowLinkAnchors, prevFlowSegments = st.flowLinkSegments, prevFlowHover = st.flowLinkHover, prevFlowDrag = st.flowLinkDrag;
+      st.flowLinkAnchors = [];
+      st.flowLinkSegments = [];
+      st.flowLinkHover = null;
+      st.flowLinkDrag = null;
+      try {
+        for (let i = st.rects.length - 1; i >= 0; i--) {
+          const r = st.rects[i], er = { ...r, x: r.x - minX, y: r.y - minY + startY }, includeFlowRect = !!(includeFlow && normalizeDataFlow(r && r.dataFlow) !== "none"), flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(r) : [];
+          drawRect(c, er, false, 1, { x: 0, y: 0 }, { noCachedRegions: true, includeFlow: includeFlowRect, disableLod: true, flowGroupsOverride: flowGroups, viewModeOverride: includeFlow ? "install" : "art" });
+        }
+        if (includeFlow) drawInterScreenFlowLinks(c, true);
+      } finally {
+        st.flowLinkAnchors = prevFlowAnchors;
+        st.flowLinkSegments = prevFlowSegments;
+        st.flowLinkHover = prevFlowHover;
+        st.flowLinkDrag = prevFlowDrag;
       }
       const b = await canvasToBlob(out, "image/png");
       if (!b) return null;
