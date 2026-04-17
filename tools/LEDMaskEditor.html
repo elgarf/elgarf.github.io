@@ -750,13 +750,18 @@
 
     .cabinet-size-grid {
       display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      gap: 8px;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 6px;
       align-items: end
     }
 
-    .cabinet-size-actions {
-      margin-bottom: 9px
+    .cabinet-unit-select {
+      width: 64px
+    }
+
+    .cabinet-unit-field label {
+      text-align: center;
+      width: 100%
     }
 
     .rect-list {
@@ -1161,6 +1166,8 @@
             <div class="field"><label for="globalFont">Шрифт</label><input id="globalFont" type="text"
                 spellcheck="false" value="Roboto, Segoe UI, Arial"></div>
           </div>
+          <div class="field"><label for="propScale">Масштаб проекта (px/м)</label><input id="propScale" type="text"
+              inputmode="decimal" spellcheck="false" value="256"></div>
           <div class="field mb-0">
             <label>Снаппинг</label>
             <div class="d-flex flex-wrap gap-2">
@@ -1198,10 +1205,7 @@
                 spellcheck="false"></div>
           </div>
         </div>
-        <div class="grid2">
-          <div class="field"><label for="propScale">Коэффициент (px/м)</label><input id="propScale" type="text"
-              inputmode="decimal" spellcheck="false" value="256"></div>
-          <div class="field"><label for="propAreaM2">Площадь 1м² (px²)</label>
+        <div class="field"><label for="propAreaM2">Количество пикселей в 1м² экрана</label>
             <div class="input-group input-group-sm"><input id="propAreaM2" type="text" spellcheck="false"
                 value="256×256"><button id="propAreaM2Toggle" type="button"
                 class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"
@@ -1214,7 +1218,6 @@
                 <li><button class="dropdown-item" type="button" data-area-m2-preset="384×384">384×384</button></li>
               </ul>
             </div>
-          </div>
         </div>
         <div class="grid2">
           <div class="field"><label for="propColorA">Основной</label><input id="propColorA" type="color"
@@ -1228,18 +1231,13 @@
         <div class="cabinet-size-grid">
           <div class="field"><label for="propCellX">Размер кабинета X</label><input id="propCellX" type="text"
               inputmode="decimal" spellcheck="false" value="128"></div>
-          <div class="field cabinet-size-actions"><label>&nbsp;</label>
-            <div class="btn-group w-100" role="group" aria-label="Копирование размеров кабинета">
-              <button id="cabSizeY2ToX" type="button" class="btn btn-outline-secondary" title="← ×2 (Y в X)"
-                aria-label="Умножить Y на 2 и скопировать в X">← ×2</button>
-              <button id="cabSizeXEqY" type="button" class="btn btn-outline-secondary" title="X = Y"
-                aria-label="Скопировать X в Y">=</button>
-              <button id="cabSizeX2ToY" type="button" class="btn btn-outline-secondary" title="×2 → (X в Y)"
-                aria-label="Умножить X на 2 и скопировать в Y">×2 →</button>
-            </div>
-          </div>
           <div class="field"><label for="propCellY">Размер кабинета Y</label><input id="propCellY" type="text"
               inputmode="decimal" spellcheck="false" value="128"></div>
+          <div class="field cabinet-unit-field"><label for="propCellUnit">Ед.</label><select id="propCellUnit"
+              class="form-select form-select-sm cabinet-unit-select" aria-label="Единица размера кабинета">
+              <option value="px">px</option>
+              <option value="m" selected>м</option>
+            </select></div>
         </div>
         <div class="field">
           <label for="propDataFlow">Направление потока данных</label>
@@ -1255,8 +1253,7 @@
               <option value="v_lt_td">Слева сверху-вниз</option>
               <option value="v_rt_td">Справа сверху-вниз</option>
             </select>
-            <div class="form-check flow-toggle"><input id="propDataFlowZ" class="form-check-input"
-                type="checkbox"><label class="form-check-label" for="propDataFlowZ">Z-snake</label></div>
+            <div class="form-check flow-toggle d-none"><input id="propDataFlowZ" class="form-check-input" type="checkbox"><label class="form-check-label" for="propDataFlowZ">Z-snake</label></div>
           </div>
         </div>
         <div class="field">
@@ -1470,7 +1467,7 @@
         "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
         "snapGrid", "snapObjects", "snapCenters", "snapGaps", "propName", "propTextSize", "propTextSizeLabel", "propX", "propY", "propRot",
         "propWm", "propHm", "propScale", "propAreaM2", "propColorA", "propColorB", "btnAutoContrast", "btnRandomColor",
-        "propCellX", "propCellY", "cabSizeY2ToX", "cabSizeXEqY", "cabSizeX2ToY", "propDataFlow", "propDataFlowZ", "propNumberCells",
+        "propCellX", "propCellY", "propCellUnit", "propDataFlow", "propDataFlowZ", "propNumberCells",
         "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
         "propSplitVariantLabel", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "btnConvertRegionsToScreens", "rectList"
       ]),
@@ -1504,6 +1501,7 @@
       randColor: $("btnRandomColor"),
       cx: $("propCellX"),
       cy: $("propCellY"),
+      cUnit: $("propCellUnit"),
       dataFlow: $("propDataFlow"),
       dataFlowZ: $("propDataFlowZ"),
       numCells: $("propNumberCells"),
@@ -1665,7 +1663,7 @@
       }
       overflowHiddenButtons = hidden;
     };
-    const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", maskPath: [], maskHover: null, cellHover: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
+    const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", maskPath: [], maskHover: null, cellHover: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
     const FLOW_DRAW_BATCH_THRESHOLD = 280;
     const FLOW_DRAW_BATCH_STEP = 360;
     const FLOW_POINT_INDEX_CELL = 48;
@@ -5799,6 +5797,7 @@ self.onmessage=e=>{
       if (isPlainObject(out.settings)) {
         if ((Number(out.settings.textSize) || 12) === 12) delete out.settings.textSize;
         if (String(out.settings.fontFamily || "Roboto, Segoe UI, Arial") === "Roboto, Segoe UI, Arial") delete out.settings.fontFamily;
+        if ((Number(out.settings.scale) || 256) === 256) delete out.settings.scale;
         if (String(out.settings.viewMode || "art") === "art") delete out.settings.viewMode;
         if (isPlainObject(out.settings.snap)) {
           const sn = out.settings.snap;
@@ -5855,9 +5854,9 @@ self.onmessage=e=>{
         history.replaceState(history.state, "", nextUrl);
       } catch (_e) { }
     };
-    const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, viewMode: normalizeViewMode(st.viewMode), snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, flowLinks: normalizeFlowLinks(st.flowLinks), rectangles: st.rects.map(serializeRectForProject) });
+    const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: normalizeViewMode(st.viewMode), snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, flowLinks: normalizeFlowLinks(st.flowLinks), rectangles: st.rects.map(serializeRectForProject) });
     const cloneProjectData = data => { try { return JSON.parse(JSON.stringify(data)) } catch (_e) { return buildProject() } };
-    const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, viewMode: "art", snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
+    const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
     const getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
     const isMobileTabStorageMode = () => {
       try {
@@ -6117,7 +6116,7 @@ self.onmessage=e=>{
         rotation: evalExpr(r.rotation, 0),
         width: toPositiveInt(r.width, 1),
         height: toPositiveInt(r.height, 1),
-        scale: toPositiveInt(r.scale, 256),
+        scale: toPositiveInt(r.scale, Math.max(1, Math.round(Number(st.globalScale) || 256))),
         widthM: Math.max(0.001, +r.widthM || 0),
         heightM: Math.max(0.001, +r.heightM || 0),
         areaM2Px: parseAreaM2PxInput(r.areaM2Px, legacyAreaM2),
@@ -6154,10 +6153,12 @@ self.onmessage=e=>{
       if (d && d.settings) {
         st.textSize = Math.max(6, evalExpr(d.settings.textSize, 12));
         st.fontFamily = String(d.settings.fontFamily || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial";
+        st.globalScale = Math.max(1, Math.round(evalExpr(d.settings.scale, 256)));
         st.viewMode = normalizeViewMode(d.settings.viewMode);
         const ss = (d.settings && d.settings.snap) || {};
         st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false };
       } else {
+        st.globalScale = 256;
         st.viewMode = "art";
         st.snap = { grid: false, objects: true, centers: true, gaps: true };
       }
@@ -6178,13 +6179,21 @@ self.onmessage=e=>{
       const syncTabSnapshot = o.syncTabSnapshot !== false;
       const renderTabs = o.renderTabs !== false;
       const doRender = o.render !== false;
+      applyLoadedProjectSettings(d);
       const rs = Array.isArray(d && d.rectangles) ? d.rectangles : [];
       const legacyAreaM2 = parseAreaM2PxInput(d && d.settings ? d.settings.areaM2Px : null, 65536);
       st.rects = rs.map((r, i) => parseProjectRect(r, i, legacyAreaM2));
+      const hasGlobalScale = !!(d && d.settings && d.settings.scale != null && d.settings.scale !== "");
+      if (hasGlobalScale) {
+        const gs = Math.max(1, Math.round(Number(st.globalScale) || 256));
+        for (const rr of st.rects) {
+          rr.scale = gs;
+          pxFromMetric(rr);
+        }
+      }
       st.flowLinks = normalizeFlowLinks(d && d.flowLinks);
       for (const rr of st.rects) remapRectRigLoadsToBottomSeams(rr);
       st.next = +(d && d.nextId) || (st.rects.reduce((m, r) => Math.max(m, r.id), 0) + 1);
-      applyLoadedProjectSettings(d);
       resetTransientState(false);
       updateViewModeUi();
       selRect(st.rects[0] ? st.rects[0].id : null);
@@ -6241,7 +6250,7 @@ self.onmessage=e=>{
       const group = src.slice(at);
       return `${base} ${add}${group}`.trim();
     };
-    function mk(x, y, w, h) { const id = st.next++; const colorA = randomColor(); const r = { id, name: `Rect ${id}`, x: Math.round(x), y: Math.round(y), rotation: 0, width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)), scale: 256, widthM: 1, heightM: 1, areaM2Px: 65536, textSize: 0, colorA, autoContrastB: true, colorB: autoContrast(colorA), cellX: 128, cellY: 128, dataFlow: "none", dataFlowZ: false, numberCells: false, splitVariant: 0, cellLinks: [], hiddenCells: [], flowLocks: {}, manualClusters: [], rig: normalizeRigData(null), locked: false, kind: "", noteText: "" }; metricFromPx(r); return r }
+    function mk(x, y, w, h) { const id = st.next++; const colorA = randomColor(); const r = { id, name: `Rect ${id}`, x: Math.round(x), y: Math.round(y), rotation: 0, width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)), scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), widthM: 1, heightM: 1, areaM2Px: 65536, textSize: 0, colorA, autoContrastB: true, colorB: autoContrast(colorA), cellX: 128, cellY: 128, dataFlow: "none", dataFlowZ: false, numberCells: false, splitVariant: 0, cellLinks: [], hiddenCells: [], flowLocks: {}, manualClusters: [], rig: normalizeRigData(null), locked: false, kind: "", noteText: "" }; metricFromPx(r); return r }
     function mkNote(x, y, w, h) {
       const r = mk(x, y, w, h);
       r.kind = "note";
@@ -7837,6 +7846,8 @@ self.onmessage=e=>{
       st.projectName = "Новый проект";
       st.saveLocationId = setGlobalSaveLocationId(getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
       st.viewMode = "art";
+      st.globalScale = 256;
+      if (el.cUnit) el.cUnit.value = "m";
       setSelection([], null);
       resetTransientState(true);
     };
@@ -8038,9 +8049,26 @@ self.onmessage=e=>{
     const uiSetChecked = (node, v) => { if (!node) return; const n = !!v; if (node.checked !== n) node.checked = n; };
     const uiSetDisabled = (node, v) => { if (!node) return; const n = !!v; if (node.disabled !== n) node.disabled = n; };
     const uiSetText = (node, v) => { if (!node) return; const s = String(v ?? ""); if (node.textContent !== s) node.textContent = s; };
+    const normalizeCabinetUnit = v => (v === "m" ? "m" : "px");
+    const getCabinetUnitScale = r => Math.max(1, Math.round(Number((r && r.scale) || (cur() && cur().scale) || st.globalScale || 256) || 256));
+    const cabinetPxToUi = (px, unit, r) => {
+      const v = Math.max(1, Math.round(Number(px) || 0));
+      if (normalizeCabinetUnit(unit) === "m") return mFmt(v / getCabinetUnitScale(r));
+      return String(v);
+    };
+    const cabinetUiToPx = (inputValue, unit, fallbackPx, r) => {
+      const fb = Math.max(1, Math.round(Number(fallbackPx) || 128));
+      if (normalizeCabinetUnit(unit) === "m") {
+        const s = getCabinetUnitScale(r);
+        const fallbackM = fb / s;
+        const m = Math.max(0.001, evalExpr(inputValue, fallbackM));
+        return toPositiveInt(Math.round(m * s), fb);
+      }
+      return toPositiveInt(evalExpr(inputValue, fb), fb);
+    };
     function syncProps() {
       const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
-      [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.scale, el.a, el.b, el.cx, el.cy, el.cabSizeY2ToX, el.cabSizeXEqY, el.cabSizeX2ToY, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
+      [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.a, el.b, el.cx, el.cy, el.cUnit, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
       if (multi && el.rot) uiSetDisabled(el.rot, true);
       if (multi && el.name) uiSetDisabled(el.name, true);
       if (el.multiEditBadge) {
@@ -8068,7 +8096,7 @@ self.onmessage=e=>{
         updateSplitVariantModeUi(null); updateModeBadges(null);
         uiSetValue(el.name, ""); uiSetValue(el.rectTextSize, "0"); updateRectTextSizeLabel(null);
         uiSetValue(el.x, ""); uiSetValue(el.y, ""); uiSetValue(el.wm, ""); uiSetValue(el.hm, "");
-        uiSetValue(el.rot, "0"); uiSetValue(el.scale, "256");
+        uiSetValue(el.rot, "0"); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
         uiSetValue(el.a, "#2fcaaf"); uiSetValue(el.b, autoContrast("#2fcaaf"));
         uiSetValue(el.dataFlow, "none"); uiSetChecked(el.dataFlowZ, false); uiSetChecked(el.numCells, false);
         if (el.splitVariant) {
@@ -8080,6 +8108,7 @@ self.onmessage=e=>{
         if (el.splitVariantInc) uiSetDisabled(el.splitVariantInc, true);
         updateSplitVariantLabel(null);
         if (el.btnAutoContrast) uiSetText(el.btnAutoContrast, "Авто дополнительный: вкл");
+        uiSetValue(el.cUnit, normalizeCabinetUnit(el.cUnit && el.cUnit.value));
         uiSetValue(el.cx, "128"); uiSetValue(el.cy, "128");
         return;
       }
@@ -8088,7 +8117,7 @@ self.onmessage=e=>{
       uiSetValue(el.rectTextSize, String(Math.max(0, Math.min(128, Math.round(Number(r.textSize) || 0)))));
       updateRectTextSizeLabel(r);
       uiSetValue(el.x, r.x); uiSetValue(el.y, r.y); uiSetValue(el.rot, mFmt(r.rotation || 0));
-      uiSetValue(el.wm, mFmt(r.widthM)); uiSetValue(el.hm, mFmt(r.heightM)); uiSetValue(el.scale, r.scale);
+      uiSetValue(el.wm, mFmt(r.widthM)); uiSetValue(el.hm, mFmt(r.heightM)); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
       uiSetValue(el.a, r.colorA); uiSetValue(el.b, r.colorB);
       {
         const globalMode = normalizeDataFlow(r.dataFlow), rid = (st.mode === "flowEdit" && Number.isFinite(Number(st.flowRegionRid))) ? Math.max(0, Math.round(Number(st.flowRegionRid) || 0)) : null, cfg = (rid != null) ? getFlowRegionConfig(r, rid) : null, pts = (rid != null) ? (st.flowEditPoints || []).filter(p => p.rid === rid) : [], computedMode = (rid != null) ? resolveFlowModeFromStartAndDir(pts, cfg, getFlowModeRegion(r, rid, globalMode)) : "none";
@@ -8097,7 +8126,9 @@ self.onmessage=e=>{
       uiSetChecked(el.dataFlowZ, !!r.dataFlowZ); uiSetChecked(el.numCells, !!r.numberCells);
       updateSplitVariantControl(r);
       if (el.btnAutoContrast) uiSetText(el.btnAutoContrast, `Авто дополнительный: ${r.autoContrastB !== false ? "вкл" : "выкл"}`);
-      uiSetValue(el.cx, r.cellX); uiSetValue(el.cy, r.cellY);
+      const unit = normalizeCabinetUnit(el.cUnit && el.cUnit.value);
+      uiSetValue(el.cx, cabinetPxToUi(r.cellX, unit, r));
+      uiSetValue(el.cy, cabinetPxToUi(r.cellY, unit, r));
       updateModeBadges(r);
       if (multi) {
         const selected = getSelectedRects(), bb = getRectsBBox(selected);
@@ -8277,14 +8308,12 @@ self.onmessage=e=>{
       if (!targets.length) return;
       const multi = targets.length > 1;
       if (!multi) r.name = el.name.value || `Rect ${r.id}`;
-      const nextScale = Math.max(1, Math.round(evalExpr(el.scale.value, r.scale || 256)));
       if (!multi) {
         r.x = Math.round(evalExpr(el.x.value, r.x));
         r.y = Math.round(evalExpr(el.y.value, r.y));
         r.rotation = evalExpr(el.rot.value, r.rotation || 0);
         r.widthM = Math.max(0.001, evalExpr(el.wm.value, r.widthM || 0.001));
         r.heightM = Math.max(0.001, evalExpr(el.hm.value, r.heightM || 0.001));
-        r.scale = nextScale;
         r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
         pxFromMetric(r);
       } else {
@@ -8293,7 +8322,7 @@ self.onmessage=e=>{
         const base = st.selMultiBase && st.selMultiBase.idsKey === idsKey ? st.selMultiBase : null;
         const curBb = getRectsBBox(targets) || { minX: r.x, minY: r.y, width: Math.max(1, r.width), height: Math.max(1, r.height), maxX: r.x + r.width, maxY: r.y + r.height };
         const baseBb = (base && base.bbox) ? base.bbox : curBb;
-        const scaleForBox = Math.max(1, nextScale);
+        const scaleForBox = Math.max(1, Number(r.scale) || Number(st.globalScale) || 256);
         const curWm = curBb.width / scaleForBox, curHm = curBb.height / scaleForBox;
         const nextMinX = Math.round(evalExpr(el.x.value, curBb.minX));
         const nextMinY = Math.round(evalExpr(el.y.value, curBb.minY));
@@ -8342,15 +8371,13 @@ self.onmessage=e=>{
         }
       }
       for (const t of targets) {
-        const prev = { scale: t.scale, cellX: t.cellX, cellY: t.cellY, colorA: t.colorA, colorB: t.colorB, dataFlow: t.dataFlow, dataFlowZ: !!t.dataFlowZ, areaM2Px: t.areaM2Px, splitVariant: t.splitVariant };
-        t.scale = nextScale;
-        if (multi) metricFromPx(t);
+        const prev = { cellX: t.cellX, cellY: t.cellY, colorA: t.colorA, colorB: t.colorB, dataFlow: t.dataFlow, dataFlowZ: !!t.dataFlowZ, areaM2Px: t.areaM2Px, splitVariant: t.splitVariant };
         if (applyColor) {
           t.colorA = el.a.value || "#2fcaaf";
           if (t.autoContrastB !== false) t.colorB = autoContrast(t.colorA); else t.colorB = el.b.value || t.colorB;
         }
-        t.cellX = Math.max(1, Math.round(evalExpr(el.cx.value, t.cellX || 128)));
-        t.cellY = Math.max(1, Math.round(evalExpr(el.cy.value, t.cellY || 128)));
+        t.cellX = cabinetUiToPx(el.cx && el.cx.value, el.cUnit && el.cUnit.value, t.cellX || 128, t);
+        t.cellY = cabinetUiToPx(el.cy && el.cy.value, el.cUnit && el.cUnit.value, t.cellY || 128, t);
         t.dataFlowZ = !!el.dataFlowZ.checked;
         t.numberCells = !!el.numCells.checked;
         t.areaM2Px = parseAreaM2PxInput(el.areaM2.value, t.areaM2Px || 65536);
@@ -8363,7 +8390,7 @@ self.onmessage=e=>{
         const prevSplit = Math.max(0, Math.round(Number(t.splitVariant) || 0));
         t.splitVariant = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, t.splitVariant || 0))));
         if (t.splitVariant !== prevSplit) { try { delete t._splitVariantCount; } catch (_e) { t._splitVariantCount = NaN; } }
-        const topoChanged = (prev.cellX !== t.cellX || prev.cellY !== t.cellY || prev.scale !== t.scale);
+        const topoChanged = (prev.cellX !== t.cellX || prev.cellY !== t.cellY);
         if (topoChanged) {
           if (prev.cellX !== t.cellX || prev.cellY !== t.cellY) remapRectRigLoadsToBottomSeams(t);
           invalidateRectCache(t, "topology");
@@ -8381,7 +8408,11 @@ self.onmessage=e=>{
     }
     let propsInputRaf = 0;
     const scheduleApplyPropsInput = () => { if (propsInputRaf) return; propsInputRaf = requestAnimationFrame(() => { propsInputRaf = 0; applyProps({ list: false, persist: false, render: true }); }); };
-    [el.name, el.x, el.y, el.rot, el.scale, el.cx, el.cy].forEach(v => v.addEventListener("input", scheduleApplyPropsInput));
+    [el.name, el.x, el.y, el.rot, el.cx, el.cy].forEach(v => v.addEventListener("input", scheduleApplyPropsInput));
+    [el.cUnit].forEach(v => {
+      if (!v) return;
+      v.addEventListener("change", () => syncProps());
+    });
     if (el.a) {
       const scheduleApplyColorInput = () => { if (propsInputRaf) return; propsInputRaf = requestAnimationFrame(() => { propsInputRaf = 0; applyProps({ list: false, persist: false, render: true, applyColor: true }); }); };
       el.a.addEventListener("input", scheduleApplyColorInput);
@@ -8441,11 +8472,27 @@ self.onmessage=e=>{
     const stepSplitVariant = delta => { const r = cur(); if (!r || !el.splitVariant) return; const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1)))); const curV = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, r.splitVariant || 0)))); const nextV = Math.max(0, Math.min(maxSplit, curV + Math.max(-1, Math.min(1, Math.round(Number(delta) || 0))))); if (nextV === curV) return; el.splitVariant.value = String(nextV); el.splitVariant.dispatchEvent(new Event("input", { bubbles: true })); el.splitVariant.dispatchEvent(new Event("change", { bubbles: true })); };
     if (el.splitVariantDec) el.splitVariantDec.addEventListener("click", () => stepSplitVariant(-1));
     if (el.splitVariantInc) el.splitVariantInc.addEventListener("click", () => stepSplitVariant(1));
-    [el.x, el.y, el.rot, el.wm, el.hm, el.scale, el.cx, el.cy].forEach(v => bindCommitInput(v, () => { applyProps(); syncProps(); }));
+    [el.x, el.y, el.rot, el.wm, el.hm, el.cx, el.cy].forEach(v => bindCommitInput(v, () => { applyProps(); syncProps(); }));
     const applyTextSettings = () => { st.textSize = Math.max(6, evalExpr(el.textSize.value, st.textSize || 12)); st.fontFamily = (el.font.value || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial"; st.fontReady = false; render(); ensureFontReady().then(() => render()).catch(() => { }) };
     let textSettingsRaf = 0, textSettingsFontTimer = 0;
     const applyTextSettingsInput = () => { st.textSize = Math.max(6, evalExpr(el.textSize.value, st.textSize || 12)); st.fontFamily = (el.font.value || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial"; st.fontReady = false; if (!textSettingsRaf) textSettingsRaf = requestAnimationFrame(() => { textSettingsRaf = 0; render(); }); if (textSettingsFontTimer) clearTimeout(textSettingsFontTimer); textSettingsFontTimer = setTimeout(() => ensureFontReady().then(() => render()).catch(() => { }), 140); };
     [el.textSize, el.font].forEach(v => v.addEventListener("input", applyTextSettingsInput));
+    const applyGlobalScaleSettings = () => {
+      const nextScale = Math.max(1, Math.round(evalExpr(el.scale && el.scale.value, st.globalScale || 256)));
+      if (nextScale === Math.max(1, Math.round(Number(st.globalScale) || 256))) return;
+      st.globalScale = nextScale;
+      for (const rr of st.rects) {
+        rr.scale = nextScale;
+        pxFromMetric(rr);
+        remapRectRigLoadsToBottomSeams(rr);
+        invalidateRectCache(rr, "topology");
+      }
+      schedulePersist("project");
+      syncProps();
+      listRects();
+      render();
+    };
+    if (el.scale) bindCommitInput(el.scale, () => { applyGlobalScaleSettings(); syncProps(); });
     const applyAreaM2Settings = () => { const r = cur(); if (!r || isRectLocked(r)) return; r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536); invalidateRectCache(r, "regions"); schedulePersist("project"); render() };
     if (el.areaM2) bindCommitInput(el.areaM2, () => { applyAreaM2Settings(); syncProps(); });
     for (const btn of document.querySelectorAll("[data-area-m2-preset]")) {
@@ -8502,28 +8549,6 @@ self.onmessage=e=>{
         }, { syncProps: true, listRects: true, persist: true, render: true });
       }]
     ]);
-    const applyCabinetSizeQuickAction = mode => {
-      const ts = getActionTargets();
-      if (!ts.length) return;
-      const xIn = toPositiveInt(evalExpr(el.cx && el.cx.value, ts[0].cellX || 128), ts[0].cellX || 128);
-      const yIn = toPositiveInt(evalExpr(el.cy && el.cy.value, ts[0].cellY || 128), ts[0].cellY || 128);
-      let nextX = xIn, nextY = yIn;
-      if (mode === "y2x") nextX = toPositiveInt(yIn * 2, yIn);
-      else if (mode === "xeqy") nextY = xIn;
-      else if (mode === "x2y") nextY = toPositiveInt(xIn * 2, xIn);
-      applyToTargets(r => {
-        const prevX = r.cellX, prevY = r.cellY;
-        r.cellX = nextX;
-        r.cellY = nextY;
-        if (prevX !== r.cellX || prevY !== r.cellY) {
-          remapRectRigLoadsToBottomSeams(r);
-          invalidateRectCache(r, "topology");
-        }
-      }, { syncProps: true, listRects: true, persist: true, render: true });
-    };
-    if (el.cabSizeY2ToX) el.cabSizeY2ToX.onclick = () => applyCabinetSizeQuickAction("y2x");
-    if (el.cabSizeXEqY) el.cabSizeXEqY.onclick = () => applyCabinetSizeQuickAction("xeqy");
-    if (el.cabSizeX2ToY) el.cabSizeX2ToY.onclick = () => applyCabinetSizeQuickAction("x2y");
     if (el.undo) el.undo.onclick = () => undoHistory();
     if (el.redo) el.redo.onclick = () => redoHistory();
     if (el.snapGrid) el.snapGrid.addEventListener("change", () => { st.snap.grid = !!el.snapGrid.checked; schedulePersist("project"); });
