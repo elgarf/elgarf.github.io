@@ -633,9 +633,13 @@
 
     .flow-controls {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 8px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
       align-items: center
+    }
+
+    .flow-controls select {
+      width: 100%
     }
 
     .flow-controls .flow-toggle {
@@ -1701,7 +1705,7 @@
       return key;
     };
     const getFlowDrawGeometry = (groups, w, h, skipCache = false) => {
-      const key = `${w}|${h}|${flowDrawKeyForGroups(groups)}`;
+      const key = `v2|${w}|${h}|${flowDrawKeyForGroups(groups)}`;
       const now = flowDrawRenderEpoch;
       if (!skipCache) {
         let rec = flowGeomCache.get(key);
@@ -1712,10 +1716,47 @@
       const list = Array.isArray(groups) ? groups : [];
       for (const g of list) {
         const ptsRaw = Array.isArray(g && g.points) ? g.points : [];
-        const pts = ptsRaw.map(p => ({ x: -w / 2 + (+p.u || 0), y: -h / 2 + (+p.v || 0), u: +p.u || 0, v: +p.v || 0 }));
+        const pts = ptsRaw.map(p => ({
+          x: -w / 2 + (+p.u || 0),
+          y: -h / 2 + (+p.v || 0),
+          u: +p.u || 0,
+          v: +p.v || 0,
+          cid: Math.max(0, Math.round(Number(p && p.cid) || 0)),
+          spanCols: Math.max(1, Math.round(Number(p && p.spanCols) || 1)),
+          spanRows: Math.max(1, Math.round(Number(p && p.spanRows) || 1)),
+          bw: Math.max(1, Number(p && p.bw) || 0),
+          bh: Math.max(1, Number(p && p.bh) || 0)
+        }));
         if (!pts.length) {
-          out.groups.push({ label: String(g && g.label || ""), rgb: Array.isArray(g && g.rgb) ? g.rgb : [255, 0, 0], pts: [], segments: [], start: null, lastEndIndex: 0 });
+          out.groups.push({ label: String(g && g.label || ""), rgb: Array.isArray(g && g.rgb) ? g.rgb : [255, 0, 0], pts: [], segments: [], start: null, end: null, endAngle: 0, lastEndIndex: 0 });
           continue;
+        }
+        let startMarker = { x: pts[0].x, y: pts[0].y };
+        let endMarker = { x: pts[pts.length - 1].x, y: pts[pts.length - 1].y };
+        let endAngle = 0;
+        if (pts.length > 1) {
+          const pLast = pts[pts.length - 1], pPrev = pts[Math.max(0, pts.length - 2)], dx = (pLast.u - pPrev.u), dy = (pLast.v - pPrev.v);
+          if (Math.abs(dx) + Math.abs(dy) > 1e-6) endAngle = Math.atan2(dy, dx);
+        }
+        const pFirst = pts[0], pLast0 = pts[pts.length - 1];
+        const sameCab = (pFirst.cid === pLast0.cid) && Math.hypot(pFirst.x - pLast0.x, pFirst.y - pLast0.y) < 1e-6;
+        if (sameCab) {
+          const boxW = Math.max(8, Number(pFirst.bw) || 0), boxH = Math.max(8, Number(pFirst.bh) || 0);
+          const markerOffset = side => {
+            const ls = Math.max(8, Number(side) || 0);
+            return Math.max(6, Math.min(36, ls * 0.25));
+          };
+          if (boxW >= boxH) {
+            const off = markerOffset(boxW);
+            startMarker = { x: pFirst.x - off, y: pFirst.y };
+            endMarker = { x: pFirst.x + off, y: pFirst.y };
+            if (pts.length <= 1) endAngle = Math.PI / 2;
+          } else {
+            const off = markerOffset(boxH);
+            startMarker = { x: pFirst.x, y: pFirst.y - off };
+            endMarker = { x: pFirst.x, y: pFirst.y + off };
+            if (pts.length <= 1) endAngle = 0;
+          }
         }
         const segments = [];
         let firstSegment = true;
@@ -1732,7 +1773,9 @@
           label: String(g && g.label || ""),
           rgb: Array.isArray(g && g.rgb) ? g.rgb : [255, 0, 0],
           pts,
-          start: { x: pts[0].x, y: pts[0].y },
+          start: startMarker,
+          end: endMarker,
+          endAngle,
           segments,
           lastEndIndex: segments.length ? segments[segments.length - 1].endIndex : 0
         });
@@ -3502,7 +3545,15 @@
         }
         const rgb = REGION_ZONE_COLORS[((rid % REGION_ZONE_COLORS.length) + REGION_ZONE_COLORS.length) % REGION_ZONE_COLORS.length];
         const label = (regions && regions.regionsById && regions.regionsById.get(rid) && regions.regionsById.get(rid).label) || toLetters(rid);
-        const orderedPoints = ordered.map(v => ({ u: v.u, v: v.v, cid: v.cid }));
+        const orderedPoints = ordered.map(v => ({
+          u: v.u,
+          v: v.v,
+          cid: v.cid,
+          spanCols: Math.max(1, (Math.max(0, Math.round(Number(v && v.maxCol) || Number(v && v.col) || 0)) - Math.max(0, Math.round(Number(v && v.minCol) || Number(v && v.col) || 0)) + 1)),
+          spanRows: Math.max(1, (Math.max(0, Math.round(Number(v && v.maxRow) || Number(v && v.row) || 0)) - Math.max(0, Math.round(Number(v && v.minRow) || Number(v && v.row) || 0)) + 1)),
+          bw: Math.max(cx, (Math.max(0, Math.round(Number(v && v.maxCol) || Number(v && v.col) || 0)) - Math.max(0, Math.round(Number(v && v.minCol) || Number(v && v.col) || 0)) + 1) * cx),
+          bh: Math.max(cy, (Math.max(0, Math.round(Number(v && v.maxRow) || Number(v && v.row) || 0)) - Math.max(0, Math.round(Number(v && v.minRow) || Number(v && v.row) || 0)) + 1) * cy)
+        }));
         const debugInfo = {
           rid,
           label,
@@ -3524,18 +3575,46 @@
       out.sort((a, b) => a.rid - b.rid);
       return out;
     };
+    const getSplitFlowMarkerOffset = (longSide, singleCabRegion = false) => {
+      const ls = Math.max(8, Number(longSide) || 0);
+      return Math.max(6, Math.min(36, ls * 0.25));
+    };
+    const getSplitFlowMarkerWorldPositions = (r, pts) => {
+      const list = Array.isArray(pts) ? pts : [];
+      if (!r || list.length < 1) return null;
+      const s = list[0], e = list[list.length - 1];
+      const su = +s.u || 0, sv = +s.v || 0, eu = +e.u || 0, ev = +e.v || 0;
+      const scid = Math.max(0, Math.round(Number(s && s.cid) || 0)), ecid = Math.max(0, Math.round(Number(e && e.cid) || 0));
+      if (scid !== ecid) return null;
+      if (Math.hypot(su - eu, sv - ev) > 1e-6) return null;
+      const bw = Math.max(8, Number((s && s.bw) || (e && e.bw) || 0));
+      const bh = Math.max(8, Number((s && s.bh) || (e && e.bh) || 0));
+      if (!(bw > 0 && bh > 0)) return null;
+      const singleCabRegion = (Math.max(1, Math.round(Number(s && s.spanCols) || 1)) === 1) && (Math.max(1, Math.round(Number(s && s.spanRows) || 1)) === 1);
+      let su2 = su, sv2 = sv, eu2 = eu, ev2 = ev;
+      if (bw >= bh) {
+        const off = getSplitFlowMarkerOffset(bw, singleCabRegion);
+        su2 = su - off; eu2 = eu + off;
+      } else {
+        const off = getSplitFlowMarkerOffset(bh, singleCabRegion);
+        sv2 = sv - off; ev2 = ev + off;
+      }
+      const sw = rectUVToWorld(r, su2, sv2), ew = rectUVToWorld(r, eu2, ev2);
+      return { start: { x: sw.x, y: sw.y }, end: { x: ew.x, y: ew.y } };
+    };
     const collectFlowLinkAnchors = (r, groups) => {
       if (!r || !Array.isArray(groups)) return;
       const seen = new Set();
       for (const g of groups) {
         const rid = Math.max(0, Math.round(Number(g && g.rid) || 0)), pts = Array.isArray(g && g.points) ? g.points : [];
         if (!pts.length) continue;
-        const s0 = pts[0], su = +s0.u || 0, sv = +s0.v || 0, scid = Math.max(0, Math.round(Number(s0 && s0.cid) || 0)), sw = rectUVToWorld(r, su, sv), sk = `${rid}:${scid}:start`;
+        const split = getSplitFlowMarkerWorldPositions(r, pts);
+        const s0 = pts[0], su = +s0.u || 0, sv = +s0.v || 0, scid = Math.max(0, Math.round(Number(s0 && s0.cid) || 0)), sw0 = rectUVToWorld(r, su, sv), sw = split && split.start ? split.start : sw0, sk = `${rid}:${scid}:start`;
         if (!seen.has(sk)) {
           seen.add(sk);
           st.flowLinkAnchors.push({ rectId: r.id, rid, cid: scid, kind: "start", x: sw.x, y: sw.y });
         }
-        const e0 = pts[pts.length - 1], eu = +e0.u || 0, ev = +e0.v || 0, ecid = Math.max(0, Math.round(Number(e0 && e0.cid) || 0)), ew = rectUVToWorld(r, eu, ev), ek = `${rid}:${ecid}:end`;
+        const e0 = pts[pts.length - 1], eu = +e0.u || 0, ev = +e0.v || 0, ecid = Math.max(0, Math.round(Number(e0 && e0.cid) || 0)), ew0 = rectUVToWorld(r, eu, ev), ew = split && split.end ? split.end : ew0, ek = `${rid}:${ecid}:end`;
         if (!seen.has(ek)) {
           seen.add(ek);
           st.flowLinkAnchors.push({ rectId: r.id, rid, cid: ecid, kind: "end", x: ew.x, y: ew.y });
@@ -3546,8 +3625,9 @@
       if (!r || !Array.isArray(groups)) return;
       for (const g of groups) {
         const rid = Math.max(0, Math.round(Number(g && g.rid) || 0)), pts = Array.isArray(g && g.points) ? g.points : [];
+        const split = getSplitFlowMarkerWorldPositions(r, pts);
         if (pts.length) {
-          const s0 = pts[0], su = +s0.u || 0, sv = +s0.v || 0, scid = Math.max(0, Math.round(Number(s0 && s0.cid) || 0)), sw = rectUVToWorld(r, su, sv);
+          const s0 = pts[0], su = +s0.u || 0, sv = +s0.v || 0, scid = Math.max(0, Math.round(Number(s0 && s0.cid) || 0)), sw0 = rectUVToWorld(r, su, sv), sw = split && split.start ? split.start : sw0;
           st.flowStartHandles.push({ rectId: r.id, rid, cid: scid, u: su, v: sv, x: sw.x, y: sw.y, zFallback: !!(g && g.zFallback) });
           const cfg = getFlowStartRoutingRegion(r, rid);
           const dir = String(cfg && cfg.startDir || "").toLowerCase();
@@ -3558,7 +3638,9 @@
           }
         }
         for (let i = 0; i < pts.length; i++) {
-          const p = pts[i], u = +p.u || 0, v = +p.v || 0, cid = Math.max(0, Math.round(Number(p && p.cid) || 0)), wp = rectUVToWorld(r, u, v);
+          const p = pts[i], u = +p.u || 0, v = +p.v || 0, cid = Math.max(0, Math.round(Number(p && p.cid) || 0));
+          const wp0 = rectUVToWorld(r, u, v);
+          const wp = (split && i === 0 && split.start) ? split.start : ((split && i === pts.length - 1 && split.end) ? split.end : wp0);
           st.flowEditPoints.push({ rectId: r.id, rid, index: i, cid, u, v, x: wp.x, y: wp.y });
         }
       }
@@ -4145,7 +4227,7 @@
         c.save();
         c.lineCap = "round";
         c.lineJoin = "round";
-        const dotR = 16;
+        const dotR = 16, endW = 7.2, endH = 26;
         c.font = `700 12px ${fontFamilyCss(st.fontFamily)}`;
         c.textAlign = "center"; c.textBaseline = "middle";
         for (const g of geom.groups) {
@@ -4155,6 +4237,14 @@
           c.beginPath(); c.arc(sx, sy, dotR, 0, Math.PI * 2); c.fillStyle = "#fff"; c.fill(); c.lineWidth = 5.2; c.strokeStyle = stroke; c.stroke();
           c.fillStyle = "#000";
           c.fillText(String(g && g.label || ""), sx, sy);
+          if (g.end && (Math.hypot((g.end.x || 0) - sx, (g.end.y || 0) - sy) > 0.5)) {
+            c.save();
+            c.translate(g.end.x || 0, g.end.y || 0);
+            c.rotate(Number(g.endAngle) || 0);
+            c.fillStyle = stroke;
+            c.fillRect(-endW / 2, -endH / 2, endW, endH);
+            c.restore();
+          }
         }
         c.restore();
         return;
@@ -4216,8 +4306,9 @@
           c.fill();
         }
         if (drewGroup && g.segments.length && lastDrawnPointIndex === g.lastEndIndex && !pending) {
-          const e = pts[lastDrawnPointIndex], pPrev = pts[Math.max(0, lastDrawnPointIndex - 1)], ex = e.x, ey = e.y, endW = 7.2, endH = 26;
-          const dx = (e.u - pPrev.u), dy = (e.v - pPrev.v), a = Math.abs(dx) + Math.abs(dy) > 1e-6 ? Math.atan2(dy, dx) : 0;
+          const e = pts[lastDrawnPointIndex], pPrev = pts[Math.max(0, lastDrawnPointIndex - 1)];
+          const ex = (g.end && Number.isFinite(Number(g.end.x))) ? g.end.x : e.x, ey = (g.end && Number.isFinite(Number(g.end.y))) ? g.end.y : e.y, endW = 7.2, endH = 26;
+          const dx = (e.u - pPrev.u), dy = (e.v - pPrev.v), aBase = Math.abs(dx) + Math.abs(dy) > 1e-6 ? Math.atan2(dy, dx) : 0, a = Number.isFinite(Number(g.endAngle)) ? Number(g.endAngle) : aBase;
           c.save();
           c.translate(ex, ey);
           c.rotate(a);
