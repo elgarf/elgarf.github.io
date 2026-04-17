@@ -418,6 +418,8 @@
 
     .project-link-modal .qr-wrap {
       display: flex;
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
       margin-bottom: 10px;
       padding: 12px;
@@ -438,6 +440,16 @@
       width: 100%;
       min-height: 88px;
       resize: vertical
+    }
+
+    .project-link-modal .qr-loading {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+      min-height: 120px;
+      justify-content: center
     }
 
     .help-sub {
@@ -1073,7 +1085,7 @@
           <i class="fa-solid fa-arrow-pointer"></i>
         </button>
         <button id="toolDraw" class="icon-btn" title="Добавить" aria-label="Добавить">
-          <i class="fa-solid fa-plus"></i>
+          <i class="fa-regular fa-square-plus"></i>
         </button>
         <button id="toolNote" class="icon-btn" title="Примечание" aria-label="Примечание">
           <i class="fa-solid fa-note-sticky"></i>
@@ -1351,7 +1363,7 @@
             <div class="help-item"><i class="fa-solid fa-arrow-pointer"></i>
               <div><b>Выделить</b><span>Выбор экрана и перетаскивание. Ctrl временно отключает снап.</span></div>
             </div>
-            <div class="help-item"><i class="fa-solid fa-plus"></i>
+            <div class="help-item"><i class="fa-regular fa-square-plus"></i>
               <div><b>Добавить</b><span>Создание нового экрана протяжкой мыши или пальцем.</span></div>
             </div>
             <div class="help-item"><i class="fa-solid fa-note-sticky"></i>
@@ -1428,7 +1440,13 @@
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
         </div>
         <div class="modal-body">
-          <div class="qr-wrap"><img id="projectLinkQr" class="qr-image" alt="QR-код ссылки проекта"></div>
+          <div class="qr-wrap">
+            <div id="projectLinkLoading" class="qr-loading d-none">
+              <div class="spinner-border text-light" role="status" aria-label="Загрузка"></div>
+              <div>Формируем ссылку...</div>
+            </div>
+            <img id="projectLinkQr" class="qr-image" alt="QR-код ссылки проекта">
+          </div>
           <textarea id="projectLinkText" class="form-control form-control-sm link-text" readonly spellcheck="false"></textarea>
         </div>
         <div class="modal-footer">
@@ -1443,7 +1461,7 @@
     <button id="mToolSelect" class="icon-btn" title="Выделить" aria-label="Выделить"><i
         class="fa-solid fa-arrow-pointer"></i></button>
     <button id="mToolDraw" class="icon-btn" title="Добавить" aria-label="Добавить"><i
-        class="fa-solid fa-plus"></i></button>
+        class="fa-regular fa-square-plus"></i></button>
     <button id="mToolNote" class="icon-btn" title="Примечание" aria-label="Примечание"><i
         class="fa-solid fa-note-sticky"></i></button>
     <button id="mToolMaskAdd" class="icon-btn" title="Скрыть или показать часть экрана"
@@ -1487,7 +1505,7 @@
         "projectTabs", "projectTabsList", "projectTabAdd", "toolbarMain", "overflowGroup", "toolbarOverflowToggle", "toolbarOverflowPopup",
         "projectName", "saveIndicator", "themeToggle", "themeIcon", "themePopup", "helpOpen", "viewModeArt", "viewModeInstall",
         "mobileMenu", "installApp", "installBanner", "installBannerText", "installBannerAction", "installBannerClose",
-        "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkText", "projectLinkCopyBtn",
+        "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkLoading", "projectLinkText", "projectLinkCopyBtn",
         "sidePanel", "sideClose", "multiEditBadge",
         "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
         "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle",
@@ -6212,7 +6230,13 @@ self.onmessage=e=>{
       render();
     };
     const PROJECT_QUERY_PARAM = "project";
+    const PROJECT_ID_PARAM = "projectid";
     const PROJECT_QUERY_VERSION = "gz2";
+    const PROJECT_STORE_SERVER_URL = "http://77.91.69.183:7777/elgarf.ru"; // e.g. "https://example.com"
+    const PROJECT_STORE_API_PATH = "/project_store.php";
+    const PROJECT_STORE_API_URL = (String(PROJECT_STORE_SERVER_URL || "").trim()
+      ? `${String(PROJECT_STORE_SERVER_URL || "").trim().replace(/\/+$/, "")}${PROJECT_STORE_API_PATH}`
+      : "./project_store.php");
     const PROJECT_QUERY_KEY_MAP = Object.freeze({
       version: "v", projectName: "pn", saveLocationId: "sl", camera: "c", settings: "s", nextId: "n", flowLinks: "fl", rectangles: "r",
       x: "x", y: "y", zoom: "z", textSize: "ts", fontFamily: "ff", viewMode: "vm", lockAll: "la", snap: "sn", grid: "g", objects: "o", centers: "ct", gaps: "gp",
@@ -6350,7 +6374,11 @@ self.onmessage=e=>{
       if (Array.isArray(out.rectangles)) out.rectangles = out.rectangles.map(compactRectForQuery);
       return out;
     };
-    const buildPortableProject = () => stripProjectCaches(buildProject());
+    const buildPortableProject = () => {
+      const out = stripProjectCaches(buildProject());
+      if (out && typeof out === "object") delete out.camera;
+      return out;
+    };
     const encodeProjectToQueryValue = async data => {
       const payload = compactProjectForQuery(data || buildProject());
       const packedPayload = remapProjectKeysDeep(payload, PROJECT_QUERY_KEY_MAP);
@@ -6370,7 +6398,55 @@ self.onmessage=e=>{
       if (ver === PROJECT_QUERY_VERSION) return remapProjectKeysDeep(parsed, PROJECT_QUERY_KEY_UNMAP);
       return parsed;
     };
+    const fetchJsonWithTimeout = async (url, options = {}, timeoutMs = 5000) => {
+      const ctl = (typeof AbortController === "function") ? new AbortController() : null;
+      const timer = ctl ? setTimeout(() => ctl.abort(), Math.max(500, Math.round(Number(timeoutMs) || 5000))) : null;
+      try {
+        const res = await fetch(url, { ...(options || {}), signal: ctl ? ctl.signal : undefined });
+        let json = null;
+        try { json = await res.json(); } catch (_e) { json = null; }
+        return { ok: !!(res && res.ok), status: res ? res.status : 0, json };
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
+    const saveProjectToServer = async (name, encodedData) => {
+      const api = String(PROJECT_STORE_API_URL || "").trim();
+      if (!api) return null;
+      const payload = { name: String(name || "").trim() || "project", data: String(encodedData || "") };
+      if (!payload.data) return null;
+      const r = await fetchJsonWithTimeout(api, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }, 6000);
+      if (!r.ok || !r.json || r.json.ok !== true || !Number.isFinite(Number(r.json.id))) return null;
+      return Math.max(1, Math.round(Number(r.json.id) || 0));
+    };
+    const loadProjectByIdFromServer = async id => {
+      const api = String(PROJECT_STORE_API_URL || "").trim();
+      if (!api) return null;
+      const pid = Math.max(1, Math.round(Number(id) || 0));
+      if (!pid) return null;
+      const u = new URL(api, location.href);
+      u.searchParams.set("id", String(pid));
+      const r = await fetchJsonWithTimeout(u.toString(), { method: "GET" }, 6000);
+      if (!r.ok || !r.json || r.json.ok !== true) return null;
+      const rec = r.json.project && typeof r.json.project === "object" ? r.json.project : null;
+      const raw = String(rec && rec.data || "");
+      if (!raw) return null;
+      return await decodeProjectFromQueryValue(raw);
+    };
     const getProjectDataFromQueryParam = async () => {
+      try {
+        const params = new URLSearchParams(location.search || "");
+        const pidRaw = params.get(PROJECT_ID_PARAM) || "";
+        const pid = Math.max(0, Math.round(Number(pidRaw) || 0));
+        if (pid > 0) {
+          const byId = await loadProjectByIdFromServer(pid);
+          if (byId && typeof byId === "object") return byId;
+        }
+      } catch (_e) { }
       let raw = "";
       try {
         const params = new URLSearchParams(location.search || "");
@@ -6386,8 +6462,9 @@ self.onmessage=e=>{
     const clearProjectQueryParamFromUrl = () => {
       try {
         const u = new URL(location.href);
-        if (!u.searchParams.has(PROJECT_QUERY_PARAM)) return;
+        if (!u.searchParams.has(PROJECT_QUERY_PARAM) && !u.searchParams.has(PROJECT_ID_PARAM)) return;
         u.searchParams.delete(PROJECT_QUERY_PARAM);
+        u.searchParams.delete(PROJECT_ID_PARAM);
         const nextUrl = `${u.pathname}${u.search}${u.hash}`;
         history.replaceState(history.state, "", nextUrl);
       } catch (_e) { }
@@ -9205,18 +9282,30 @@ self.onmessage=e=>{
       }
       return "";
     };
-    const showProjectLinkModal = link => {
-      const modal = getProjectLinkModal(), qr = el.projectLinkQr || $("projectLinkQr"), txt = el.projectLinkText || $("projectLinkText");
+    const showProjectLinkModal = (link, opts = {}) => {
+      const modal = getProjectLinkModal(), qr = el.projectLinkQr || $("projectLinkQr"), txt = el.projectLinkText || $("projectLinkText"), loadingNode = el.projectLinkLoading || $("projectLinkLoading");
+      const loading = !!(opts && opts.loading);
+      const loadingText = String((opts && opts.loadingText) || "Формируем ссылку...");
       const value = String(link || "");
-      if (txt) txt.value = value;
+      if (txt) txt.value = loading ? loadingText : value;
+      if (loadingNode) {
+        loadingNode.classList.toggle("d-none", !loading);
+        const msg = loadingNode.querySelector("div:last-child");
+        if (msg) msg.textContent = loadingText;
+      }
       if (qr) {
-        const dataUrl = buildQrDataUrl(value);
-        if (dataUrl) qr.src = dataUrl;
+        qr.classList.toggle("d-none", loading);
+        if (loading) {
+          qr.removeAttribute("src");
+        } else {
+          const dataUrl = buildQrDataUrl(value);
+          if (dataUrl) qr.src = dataUrl;
+        }
       }
       if (modal) {
         modal.show();
         setTimeout(() => {
-          if (!txt) return;
+          if (!txt || loading) return;
           try { txt.focus(); txt.select(); } catch (_e) { }
         }, 0);
         return;
@@ -9683,23 +9772,36 @@ self.onmessage=e=>{
     };
     el.save.onclick = async () => { const text = JSON.stringify(buildProject(), null, 2); const blob = new Blob([text], { type: "application/json" }); await saveBlobWithSystemDialog(blob, `${projectFileBase()}.json`, "application/json", ".json", "JSON files", st.saveLocationId) };
     let currentProjectShareLink = "";
-    const setProjectLinkCopyButtonState = (text, copied = false) => {
+    const setProjectLinkCopyButtonState = (text, copied = false, disabled = false) => {
       if (!el.projectLinkCopyBtn) return;
       const label = el.projectLinkCopyBtn.querySelector("span");
       const icon = el.projectLinkCopyBtn.querySelector("i");
       if (label) label.textContent = text;
       if (icon) icon.className = copied ? "fa-solid fa-check" : "fa-regular fa-clipboard";
+      el.projectLinkCopyBtn.disabled = !!disabled;
     };
     const onSaveProjectLinkClick = async () => {
+      showProjectLinkModal("", { loading: true, loadingText: "Формируем ссылку..." });
+      setProjectLinkCopyButtonState("Подготовка...", false, true);
+      await new Promise(resolve => setTimeout(resolve, 0));
       try {
         const value = await encodeProjectToQueryValue(buildPortableProject());
         const url = new URL(location.href);
-        url.searchParams.set(PROJECT_QUERY_PARAM, value);
+        let usedServerId = 0;
+        try { usedServerId = await saveProjectToServer(st.projectName, value); } catch (_e) { usedServerId = 0; }
+        if (usedServerId > 0) {
+          url.searchParams.delete(PROJECT_QUERY_PARAM);
+          url.searchParams.set(PROJECT_ID_PARAM, String(usedServerId));
+        } else {
+          url.searchParams.set(PROJECT_QUERY_PARAM, value);
+          url.searchParams.delete(PROJECT_ID_PARAM);
+        }
         const link = url.toString();
         currentProjectShareLink = link;
-        setProjectLinkCopyButtonState("Скопировать ссылку", false);
-        showProjectLinkModal(link);
+        setProjectLinkCopyButtonState("Скопировать ссылку", false, false);
+        showProjectLinkModal(link, { loading: false });
       } catch (err) {
+        setProjectLinkCopyButtonState("Скопировать ссылку", false, false);
         showErrorModal("Ссылка проекта", err, "Не удалось сформировать ссылку проекта");
       }
     };
@@ -10221,6 +10323,7 @@ self.onmessage=e=>{
         st.tabs.push({ id: nextTabId, title: tabTitle, data: cloneProjectData(queryProjectData) });
         st.activeTabId = nextTabId;
         loadProjectIntoActiveState(queryProjectData);
+        fit();
         // Ensure the tab title reflects normalized projectName from loaded data.
         syncActiveTabSnapshot();
         renderProjectTabs();
