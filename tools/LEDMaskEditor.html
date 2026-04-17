@@ -2780,6 +2780,28 @@
       }
       return out;
     };
+    const normalizeFlowLockRidToSigMap = raw => {
+      const src = (raw && typeof raw === "object") ? raw : {};
+      const out = {};
+      for (const [k, v] of Object.entries(src)) {
+        const rid = Math.max(0, Math.round(Number(k) || 0));
+        const sig = String(v || "").trim();
+        if (!sig) continue;
+        out[String(rid)] = sig;
+      }
+      return out;
+    };
+    const normalizeFlowLockCidToSeedMap = raw => {
+      const src = (raw && typeof raw === "object") ? raw : {};
+      const out = {};
+      for (const [k, v] of Object.entries(src)) {
+        const cid = Math.max(0, Math.round(Number(k) || 0));
+        const s = String(v || "").trim();
+        if (!/^\d+,\d+$/.test(s)) continue;
+        out[String(cid)] = s;
+      }
+      return out;
+    };
     const flowLocksSignature = r => {
       const locks = normalizeFlowLocks(r && r.flowLocks), parts = [];
       for (const key of Object.keys(locks).sort((a, b) => (+a) - (+b))) {
@@ -2829,6 +2851,34 @@
       }
       for (const [rid, s] of byRid.entries()) out.set(rid, `${s.count}|${s.minX},${s.minY},${s.maxX},${s.maxY}|${(s.hash >>> 0).toString(16)}`);
       return out;
+    };
+    const buildFlowLockSignatureSnapshot = r => {
+      try {
+        if (!r || typeof r !== "object") return { ridToSig: {}, cidToSeed: {} };
+        const locks = normalizeFlowLocks(r.flowLocks);
+        if (!Object.keys(locks).length) return { ridToSig: {}, cidToSeed: {} };
+        const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), regions = planNumberRegions(r, cx, cy, topo, hs, true);
+        const sigByRid = buildRegionSignatureMap(regions, topo);
+        const ridToSig = {};
+        for (const key of Object.keys(locks)) {
+          const rid = Math.max(0, Math.round(Number(key) || 0));
+          const sig = String(sigByRid.get(rid) || "");
+          if (!sig) continue;
+          ridToSig[String(rid)] = sig;
+        }
+        const cidToSeed = {};
+        const seeds = Array.isArray(topo && topo.seed) ? topo.seed : [];
+        for (let cid = 0; cid < seeds.length; cid++) {
+          const s = seeds[cid];
+          if (!s) continue;
+          const col = Math.max(0, Math.round(Number(s.col) || 0));
+          const row = Math.max(0, Math.round(Number(s.row) || 0));
+          cidToSeed[String(Math.max(0, Math.round(Number(cid) || 0)))] = `${col},${row}`;
+        }
+        return { ridToSig, cidToSeed };
+      } catch (_e) {
+        return { ridToSig: {}, cidToSeed: {} };
+      }
     };
     const syncFlowLocksWithRegions = (r, regions, topo) => {
       if (!r || typeof r !== "object" || !regions || !topo) return;
@@ -6241,7 +6291,7 @@ self.onmessage=e=>{
       version: "v", projectName: "pn", saveLocationId: "sl", camera: "c", settings: "s", nextId: "n", flowLinks: "fl", rectangles: "r",
       x: "x", y: "y", zoom: "z", textSize: "ts", fontFamily: "ff", viewMode: "vm", lockAll: "la", snap: "sn", grid: "g", objects: "o", centers: "ct", gaps: "gp",
       id: "i", name: "nm", rotation: "rt", width: "w", height: "h", scale: "sc", widthM: "wm", heightM: "hm", areaM2Px: "a2", colorA: "ca", autoContrastB: "ab", colorB: "cb",
-      cellX: "cx", cellY: "cy", dataFlow: "df", dataFlowZ: "dz", numberCells: "nc", splitVariant: "sv", cellLinks: "cl", hiddenCells: "hc", flowLocks: "fk", manualClusters: "mc",
+      cellX: "cx", cellY: "cy", dataFlow: "df", dataFlowZ: "dz", numberCells: "nc", splitVariant: "sv", cellLinks: "cl", hiddenCells: "hc", flowLocks: "fk", flowLockRidToSig: "frs", flowLockCidToSeed: "fcs", manualClusters: "mc",
       rig: "rg", locked: "lk", kind: "kd", noteText: "nt", projectCache: "pc",
       from: "f", to: "t", rectId: "ri", rid: "rd", cid: "cd", startCid: "sd", startDir: "sr", startPinned: "sp", mode: "md", locks: "ls", index: "ix",
       sx: "sx", sy: "sy", c0: "c0", c1: "c1", r0: "r0", r1: "r1",
@@ -6294,7 +6344,18 @@ self.onmessage=e=>{
       const text = await new Response(stream).text();
       return text;
     };
-    const serializeRectForProject = r => { const out = { ...r }; delete out._calcCache; const pc = buildPersistedRectCache(r); if (pc) out.projectCache = pc; else delete out.projectCache; return out; };
+    const serializeRectForProject = r => {
+      const out = { ...r };
+      delete out._calcCache;
+      const snap = buildFlowLockSignatureSnapshot(r);
+      out.flowLockRidToSig = normalizeFlowLockRidToSigMap(snap && snap.ridToSig);
+      out.flowLockCidToSeed = normalizeFlowLockCidToSeedMap(snap && snap.cidToSeed);
+      try { r._flowLockRidToSig = { ...out.flowLockRidToSig }; } catch (_e) { }
+      try { r._flowLockCidToSeed = { ...out.flowLockCidToSeed }; } catch (_e) { }
+      const pc = buildPersistedRectCache(r);
+      if (pc) out.projectCache = pc; else delete out.projectCache;
+      return out;
+    };
     const stripProjectCaches = data => {
       const out = cloneProjectData(data || buildProject());
       if (Array.isArray(out.rectangles)) {
@@ -6334,6 +6395,8 @@ self.onmessage=e=>{
       if (!Array.isArray(r.hiddenCells) || !r.hiddenCells.length) delete r.hiddenCells;
       if (!Array.isArray(r.manualClusters) || !r.manualClusters.length) delete r.manualClusters;
       if (!isPlainObject(r.flowLocks) || !Object.keys(normalizeFlowLocks(r.flowLocks)).length) delete r.flowLocks;
+      if (!isPlainObject(r.flowLockRidToSig) || !Object.keys(normalizeFlowLockRidToSigMap(r.flowLockRidToSig)).length) delete r.flowLockRidToSig;
+      if (!isPlainObject(r.flowLockCidToSeed) || !Object.keys(normalizeFlowLockCidToSeedMap(r.flowLockCidToSeed)).length) delete r.flowLockCidToSeed;
       if (!r.kind) delete r.kind;
       if (!r.noteText) delete r.noteText;
       if (isPlainObject(r.rig)) {
@@ -6749,12 +6812,16 @@ self.onmessage=e=>{
         cellLinks: Array.isArray(r.cellLinks) ? r.cellLinks.map(String) : [],
         hiddenCells: normalizeHiddenCells(r.hiddenCells),
         flowLocks: normalizeFlowLocks(r.flowLocks),
+        flowLockRidToSig: normalizeFlowLockRidToSigMap(r && r.flowLockRidToSig),
+        flowLockCidToSeed: normalizeFlowLockCidToSeedMap(r && r.flowLockCidToSeed),
         manualClusters: normalizeManualClusters(r && r.manualClusters),
         rig: normalizeRigData(r && r.rig),
         locked: !!(r && r.locked),
         kind: String((r && r.kind) || ""),
         noteText: String((r && r.noteText) || "")
       };
+      try { Object.defineProperty(it, "_flowLockRidToSig", { value: { ...it.flowLockRidToSig }, writable: true, configurable: true, enumerable: false }); } catch (_e) { it._flowLockRidToSig = { ...it.flowLockRidToSig }; }
+      try { Object.defineProperty(it, "_flowLockCidToSeed", { value: { ...it.flowLockCidToSeed }, writable: true, configurable: true, enumerable: false }); } catch (_e) { it._flowLockCidToSeed = { ...it.flowLockCidToSeed }; }
       if (!(+r.widthM > 0 && +r.heightM > 0)) metricFromPx(it);
       else pxFromMetric(it);
       restorePersistedRectCache(it, r && r.projectCache);
@@ -6868,7 +6935,7 @@ self.onmessage=e=>{
       const group = src.slice(at);
       return `${base} ${add}${group}`.trim();
     };
-    function mk(x, y, w, h) { const id = st.next++; const colorA = randomColor(); const r = { id, name: `Rect ${id}`, x: Math.round(x), y: Math.round(y), rotation: 0, width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)), scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), widthM: 1, heightM: 1, areaM2Px: 65536, textSize: 0, colorA, autoContrastB: true, colorB: autoContrast(colorA), cellX: 128, cellY: 128, dataFlow: "none", dataFlowZ: false, numberCells: false, splitVariant: 0, cellLinks: [], hiddenCells: [], flowLocks: {}, manualClusters: [], rig: normalizeRigData(null), locked: false, kind: "", noteText: "" }; metricFromPx(r); return r }
+    function mk(x, y, w, h) { const id = st.next++; const colorA = randomColor(); const r = { id, name: `Rect ${id}`, x: Math.round(x), y: Math.round(y), rotation: 0, width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)), scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), widthM: 1, heightM: 1, areaM2Px: 65536, textSize: 0, colorA, autoContrastB: true, colorB: autoContrast(colorA), cellX: 128, cellY: 128, dataFlow: "none", dataFlowZ: false, numberCells: false, splitVariant: 0, cellLinks: [], hiddenCells: [], flowLocks: {}, flowLockRidToSig: {}, flowLockCidToSeed: {}, manualClusters: [], rig: normalizeRigData(null), locked: false, kind: "", noteText: "" }; metricFromPx(r); return r }
     function mkNote(x, y, w, h) {
       const r = mk(x, y, w, h);
       r.kind = "note";
