@@ -1500,6 +1500,11 @@
     import { createRectStore } from "./editor/modules/rect-store.js";
     import { syncModeToggleButton, syncLockButtons } from "./editor/modules/ui/toggles.js";
     import { drawFlowStartMarker, drawFlowEndMarker } from "./editor/modules/flow/draw-helpers.js";
+    import { setupInputController } from "./editor/modules/input-controller.js";
+    import { setupKeyboardController } from "./editor/modules/keyboard-controller.js";
+    import { setupMobileGestures } from "./editor/modules/mobile-gestures.js";
+    import { setupRectListController } from "./editor/modules/rect-list-controller.js";
+    import { setupUiBinders } from "./editor/modules/ui-binders.js";
     import { buildCalcWorkerScript } from "./editor/modules/calc/worker-script.js";
     import {
       normalizeSaveLocationId, normalizeHiddenCells, normalizeManualClusters, normalizeRigData,
@@ -8176,157 +8181,6 @@
       render();
       return true;
     };
-    cv.addEventListener("contextmenu", e => e.preventDefault());
-    const selectHitRectIfNeeded = h => {
-      if (h && h.id !== st.sel) selRect(h.id);
-      return h || null;
-    };
-    const handleCanvasPointerDown = (p, opts = null) => {
-      const o = (opts && typeof opts === "object") ? opts : {};
-      if (st.mode === "draw" || isNoteMode()) { st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y, kind: (isNoteMode() ? "note" : "rect") }; render(); return }
-      if (isMaskMode()) { const h = selectHitRectIfNeeded(hit(p.x, p.y)); if (isRectLocked(cur())) return; addMaskPoint(p.x, p.y); return }
-      if (isCellEditMode()) { const h = selectHitRectIfNeeded(hit(p.x, p.y)); if (!h) { selRect(null); return } if (isRectLocked(h)) return; toggleCellLinkAtPoint(h, p.x, p.y); return }
-      if (isClusterEditMode()) { if (beginClusterHandleDragAtPoint(p.x, p.y)) { render(); return } handleClusterEditAtPoint(p.x, p.y); return }
-      if (isRigEditMode()) { if (handleRigPointerDown(p)) return; }
-      if (st.mode === "flowEdit") { if (handleFlowEditPointerDown(p)) return; }
-      const h = hit(p.x, p.y);
-      if (h) {
-        if (o.shiftToggle) { selRect(h.id, { toggle: true }); render(); return; }
-        if (!isSelected(h.id)) selRect(h.id);
-        beginRectDrag(h, p);
-      } else {
-        beginSelectionBox(p, !!o.shiftToggle, !!o.touchLike);
-      }
-      render();
-    };
-    const selectHoveredRectSmart = h => {
-      if (!h || h.id === st.sel) return false;
-      setSelection([h.id], h.id);
-      syncPropsSmart();
-      return true;
-    };
-    const updateDraftFromPoint = (d, p) => {
-      if (!d || !p) return;
-      d.x = Math.min(d.sx, p.x);
-      d.y = Math.min(d.sy, p.y);
-      d.width = Math.abs(p.x - d.sx);
-      d.height = Math.abs(p.y - d.sy);
-    };
-    const handleCanvasPointerMove = (p, opts = null) => {
-      const o = (opts && typeof opts === "object") ? opts : {};
-      if (st.pan && st.panS) { st.camX = st.panS.cx - (o.sx - st.panS.sx) / st.zoom; st.camY = st.panS.cy - (o.sy - st.panS.sy) / st.zoom; render(); return true; }
-      if (st.selBox) { updateSelectionBox(p); render(); return true; }
-      if (isMaskMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); return true; }
-      if (isCellEditMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); return true; }
-      if (isRigEditMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return true; }
-      if (isClusterEditMode()) {
-        if (st.clusterDrag) {
-          updateClusterHandleDragAtPoint(p.x, p.y);
-          updateClusterEditCursor();
-          render();
-          return true;
-        }
-        const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.clusterHandleHover = r ? findClusterHandle(p.x, p.y) : null; st.clusterBorderHover = r ? findActiveClusterBorder(r, p.x, p.y) : null; st.clusterStartHover = r ? findClusterStartMarker(r, p.x, p.y) : null; const cc = (r ? cellFromWorldPoint(r, p.x, p.y, true) : null); st.clusterCellHover = (r && cc ? { rectId: r.id, col: cc.col, row: cc.row } : null); updateClusterEditCursor(); render(); return true;
-      }
-      if (st.mode === "flowEdit" && st.flowLinkDrag) { updateFlowLinkDragTarget(p.x, p.y); resetFlowHoverTransient(); render(); return true; }
-      if (st.mode === "flowEdit" && !st.flowDrag) { st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y); const h = hit(p.x, p.y); if (selectHoveredRectSmart(h)) { render(); return true } const startHandle = findFlowStartHandle(p.x, p.y); if (startHandle) { st.flowHover = { kind: "start", rid: startHandle.rid, cid: startHandle.cid }; st.flowDirHover = null; render(); return true } const dirBtn = findFlowDirectionButton(p.x, p.y); st.flowDirHover = dirBtn; if (dirBtn) { st.flowHover = null; render(); return true } st.flowHover = findFlowEditPoint(p.x, p.y); render(); return true }
-      if (st.mode === "flowEdit" && st.flowDrag) { const fp = findFlowEditPoint(p.x, p.y, st.flowDrag.rid, st.flowDrag.fromIndex); st.flowDrag.currentIndex = fp ? fp.index : st.flowDrag.fromIndex; render(); return true }
-      if (st.draft) { updateDraftFromPoint(st.draft, p); render(); return true }
-      if (st.drag) { moveRectDrag(p, !!o.ctrlSnap); render(); return true }
-      return false;
-    };
-    const handleCanvasPointerUp = () => {
-      const finishPointerUp = changed => {
-        if (changed) schedulePersist("project");
-        render();
-        return true;
-      };
-      const hadDrag = !!st.drag; if (st.pan) { st.pan = false; st.panS = null }
-      if (st.selBox) { finishSelectionBox(); return true; }
-      if (st.clusterDrag) {
-        const changed = endClusterHandleDrag();
-        return finishPointerUp(changed);
-      }
-      if (st.flowLinkDrag) {
-        const fd = st.flowLinkDrag;
-        st.flowLinkDrag = null;
-        let changed = false;
-        if (fd && fd.from && fd.target && fd.canLink) changed = addFlowLinkBetween(fd.from, fd.target);
-        st.flowLinkPending = null;
-        st.flowLinkHover = null;
-        return finishPointerUp(changed);
-      }
-      if (st.flowDrag) {
-        const r = cur(), fd = st.flowDrag; st.flowDrag = null;
-        let changed = false;
-        if (r) {
-          const isStartMove = String(fd && fd.kind || "") === "start";
-          const pts = (st.flowEditPoints || []).filter(p => p.rid === fd.rid && (isStartMove ? p.index >= 0 : p.index >= fd.fromIndex)), target = pts.find(p => p.index === fd.currentIndex) || pts[0];
-          if (isStartMove) {
-            if (target && target.cid !== fd.cid) { setFlowStart(r, fd.rid, target.cid); changed = true; }
-          } else if (target && target.index >= fd.fromIndex && target.cid !== fd.cid) { setFlowLock(r, fd.rid, fd.fromIndex, target.cid); changed = true; }
-        }
-        return finishPointerUp(changed);
-      }
-      let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = (String(d.kind || "") === "note") ? mkNote(d.x, d.y, d.width, d.height) : mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
-      st.drag = null; st.g.x = null; st.g.y = null; st.dg = null;
-      if (created) { setMode("select"); selRect(created.id); if (isNoteRect(created)) openNoteEditor(created.id); }
-      if (hadDrag || created) { refreshPanels(); schedulePersist("project") }
-      render();
-      return true;
-    };
-    cv.addEventListener("mousedown", e => {
-      const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy), pan = e.button === 1 || e.button === 2 || (st.keys.space && e.button === 0);
-      if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return; }
-      if (e.button !== 0) return;
-      handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, touchLike: false });
-    });
-    bindWindowEvent("mousemove", e => {
-      const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
-      handleCanvasPointerMove(p, { sx, sy, ctrlSnap: !!(e.ctrlKey || st.keys.ctrl) });
-    });
-    cv.addEventListener("mouseleave", () => { if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) { resetCellTransient(); render(); return } if (st.mode === "flowEdit" && (st.flowHover || st.flowDirHover || st.flowLinkHover)) { resetFlowHoverTransient(); render(); return } if (isClusterEditMode() && (st.clusterHandleHover || st.clusterCellHover || st.clusterStartHover || st.clusterBorderHover)) { resetClusterHoverTransient(); updateClusterEditCursor(); render(); return } if (isRigEditMode() && st.rigHover) { resetRigHoverTransient(); render(); } });
-    bindWindowEvent("mouseup", () => { handleCanvasPointerUp(); });
-    cv.addEventListener("wheel", e => { e.preventDefault(); const b = cv.getBoundingClientRect(); zoomAt(e.clientX - b.left, e.clientY - b.top, st.zoom * (e.deltaY < 0 ? 1.1 : .9)) }, { passive: false });
-    cv.addEventListener("dblclick", e => {
-      const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
-      const h = hit(p.x, p.y); if (!h) return;
-      if (isNoteRect(h)) { if (h.id !== st.sel) selRect(h.id); openNoteEditor(h.id); e.preventDefault(); return; }
-      if (h.id !== st.sel) return;
-      if (st.mode !== "flowEdit") return;
-      const r = cur(); if (!r) return;
-      const startHandle = findFlowStartHandle(p.x, p.y);
-      if (!startHandle) return;
-      st.flowRegionRid = startHandle.rid;
-      resetFlowRegionOverrides(r, startHandle.rid);
-      resetFlowHoverTransient(); st.flowDrag = null;
-      schedulePersist("project");
-      syncProps();
-      render();
-      e.preventDefault();
-    });
-    const touchDist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    const touchMid = (a, b, rect) => ({ sx: ((a.clientX + b.clientX) / 2) - rect.left, sy: ((a.clientY + b.clientY) / 2) - rect.top });
-    cv.addEventListener("touchstart", e => {
-      const rect = cv.getBoundingClientRect(); if (e.touches.length === 2) { const m = touchMid(e.touches[0], e.touches[1], rect); st.touch = { type: "pinch", startDist: touchDist(e.touches[0], e.touches[1]), startZoom: st.zoom, worldMid: s2w(m.sx, m.sy) }; st.drag = null; st.selBox = null; st.pan = false; st.draft = null; e.preventDefault(); return }
-      if (e.touches.length !== 1) return; const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy); st.touch = { type: "single" };
-      if (st.lockAll) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); e.preventDefault(); return; }
-      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true });
-      e.preventDefault();
-    }, { passive: false });
-    cv.addEventListener("touchmove", e => {
-      const rect = cv.getBoundingClientRect(); if (st.touch && st.touch.type === "pinch" && e.touches.length >= 2) { const m = touchMid(e.touches[0], e.touches[1], rect), dist = Math.max(1, touchDist(e.touches[0], e.touches[1])), vm = getViewMetrics(); st.zoom = zc(st.touch.startZoom * (dist / st.touch.startDist)); st.camX = st.touch.worldMid.x - (m.sx - vm.centerX) / st.zoom; st.camY = st.touch.worldMid.y - (m.sy - vm.centerY) / st.zoom; render(); e.preventDefault(); return }
-      if (e.touches.length !== 1) return;
-      const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy);
-      if (handleCanvasPointerMove(p, { sx, sy, ctrlSnap: false })) e.preventDefault();
-    }, { passive: false });
-    cv.addEventListener("touchend", e => {
-      if (st.touch && st.touch.type === "pinch" && e.touches.length >= 1) { e.preventDefault(); return } if (e.touches.length === 0) {
-        st.touch = null;
-        handleCanvasPointerUp();
-        e.preventDefault();
-      }
-    }, { passive: false });
     function delSel() {
       normSelSet();
       if (!st.selSet.size && st.sel == null) return;
@@ -8721,88 +8575,34 @@
       }
       syncProps();
     };
-    let listDragId = null;
-    let listDropNode = null, listDropAfter = false, listListBound = false;
-    const listNodeCache = new Map();
-    const clearListDropMarker = () => {
-      if (!listDropNode) return;
-      listDropNode.classList.remove("drop-before", "drop-after");
-      listDropNode = null; listDropAfter = false;
-    };
-    const ensureListEvents = () => {
-      if (listListBound || !el.list) return;
-      listListBound = true;
-      bindEvent(el.list, "click", e => {
-        const lockBtn = eventClosest(e, ".rect-item-lock");
-        if (lockBtn) {
-          const row = lockBtn.closest(".rect-item");
-          const id = Math.round(Number(row && row.dataset && row.dataset.id) || 0);
-          if (id) toggleRectLockById(id);
-          return;
-        }
-        const it = eventClosest(e, ".rect-item");
-        if (!it) return;
-        const id = Math.round(Number(it.dataset.id) || 0);
-        if (!id) return;
-        const rr = getRectById(id);
-        if (rr && isRectLocked(rr)) return;
-        selRect(id, { toggle: !!e.shiftKey });
-      });
-      bindEvent(el.list, "dragstart", e => {
-        const it = eventClosest(e, ".rect-item");
-        if (!it) return;
-        const id = Math.round(Number(it.dataset.id) || 0);
-        if (!id) return;
-        const rr = getRectById(id);
-        if (rr && isRectLocked(rr)) { e.preventDefault(); return; }
-        listDragId = id;
-        it.classList.add("dragging");
-        if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", String(id)) } catch (_e) { } }
-      });
-      bindEvent(el.list, "dragend", e => {
-        const it = eventClosest(e, ".rect-item");
-        if (it) it.classList.remove("dragging");
-        listDragId = null;
-        clearListDropMarker();
-      });
-      bindEvent(el.list, "dragover", e => {
-        if (listDragId == null) return;
-        const it = eventClosest(e, ".rect-item");
-        if (!it) return;
-        e.preventDefault();
-        const rect = it.getBoundingClientRect(), after = e.clientY > rect.top + rect.height / 2;
-        if (it === listDropNode && after === listDropAfter) return;
-        clearListDropMarker();
-        listDropNode = it; listDropAfter = after;
-        it.classList.add(after ? "drop-after" : "drop-before");
-      });
-      bindEvent(el.list, "drop", e => {
-        if (listDragId == null) return;
-        const it = eventClosest(e, ".rect-item");
-        e.preventDefault();
-        if (!it) { listDragId = null; clearListDropMarker(); return; }
-        const targetId = Math.round(Number(it.dataset.id) || 0), after = listDropNode === it ? listDropAfter : false;
-        if (targetId && reorderRects(listDragId, targetId, after)) { listRects(); persistProjectAndRender(); }
-        listDragId = null;
-        clearListDropMarker();
-      });
-    };
-    const reorderRects = (dragId, targetId, after = false) => {
-      const from = st.rects.findIndex(r => r.id === dragId), to0 = st.rects.findIndex(r => r.id === targetId);
-      if (from < 0 || to0 < 0 || from === to0) return false;
-      const [item] = st.rects.splice(from, 1);
-      let to = to0;
-      if (from < to) to--;
-      if (after) to++;
-      to = Math.max(0, Math.min(st.rects.length, to));
-      st.rects.splice(to, 0, item);
-      return true;
-    };
+    setupInputController({
+      cv, st, el, render, hit, s2w, zc, getViewMetrics,
+      isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
+      cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
+      beginClusterHandleDragAtPoint, handleClusterEditAtPoint,
+      handleRigPointerDown, handleFlowEditPointerDown,
+      selRect, isSelected, beginRectDrag, beginSelectionBox,
+      setSelection, syncPropsSmart, snapMaskNode, getCellLinkCandidateAtPoint, getRigHitAtPoint,
+      updateClusterHandleDragAtPoint, updateClusterEditCursor,
+      findClusterHandle, findActiveClusterBorder, findClusterStartMarker, cellFromWorldPoint,
+      updateFlowLinkDragTarget, resetFlowHoverTransient,
+      findFlowLinkAtPoint, findFlowStartHandle, findFlowDirectionButton, findFlowEditPoint,
+      moveRectDrag, updateSelectionBox, finishSelectionBox,
+      endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock,
+      mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
+      resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
+      resetFlowRegionOverrides, syncProps, bindEvent, bindWindowEvent, zoomAt
+    });
+    const listCtrl = setupRectListController({
+      st, el, bindEvent, eventClosest,
+      toggleRectLockById, getRectById, isRectLocked, selRect,
+      onReorder: () => { listRects(); persistProjectAndRender(); }
+    });
     function listRects() {
-      ensureListEvents();
+      listCtrl.ensureListEvents();
       if (!st.rects.length) {
-        listNodeCache.clear();
-        clearListDropMarker();
+        listCtrl.listNodeCache.clear();
+        listCtrl.clearListDropMarker();
         el.list.innerHTML = "<p class='hint' style='margin:0'>Экранов пока нет.</p>";
         return;
       }
@@ -8812,7 +8612,7 @@
         const id = Math.round(Number(r.id) || 0);
         if (!id) continue;
         live.add(id);
-        let node = listNodeCache.get(id);
+        let node = listCtrl.listNodeCache.get(id);
         if (!node) {
           node = document.createElement("div");
           node.className = "rect-item";
@@ -8836,7 +8636,7 @@
           node._title = title;
           node._lock = lockBtn;
           node._meta = meta;
-          listNodeCache.set(id, node);
+          listCtrl.listNodeCache.set(id, node);
         }
         node.classList.toggle("active", isSelected(id));
         node.classList.toggle("locked", isRectLocked(r));
@@ -8855,10 +8655,10 @@
         if (node._meta.textContent !== metaText) node._meta.textContent = metaText;
         fragment.appendChild(node);
       }
-      for (const [id, node] of listNodeCache) {
+      for (const [id, node] of listCtrl.listNodeCache) {
         if (live.has(id)) continue;
         if (node && node.parentNode) node.parentNode.removeChild(node);
-        listNodeCache.delete(id);
+        listCtrl.listNodeCache.delete(id);
       }
       el.list.replaceChildren(fragment);
     }
@@ -9144,21 +8944,7 @@
     };
     bindSnapToggles();
     const isMobile = () => window.matchMedia("(max-width:900px)").matches;
-    const isCoarsePointer = () => window.matchMedia && window.matchMedia("(hover:none) and (pointer:coarse)").matches;
-    const isEditableTarget = t => {
-      if (!t || !(t instanceof Element)) return false;
-      if (t.closest("[contenteditable='true']")) return true;
-      const n = t.tagName;
-      return n === "INPUT" || n === "TEXTAREA" || n === "SELECT";
-    };
-    let lastTouchEndTs = 0;
-    bindEvent(document, "touchend", e => {
-      if (!isCoarsePointer()) return;
-      if (isEditableTarget(e.target)) return;
-      const now = Date.now(), dt = now - lastTouchEndTs;
-      if (dt > 0 && dt < 320) e.preventDefault();
-      lastTouchEndTs = now;
-    }, { passive: false });
+    setupMobileGestures({ bindEvent });
     const updateMobileDock = () => {
       if (!el.mobileDock) return;
       const show = isMobile();
@@ -9260,21 +9046,6 @@
       if (el.helpModal) { el.helpModal.classList.remove("show"); el.helpModal.style.display = "none"; el.helpModal.setAttribute("aria-hidden", "true") }
       lsSet(HELP_SEEN_KEY, "1");
     };
-    if (!lsGet(HELP_SEEN_KEY, "")) openHelpModal();
-    bindClick(el.helpOpen, openHelpModal);
-    bindClick(el.helpClose, closeHelpModal);
-    bindEvent(el.helpModal, "hidden.bs.modal", () => { lsSet(HELP_SEEN_KEY, "1"); });
-    bindProxyClick(el.mToolSelect, el.toolSelect);
-    bindProxyClick(el.mToolDraw, el.toolDraw);
-    bindProxyClick(el.mToolNote, el.toolNote);
-    bindProxyClick(el.mToolMaskAdd, el.toolMaskAdd);
-    bindProxyClick(el.mToolCellEdit, el.toolCellEdit);
-    bindProxyClick(el.mToolFlowEdit, el.toolFlowEdit);
-    bindProxyClick(el.mToolClusterEdit, el.toolClusterEdit);
-    bindProxyClick(el.mToolRigEdit, el.toolRigEdit);
-    bindProxyClick(el.mCopy, el.btnCopy);
-    bindProxyClick(el.mCopyMirror, el.btnCopyMirror);
-    bindProxyClick(el.mDelete, el.btnDelete);
     bindClick(el.btnClearMasks, () => {
       applyToTargetsAndRender(r => {
         r.hiddenCells = [];
@@ -10022,55 +9793,25 @@
       await saveBlobWithSystemDialog(specBlob, fileSpec, "text/markdown", ".md", "Markdown files", st.saveLocationId);
     };
     bindClick(el.exp, async () => { await exportPackage() });
-    const applyProjectNameInput = (opts = {}) => {
-      st.projectName = (el.project.value || "project").trim() || "project";
-      syncActiveTabSnapshot();
-      renderProjectTabs();
-      if (opts.syncProps) syncProps();
-      schedulePersist("all");
-    };
-    bindEvent(el.project, "input", () => applyProjectNameInput({ syncProps: false }));
-    bindEvent(el.project, "change", () => applyProjectNameInput({ syncProps: true }));
-    bindEvent(el.projectTabAdd, "click", () => createProjectTab(makeEmptyProjectData("Новый проект")));
-    if (el.themePopup) {
-      for (const a of el.themePopup.querySelectorAll("[data-theme]")) {
-        bindEvent(a, "click", e => { e.preventDefault(); applyThemeMode(a.getAttribute("data-theme"), true); hideThemePopup() });
-      }
-    }
-    bindEvent(el.themeToggle, "click", e => { e.preventDefault(); hideToolbarOverflowPopup(); const open = el.themePopup && el.themePopup.classList.contains("show"); if (open) hideThemePopup(); else showThemePopup() });
-    if (themeMedia && typeof themeMedia.addEventListener === "function") themeMedia.addEventListener("change", () => { if (st.themeMode === "auto") applyThemeMode("auto", false) });
-    else if (themeMedia && typeof themeMedia.addListener === "function") themeMedia.addListener(() => { if (st.themeMode === "auto") applyThemeMode("auto", false) });
-    bindEvent(el.overflowToggle, "click", e => { e.preventDefault(); if (!overflowHiddenButtons.length) return; const open = el.overflowPopup && el.overflowPopup.classList.contains("show"); if (open) hideToolbarOverflowPopup(); else showToolbarOverflowPopup() });
-    bindEvent(document, "click", e => {
-      const t = e && e.target;
-      if (el.overflowPopup && el.overflowToggle && !(el.overflowPopup.contains(t) || el.overflowToggle.contains(t))) hideToolbarOverflowPopup();
-      if (el.themePopup && el.themeToggle && !(el.themePopup.contains(t) || el.themeToggle.contains(t))) hideThemePopup();
+    setupUiBinders({
+      st, el, themeMedia, overflowHiddenButtons,
+      bindEvent, bindClick, bindWindowEvent,
+      bindProxyClick, lsGet, lsSet, HELP_SEEN_KEY,
+      openHelpModal, closeHelpModal,
+      syncActiveTabSnapshot, renderProjectTabs, syncProps, schedulePersist,
+      createProjectTab, makeEmptyProjectData,
+      applyThemeMode, hideThemePopup, showThemePopup,
+      hideToolbarOverflowPopup, showToolbarOverflowPopup,
+      updateMobileDock, updateToolbarOverflow, persistNow, scheduleCanvasResize
     });
-    const onViewportUiChange = () => { hideToolbarOverflowPopup(); hideThemePopup(); updateToolbarOverflow(); };
-    bindWindowEvent("resize", updateMobileDock);
-    bindWindowEvent("orientationchange", updateMobileDock);
-    bindWindowEvent("resize", onViewportUiChange);
-    bindWindowEvent("orientationchange", onViewportUiChange);
-    bindWindowEvent("beforeunload", () => { persistNow(); });
-    bindEvent(document, "visibilitychange", () => { if (document.visibilityState !== "visible") persistNow(); });
-    if (el.side) {
-      bindEvent(el.side, "shown.bs.offcanvas", scheduleCanvasResize);
-      bindEvent(el.side, "hidden.bs.offcanvas", scheduleCanvasResize);
-    }
-    bindWindowEvent("keydown", e => {
-      if (e.key === " ") st.keys.space = true;
-      if (e.key === "Control") st.keys.ctrl = true;
-      if (e.ctrlKey && e.key.toLowerCase() === "z") { undoHistory(); e.preventDefault(); return; }
-      if (e.ctrlKey && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) { redoHistory(); e.preventDefault(); return; }
-      if (e.key === "Escape") { if (el.helpModal && el.helpModal.classList.contains("show")) { closeHelpModal(); e.preventDefault(); return } setMode("select"); e.preventDefault(); return }
-      if (isMaskMode() && e.key === "Enter") { applyMaskPath(); e.preventDefault(); return }
-      if (e.key === "Delete") { delSel(); e.preventDefault() }
-      if (e.ctrlKey && e.key.toLowerCase() === "d") { dupSel(); e.preventDefault() }
-      if (e.ctrlKey && e.key.toLowerCase() === "c") { const r = cur(); if (r) st.clip = cloneRectForClipboard(r); e.preventDefault() }
-      if (e.ctrlKey && e.key.toLowerCase() === "v") { if (st.clip) { const c = cloneRectForDuplicate(st.clip); insertCloneAboveSource(st.clip.id, c); selRect(c.id); setMode("select"); schedulePersist("project") } e.preventDefault() }
-      const selected = getEditableSelectedRects(); if (selected.length) { const s = e.shiftKey ? 10 : 1; let dx = 0, dy = 0; if (e.key === "ArrowLeft") dx = -s; else if (e.key === "ArrowRight") dx = s; else if (e.key === "ArrowUp") dy = -s; else if (e.key === "ArrowDown") dy = s; if (dx || dy) { for (const it of selected) { it.x += dx; it.y += dy; } commitUiUpdate({ syncProps: true, listRects: true, persist: true, render: true }); e.preventDefault(); } }
+    setupKeyboardController({
+      st, el, render,
+      undoHistory, redoHistory, closeHelpModal, setMode,
+      isMaskMode, applyMaskPath, delSel, dupSel, cur,
+      cloneRectForClipboard, cloneRectForDuplicate, insertCloneAboveSource,
+      selRect, schedulePersist, getEditableSelectedRects, commitUiUpdate,
+      bindWindowEvent
     });
-    bindWindowEvent("keyup", e => { if (e.key === " ") st.keys.space = false; if (e.key === "Control") { st.keys.ctrl = false; st.g.x = null; st.g.y = null; st.dg = null; render() } });
     setMode(st.mode);
     st.themeMode = normalizeThemeMode(lsGet(THEME_MODE_KEY, st.themeMode) || st.themeMode);
     st.saveLocationId = setGlobalSaveLocationId(st.saveLocationId || getGlobalSaveLocationId());
