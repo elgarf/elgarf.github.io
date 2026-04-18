@@ -1652,13 +1652,13 @@
             subBtn.type = "button";
             subBtn.className = `dropdown-item d-flex align-items-center gap-2 py-1 ${st.themeMode === t.mode ? "active" : ""}`;
             subBtn.innerHTML = `<i class="${t.icon}"></i><span>${t.label}</span>`;
-            subBtn.addEventListener("click", () => {
+            bindEvent(subBtn, "click", () => {
               applyThemeMode(t.mode, true);
               hideToolbarOverflowPopup();
             });
             submenu.appendChild(subBtn);
           }
-          item.addEventListener("click", e => {
+          bindEvent(item, "click", e => {
             e.preventDefault();
             const open = submenu.classList.contains("d-none");
             submenu.classList.toggle("d-none", !open);
@@ -1676,7 +1676,7 @@
         const text = (b.textContent || "").trim();
         const title = b.getAttribute("title") || b.getAttribute("aria-label") || text || "Действие";
         item.innerHTML = `${icon ? `<i class="${icon.className}"></i>` : ""}<span>${title}</span>`;
-        item.addEventListener("click", () => { hideToolbarOverflowPopup(); b.click() });
+        bindEvent(item, "click", () => { hideToolbarOverflowPopup(); b.click() });
         el.overflowPopup.appendChild(item);
       }
       const tr = el.overflowToggle.getBoundingClientRect();
@@ -1968,7 +1968,7 @@
       ta.value = String(r.noteText || "");
       ta.style.display = "block";
       updateNoteEditorOverlay();
-      try { ta.focus(); ta.select(); } catch (_e) { }
+      focusAndSelect(ta);
     }
     function updateNoteEditorOverlay() {
       const ta = ensureNoteEditorEl();
@@ -3976,6 +3976,7 @@
         const rectId = Math.max(1, Math.round(Number(rr && rr.id) || 0)), rg = Math.max(0, Math.round(Number(rid) || 0));
         const key = `${rectId}:${rg}`;
         if (regionBBoxCache.has(key)) return regionBBoxCache.get(key);
+        const cx = drawCellX(rr), cy = drawCellY(rr);
         const rt = getRectRuntime(rr, { withGroups: true }), groups = rt.groups, g = (Array.isArray(groups) ? groups : []).find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg);
         if (!g || !Array.isArray(g.points) || !g.points.length) { regionBBoxCache.set(key, null); return null; }
         let minU = Infinity, minV = Infinity, maxU = -Infinity, maxV = -Infinity;
@@ -6059,6 +6060,23 @@
     };
     const bindClick = (node, handler) => { if (node) node.onclick = handler; };
     const bindEvent = (node, event, handler, options) => { if (node) node.addEventListener(event, handler, options); };
+    const bindWindowEvent = (event, handler, options) => { if (typeof window !== "undefined" && window) window.addEventListener(event, handler, options); };
+    const bindEvents = (nodes, event, handler, options) => {
+      for (const node of (Array.isArray(nodes) ? nodes : [])) bindEvent(node, event, handler, options);
+    };
+    const eventClosest = (e, selector) => {
+      const target = e && e.target;
+      return (target && target.closest) ? target.closest(selector) : null;
+    };
+    const bindCommitInputs = (nodes, onCommit) => {
+      for (const node of (Array.isArray(nodes) ? nodes : [])) bindCommitInput(node, onCommit);
+    };
+    const focusAndSelect = node => { try { if (node) { node.focus(); node.select(); } } catch (_e) { } };
+    const scheduleFontReadyRender = (state, delay = 140) => {
+      if (!state || typeof state !== "object") return;
+      if (state.timer) clearTimeout(state.timer);
+      state.timer = setTimeout(() => ensureFontReady().then(() => render()).catch(() => { }), Math.max(0, Math.round(Number(delay) || 0)));
+    };
     const refreshPropsListRender = () => { syncProps(); listRects(); render(); };
     const persistProjectAndRender = () => { schedulePersist("project"); render(); };
     const commitProjectChange = (opts = {}) => {
@@ -6323,8 +6341,8 @@
         close.innerHTML = '<i class="fa-solid fa-xmark"></i>';
         btn.appendChild(title);
         btn.appendChild(close);
-        btn.addEventListener("click", e => {
-          const closeEl = e.target && e.target.closest ? e.target.closest(".tab-close-icon") : null;
+        bindEvent(btn, "click", e => {
+          const closeEl = eventClosest(e, ".tab-close-icon");
           if (closeEl) { closeProjectTab(t.id); return; }
           openProjectTab(t.id);
         });
@@ -6687,15 +6705,13 @@
       st.mode = m;
       st.flowDrag = null;
       st.selBox = null;
-      st.flowHover = null;
-      st.flowDirHover = null;
-      st.flowLinkHover = null;
+      resetFlowHoverTransient();
       st.clusterDrag = null;
       st.clusterStartHover = null;
       st.clusterBorderHover = null;
-      st.rigHover = null;
+      resetRigHoverTransient();
       if (m !== "flowEdit") { st.flowRegionRid = null; st.flowLinkPending = null; st.flowLinkDrag = null; }
-      if (m !== "clusterEdit") { st.clusterHandles = []; st.clusterHandleHover = null; st.clusterCellHover = null; }
+      if (m !== "clusterEdit") { st.clusterHandles = []; resetClusterHoverTransient(); }
       const map = [["select", el.toolSelect, el.mToolSelect], ["draw", el.toolDraw, el.mToolDraw], ["note", el.toolNote, el.mToolNote], ["maskEdit", el.toolMaskAdd, el.mToolMaskAdd], ["cellEdit", el.toolCellEdit, el.mToolCellEdit], ["flowEdit", el.toolFlowEdit, el.mToolFlowEdit], ["clusterEdit", el.toolClusterEdit, el.mToolClusterEdit], ["rigEdit", el.toolRigEdit, el.mToolRigEdit]];
       for (const [mode, ...btns] of map) {
         const on = m === mode;
@@ -6705,13 +6721,27 @@
           b.classList.toggle("btn-secondary", !on);
         }
       }
-      if (!isMaskMode()) { st.maskPath = []; st.maskHover = null }
-      if (!isCellEditMode()) { st.cellHover = null; st.cellHoverPos = null; }
-      if (!isRigEditMode()) st.rigHover = null;
+      if (!isMaskMode()) resetMaskTransient();
+      if (!isCellEditMode()) resetCellTransient();
+      if (!isRigEditMode()) resetRigHoverTransient();
       wrap.dataset.mode = m; st.draft = null; st.drag = null; updateToolbarOverflow(); updateClusterEditCursor(); render()
     }
     const hasRect = id => st.rects.some(v => v.id === id);
     const isRectLocked = r => !!(st.lockAll || (r && r.locked));
+    const resetMaskTransient = () => { st.maskPath = []; st.maskHover = null; };
+    const resetCellTransient = () => { st.cellHover = null; st.cellHoverPos = null; };
+    const resetFlowHoverTransient = () => { st.flowHover = null; st.flowDirHover = null; st.flowLinkHover = null; };
+    const resetClusterHoverTransient = () => { st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; };
+    const resetRigHoverTransient = () => { st.rigHover = null; };
+    const resetSelectionTransient = () => {
+      resetMaskTransient();
+      resetCellTransient();
+      st.flowRegionRid = null;
+      resetFlowHoverTransient();
+      resetClusterHoverTransient();
+      st.clusterDrag = null;
+      st.selBox = null;
+    };
     const getEditableSelectedRects = () => {
       const selected = getSelectedRects();
       return selected.filter(r => !isRectLocked(r));
@@ -6727,7 +6757,8 @@
       for (const t of targets) t.locked = nextLocked;
       st.drag = null; st.flowDrag = null; st.clusterDrag = null; st.draft = null;
       if (nextLocked) {
-        st.maskPath = []; st.maskHover = null; st.cellHover = null; st.cellHoverPos = null;
+        resetMaskTransient();
+        resetCellTransient();
       }
       normSelSet();
       syncProps();
@@ -6904,7 +6935,7 @@
       if (o.toggle) { toggleSelect(id); }
       else if (o.add) { normSelSet(); if (id != null && hasRect(id)) { st.selSet.add(id); st.sel = id; } }
       else selectOnly(id);
-      st.maskPath = []; st.maskHover = null; st.cellHover = null; st.cellHoverPos = null; st.flowHover = null; st.flowDirHover = null; st.flowRegionRid = null; st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; st.clusterDrag = null; st.selBox = null;
+      resetSelectionTransient();
       const r = getRectById(st.sel) || null; if (!r || !findManualClusterById(r, st.clusterActiveId)) st.clusterActiveId = null; if (!r || !isNoteRect(r)) closeNoteEditor(true);
       syncProps(); listRects(); updateModeBadges(r); updateClusterEditCursor(); render();
     }
@@ -6912,7 +6943,7 @@
     function hit(x, y) { for (let i = 0; i < st.rects.length; i++) { const r = st.rects[i]; if (isRectLocked(r)) continue; const p = worldToRectUV(r, x, y); if (p.u >= 0 && p.u <= r.width && p.v >= 0 && p.v <= r.height) return r } return null }
     function snapMaskNode(r, wx, wy) { if (!r) return null; const p = worldToRectUV(r, wx, wy); if (p.u < 0 || p.u > r.width || p.v < 0 || p.v > r.height) return null; const u = Math.max(0, Math.min(r.width, p.u)), v = Math.max(0, Math.min(r.height, p.v)), axes = getMaskNodeAxes(r); let gu = axes.xs[0], gv = axes.ys[0], bdx = 1e9, bdy = 1e9; for (const x of axes.xs) { const d = Math.abs(x - u); if (d < bdx) { bdx = d; gu = x } } for (const y of axes.ys) { const d = Math.abs(y - v); if (d < bdy) { bdy = d; gv = y } } return rectUVToWorld(r, gu, gv) }
     function addMaskPoint(wx, wy) { const r = cur(); if (!r || isRectLocked(r)) return; const p = snapMaskNode(r, wx, wy); if (!p) return; const first = st.maskPath[0], last = st.maskPath[st.maskPath.length - 1], eps = 6 / st.zoom; if (first && st.maskPath.length >= 3 && Math.hypot(p.x - first.x, p.y - first.y) <= eps) { applyMaskPath(); return } if (last && Math.abs(last.x - p.x) < 0.001 && Math.abs(last.y - p.y) < 0.001) return; st.maskPath.push(p); render() }
-    function applyMaskPath() { const r = cur(); if (!r || isRectLocked(r) || st.maskPath.length < 3) { st.maskPath = []; render(); return } const cx = drawCellX(r), cy = drawCellY(r), hs = getHiddenSet(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); for (let iy = 0; iy < rows; iy++) { for (let ix = 0; ix < cols; ix++) { const cw = Math.min(cx, r.width - ix * cx), ch = Math.min(cy, r.height - iy * cy), wp = rectUVToWorld(r, ix * cx + cw / 2, iy * cy + ch / 2); if (!pointInPoly(wp.x, wp.y, st.maskPath)) continue; const k = maskCellKey(ix, iy); if (hs.has(k)) hs.delete(k); else hs.add(k); } } setHiddenSet(r); st.maskPath = []; st.maskHover = null; persistProjectAndRender() }
+    function applyMaskPath() { const r = cur(); if (!r || isRectLocked(r) || st.maskPath.length < 3) { resetMaskTransient(); render(); return } const cx = drawCellX(r), cy = drawCellY(r), hs = getHiddenSet(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); for (let iy = 0; iy < rows; iy++) { for (let ix = 0; ix < cols; ix++) { const cw = Math.min(cx, r.width - ix * cx), ch = Math.min(cy, r.height - iy * cy), wp = rectUVToWorld(r, ix * cx + cw / 2, iy * cy + ch / 2); if (!pointInPoly(wp.x, wp.y, st.maskPath)) continue; const k = maskCellKey(ix, iy); if (hs.has(k)) hs.delete(k); else hs.add(k); } } setHiddenSet(r); resetMaskTransient(); persistProjectAndRender() }
     function toggleCellLinkAtPoint(r, wx, wy) {
       if (!r || isRectLocked(r)) return false; const cand = getCellLinkCandidateAtPoint(r, wx, wy); if (!cand) return false; const arr = Array.isArray(r.cellLinks) ? r.cellLinks : [];
       if (cand.exists) { const ks = new Set(cand.keys); r.cellLinks = arr.filter(v => !ks.has(v)); persistProjectAndRender(); return true }
@@ -7915,7 +7946,7 @@
     }
     let renderRaf = 0;
     function renderNow() {
-      flowDrawRenderEpoch++; const r = window.devicePixelRatio || 1, vm = getViewMetrics(), fastPan = !!st.pan, tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching")), interactiveFast = !!(st.drag || st.draft || st.clusterDrag || st.flowDrag), flowEditActive = st.mode === "flowEdit", forceLowDetail = !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive)); st.flowEditPoints = []; st.flowStartHandles = []; st.flowDirButtons = []; st.flowLinkAnchors = []; st.flowLinkSegments = []; st.clusterHandles = []; if (!isClusterEditMode()) { st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; } flowPointIndexSrc = null; flowPointIndexMap = null; ctx.setTransform(r, 0, 0, r, 0, 0); ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight); drawGrid(); ctx.save(); ctx.translate(vm.centerX, vm.centerY); ctx.scale(st.zoom, st.zoom); ctx.translate(-st.camX, -st.camY);
+      flowDrawRenderEpoch++; const r = window.devicePixelRatio || 1, vm = getViewMetrics(), fastPan = !!st.pan, tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching")), interactiveFast = !!(st.drag || st.draft || st.clusterDrag || st.flowDrag), flowEditActive = st.mode === "flowEdit", forceLowDetail = !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive)); st.flowEditPoints = []; st.flowStartHandles = []; st.flowDirButtons = []; st.flowLinkAnchors = []; st.flowLinkSegments = []; st.clusterHandles = []; if (!isClusterEditMode()) { resetClusterHoverTransient(); } flowPointIndexSrc = null; flowPointIndexMap = null; ctx.setTransform(r, 0, 0, r, 0, 0); ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight); drawGrid(); ctx.save(); ctx.translate(vm.centerX, vm.centerY); ctx.scale(st.zoom, st.zoom); ctx.translate(-st.camX, -st.camY);
       const vw0 = s2w(0, 0), vw1 = s2w(vm.viewWidth, vm.viewHeight), vmargin = Math.max(48, 80 / Math.max(0.25, st.zoom)), viewMinX = Math.min(vw0.x, vw1.x) - vmargin, viewMinY = Math.min(vw0.y, vw1.y) - vmargin, viewMaxX = Math.max(vw0.x, vw1.x) + vmargin, viewMaxY = Math.max(vw0.y, vw1.y) + vmargin;
       const origin = getOrigin(); for (let i = st.rects.length - 1; i >= 0; i--) { const rr = st.rects[i], bb = rectAABB(rr); if (bb.maxX < viewMinX || bb.minX > viewMaxX || bb.maxY < viewMinY || bb.minY > viewMaxY) continue; drawRect(ctx, rr, isSelected(rr.id), st.zoom, origin, { designerRender: true, forceLowDetail }) } drawInterScreenFlowLinks(ctx); if (st.draft) { const d = st.draft; ctx.strokeStyle = "#7fd4f8"; ctx.lineWidth = 1 / st.zoom; ctx.setLineDash([8 / st.zoom, 5 / st.zoom]); ctx.strokeRect(d.x, d.y, d.width, d.height); ctx.setLineDash([]) } if (st.selBox) { const b = selBoxBounds(st.selBox); ctx.save(); ctx.strokeStyle = "rgba(125,208,255,.95)"; ctx.fillStyle = "rgba(125,208,255,.12)"; ctx.lineWidth = Math.max(1, 1.2 / st.zoom); ctx.setLineDash([6 / st.zoom, 4 / st.zoom]); ctx.fillRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY); ctx.strokeRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY); ctx.restore(); } if (!(fastPan || tabSwitching || (interactiveFast && !flowEditActive))) { drawMaskOverlay(ctx, st.zoom); drawCellEditOverlay(ctx, st.zoom); drawContentBounds(ctx, st.zoom); }
       ctx.restore(); drawGuides(); drawDistanceGuide(); el.zoomLabel.textContent = `${Math.round(st.zoom * 100)}%`; wrap.dataset.panning = st.pan ? "1" : "0"; updateNoteEditorOverlay()
@@ -7951,16 +7982,16 @@
       if (canvasResizeTimer) clearTimeout(canvasResizeTimer);
       canvasResizeTimer = setTimeout(() => { canvasResizeTimer = 0; runCanvasResize(); }, 120);
     };
-    window.addEventListener("resize", scheduleCanvasResize);
+    bindWindowEvent("resize", scheduleCanvasResize);
     if (typeof ResizeObserver !== "undefined") {
       const canvasResizeObserver = new ResizeObserver(() => scheduleCanvasResize());
       if (wrap) canvasResizeObserver.observe(wrap);
       const main = document.querySelector(".main");
       if (main) canvasResizeObserver.observe(main);
     }
-    window.addEventListener("orientationchange", scheduleCanvasResize);
+    bindWindowEvent("orientationchange", scheduleCanvasResize);
     if (window.visualViewport && window.visualViewport.addEventListener) {
-      window.visualViewport.addEventListener("resize", scheduleCanvasResize);
+      bindEvent(window.visualViewport, "resize", scheduleCanvasResize);
     }
     function zoomAt(sx, sy, nz) { const b = s2w(sx, sy); st.zoom = zc(nz); const a = s2w(sx, sy); st.camX += b.x - a.x; st.camY += b.y - a.y; render() }
     const beginRectDrag = (target, p) => {
@@ -8146,11 +8177,15 @@
       return true;
     };
     cv.addEventListener("contextmenu", e => e.preventDefault());
+    const selectHitRectIfNeeded = h => {
+      if (h && h.id !== st.sel) selRect(h.id);
+      return h || null;
+    };
     const handleCanvasPointerDown = (p, opts = null) => {
       const o = (opts && typeof opts === "object") ? opts : {};
       if (st.mode === "draw" || isNoteMode()) { st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y, kind: (isNoteMode() ? "note" : "rect") }; render(); return }
-      if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) selRect(h.id); if (isRectLocked(cur())) return; addMaskPoint(p.x, p.y); return }
-      if (isCellEditMode()) { const h = hit(p.x, p.y); if (!h) { selRect(null); return } if (h.id !== st.sel) selRect(h.id); if (isRectLocked(h)) return; toggleCellLinkAtPoint(h, p.x, p.y); return }
+      if (isMaskMode()) { const h = selectHitRectIfNeeded(hit(p.x, p.y)); if (isRectLocked(cur())) return; addMaskPoint(p.x, p.y); return }
+      if (isCellEditMode()) { const h = selectHitRectIfNeeded(hit(p.x, p.y)); if (!h) { selRect(null); return } if (isRectLocked(h)) return; toggleCellLinkAtPoint(h, p.x, p.y); return }
       if (isClusterEditMode()) { if (beginClusterHandleDragAtPoint(p.x, p.y)) { render(); return } handleClusterEditAtPoint(p.x, p.y); return }
       if (isRigEditMode()) { if (handleRigPointerDown(p)) return; }
       if (st.mode === "flowEdit") { if (handleFlowEditPointerDown(p)) return; }
@@ -8164,13 +8199,26 @@
       }
       render();
     };
+    const selectHoveredRectSmart = h => {
+      if (!h || h.id === st.sel) return false;
+      setSelection([h.id], h.id);
+      syncPropsSmart();
+      return true;
+    };
+    const updateDraftFromPoint = (d, p) => {
+      if (!d || !p) return;
+      d.x = Math.min(d.sx, p.x);
+      d.y = Math.min(d.sy, p.y);
+      d.width = Math.abs(p.x - d.sx);
+      d.height = Math.abs(p.y - d.sy);
+    };
     const handleCanvasPointerMove = (p, opts = null) => {
       const o = (opts && typeof opts === "object") ? opts : {};
       if (st.pan && st.panS) { st.camX = st.panS.cx - (o.sx - st.panS.sx) / st.zoom; st.camY = st.panS.cy - (o.sy - st.panS.sy) / st.zoom; render(); return true; }
       if (st.selBox) { updateSelectionBox(p); render(); return true; }
-      if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); return true; }
-      if (isCellEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); return true; }
-      if (isRigEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return true; }
+      if (isMaskMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); return true; }
+      if (isCellEditMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); return true; }
+      if (isRigEditMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return true; }
       if (isClusterEditMode()) {
         if (st.clusterDrag) {
           updateClusterHandleDragAtPoint(p.x, p.y);
@@ -8178,22 +8226,26 @@
           render();
           return true;
         }
-        const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.clusterHandleHover = r ? findClusterHandle(p.x, p.y) : null; st.clusterBorderHover = r ? findActiveClusterBorder(r, p.x, p.y) : null; st.clusterStartHover = r ? findClusterStartMarker(r, p.x, p.y) : null; const cc = (r ? cellFromWorldPoint(r, p.x, p.y, true) : null); st.clusterCellHover = (r && cc ? { rectId: r.id, col: cc.col, row: cc.row } : null); updateClusterEditCursor(); render(); return true;
+        const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.clusterHandleHover = r ? findClusterHandle(p.x, p.y) : null; st.clusterBorderHover = r ? findActiveClusterBorder(r, p.x, p.y) : null; st.clusterStartHover = r ? findClusterStartMarker(r, p.x, p.y) : null; const cc = (r ? cellFromWorldPoint(r, p.x, p.y, true) : null); st.clusterCellHover = (r && cc ? { rectId: r.id, col: cc.col, row: cc.row } : null); updateClusterEditCursor(); render(); return true;
       }
-      if (st.mode === "flowEdit" && st.flowLinkDrag) { updateFlowLinkDragTarget(p.x, p.y); st.flowLinkHover = null; st.flowHover = null; st.flowDirHover = null; render(); return true; }
-      if (st.mode === "flowEdit" && !st.flowDrag) { st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y); const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart(); render(); return true } const startHandle = findFlowStartHandle(p.x, p.y); if (startHandle) { st.flowHover = { kind: "start", rid: startHandle.rid, cid: startHandle.cid }; st.flowDirHover = null; render(); return true } const dirBtn = findFlowDirectionButton(p.x, p.y); st.flowDirHover = dirBtn; if (dirBtn) { st.flowHover = null; render(); return true } st.flowHover = findFlowEditPoint(p.x, p.y); render(); return true }
+      if (st.mode === "flowEdit" && st.flowLinkDrag) { updateFlowLinkDragTarget(p.x, p.y); resetFlowHoverTransient(); render(); return true; }
+      if (st.mode === "flowEdit" && !st.flowDrag) { st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y); const h = hit(p.x, p.y); if (selectHoveredRectSmart(h)) { render(); return true } const startHandle = findFlowStartHandle(p.x, p.y); if (startHandle) { st.flowHover = { kind: "start", rid: startHandle.rid, cid: startHandle.cid }; st.flowDirHover = null; render(); return true } const dirBtn = findFlowDirectionButton(p.x, p.y); st.flowDirHover = dirBtn; if (dirBtn) { st.flowHover = null; render(); return true } st.flowHover = findFlowEditPoint(p.x, p.y); render(); return true }
       if (st.mode === "flowEdit" && st.flowDrag) { const fp = findFlowEditPoint(p.x, p.y, st.flowDrag.rid, st.flowDrag.fromIndex); st.flowDrag.currentIndex = fp ? fp.index : st.flowDrag.fromIndex; render(); return true }
-      if (st.draft) { const d = st.draft; d.x = Math.min(d.sx, p.x); d.y = Math.min(d.sy, p.y); d.width = Math.abs(p.x - d.sx); d.height = Math.abs(p.y - d.sy); render(); return true }
+      if (st.draft) { updateDraftFromPoint(st.draft, p); render(); return true }
       if (st.drag) { moveRectDrag(p, !!o.ctrlSnap); render(); return true }
       return false;
     };
     const handleCanvasPointerUp = () => {
+      const finishPointerUp = changed => {
+        if (changed) schedulePersist("project");
+        render();
+        return true;
+      };
       const hadDrag = !!st.drag; if (st.pan) { st.pan = false; st.panS = null }
       if (st.selBox) { finishSelectionBox(); return true; }
       if (st.clusterDrag) {
         const changed = endClusterHandleDrag();
-        if (changed) schedulePersist("project");
-        render(); return true;
+        return finishPointerUp(changed);
       }
       if (st.flowLinkDrag) {
         const fd = st.flowLinkDrag;
@@ -8202,19 +8254,19 @@
         if (fd && fd.from && fd.target && fd.canLink) changed = addFlowLinkBetween(fd.from, fd.target);
         st.flowLinkPending = null;
         st.flowLinkHover = null;
-        if (changed) schedulePersist("project");
-        render(); return true;
+        return finishPointerUp(changed);
       }
       if (st.flowDrag) {
         const r = cur(), fd = st.flowDrag; st.flowDrag = null;
+        let changed = false;
         if (r) {
           const isStartMove = String(fd && fd.kind || "") === "start";
           const pts = (st.flowEditPoints || []).filter(p => p.rid === fd.rid && (isStartMove ? p.index >= 0 : p.index >= fd.fromIndex)), target = pts.find(p => p.index === fd.currentIndex) || pts[0];
           if (isStartMove) {
-            if (target && target.cid !== fd.cid) { setFlowStart(r, fd.rid, target.cid); schedulePersist("project"); }
-          } else if (target && target.index >= fd.fromIndex && target.cid !== fd.cid) { setFlowLock(r, fd.rid, fd.fromIndex, target.cid); schedulePersist("project"); }
+            if (target && target.cid !== fd.cid) { setFlowStart(r, fd.rid, target.cid); changed = true; }
+          } else if (target && target.index >= fd.fromIndex && target.cid !== fd.cid) { setFlowLock(r, fd.rid, fd.fromIndex, target.cid); changed = true; }
         }
-        render(); return true;
+        return finishPointerUp(changed);
       }
       let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = (String(d.kind || "") === "note") ? mkNote(d.x, d.y, d.width, d.height) : mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
       st.drag = null; st.g.x = null; st.g.y = null; st.dg = null;
@@ -8229,12 +8281,12 @@
       if (e.button !== 0) return;
       handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, touchLike: false });
     });
-    window.addEventListener("mousemove", e => {
+    bindWindowEvent("mousemove", e => {
       const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
       handleCanvasPointerMove(p, { sx, sy, ctrlSnap: !!(e.ctrlKey || st.keys.ctrl) });
     });
-    cv.addEventListener("mouseleave", () => { if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) { st.cellHover = null; st.cellHoverPos = null; render(); return } if (st.mode === "flowEdit" && (st.flowHover || st.flowDirHover || st.flowLinkHover)) { st.flowHover = null; st.flowDirHover = null; st.flowLinkHover = null; render(); return } if (isClusterEditMode() && (st.clusterHandleHover || st.clusterCellHover || st.clusterStartHover || st.clusterBorderHover)) { st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; updateClusterEditCursor(); render(); return } if (isRigEditMode() && st.rigHover) { st.rigHover = null; render(); } });
-    window.addEventListener("mouseup", () => { handleCanvasPointerUp(); });
+    cv.addEventListener("mouseleave", () => { if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) { resetCellTransient(); render(); return } if (st.mode === "flowEdit" && (st.flowHover || st.flowDirHover || st.flowLinkHover)) { resetFlowHoverTransient(); render(); return } if (isClusterEditMode() && (st.clusterHandleHover || st.clusterCellHover || st.clusterStartHover || st.clusterBorderHover)) { resetClusterHoverTransient(); updateClusterEditCursor(); render(); return } if (isRigEditMode() && st.rigHover) { resetRigHoverTransient(); render(); } });
+    bindWindowEvent("mouseup", () => { handleCanvasPointerUp(); });
     cv.addEventListener("wheel", e => { e.preventDefault(); const b = cv.getBoundingClientRect(); zoomAt(e.clientX - b.left, e.clientY - b.top, st.zoom * (e.deltaY < 0 ? 1.1 : .9)) }, { passive: false });
     cv.addEventListener("dblclick", e => {
       const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
@@ -8247,7 +8299,7 @@
       if (!startHandle) return;
       st.flowRegionRid = startHandle.rid;
       resetFlowRegionOverrides(r, startHandle.rid);
-      st.flowHover = null; st.flowDirHover = null; st.flowDrag = null;
+      resetFlowHoverTransient(); st.flowDrag = null;
       schedulePersist("project");
       syncProps();
       render();
@@ -8680,15 +8732,15 @@
     const ensureListEvents = () => {
       if (listListBound || !el.list) return;
       listListBound = true;
-      el.list.addEventListener("click", e => {
-        const lockBtn = e.target && e.target.closest ? e.target.closest(".rect-item-lock") : null;
+      bindEvent(el.list, "click", e => {
+        const lockBtn = eventClosest(e, ".rect-item-lock");
         if (lockBtn) {
           const row = lockBtn.closest(".rect-item");
           const id = Math.round(Number(row && row.dataset && row.dataset.id) || 0);
           if (id) toggleRectLockById(id);
           return;
         }
-        const it = e.target && e.target.closest ? e.target.closest(".rect-item") : null;
+        const it = eventClosest(e, ".rect-item");
         if (!it) return;
         const id = Math.round(Number(it.dataset.id) || 0);
         if (!id) return;
@@ -8696,8 +8748,8 @@
         if (rr && isRectLocked(rr)) return;
         selRect(id, { toggle: !!e.shiftKey });
       });
-      el.list.addEventListener("dragstart", e => {
-        const it = e.target && e.target.closest ? e.target.closest(".rect-item") : null;
+      bindEvent(el.list, "dragstart", e => {
+        const it = eventClosest(e, ".rect-item");
         if (!it) return;
         const id = Math.round(Number(it.dataset.id) || 0);
         if (!id) return;
@@ -8707,15 +8759,15 @@
         it.classList.add("dragging");
         if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", String(id)) } catch (_e) { } }
       });
-      el.list.addEventListener("dragend", e => {
-        const it = e.target && e.target.closest ? e.target.closest(".rect-item") : null;
+      bindEvent(el.list, "dragend", e => {
+        const it = eventClosest(e, ".rect-item");
         if (it) it.classList.remove("dragging");
         listDragId = null;
         clearListDropMarker();
       });
-      el.list.addEventListener("dragover", e => {
+      bindEvent(el.list, "dragover", e => {
         if (listDragId == null) return;
-        const it = e.target && e.target.closest ? e.target.closest(".rect-item") : null;
+        const it = eventClosest(e, ".rect-item");
         if (!it) return;
         e.preventDefault();
         const rect = it.getBoundingClientRect(), after = e.clientY > rect.top + rect.height / 2;
@@ -8724,9 +8776,9 @@
         listDropNode = it; listDropAfter = after;
         it.classList.add(after ? "drop-after" : "drop-before");
       });
-      el.list.addEventListener("drop", e => {
+      bindEvent(el.list, "drop", e => {
         if (listDragId == null) return;
-        const it = e.target && e.target.closest ? e.target.closest(".rect-item") : null;
+        const it = eventClosest(e, ".rect-item");
         e.preventDefault();
         if (!it) { listDragId = null; clearListDropMarker(); return; }
         const targetId = Math.round(Number(it.dataset.id) || 0), after = listDropNode === it ? listDropAfter : false;
@@ -8918,15 +8970,12 @@
     }
     let propsInputRaf = 0;
     const scheduleApplyPropsInput = () => { if (propsInputRaf) return; propsInputRaf = requestAnimationFrame(() => { propsInputRaf = 0; applyProps({ list: false, persist: false, render: true }); }); };
-    [el.name, el.x, el.y, el.rot, el.cx, el.cy].forEach(v => v.addEventListener("input", scheduleApplyPropsInput));
-    [el.cUnit].forEach(v => {
-      if (!v) return;
-      v.addEventListener("change", () => syncProps());
-    });
+    bindEvents([el.name, el.x, el.y, el.rot, el.cx, el.cy], "input", scheduleApplyPropsInput);
+    bindEvents([el.cUnit], "change", () => syncProps());
     if (el.a) {
       const scheduleApplyColorInput = () => { if (propsInputRaf) return; propsInputRaf = requestAnimationFrame(() => { propsInputRaf = 0; applyProps({ list: false, persist: false, render: true, applyColor: true }); }); };
-      el.a.addEventListener("input", scheduleApplyColorInput);
-      el.a.addEventListener("change", () => { applyProps({ applyColor: true }); syncProps(); });
+      bindEvent(el.a, "input", scheduleApplyColorInput);
+      bindEvent(el.a, "change", () => { applyProps({ applyColor: true }); syncProps(); });
     }
     const getActionTargets = () => {
       const selected = getSelectedRects();
@@ -8945,6 +8994,15 @@
       if (o.render) render();
       return ts.length;
     };
+    const applyToTargetsAndRender = (visitor, opts = {}, after = null) => {
+      const base = (opts && typeof opts === "object") ? { ...opts } : {};
+      base.render = false;
+      const count = applyToTargets(visitor, base);
+      if (!count) return 0;
+      if (typeof after === "function") after();
+      render();
+      return count;
+    };
     const bindCommitInput = (node, onCommit) => {
       if (!node || !onCommit) return;
       node.addEventListener("change", onCommit);
@@ -8952,7 +9010,7 @@
     };
     let colorBInputRaf = 0;
     const scheduleColorBInput = () => { if (colorBInputRaf) return; colorBInputRaf = requestAnimationFrame(() => { colorBInputRaf = 0; render(); }); };
-    el.b.addEventListener("input", () => {
+    bindEvent(el.b, "input", () => {
       const count = applyToTargets(r => {
         r.autoContrastB = false;
         r.colorB = el.b.value || r.colorB;
@@ -8962,7 +9020,7 @@
       if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл";
       scheduleColorBInput();
     });
-    el.b.addEventListener("change", () => {
+    bindEvent(el.b, "change", () => {
       const count = applyToTargets(r => {
         r.autoContrastB = false;
         r.colorB = el.b.value || r.colorB;
@@ -8971,22 +9029,29 @@
       if (!count) return;
       if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл";
     });
-    [el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => v.addEventListener("change", applyProps));
-    let rectTextInputRaf = 0, rectTextFontTimer = 0;
-    [el.rectTextSize].forEach(v => v.addEventListener("input", () => { const r = cur(); if (!r) return; r.textSize = Math.max(0, Math.min(128, Math.round(evalExpr(el.rectTextSize.value, r.textSize || 0)))); updateRectTextSizeLabel(r); if (!rectTextInputRaf) rectTextInputRaf = requestAnimationFrame(() => { rectTextInputRaf = 0; render(); }); if (rectTextFontTimer) clearTimeout(rectTextFontTimer); rectTextFontTimer = setTimeout(() => ensureFontReady().then(() => render()).catch(() => { }), 140); }));
+    bindEvents([el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant], "change", applyProps);
+    let rectTextInputRaf = 0;
+    const rectTextFontState = { timer: 0 };
+    bindEvents([el.rectTextSize], "input", () => { const r = cur(); if (!r) return; r.textSize = Math.max(0, Math.min(128, Math.round(evalExpr(el.rectTextSize.value, r.textSize || 0)))); updateRectTextSizeLabel(r); if (!rectTextInputRaf) rectTextInputRaf = requestAnimationFrame(() => { rectTextInputRaf = 0; render(); }); scheduleFontReadyRender(rectTextFontState, 140); });
     let splitVariantInputTimer = 0;
-    if (el.splitVariant) el.splitVariant.addEventListener("input", () => { const r = cur(); if (!r) return; const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1)))); r.splitVariant = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, r.splitVariant || 0)))); updateSplitVariantLabel(r); if (splitVariantInputTimer) clearTimeout(splitVariantInputTimer); splitVariantInputTimer = setTimeout(() => { splitVariantInputTimer = 0; render(); }, 180); });
-    if (el.splitVariant) el.splitVariant.addEventListener("change", () => { if (splitVariantInputTimer) { clearTimeout(splitVariantInputTimer); splitVariantInputTimer = 0; } });
-    if (el.splitVariant) el.splitVariant.addEventListener("keydown", e => e.preventDefault());
-    if (el.splitVariant) el.splitVariant.addEventListener("wheel", e => e.preventDefault(), { passive: false });
+    bindEvent(el.splitVariant, "input", () => { const r = cur(); if (!r) return; const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1)))); r.splitVariant = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, r.splitVariant || 0)))); updateSplitVariantLabel(r); if (splitVariantInputTimer) clearTimeout(splitVariantInputTimer); splitVariantInputTimer = setTimeout(() => { splitVariantInputTimer = 0; render(); }, 180); });
+    bindEvent(el.splitVariant, "change", () => { if (splitVariantInputTimer) { clearTimeout(splitVariantInputTimer); splitVariantInputTimer = 0; } });
+    bindEvent(el.splitVariant, "keydown", e => e.preventDefault());
+    bindEvent(el.splitVariant, "wheel", e => e.preventDefault(), { passive: false });
     const stepSplitVariant = delta => { const r = cur(); if (!r || !el.splitVariant) return; const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1)))); const curV = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, r.splitVariant || 0)))); const nextV = Math.max(0, Math.min(maxSplit, curV + Math.max(-1, Math.min(1, Math.round(Number(delta) || 0))))); if (nextV === curV) return; el.splitVariant.value = String(nextV); el.splitVariant.dispatchEvent(new Event("input", { bubbles: true })); el.splitVariant.dispatchEvent(new Event("change", { bubbles: true })); };
-    if (el.splitVariantDec) el.splitVariantDec.addEventListener("click", () => stepSplitVariant(-1));
-    if (el.splitVariantInc) el.splitVariantInc.addEventListener("click", () => stepSplitVariant(1));
-    [el.x, el.y, el.rot, el.wm, el.hm, el.cx, el.cy].forEach(v => bindCommitInput(v, () => { applyProps(); syncProps(); }));
-    const applyTextSettings = () => { st.textSize = Math.max(6, evalExpr(el.textSize.value, st.textSize || 12)); st.fontFamily = (el.font.value || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial"; st.fontReady = false; render(); ensureFontReady().then(() => render()).catch(() => { }) };
-    let textSettingsRaf = 0, textSettingsFontTimer = 0;
-    const applyTextSettingsInput = () => { st.textSize = Math.max(6, evalExpr(el.textSize.value, st.textSize || 12)); st.fontFamily = (el.font.value || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial"; st.fontReady = false; if (!textSettingsRaf) textSettingsRaf = requestAnimationFrame(() => { textSettingsRaf = 0; render(); }); if (textSettingsFontTimer) clearTimeout(textSettingsFontTimer); textSettingsFontTimer = setTimeout(() => ensureFontReady().then(() => render()).catch(() => { }), 140); };
-    [el.textSize, el.font].forEach(v => v.addEventListener("input", applyTextSettingsInput));
+    bindEvent(el.splitVariantDec, "click", () => stepSplitVariant(-1));
+    bindEvent(el.splitVariantInc, "click", () => stepSplitVariant(1));
+    bindCommitInputs([el.x, el.y, el.rot, el.wm, el.hm, el.cx, el.cy], () => { applyProps(); syncProps(); });
+    let textSettingsRaf = 0;
+    const textSettingsFontState = { timer: 0 };
+    const readTextSettingsFromInputs = () => {
+      st.textSize = Math.max(6, evalExpr(el.textSize.value, st.textSize || 12));
+      st.fontFamily = (el.font.value || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial";
+      st.fontReady = false;
+    };
+    const applyTextSettings = () => { readTextSettingsFromInputs(); render(); scheduleFontReadyRender(textSettingsFontState, 0); };
+    const applyTextSettingsInput = () => { readTextSettingsFromInputs(); if (!textSettingsRaf) textSettingsRaf = requestAnimationFrame(() => { textSettingsRaf = 0; render(); }); scheduleFontReadyRender(textSettingsFontState, 140); };
+    bindEvents([el.textSize, el.font], "input", applyTextSettingsInput);
     const applyGlobalScaleSettings = () => {
       const nextScale = Math.max(1, Math.round(evalExpr(el.scale && el.scale.value, st.globalScale || 256)));
       if (nextScale === Math.max(1, Math.round(Number(st.globalScale) || 256))) return;
@@ -9006,7 +9071,7 @@
     const applyAreaM2Settings = () => { const r = cur(); if (!r || isRectLocked(r)) return; r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536); invalidateRectCache(r, "regions"); persistProjectAndRender() };
     if (el.areaM2) bindCommitInput(el.areaM2, () => { applyAreaM2Settings(); syncProps(); });
     for (const btn of document.querySelectorAll("[data-area-m2-preset]")) {
-      btn.addEventListener("click", () => {
+      bindEvent(btn, "click", () => {
         if (!el.areaM2) return;
         el.areaM2.value = String(btn.getAttribute("data-area-m2-preset") || "");
         applyAreaM2Settings();
@@ -9071,7 +9136,7 @@
       ];
       for (const [node, key] of bindings) {
         if (!node) continue;
-        node.addEventListener("change", () => {
+        bindEvent(node, "change", () => {
           st.snap[key] = !!node.checked;
           commitProjectChange({ persist: true, persistKind: "project", render: false });
         });
@@ -9087,7 +9152,7 @@
       return n === "INPUT" || n === "TEXTAREA" || n === "SELECT";
     };
     let lastTouchEndTs = 0;
-    document.addEventListener("touchend", e => {
+    bindEvent(document, "touchend", e => {
       if (!isCoarsePointer()) return;
       if (isEditableTarget(e.target)) return;
       const now = Date.now(), dt = now - lastTouchEndTs;
@@ -9158,7 +9223,7 @@
         modal.show();
         setTimeout(() => {
           if (!txt || loading) return;
-          try { txt.focus(); txt.select(); } catch (_e) { }
+          focusAndSelect(txt);
         }, 0);
         return;
       }
@@ -9195,10 +9260,10 @@
       if (el.helpModal) { el.helpModal.classList.remove("show"); el.helpModal.style.display = "none"; el.helpModal.setAttribute("aria-hidden", "true") }
       lsSet(HELP_SEEN_KEY, "1");
     };
-    try { if (!lsGet(HELP_SEEN_KEY, "")) openHelpModal() } catch (_e) { openHelpModal() }
+    if (!lsGet(HELP_SEEN_KEY, "")) openHelpModal();
     bindClick(el.helpOpen, openHelpModal);
     bindClick(el.helpClose, closeHelpModal);
-    if (el.helpModal) el.helpModal.addEventListener("hidden.bs.modal", () => { lsSet(HELP_SEEN_KEY, "1"); });
+    bindEvent(el.helpModal, "hidden.bs.modal", () => { lsSet(HELP_SEEN_KEY, "1"); });
     bindProxyClick(el.mToolSelect, el.toolSelect);
     bindProxyClick(el.mToolDraw, el.toolDraw);
     bindProxyClick(el.mToolNote, el.toolNote);
@@ -9210,46 +9275,43 @@
     bindProxyClick(el.mCopy, el.btnCopy);
     bindProxyClick(el.mCopyMirror, el.btnCopyMirror);
     bindProxyClick(el.mDelete, el.btnDelete);
-    if (el.btnClearMasks) el.btnClearMasks.onclick = () => {
-      const count = applyToTargets(r => {
+    bindClick(el.btnClearMasks, () => {
+      applyToTargetsAndRender(r => {
         r.hiddenCells = [];
         hiddenCache.set(r, { src: r.hiddenCells, set: new Set() });
         invalidateRectCache(r, "topology");
-      }, { persist: true, render: false });
-      if (!count) return;
-      st.maskPath = [];
-      st.maskHover = null;
-      render();
-    };
-    if (el.btnResetFlowLocks) el.btnResetFlowLocks.onclick = () => {
-      const count = applyToTargets(r => {
+      }, { persist: true }, () => {
+        st.maskPath = [];
+        st.maskHover = null;
+      });
+    });
+    bindClick(el.btnResetFlowLocks, () => {
+      applyToTargetsAndRender(r => {
         r.flowLocks = {};
         clearFlowLockMemory(r);
         const cache = getRectCalcCache(r);
         if (cache) cache.flow = null;
-      }, { persist: true, render: false });
-      if (!count) return;
-      st.flowHover = null;
-      st.flowDirHover = null;
-      st.flowDrag = null;
-      render();
-    };
-    if (el.btnResetManualClusters) el.btnResetManualClusters.onclick = () => {
-      const count = applyToTargets(r => {
+      }, { persist: true }, () => {
+        st.flowHover = null;
+        st.flowDirHover = null;
+        st.flowDrag = null;
+      });
+    });
+    bindClick(el.btnResetManualClusters, () => {
+      applyToTargetsAndRender(r => {
         r.manualClusters = [];
         r.splitVariant = 0;
         clearRectRegionsAndFlow(r);
-      }, { syncProps: true, persist: true, render: false });
-      if (!count) return;
-      st.clusterActiveId = null;
-      st.clusterHandleHover = null;
-      st.clusterCellHover = null;
-      st.clusterStartHover = null;
-      st.clusterBorderHover = null;
-      st.clusterDrag = null;
-      render();
-    };
-    if (el.btnConvertRegionsToScreens) el.btnConvertRegionsToScreens.onclick = () => {
+      }, { syncProps: true, persist: true }, () => {
+        st.clusterActiveId = null;
+        st.clusterHandleHover = null;
+        st.clusterCellHover = null;
+        st.clusterStartHover = null;
+        st.clusterBorderHover = null;
+        st.clusterDrag = null;
+      });
+    });
+    bindClick(el.btnConvertRegionsToScreens, () => {
       const r = cur();
       if (!r || isRectLocked(r) || isNoteRect(r)) return;
       const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r);
@@ -9332,7 +9394,7 @@
       listRects();
       render();
       schedulePersist("project");
-    };
+    });
     const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
     const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent || "");
     const hideInstallBanner = () => { if (el.installBanner) el.installBanner.classList.remove("show") };
@@ -9361,7 +9423,7 @@
       }
       showInstallBanner("Установка недоступна в этом браузере.", "Ок", hideInstallBanner);
     });
-    window.addEventListener("beforeinstallprompt", e => {
+    bindWindowEvent("beforeinstallprompt", e => {
       e.preventDefault();
       deferredInstallPrompt = e;
       if (el.installApp) el.installApp.style.display = "inline-flex";
@@ -9375,10 +9437,9 @@
         hideInstallBanner();
       });
     });
-    window.addEventListener("appinstalled", () => { deferredInstallPrompt = null; hideInstallBanner(); });
+    bindWindowEvent("appinstalled", () => { deferredInstallPrompt = null; hideInstallBanner(); });
     if (isMobile() && !isStandalone() && isIOS()) {
-      let dismissed = false;
-      try { dismissed = lsGet(INSTALL_HINT_KEY, "") === "1" } catch (_e) { }
+      const dismissed = lsGet(INSTALL_HINT_KEY, "") === "1";
       if (!dismissed) {
         setTimeout(() => showInstallBanner("Добавьте приложение на главный экран: «Поделиться» → «На экран Домой».", "Понятно", dismissInstallHint), 600);
       }
@@ -9514,7 +9575,7 @@
         showErrorModal("Ошибка импорта", err, "Ошибка JSON");
       }
     };
-    el.save.onclick = async () => { const text = JSON.stringify(buildProject(), null, 2); const blob = new Blob([text], { type: "application/json" }); await saveBlobWithSystemDialog(blob, `${projectFileBase()}.json`, "application/json", ".json", "JSON files", st.saveLocationId) };
+    bindClick(el.save, async () => { const text = JSON.stringify(buildProject(), null, 2); const blob = new Blob([text], { type: "application/json" }); await saveBlobWithSystemDialog(blob, `${projectFileBase()}.json`, "application/json", ".json", "JSON files", st.saveLocationId) });
     let currentProjectShareLink = "";
     const setProjectLinkCopyButtonState = (text, copied = false, disabled = false) => {
       if (!el.projectLinkCopyBtn) return;
@@ -9548,7 +9609,7 @@
       }, "Не удалось сформировать ссылку проекта");
       if (!currentProjectShareLink) setProjectLinkCopyButtonState("Скопировать ссылку", false, false);
     };
-    if (el.projectLinkCopyBtn) el.projectLinkCopyBtn.addEventListener("click", async () => {
+    bindEvent(el.projectLinkCopyBtn, "click", async () => {
       const link = currentProjectShareLink || (el.projectLinkText && el.projectLinkText.value) || "";
       if (!link) return;
       const copied = await copyTextSmart(link);
@@ -9559,13 +9620,13 @@
         window.prompt("Скопируйте ссылку проекта", link);
       }
     });
-    if (el.saveLink) el.saveLink.addEventListener("click", onSaveProjectLinkClick);
-    document.addEventListener("click", e => {
-      const btn = e && e.target && e.target.closest ? e.target.closest("#saveProjectLink") : null;
+    bindEvent(el.saveLink, "click", onSaveProjectLinkClick);
+    bindEvent(document, "click", e => {
+      const btn = eventClosest(e, "#saveProjectLink");
       if (!btn) return;
       if (btn !== el.saveLink) onSaveProjectLinkClick();
     });
-    el.load.onclick = () => el.file.click();
+    bindClick(el.load, () => { if (el.file) el.file.click(); });
     el.file.addEventListener("change", async () => {
       const f = el.file.files && el.file.files[0];
       if (!f) return;
@@ -9935,10 +9996,11 @@
       await writable.write(blob);
       await writable.close();
     };
+    const showExportPackageMessage = text => showMessageModal(text, "Экспорт пакета");
     const exportPackage = async () => {
-      if (!st.rects.length) { showMessageModal("Нечего экспортировать", "Экспорт пакета"); return }
+      if (!st.rects.length) { showExportPackageMessage("Нечего экспортировать"); return }
       const [pngArt, pngFlow] = await Promise.all([renderExportPngBlob(false), renderExportPngBlob(true)]);
-      if (!pngArt || !pngFlow) { showMessageModal("Ошибка экспорта", "Экспорт пакета"); return }
+      if (!pngArt || !pngFlow) { showExportPackageMessage("Ошибка экспорта"); return }
       const specBlob = new Blob([buildFlowSpecText()], { type: "text/markdown;charset=utf-8" });
       const baseName = projectFileBase();
       const fileArt = `${baseName}.png`, fileFlow = `${baseName}-flow.png`, fileSpec = `${baseName}-flow.md`;
@@ -9959,35 +10021,43 @@
       await saveBlobWithSystemDialog(pngFlow, fileFlow, "image/png", ".png", "PNG images", st.saveLocationId);
       await saveBlobWithSystemDialog(specBlob, fileSpec, "text/markdown", ".md", "Markdown files", st.saveLocationId);
     };
-    el.exp.onclick = async () => { await exportPackage() };
-    el.project.addEventListener("input", () => { st.projectName = (el.project.value || "project").trim() || "project"; syncActiveTabSnapshot(); renderProjectTabs(); schedulePersist("all") });
-    el.project.addEventListener("change", () => { st.projectName = (el.project.value || "project").trim() || "project"; syncActiveTabSnapshot(); renderProjectTabs(); syncProps(); schedulePersist("all") });
-    if (el.projectTabAdd) el.projectTabAdd.addEventListener("click", () => createProjectTab(makeEmptyProjectData("Новый проект")));
+    bindClick(el.exp, async () => { await exportPackage() });
+    const applyProjectNameInput = (opts = {}) => {
+      st.projectName = (el.project.value || "project").trim() || "project";
+      syncActiveTabSnapshot();
+      renderProjectTabs();
+      if (opts.syncProps) syncProps();
+      schedulePersist("all");
+    };
+    bindEvent(el.project, "input", () => applyProjectNameInput({ syncProps: false }));
+    bindEvent(el.project, "change", () => applyProjectNameInput({ syncProps: true }));
+    bindEvent(el.projectTabAdd, "click", () => createProjectTab(makeEmptyProjectData("Новый проект")));
     if (el.themePopup) {
       for (const a of el.themePopup.querySelectorAll("[data-theme]")) {
-        a.addEventListener("click", e => { e.preventDefault(); applyThemeMode(a.getAttribute("data-theme"), true); hideThemePopup() });
+        bindEvent(a, "click", e => { e.preventDefault(); applyThemeMode(a.getAttribute("data-theme"), true); hideThemePopup() });
       }
     }
-    if (el.themeToggle) el.themeToggle.addEventListener("click", e => { e.preventDefault(); hideToolbarOverflowPopup(); const open = el.themePopup && el.themePopup.classList.contains("show"); if (open) hideThemePopup(); else showThemePopup() });
+    bindEvent(el.themeToggle, "click", e => { e.preventDefault(); hideToolbarOverflowPopup(); const open = el.themePopup && el.themePopup.classList.contains("show"); if (open) hideThemePopup(); else showThemePopup() });
     if (themeMedia && typeof themeMedia.addEventListener === "function") themeMedia.addEventListener("change", () => { if (st.themeMode === "auto") applyThemeMode("auto", false) });
     else if (themeMedia && typeof themeMedia.addListener === "function") themeMedia.addListener(() => { if (st.themeMode === "auto") applyThemeMode("auto", false) });
-    if (el.overflowToggle) el.overflowToggle.addEventListener("click", e => { e.preventDefault(); if (!overflowHiddenButtons.length) return; const open = el.overflowPopup && el.overflowPopup.classList.contains("show"); if (open) hideToolbarOverflowPopup(); else showToolbarOverflowPopup() });
-    document.addEventListener("click", e => {
-      const t = e.target;
+    bindEvent(el.overflowToggle, "click", e => { e.preventDefault(); if (!overflowHiddenButtons.length) return; const open = el.overflowPopup && el.overflowPopup.classList.contains("show"); if (open) hideToolbarOverflowPopup(); else showToolbarOverflowPopup() });
+    bindEvent(document, "click", e => {
+      const t = e && e.target;
       if (el.overflowPopup && el.overflowToggle && !(el.overflowPopup.contains(t) || el.overflowToggle.contains(t))) hideToolbarOverflowPopup();
       if (el.themePopup && el.themeToggle && !(el.themePopup.contains(t) || el.themeToggle.contains(t))) hideThemePopup();
     });
-    window.addEventListener("resize", updateMobileDock);
-    window.addEventListener("orientationchange", updateMobileDock);
-    window.addEventListener("resize", () => { hideToolbarOverflowPopup(); hideThemePopup(); updateToolbarOverflow() });
-    window.addEventListener("orientationchange", () => { hideToolbarOverflowPopup(); hideThemePopup(); updateToolbarOverflow() });
-    window.addEventListener("beforeunload", () => { persistNow(); });
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState !== "visible") persistNow(); });
+    const onViewportUiChange = () => { hideToolbarOverflowPopup(); hideThemePopup(); updateToolbarOverflow(); };
+    bindWindowEvent("resize", updateMobileDock);
+    bindWindowEvent("orientationchange", updateMobileDock);
+    bindWindowEvent("resize", onViewportUiChange);
+    bindWindowEvent("orientationchange", onViewportUiChange);
+    bindWindowEvent("beforeunload", () => { persistNow(); });
+    bindEvent(document, "visibilitychange", () => { if (document.visibilityState !== "visible") persistNow(); });
     if (el.side) {
-      el.side.addEventListener("shown.bs.offcanvas", scheduleCanvasResize);
-      el.side.addEventListener("hidden.bs.offcanvas", scheduleCanvasResize);
+      bindEvent(el.side, "shown.bs.offcanvas", scheduleCanvasResize);
+      bindEvent(el.side, "hidden.bs.offcanvas", scheduleCanvasResize);
     }
-    window.addEventListener("keydown", e => {
+    bindWindowEvent("keydown", e => {
       if (e.key === " ") st.keys.space = true;
       if (e.key === "Control") st.keys.ctrl = true;
       if (e.ctrlKey && e.key.toLowerCase() === "z") { undoHistory(); e.preventDefault(); return; }
@@ -10000,9 +10070,9 @@
       if (e.ctrlKey && e.key.toLowerCase() === "v") { if (st.clip) { const c = cloneRectForDuplicate(st.clip); insertCloneAboveSource(st.clip.id, c); selRect(c.id); setMode("select"); schedulePersist("project") } e.preventDefault() }
       const selected = getEditableSelectedRects(); if (selected.length) { const s = e.shiftKey ? 10 : 1; let dx = 0, dy = 0; if (e.key === "ArrowLeft") dx = -s; else if (e.key === "ArrowRight") dx = s; else if (e.key === "ArrowUp") dy = -s; else if (e.key === "ArrowDown") dy = s; if (dx || dy) { for (const it of selected) { it.x += dx; it.y += dy; } commitUiUpdate({ syncProps: true, listRects: true, persist: true, render: true }); e.preventDefault(); } }
     });
-    window.addEventListener("keyup", e => { if (e.key === " ") st.keys.space = false; if (e.key === "Control") { st.keys.ctrl = false; st.g.x = null; st.g.y = null; st.dg = null; render() } });
+    bindWindowEvent("keyup", e => { if (e.key === " ") st.keys.space = false; if (e.key === "Control") { st.keys.ctrl = false; st.g.x = null; st.g.y = null; st.dg = null; render() } });
     setMode(st.mode);
-    try { st.themeMode = normalizeThemeMode(lsGet(THEME_MODE_KEY, st.themeMode) || st.themeMode) } catch (_e) { }
+    st.themeMode = normalizeThemeMode(lsGet(THEME_MODE_KEY, st.themeMode) || st.themeMode);
     st.saveLocationId = setGlobalSaveLocationId(st.saveLocationId || getGlobalSaveLocationId());
     applyThemeMode(st.themeMode, false);
     updateAppViewportHeight();
