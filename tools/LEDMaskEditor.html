@@ -2647,6 +2647,43 @@
         lc.fill();
       } else {
         const comps = getRectComponentRenderDataCached(r, cx, cy, topo), calcAltColor = base => { const rgb = hexRgb(base), lum = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000; return shadeHex(base, lum > 140 ? -0.25 : 0.25); }, altA = calcAltColor(r.colorA), altB = calcAltColor(r.colorB);
+        const compColorClass = new Map(comps.map(it => [it.cid | 0, it.cc | 0]));
+        const sameColorNear = new Set(), pairSeen = new Set();
+        const markPair = (a, b) => {
+          if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return;
+          const lo = Math.min(a, b), hi = Math.max(a, b), keyPair = `${lo}:${hi}`;
+          if (pairSeen.has(keyPair)) return;
+          pairSeen.add(keyPair);
+          // For each same-color neighboring pair mirror only one cabinet.
+          sameColorNear.add(hi);
+        };
+        if (topo && Array.isArray(topo.comp) && Number.isFinite(topo.cols) && Number.isFinite(topo.rows)) {
+          const cols = Math.max(1, Math.round(Number(topo.cols) || 1)), rows = Math.max(1, Math.round(Number(topo.rows) || 1));
+          for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+              const idx = y * cols + x, cid = topo.comp[idx];
+              if (!Number.isFinite(cid)) continue;
+              const a = cid | 0;
+              if (maskRender && maskRender.visibleCompSet && !maskRender.visibleCompSet.has(a)) continue;
+              const ccA = compColorClass.get(a);
+              if (!Number.isFinite(ccA)) continue;
+              if (x + 1 < cols) {
+                const rid = topo.comp[idx + 1];
+                if (Number.isFinite(rid)) {
+                  const b = rid | 0, ccB = compColorClass.get(b);
+                  if (a !== b && (!maskRender || !maskRender.visibleCompSet || maskRender.visibleCompSet.has(b)) && Number.isFinite(ccB) && ccA === ccB) markPair(a, b);
+                }
+              }
+              if (y + 1 < rows) {
+                const did = topo.comp[idx + cols];
+                if (Number.isFinite(did)) {
+                  const b = did | 0, ccB = compColorClass.get(b);
+                  if (a !== b && (!maskRender || !maskRender.visibleCompSet || maskRender.visibleCompSet.has(b)) && Number.isFinite(ccB) && ccA === ccB) markPair(a, b);
+                }
+              }
+            }
+          }
+        }
         for (const it of comps) {
           if (maskRender && maskRender.visibleCompSet && !maskRender.visibleCompSet.has(it.cid)) continue;
           const base = (it.cc === 0) ? r.colorA : r.colorB, alt = (it.cc === 0) ? altA : altB;
@@ -2656,7 +2693,20 @@
           lc.clip();
           const bw = it.maxX - it.minX, bh = it.maxY - it.minY, ox = it.minX + w / 2, oy = it.minY + h / 2;
           lc.fillStyle = base; lc.fillRect(ox, oy, bw, bh);
-          lc.fillStyle = alt; lc.beginPath(); lc.moveTo(ox, oy); lc.lineTo(ox + bw, oy); lc.lineTo(ox, oy + bh); lc.closePath(); lc.fill();
+          lc.fillStyle = alt;
+          const mirrorHoriz = sameColorNear.has(it.cid | 0);
+          lc.beginPath();
+          if (mirrorHoriz) {
+            lc.moveTo(ox + bw, oy);
+            lc.lineTo(ox, oy);
+            lc.lineTo(ox + bw, oy + bh);
+          } else {
+            lc.moveTo(ox, oy);
+            lc.lineTo(ox + bw, oy);
+            lc.lineTo(ox, oy + bh);
+          }
+          lc.closePath();
+          lc.fill();
           lc.restore();
         }
       }
