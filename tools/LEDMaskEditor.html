@@ -1494,6 +1494,32 @@
     import { createProjectCodec } from "./editor/modules/project-codec.js";
     import { createToolFsm } from "./editor/modules/tool-fsm.js";
     import { createRectPropSchema } from "./editor/modules/props-schema.js";
+    import { touchProgressState, setCacheWithPrune } from "./editor/modules/cache-utils.js";
+    import { isWorkerBootMessage, buildWorkerMessage, collectSetValues } from "./editor/modules/worker-runtime.js";
+    import {
+      normalizeSaveLocationId, normalizeHiddenCells, normalizeManualClusters, normalizeRigData,
+      normalizeDataFlow, normalizeDataFlowZ, normalizeFlowLocks, normalizeFlowLockRidToSigMap,
+      normalizeFlowLockCidToSeedMap, normalizeFlowLinks, normalizeThemeMode, normalizeViewMode,
+      normalizeCabinetUnit
+    } from "./editor/modules/project-normalizers.js";
+    import {
+      fmtAreaM2, mapToCabinetList, mapToCableList, mapToNamedCountList, mapToRigSizeList,
+      mapToRigWeightList, pushSpecListLine, pushSpecCountLine
+    } from "./editor/modules/spec/formatters.js";
+    import { addCountToMap, mergeCountMap, mergeNumericMap, sumMapCounts } from "./editor/modules/spec/aggregation.js";
+    import { embedProjectIntoPngBlob, extractProjectFromPngBytes } from "./editor/modules/png-project-meta.js";
+    import { computeRectRenderFlags } from "./editor/modules/render/mode-gates.js";
+    import {
+      FLOW_DRAW_BATCH_THRESHOLD, FLOW_DRAW_BATCH_STEP, FLOW_POINT_INDEX_CELL,
+      INSTALL_HINT_KEY, HELP_SEEN_KEY, SAVE_LOCATION_ID_KEY,
+      RIG_DEFAULT_LOAD_KG, LOAD_ICON_VIEWBOX, LOAD_ICON_PATH_D,
+      DATA_FLOW_MODES, FLOW_SEARCH_NODE_LIMIT_STRICT, FLOW_SEARCH_NODE_LIMIT_RELAXED, FLOW_REFINE_MAX_POINTS, FLOW_OPTIMIZE_MAX_POINTS, FLOW_DIR_SET,
+      PROJECT_CACHE_VERSION,
+      SPLIT_VARIANT_MAX, AREA_LIMIT_EPS, REGION_ZONE_COLORS, CALC_TIMEOUT_MS, FLOW_WORKER_TIMEOUT_MS, REGION_WORKER_TIMEOUT_MS, CALC_WORKER_BOOT_URL,
+      AUTO_SAVE_KEY, TABS_SAVE_KEY, THEME_MODE_KEY, PERSIST_DEBOUNCE_MS,
+      PROJECT_QUERY_PARAM, PROJECT_ID_PARAM, PROJECT_QUERY_VERSION, PROJECT_STORE_API_URL,
+      PNG_PROJECT_META_KEY
+    } from "./editor/modules/constants.js";
     const $ = id => document.getElementById(id), cv = $("editorCanvas"), ctx = cv.getContext("2d"), wrap = $("canvasWrap");
     const ensureMobileDock = () => {
       const host = document.querySelector(".app") || document.body;
@@ -1714,9 +1740,6 @@
       overflowHiddenButtons = hidden;
     };
     const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", lockAll: false, maskPath: [], maskHover: null, cellHover: null, cellHoverPos: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
-    const FLOW_DRAW_BATCH_THRESHOLD = 280;
-    const FLOW_DRAW_BATCH_STEP = 360;
-    const FLOW_POINT_INDEX_CELL = 48;
     const flowDrawProgress = new Map();
     const flowGeomCache = new Map();
     const flowDrawRefKey = new WeakMap();
@@ -1732,17 +1755,7 @@
     };
     const touchFlowDrawProgress = (key, total) => {
       const now = flowDrawRenderEpoch;
-      let s = flowDrawProgress.get(key);
-      if (!s) { s = { total: Math.max(0, total | 0), drawn: 0, lastSeen: now }; flowDrawProgress.set(key, s); }
-      if ((s.total | 0) !== (total | 0)) { s.total = Math.max(0, total | 0); s.drawn = 0; }
-      s.lastSeen = now;
-      if (flowDrawProgress.size > 64) {
-        for (const [k, v] of flowDrawProgress) {
-          if ((now - (v.lastSeen | 0)) > 8) flowDrawProgress.delete(k);
-          if (flowDrawProgress.size <= 64) break;
-        }
-      }
-      return s;
+      return touchProgressState(flowDrawProgress, key, total, now, 64, 8);
     };
     const flowDrawKeyForGroups = groups => {
       if (!groups || typeof groups !== "object") return "flow-empty";
@@ -1828,23 +1841,13 @@
       }
       if (!skipCache) {
         let rec = { geom: out, lastSeen: now };
-        flowGeomCache.set(key, rec);
-        if (flowGeomCache.size > 96) {
-          for (const [k, v] of flowGeomCache) {
-            if ((now - (v.lastSeen | 0)) > 8) flowGeomCache.delete(k);
-            if (flowGeomCache.size <= 96) break;
-          }
-        }
+        setCacheWithPrune(flowGeomCache, key, rec, now, 96, 8, v => (v && v.lastSeen));
       }
       return out;
     };
     const clampTextSize = v => Math.max(6, Math.min(128, Math.round(v)));
     const getRectTextSizePx = r => { const lv = Number(r && r.textSize); return Number.isFinite(lv) && lv > 0 ? clampTextSize(lv) : clampTextSize(st.textSize || 12); };
     let deferredInstallPrompt = null;
-    const INSTALL_HINT_KEY = "led-mask-editor-install-hint-dismissed";
-    const HELP_SEEN_KEY = "led-mask-editor-help-seen-v1";
-    const SAVE_LOCATION_ID_KEY = "led-mask-editor.save-location-id.v1";
-    const normalizeSaveLocationId = v => { const raw = String(v || "").trim(); const clean = raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64); return clean || "ledmask-default" };
     const genSaveLocationId = (seed = "project") => {
       const slug = String(seed || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
       return normalizeSaveLocationId(`proj-${slug || "project"}`);
@@ -1957,25 +1960,9 @@
     const autoContrast = h => { const base = h || "#2fcaaf", { r, g, b } = hexRgb(base), lum = (r * 299 + g * 587 + b * 114) / 1000; return shadeHex(base, lum > 127.5 ? -0.5 : 0.5) };
     const shadeHex = (h, amount) => { const { r, g, b } = hexRgb(h || "#2fcaaf"); const clamp = v => Math.max(0, Math.min(255, Math.round(v))); const mix = (c, target) => clamp(c + (target - c) * amount); const rr = mix(r, amount >= 0 ? 255 : 0), gg = mix(g, amount >= 0 ? 255 : 0), bb = mix(b, amount >= 0 ? 255 : 0); return `#${rr.toString(16).padStart(2, "0")}${gg.toString(16).padStart(2, "0")}${bb.toString(16).padStart(2, "0")}` };
     const getOrigin = () => { if (!st.rects.length) return { x: 0, y: 0 }; let x = 1e9, y = 1e9; for (const r of st.rects) { x = Math.min(x, r.x); y = Math.min(y, r.y) } return { x, y } };
-    const normalizeHiddenCells = v => { if (!Array.isArray(v)) return []; const out = []; const seen = new Set(); for (const it of v) { const s = String(it || "").trim(); if (!/^\d+,\d+$/.test(s)) continue; if (seen.has(s)) continue; seen.add(s); out.push(s) } return out };
     const hiddenCache = new WeakMap();
     const getHiddenSet = r => { if (!r) return new Set(); const rec = hiddenCache.get(r); if (!rec || rec.src !== r.hiddenCells) { const next = { src: r.hiddenCells, set: new Set(Array.isArray(r.hiddenCells) ? r.hiddenCells : []) }; hiddenCache.set(r, next); return next.set } return rec.set };
     const setHiddenSet = r => { const src = [...getHiddenSet(r)]; r.hiddenCells = src; hiddenCache.set(r, { src: r.hiddenCells, set: new Set(src) }); invalidateRectCache(r, "topology"); };
-    const normalizeManualClusters = raw => {
-      if (!Array.isArray(raw)) return [];
-      const out = [], seen = new Set();
-      for (const it of raw) {
-        if (!it || typeof it !== "object") continue;
-        const sx = Math.max(0, Math.round(Number(it.sx) || 0)), sy = Math.max(0, Math.round(Number(it.sy) || 0));
-        const c0 = Math.max(0, Math.round(Number(it.c0) || 0)), c1 = Math.max(c0 + 1, Math.round(Number(it.c1) || 0));
-        const r0 = Math.max(0, Math.round(Number(it.r0) || 0)), r1 = Math.max(r0 + 1, Math.round(Number(it.r1) || 0));
-        const id = Math.max(1, Math.round(Number(it.id) || 0) || out.length + 1), key = `${id}|${sx}|${sy}|${c0}|${c1}|${r0}|${r1}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push({ id, sx, sy, c0, c1, r0, r1 });
-      }
-      return out;
-    };
     const getManualClusters = r => {
       if (!r || typeof r !== "object") return [];
       const norm = normalizeManualClusters(r.manualClusters);
@@ -2149,57 +2136,8 @@
     };
     const isClusterEditMode = () => st.mode === "clusterEdit";
     const isRigEditMode = () => st.mode === "rigEdit";
-    const RIG_DEFAULT_LOAD_KG = 25;
-    const normalizeRigData = raw => {
-      const out = { frames: [], loads: {}, suspends: [], suspendLinks: [] };
-      const src = (raw && typeof raw === "object") ? raw : {};
-      const frameSeen = new Set();
-      for (const it of Array.isArray(src.frames) ? src.frames : []) {
-        const p = String(it || "").split(",");
-        if (p.length !== 2) continue;
-        const c = Math.max(1, Math.round(Number(p[0]) || 0)), row = Math.max(0, Math.round(Number(p[1]) || 0)), k = `${c},${row}`;
-        if (frameSeen.has(k)) continue;
-        frameSeen.add(k);
-        out.frames.push(k);
-      }
-      out.frames.sort((a, b) => { const pa = a.split(",").map(Number), pb = b.split(",").map(Number); return pa[1] - pb[1] || pa[0] - pb[0]; });
-      const loadEntries = src.loads && typeof src.loads === "object" ? Object.entries(src.loads) : [];
-      for (const [key, val] of loadEntries) {
-        const p = String(key || "").split(",");
-        if (p.length !== 2) continue;
-        const c = Math.max(1, Math.round(Number(p[0]) || 0)), row = Math.max(0, Math.round(Number(p[1]) || 0));
-        const kg = Math.max(0, Math.round(Number(val) || 0));
-        if (!kg) continue;
-        out.loads[`${c},${row}`] = Math.max(5, Math.round(kg / 5) * 5);
-      }
-      const suspSeen = new Set();
-      for (const it of Array.isArray(src.suspends) ? src.suspends : []) {
-        const c = Math.max(0, Math.round(Number(it) || 0));
-        if (suspSeen.has(c)) continue;
-        suspSeen.add(c);
-        out.suspends.push(c);
-      }
-      out.suspends.sort((a, b) => a - b);
-      const linkSeen = new Set();
-      for (const it of Array.isArray(src.suspendLinks) ? src.suspendLinks : []) {
-        const p = String(it || "").split("-");
-        if (p.length !== 2) continue;
-        let a = Math.max(0, Math.round(Number(p[0]) || 0)), b = Math.max(0, Math.round(Number(p[1]) || 0));
-        if (a === b) continue;
-        if (a > b) { const t = a; a = b; b = t; }
-        if (Math.abs(a - b) !== 1) continue;
-        const k = `${a}-${b}`;
-        if (linkSeen.has(k)) continue;
-        linkSeen.add(k);
-        out.suspendLinks.push(k);
-      }
-      out.suspendLinks.sort((a, b) => { const pa = a.split("-").map(Number), pb = b.split("-").map(Number); return pa[0] - pb[0] || pa[1] - pb[1]; });
-      return out;
-    };
     const rigHasSuspend = (rig, col) => Array.isArray(rig && rig.suspends) && rig.suspends.includes(col);
     const rigHasLink = (rig, a, b) => { const x = Math.min(a, b), y = Math.max(a, b); return Array.isArray(rig && rig.suspendLinks) && rig.suspendLinks.includes(`${x}-${y}`); };
-    const LOAD_ICON_VIEWBOX = 640;
-    const LOAD_ICON_PATH_D = "M288 160C288 142.3 302.3 128 320 128C337.7 128 352 142.3 352 160C352 177.7 337.7 192 320 192C302.3 192 288 177.7 288 160zM410.5 192C414 182 416 171.2 416 160C416 107 373 64 320 64C267 64 224 107 224 160C224 171.2 225.9 182 229.5 192L207.7 192C179.4 192 154.5 210.5 146.4 237.6L66.4 504.2C64.8 509.4 64 514.8 64 520.2C64 551 89 576 119.8 576L520.2 576C551 576 576 551 576 520.2C576 514.8 575.2 509.4 573.6 504.2L493.6 237.7C485.5 210.6 460.6 192.1 432.3 192.1L410.5 192.1z";
     const drawLoadIcon = (c, x, y, size, opts = {}) => {
       if (!(size > 0)) return;
       const stroke = opts.stroke || null, fill = opts.fill || null, lineWidth = Math.max(1, Number(opts.lineWidth) || 1), alpha = Math.max(0, Math.min(1, Number(opts.alpha) || 1));
@@ -2305,13 +2243,6 @@
       cy || 0,
       listSignature(r && r.cellLinks)
     ].join("|");
-    const DATA_FLOW_MODES = new Set(["none", "h_bl_lr", "h_tl_lr", "h_br_rl", "h_tr_rl", "v_lb_bu", "v_rb_bu", "v_lt_td", "v_rt_td"]);
-    const normalizeDataFlow = v => {
-      const s = String(v || "");
-      if (s === "snake" || s === "zsnake" || s === "d_tl_br" || s === "d_tr_bl" || s === "d_bl_tr" || s === "d_br_tl") return "h_bl_lr";
-      return DATA_FLOW_MODES.has(s) ? s : "none";
-    };
-    const normalizeDataFlowZ = (flow, z) => String(flow || "") === "zsnake" || !!z;
     const sortNums = (arr, dir) => [...arr].sort((a, b) => dir === "asc" ? a - b : b - a);
     const buildSnakeOrder = (items, primaryKey, primaryDir, secondaryKey, secondaryStartDir) => {
       const primaryVals = sortNums([...new Set(items.map(it => it[primaryKey]))], primaryDir);
@@ -2391,10 +2322,6 @@
         return { i, score, crosses };
       }).sort((a, b) => a.score - b.score);
     };
-    const FLOW_SEARCH_NODE_LIMIT_STRICT = 4000;
-    const FLOW_SEARCH_NODE_LIMIT_RELAXED = 2000;
-    const FLOW_REFINE_MAX_POINTS = 36;
-    const FLOW_OPTIMIZE_MAX_POINTS = 96;
     const flowSearchOrder = (path, rem, prevBase, allowCross, state) => {
       if (state) {
         state.nodes = (state.nodes | 0) + 1;
@@ -2800,63 +2727,6 @@
       flowLocksSignature(r),
       regions && regions._calcKey ? regions._calcKey : ""
     ].join("|");
-    const FLOW_DIR_SET = new Set(["right", "left", "down", "up"]);
-    const normalizeFlowLocks = raw => {
-      if (!raw || typeof raw !== "object") return {};
-      const out = {};
-      for (const [rk, val] of Object.entries(raw)) {
-        const rid = Math.max(0, Math.round(Number(rk) || 0));
-        let locksSrc = [], startCid = null, startDir = "", mode = "", startPinned = false;
-        if (Array.isArray(val)) {
-          locksSrc = val;
-        } else if (val && typeof val === "object") {
-          locksSrc = Array.isArray(val.locks) ? val.locks : [];
-          if (val.startCid !== null && val.startCid !== undefined && String(val.startCid) !== "") {
-            const parsedStartCid = Number(val.startCid);
-            if (Number.isFinite(parsedStartCid)) startCid = Math.max(0, Math.round(parsedStartCid || 0));
-          }
-          const d = String(val.startDir || "").toLowerCase();
-          if (FLOW_DIR_SET.has(d)) startDir = d;
-          startPinned = !!val.startPinned;
-          const m = String(val.mode || "");
-          if (DATA_FLOW_MODES.has(m) && m !== "none") mode = m;
-        }
-        const norm = [], seen = new Set();
-        for (const it of locksSrc) {
-          const index = Math.max(0, Math.round(Number(it && it.index) || 0)), cid = Math.max(0, Math.round(Number(it && it.cid) || 0)), key = `${index}:${cid}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          norm.push({ index, cid });
-        }
-        norm.sort((a, b) => a.index - b.index);
-        if (!norm.length && startCid == null && !startDir) continue;
-        if (startCid != null && startPinned !== true && FLOW_DIR_SET.has(startDir)) startPinned = true;
-        out[String(rid)] = { locks: norm, startCid, startDir, mode, startPinned: !!startPinned };
-      }
-      return out;
-    };
-    const normalizeFlowLockRidToSigMap = raw => {
-      const src = (raw && typeof raw === "object") ? raw : {};
-      const out = {};
-      for (const [k, v] of Object.entries(src)) {
-        const rid = Math.max(0, Math.round(Number(k) || 0));
-        const sig = String(v || "").trim();
-        if (!sig) continue;
-        out[String(rid)] = sig;
-      }
-      return out;
-    };
-    const normalizeFlowLockCidToSeedMap = raw => {
-      const src = (raw && typeof raw === "object") ? raw : {};
-      const out = {};
-      for (const [k, v] of Object.entries(src)) {
-        const cid = Math.max(0, Math.round(Number(k) || 0));
-        const s = String(v || "").trim();
-        if (!/^\d+,\d+$/.test(s)) continue;
-        out[String(cid)] = s;
-      }
-      return out;
-    };
     const flowLocksSignature = r => {
       const locks = normalizeFlowLocks(r && r.flowLocks), parts = [];
       for (const key of Object.keys(locks).sort((a, b) => (+a) - (+b))) {
@@ -3025,33 +2895,6 @@
       try { r._flowLockSigToCfg = nextSigToCfg; } catch (_e) { }
       try { r._flowLockCidToSeed = nextCidToSeed; } catch (_e) { }
     };
-    const normalizeFlowLinks = raw => {
-      const out = [];
-      const seen = new Set();
-      const list = Array.isArray(raw) ? raw : [];
-      for (const it of list) {
-        if (!it || typeof it !== "object") continue;
-        const from = it.from && typeof it.from === "object" ? it.from : null;
-        const to = it.to && typeof it.to === "object" ? it.to : null;
-        if (!from || !to) continue;
-        const mkEnd = e => ({
-          rectId: Math.max(1, Math.round(Number(e.rectId) || 0)),
-          rid: Math.max(0, Math.round(Number(e.rid) || 0)),
-          cid: Math.max(0, Math.round(Number(e.cid) || 0)),
-          kind: String(e.kind || "").toLowerCase() === "end" ? "end" : "start"
-        });
-        const a = mkEnd(from), b = mkEnd(to);
-        if (!a.rectId || !b.rectId) continue;
-        if (a.rectId === b.rectId) continue;
-        if (a.kind !== "end" || b.kind !== "start") continue;
-        const k = `${a.rectId}:${a.rid}:${a.cid}:${a.kind}>${b.rectId}:${b.rid}:${b.cid}:${b.kind}`;
-        if (seen.has(k)) continue;
-        seen.add(k);
-        out.push({ from: a, to: b });
-      }
-      return out;
-    };
-    const PROJECT_CACHE_VERSION = 2;
     const makeNonEnumerableCalcCache = (r, value) => {
       try {
         Object.defineProperty(r, "_calcCache", { value, writable: true, configurable: true, enumerable: false });
@@ -5069,12 +4912,6 @@
       return { areaM2: visibleAreaPx / (scalePx * scalePx), totalCount, groupItems, groups };
     };
     const pctFmt = v => { const n = Number.isFinite(+v) ? +v : 0; const t = Math.trunc(n * 100) / 100; return t.toFixed(2) };
-    const SPLIT_VARIANT_MAX = 25;
-    const AREA_LIMIT_EPS = 1e-6;
-    const REGION_ZONE_COLORS = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0], [255, 0, 255], [0, 255, 255]];
-    const CALC_TIMEOUT_MS = 500;
-    const FLOW_WORKER_TIMEOUT_MS = 30000;
-    const REGION_WORKER_TIMEOUT_MS = 30000;
     const calcNow = () => ((typeof performance !== "undefined" && performance && typeof performance.now === "function") ? performance.now() : Date.now());
     const calcMetrics = { regions: { calls: 0, totalMs: 0, maxMs: 0, lastMs: 0, slow: 0, timeouts: 0 }, flow: { calls: 0, totalMs: 0, maxMs: 0, lastMs: 0, slow: 0, timeouts: 0 } };
     const makeCalcBudget = () => ({ deadline: calcNow() + CALC_TIMEOUT_MS, probes: 0, timedOut: false });
@@ -5849,7 +5686,6 @@ self.onmessage=e=>{
   self.postMessage({kind,reqId,ok,result,timedOut,elapsed});
 };
 `;
-    const CALC_WORKER_BOOT_URL = "./editor/workers/calc-worker-bootstrap.js";
     const ensureCalcWorker = (kind) => {
       if (kind === "regions") {
         if (regionCalcWorker) return regionCalcWorker;
@@ -6219,13 +6055,9 @@ self.onmessage=e=>{
     };
     const metricFromPx = r => { r.scale = Math.max(1, Math.round(+r.scale || 256)); r.width = Math.max(1, Math.round(+r.width || 1)); r.height = Math.max(1, Math.round(+r.height || 1)); r.widthM = Math.max(0.001, mRound(r.width / r.scale)); r.heightM = Math.max(0.001, mRound(r.height / r.scale)); };
     const pxFromMetric = r => { r.scale = Math.max(1, Math.round(+r.scale || 256)); r.widthM = Math.max(0.001, +r.widthM || 0.001); r.heightM = Math.max(0.001, +r.heightM || 0.001); r.width = Math.max(1, Math.round(r.widthM * r.scale)); r.height = Math.max(1, Math.round(r.heightM * r.scale)); };
-    const AUTO_SAVE_KEY = "led-mask-editor.autosave.v1";
-    const TABS_SAVE_KEY = "led-mask-editor.tabs.v1";
-    const THEME_MODE_KEY = "led-mask-editor.theme-mode.v1";
     let persistTimer = null;
     let persistTabsDirty = false;
     let persistProjectDirty = false;
-    const PERSIST_DEBOUNCE_MS = 120;
     const formatTimeHHMMSS = d => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
     const setSaveIndicator = (text, tone = "secondary") => {
       if (!el.saveIndicator) return;
@@ -6245,8 +6077,6 @@ self.onmessage=e=>{
       }
     };
     const themeMedia = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
-    const normalizeThemeMode = v => v === "light" || v === "dark" || v === "auto" ? v : "auto";
-    const normalizeViewMode = v => String(v || "") === "install" ? "install" : "art";
     const isInstallViewMode = () => normalizeViewMode(st.viewMode) === "install";
     const isInstallOnlyToolMode = m => m === "flowEdit" || m === "clusterEdit" || m === "rigEdit";
     const toolFsm = createToolFsm({
@@ -6340,14 +6170,6 @@ self.onmessage=e=>{
       if (persist) { try { localStorage.setItem(THEME_MODE_KEY, st.themeMode) } catch (_e) { } }
       render();
     };
-    const PROJECT_QUERY_PARAM = "project";
-    const PROJECT_ID_PARAM = "projectid";
-    const PROJECT_QUERY_VERSION = "gz2";
-    const PROJECT_STORE_SERVER_URL = "https://static.93.189.179.185.ip.webhost1.net"; // e.g. "https://example.com"
-    const PROJECT_STORE_API_PATH = "/project_store.php";
-    const PROJECT_STORE_API_URL = (String(PROJECT_STORE_SERVER_URL || "").trim()
-      ? `${String(PROJECT_STORE_SERVER_URL || "").trim().replace(/\/+$/, "")}${PROJECT_STORE_API_PATH}`
-      : "./project_store.php");
     const serializeRectForProject = r => {
       const out = { ...r };
       delete out._calcCache;
@@ -8724,7 +8546,6 @@ self.onmessage=e=>{
     const uiSetChecked = (node, v) => { if (!node) return; const n = !!v; if (node.checked !== n) node.checked = n; };
     const uiSetDisabled = (node, v) => { if (!node) return; const n = !!v; if (node.disabled !== n) node.disabled = n; };
     const uiSetText = (node, v) => { if (!node) return; const s = String(v ?? ""); if (node.textContent !== s) node.textContent = s; };
-    const normalizeCabinetUnit = v => (v === "m" ? "m" : "px");
     const getCabinetUnitScale = r => Math.max(1, Math.round(Number((r && r.scale) || (cur() && cur().scale) || st.globalScale || 256) || 256));
     const cabinetPxToUi = (px, unit, r) => {
       const v = Math.max(1, Math.round(Number(px) || 0));
@@ -9595,7 +9416,6 @@ self.onmessage=e=>{
       if (!name) return;
       const url = URL.createObjectURL(blob), a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
     };
-    const PNG_PROJECT_META_KEY = "ledmask-project";
     let pngCrcTable = null;
     const getPngCrcTable = () => {
       if (pngCrcTable) return pngCrcTable;
@@ -9665,46 +9485,6 @@ self.onmessage=e=>{
       const chunk = makePngChunk("iTXt", data);
       return concatBytes(pngBytes.subarray(0, insertPos), chunk, pngBytes.subarray(insertPos));
     };
-    const extractProjectFromPngBytes = pngBytes => {
-      if (!(pngBytes instanceof Uint8Array) || pngBytes.length < 12) throw new Error("Некорректный PNG");
-      const sig = pngSig();
-      if (!bytesEq(pngBytes.subarray(0, 8), sig)) throw new Error("Некорректная PNG сигнатура");
-      const dec = new TextDecoder();
-      let off = 8;
-      while (off + 12 <= pngBytes.length) {
-        const len = readU32BE(pngBytes, off), type = dec.decode(pngBytes.subarray(off + 4, off + 8)), dataStart = off + 8, dataEnd = dataStart + len, next = off + 12 + len;
-        if (dataEnd > pngBytes.length || next > pngBytes.length) break;
-        if (type === "iTXt") {
-          const d = pngBytes.subarray(dataStart, dataEnd);
-          let p = 0;
-          while (p < d.length && d[p] !== 0) p++;
-          const keyword = dec.decode(d.subarray(0, p));
-          if (keyword === PNG_PROJECT_META_KEY) {
-            p++;
-            const compFlag = (p < d.length ? d[p] : 0); p++;
-            p++; // compression method
-            while (p < d.length && d[p] !== 0) p++;
-            p++; // language tag
-            while (p < d.length && d[p] !== 0) p++;
-            p++; // translated keyword
-            if (compFlag !== 0) throw new Error("Сжатые PNG метаданные не поддерживаются");
-            return dec.decode(d.subarray(Math.min(p, d.length)));
-          }
-        } else if (type === "tEXt") {
-          const d = pngBytes.subarray(dataStart, dataEnd);
-          let p = 0;
-          while (p < d.length && d[p] !== 0) p++;
-          const keyword = dec.decode(d.subarray(0, p));
-          if (keyword === PNG_PROJECT_META_KEY) {
-            p++;
-            return dec.decode(d.subarray(Math.min(p, d.length)));
-          }
-        }
-        if (type === "IEND") break;
-        off = next;
-      }
-      return null;
-    };
     const legacyCopyText = text => {
       try {
         const ta = document.createElement("textarea");
@@ -9754,12 +9534,6 @@ self.onmessage=e=>{
         return true;
       }
       return true;
-    };
-    const embedProjectIntoPngBlob = async (pngBlob, projectData) => {
-      const text = JSON.stringify(projectData);
-      const bytes = new Uint8Array(await pngBlob.arrayBuffer());
-      const outBytes = injectProjectToPngBytes(bytes, text);
-      return new Blob([outBytes], { type: "image/png" });
     };
     const loadProjectFromFile = async f => {
       const name = String(f && f.name || "").toLowerCase();
@@ -9860,47 +9634,13 @@ self.onmessage=e=>{
     });
     const fmtOne = v => { const n = Math.round((Number(v) || 0) * 10) / 10; return Number.isInteger(n) ? `${n.toFixed(0)}` : n.toFixed(1) };
     const fmtMeters = v => { const n = Math.round((Number(v) || 0) * 1000) / 1000; return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "") };
-    const fmtAreaM2 = v => { const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000); return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "") };
     const parseScreenNameGroup = r => {
       const fallback = `Экран #${r && r.id != null ? r.id : "?"}`, raw = String((r && r.name) || fallback).trim() || fallback, at = raw.indexOf("@");
       if (at < 0) return { name: raw, group: "Общая" };
       const name = (raw.slice(0, at).trim() || fallback), group = (raw.slice(at + 1).trim() || "Общая");
       return { name, group };
     };
-    const mapToCabinetList = m => [...m.entries()].filter(([, count]) => (Number(count) || 0) > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).map(([size, count]) => `${size}м – ${count} шт.`);
-    const mapToCableList = m => [...m.entries()].filter(([, count]) => (Number(count) || 0) > 0).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])).map(([len, count]) => `${len} – ${count} шт.`);
-    const mergeCountMap = (dst, src) => { for (const [k, v] of src.entries()) dst.set(k, (dst.get(k) || 0) + (v || 0)); };
-    const mapToNamedCountList = map => [...map.entries()].filter(([, count]) => (Number(count) || 0) > 0).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ru")).map(([name, count]) => `${name} – ${count} шт.`);
     const roundRigSize = v => Math.round((Number(v) || 0) * 100) / 100;
-
-    const addCountToMap = (map, key, count = 1) => {
-      if (key == null || !Number.isFinite(Number(key))) return;
-      map.set(key, (map.get(key) || 0) + count);
-    };
-
-    const mergeNumericMap = (dst, src) => {
-      for (const [k, v] of src.entries()) dst.set(k, (dst.get(k) || 0) + (Number(v) || 0));
-    };
-
-    const mapToRigSizeList = map =>
-      [...map.entries()]
-        .filter(([, count]) => (Number(count) || 0) > 0)
-        .sort((a, b) => Number(a[0]) - Number(b[0]))
-        .map(([size, count]) => `${fmtMeters(Number(size))}м – ${count} шт.`);
-
-    const mapToRigWeightList = map =>
-      [...map.entries()]
-        .filter(([, count]) => (Number(count) || 0) > 0)
-        .sort((a, b) => Number(a[0]) - Number(b[0]))
-        .map(([kg, count]) => `${Math.round(Number(kg))}кг – ${count} шт.`);
-    const pushSpecListLine = (out, label, items) => {
-      if (Array.isArray(items) && items.length) out.push(`- ${label}: ${items.join("; ")}`);
-    };
-    const pushSpecCountLine = (out, label, count, suffix = "шт.") => {
-      const n = Math.max(0, Math.round(Number(count) || 0));
-      if (n > 0) out.push(`- ${label}: ${n} ${suffix}`);
-    };
-
     const buildRectRigSpecData = r => {
       const rig = getRectRigData(r) || {};
       const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), layout = buildRigLayout(r, cx, cy, topo, hs, 1.0);
@@ -9981,11 +9721,6 @@ self.onmessage=e=>{
         bottomRowFrameCount,
         bottomLoadByKg
       };
-    };
-    const sumMapCounts = map => {
-      let total = 0;
-      for (const v of map.values()) total += Number(v) || 0;
-      return total;
     };
     const estimateInterScreenCableLenPx = (a, b) => {
       if (!a || !b) return 0;
