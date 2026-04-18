@@ -1490,7 +1490,10 @@
   </div>
   <script src="./vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="./vendor/qrcode-generator/qrcode.js"></script>
-  <script>
+  <script type="module">
+    import { createProjectCodec } from "./editor/modules/project-codec.js";
+    import { createToolFsm } from "./editor/modules/tool-fsm.js";
+    import { createRectPropSchema } from "./editor/modules/props-schema.js";
     const $ = id => document.getElementById(id), cv = $("editorCanvas"), ctx = cv.getContext("2d"), wrap = $("canvasWrap");
     const ensureMobileDock = () => {
       const host = document.querySelector(".app") || document.body;
@@ -1824,7 +1827,7 @@
         });
       }
       if (!skipCache) {
-        rec = { geom: out, lastSeen: now };
+        let rec = { geom: out, lastSeen: now };
         flowGeomCache.set(key, rec);
         if (flowGeomCache.size > 96) {
           for (const [k, v] of flowGeomCache) {
@@ -1957,7 +1960,7 @@
     const normalizeHiddenCells = v => { if (!Array.isArray(v)) return []; const out = []; const seen = new Set(); for (const it of v) { const s = String(it || "").trim(); if (!/^\d+,\d+$/.test(s)) continue; if (seen.has(s)) continue; seen.add(s); out.push(s) } return out };
     const hiddenCache = new WeakMap();
     const getHiddenSet = r => { if (!r) return new Set(); const rec = hiddenCache.get(r); if (!rec || rec.src !== r.hiddenCells) { const next = { src: r.hiddenCells, set: new Set(Array.isArray(r.hiddenCells) ? r.hiddenCells : []) }; hiddenCache.set(r, next); return next.set } return rec.set };
-    const setHiddenSet = r => { const src = [...getHiddenSet(r)]; r.hiddenCells = src; hiddenCache.set(r, { src: r.hiddenCells, set: new Set(src) }); const cache = getRectCalcCache(r); if (cache) { cache.maskRender = null; cache.boundarySegs = null; cache.fillLayer = null; cache.decorLayer = null; cache.flowPassiveLayer = null; cache.regions = null; cache.flow = null; cache.aabb = null; } };
+    const setHiddenSet = r => { const src = [...getHiddenSet(r)]; r.hiddenCells = src; hiddenCache.set(r, { src: r.hiddenCells, set: new Set(src) }); invalidateRectCache(r, "topology"); };
     const normalizeManualClusters = raw => {
       if (!Array.isArray(raw)) return [];
       const out = [], seen = new Set();
@@ -1984,13 +1987,7 @@
       if (!list.length) return "";
       return list.map(z => `${z.id}:${z.sx},${z.sy},${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join(";");
     };
-    const clearRectRegionsAndFlow = r => {
-      const cache = getRectCalcCache(r);
-      if (!cache) return;
-      cache.regions = null;
-      cache.flow = null;
-      cache.flowPassiveLayer = null;
-    };
+    const clearRectRegionsAndFlow = r => invalidateRectCache(r, "regions");
     const clearFlowLockMemory = r => {
       if (!r || typeof r !== "object") return;
       try { delete r._flowLockRidToSig; } catch (_e) { r._flowLockRidToSig = {}; }
@@ -2556,6 +2553,14 @@
       cache.flowPassiveLayer = null;
       return value;
     };
+    const getRectRuntime = (r, opts = null) => {
+      const o = (opts && typeof opts === "object") ? opts : {};
+      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r);
+      const out = { cx, cy, topo, hs, regions: null, groups: null };
+      if (o.withRegions || o.withGroups) out.regions = planNumberRegions(r, cx, cy, topo, hs, true);
+      if (o.withGroups) out.groups = getDataFlowGroups(r, cx, cy, topo, hs, out.regions);
+      return out;
+    };
     const getRectComponentRenderDataCached = (r, cx, cy, topo) => {
       const cache = getRectCalcCache(r);
       const key = [r && r.width || 0, r && r.height || 0, cx || 0, cy || 0, topoCalcKey(r, cx, cy)].join("|");
@@ -2857,7 +2862,7 @@
         if (!r || typeof r !== "object") return { ridToSig: {}, cidToSeed: {} };
         const locks = normalizeFlowLocks(r.flowLocks);
         if (!Object.keys(locks).length) return { ridToSig: {}, cidToSeed: {} };
-        const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), regions = planNumberRegions(r, cx, cy, topo, hs, true);
+        const rt = getRectRuntime(r, { withRegions: true }), topo = rt.topo, regions = rt.regions;
         const sigByRid = buildRegionSignatureMap(regions, topo);
         const ridToSig = {};
         for (const key of Object.keys(locks)) {
@@ -3801,7 +3806,7 @@
         if (groupsByRectId.has(rectId)) return groupsByRectId.get(rectId);
         const rr = (Array.isArray(st.rects) ? st.rects : []).find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === rectId) || null;
         if (!rr) { groupsByRectId.set(rectId, null); return null; }
-        const cx = drawCellX(rr), cy = drawCellY(rr), topo = getCellTopologyCached(rr, cx, cy), hs = getHiddenSet(rr), regions = planNumberRegions(rr, cx, cy, topo, hs, true), groups = getDataFlowGroups(rr, cx, cy, topo, hs, regions);
+        const rt = getRectRuntime(rr, { withGroups: true }), groups = rt.groups;
         const out = Array.isArray(groups) ? groups : [];
         groupsByRectId.set(rectId, { rr, groups: out });
         return groupsByRectId.get(rectId);
@@ -3879,7 +3884,7 @@
         if (groupsByRectId.has(rectId)) return groupsByRectId.get(rectId);
         const rr = byId.get(rectId);
         if (!rr) { groupsByRectId.set(rectId, null); return null; }
-        const cx = drawCellX(rr), cy = drawCellY(rr), topo = getCellTopologyCached(rr, cx, cy), hs = getHiddenSet(rr), regions = planNumberRegions(rr, cx, cy, topo, hs, true), groups = getDataFlowGroups(rr, cx, cy, topo, hs, regions);
+        const rt = getRectRuntime(rr, { withGroups: true }), groups = rt.groups;
         const out = Array.isArray(groups) ? groups : [];
         groupsByRectId.set(rectId, out);
         return out;
@@ -4039,7 +4044,7 @@
         const rectId = Math.max(1, Math.round(Number(rr && rr.id) || 0)), rg = Math.max(0, Math.round(Number(rid) || 0));
         const key = `${rectId}:${rg}`;
         if (regionBBoxCache.has(key)) return regionBBoxCache.get(key);
-        const cx = drawCellX(rr), cy = drawCellY(rr), topo = getCellTopologyCached(rr, cx, cy), hs = getHiddenSet(rr), regions = planNumberRegions(rr, cx, cy, topo, hs, true), groups = getDataFlowGroups(rr, cx, cy, topo, hs, regions), g = (Array.isArray(groups) ? groups : []).find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg);
+        const rt = getRectRuntime(rr, { withGroups: true }), groups = rt.groups, g = (Array.isArray(groups) ? groups : []).find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg);
         if (!g || !Array.isArray(g.points) || !g.points.length) { regionBBoxCache.set(key, null); return null; }
         let minU = Infinity, minV = Infinity, maxU = -Infinity, maxV = -Infinity;
         for (const p of g.points) {
@@ -5794,13 +5799,13 @@ self.onmessage=e=>{
   self.postMessage({kind,reqId,ok,result,timedOut,elapsed});
 };
 `;
+    const CALC_WORKER_BOOT_URL = "./editor/workers/calc-worker-bootstrap.js";
     const ensureCalcWorker = (kind) => {
       if (kind === "regions") {
         if (regionCalcWorker) return regionCalcWorker;
         try {
-          const blob = new Blob([calcWorkerScript], { type: "application/javascript" });
-          const url = URL.createObjectURL(blob);
-          regionCalcWorker = new Worker(url);
+          regionCalcWorker = new Worker(CALC_WORKER_BOOT_URL);
+          regionCalcWorker.postMessage({ kind: "boot", script: calcWorkerScript });
         } catch (err) {
           try { console.warn("[calc-worker:regions] create failed", err); } catch (_e) { }
           regionCalcWorker = null;
@@ -5808,6 +5813,7 @@ self.onmessage=e=>{
         }
         regionCalcWorker.onmessage = e => {
           const d = e && e.data ? e.data : {};
+          if (d.kind === "booted" || d.kind === "boot-error") return;
           if (d.kind !== "regions") return;
           const req = regionCalcPending.get(d.reqId);
           if (!req) return;
@@ -5882,9 +5888,8 @@ self.onmessage=e=>{
       }
       if (flowCalcWorker) return flowCalcWorker;
       try {
-        const blob = new Blob([calcWorkerScript], { type: "application/javascript" });
-        const url = URL.createObjectURL(blob);
-        flowCalcWorker = new Worker(url);
+        flowCalcWorker = new Worker(CALC_WORKER_BOOT_URL);
+        flowCalcWorker.postMessage({ kind: "boot", script: calcWorkerScript });
       } catch (err) {
         try { console.warn("[calc-worker:flow] create failed", err); } catch (_e) { }
         flowCalcWorker = null;
@@ -5892,6 +5897,7 @@ self.onmessage=e=>{
       }
       flowCalcWorker.onmessage = e => {
         const d = e && e.data ? e.data : {};
+        if (d.kind === "booted" || d.kind === "boot-error") return;
         if (d.kind !== "flow") return;
         const req = flowCalcPending.get(d.reqId);
         if (!req) return;
@@ -6193,6 +6199,11 @@ self.onmessage=e=>{
     const normalizeViewMode = v => String(v || "") === "install" ? "install" : "art";
     const isInstallViewMode = () => normalizeViewMode(st.viewMode) === "install";
     const isInstallOnlyToolMode = m => m === "flowEdit" || m === "clusterEdit" || m === "rigEdit";
+    const toolFsm = createToolFsm({
+      isInstallOnlyToolMode,
+      isInstallViewMode,
+      defaultMode: "select"
+    });
     const updateInstallToolAvailability = () => {
       const allow = isInstallViewMode();
       for (const b of [el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit]) {
@@ -6287,63 +6298,6 @@ self.onmessage=e=>{
     const PROJECT_STORE_API_URL = (String(PROJECT_STORE_SERVER_URL || "").trim()
       ? `${String(PROJECT_STORE_SERVER_URL || "").trim().replace(/\/+$/, "")}${PROJECT_STORE_API_PATH}`
       : "./project_store.php");
-    const PROJECT_QUERY_KEY_MAP = Object.freeze({
-      version: "v", projectName: "pn", saveLocationId: "sl", camera: "c", settings: "s", nextId: "n", flowLinks: "fl", rectangles: "r",
-      x: "x", y: "y", zoom: "z", textSize: "ts", fontFamily: "ff", viewMode: "vm", lockAll: "la", snap: "sn", grid: "g", objects: "o", centers: "ct", gaps: "gp",
-      id: "i", name: "nm", rotation: "rt", width: "w", height: "h", scale: "sc", widthM: "wm", heightM: "hm", areaM2Px: "a2", colorA: "ca", autoContrastB: "ab", colorB: "cb",
-      cellX: "cx", cellY: "cy", dataFlow: "df", dataFlowZ: "dz", numberCells: "nc", splitVariant: "sv", cellLinks: "cl", hiddenCells: "hc", flowLocks: "fk", flowLockRidToSig: "frs", flowLockCidToSeed: "fcs", manualClusters: "mc",
-      rig: "rg", locked: "lk", kind: "kd", noteText: "nt", projectCache: "pc",
-      from: "f", to: "t", rectId: "ri", rid: "rd", cid: "cd", startCid: "sd", startDir: "sr", startPinned: "sp", mode: "md", locks: "ls", index: "ix",
-      sx: "sx", sy: "sy", c0: "c0", c1: "c1", r0: "r0", r1: "r1",
-      suspends: "su", suspendLinks: "sk", frames: "fr", loads: "ld"
-    });
-    const PROJECT_QUERY_KEY_UNMAP = (() => {
-      const out = {};
-      for (const [k, v] of Object.entries(PROJECT_QUERY_KEY_MAP)) out[v] = k;
-      return Object.freeze(out);
-    })();
-    const remapProjectKeysDeep = (value, map) => {
-      if (Array.isArray(value)) return value.map(v => remapProjectKeysDeep(v, map));
-      if (!value || typeof value !== "object") return value;
-      const out = {};
-      for (const [k, v] of Object.entries(value)) {
-        const nk = Object.prototype.hasOwnProperty.call(map, k) ? map[k] : k;
-        out[nk] = remapProjectKeysDeep(v, map);
-      }
-      return out;
-    };
-    const base64UrlEncodeBytes = bytes => {
-      const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
-      let bin = "";
-      const CHUNK = 0x8000;
-      for (let i = 0; i < arr.length; i += CHUNK) {
-        const part = arr.subarray(i, Math.min(arr.length, i + CHUNK));
-        bin += String.fromCharCode(...part);
-      }
-      return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-    };
-    const base64UrlDecodeBytes = str => {
-      const raw = String(str || "").replace(/-/g, "+").replace(/_/g, "/");
-      const padded = raw + "===".slice((raw.length + 3) % 4);
-      const bin = atob(padded);
-      const out = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++)out[i] = bin.charCodeAt(i);
-      return out;
-    };
-    const gzipText = async text => {
-      if (typeof CompressionStream !== "function") throw new Error("gzip_unsupported");
-      const src = new TextEncoder().encode(String(text || ""));
-      const stream = new Blob([src]).stream().pipeThrough(new CompressionStream("gzip"));
-      const buf = await new Response(stream).arrayBuffer();
-      return new Uint8Array(buf);
-    };
-    const ungzipToText = async bytes => {
-      if (typeof DecompressionStream !== "function") throw new Error("ungzip_unsupported");
-      const src = (bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []));
-      const stream = new Blob([src]).stream().pipeThrough(new DecompressionStream("gzip"));
-      const text = await new Response(stream).text();
-      return text;
-    };
     const serializeRectForProject = r => {
       const out = { ...r };
       delete out._calcCache;
@@ -6356,111 +6310,25 @@ self.onmessage=e=>{
       if (pc) out.projectCache = pc; else delete out.projectCache;
       return out;
     };
-    const stripProjectCaches = data => {
-      const out = cloneProjectData(data || buildProject());
-      if (Array.isArray(out.rectangles)) {
-        out.rectangles = out.rectangles.map(rr => {
-          const r = { ...(rr || {}) };
-          delete r.projectCache;
-          delete r._calcCache;
-          return r;
-        });
-      }
-      return out;
-    };
-    const isPlainObject = v => !!v && typeof v === "object" && !Array.isArray(v);
-    const isEmptyObject = v => isPlainObject(v) && !Object.keys(v).length;
-    const compactRectForQuery = rr => {
-      const r = { ...(rr || {}) };
-      if ((Number(r.rotation) || 0) === 0) delete r.rotation;
-      if ((Number(r.scale) || 256) === 256) delete r.scale;
-      if ((Number(r.widthM) || 1) === 1) delete r.widthM;
-      if ((Number(r.heightM) || 1) === 1) delete r.heightM;
-      if ((Number(r.areaM2Px) || 65536) === 65536) delete r.areaM2Px;
-      if ((Number(r.textSize) || 0) === 0) delete r.textSize;
-      if ((Number(r.cellX) || 128) === 128) delete r.cellX;
-      if ((Number(r.cellY) || 128) === 128) delete r.cellY;
-      if (String(r.dataFlow || "none") === "none") delete r.dataFlow;
-      if (!r.dataFlowZ) delete r.dataFlowZ;
-      if (!r.numberCells) delete r.numberCells;
-      if ((Number(r.splitVariant) || 0) === 0) delete r.splitVariant;
-      if (r.autoContrastB !== false) {
-        const cb = String(r.colorB || "");
-        const ca = String(r.colorA || "#2fcaaf");
-        if (!cb || cb === autoContrast(ca)) delete r.colorB;
-        delete r.autoContrastB;
-      }
-      if (!r.locked) delete r.locked;
-      if (!Array.isArray(r.cellLinks) || !r.cellLinks.length) delete r.cellLinks;
-      if (!Array.isArray(r.hiddenCells) || !r.hiddenCells.length) delete r.hiddenCells;
-      if (!Array.isArray(r.manualClusters) || !r.manualClusters.length) delete r.manualClusters;
-      if (!isPlainObject(r.flowLocks) || !Object.keys(normalizeFlowLocks(r.flowLocks)).length) delete r.flowLocks;
-      if (!isPlainObject(r.flowLockRidToSig) || !Object.keys(normalizeFlowLockRidToSigMap(r.flowLockRidToSig)).length) delete r.flowLockRidToSig;
-      if (!isPlainObject(r.flowLockCidToSeed) || !Object.keys(normalizeFlowLockCidToSeedMap(r.flowLockCidToSeed)).length) delete r.flowLockCidToSeed;
-      if (!r.kind) delete r.kind;
-      if (!r.noteText) delete r.noteText;
-      if (isPlainObject(r.rig)) {
-        const rigNorm = normalizeRigData(r.rig), rigEmpty = normalizeRigData(null);
-        const isRigDefault = JSON.stringify(rigNorm) === JSON.stringify(rigEmpty);
-        if (isRigDefault) delete r.rig;
-        else r.rig = rigNorm;
-      } else delete r.rig;
-      return r;
-    };
-    const compactProjectForQuery = data => {
-      const out = stripProjectCaches(data || buildProject());
-      if ((Number(out.version) || 1) === 1) delete out.version;
-      if (!Array.isArray(out.flowLinks) || !out.flowLinks.length) delete out.flowLinks;
-      if ((Number(out.nextId) || 0) <= 0) delete out.nextId;
-      if (!out.saveLocationId) delete out.saveLocationId;
-      if (isPlainObject(out.camera)) {
-        if ((Number(out.camera.x) || 0) === 0) delete out.camera.x;
-        if ((Number(out.camera.y) || 0) === 0) delete out.camera.y;
-        if ((Number(out.camera.zoom) || 1) === 1) delete out.camera.zoom;
-        if (isEmptyObject(out.camera)) delete out.camera;
-      } else delete out.camera;
-      if (isPlainObject(out.settings)) {
-        if ((Number(out.settings.textSize) || 12) === 12) delete out.settings.textSize;
-        if (String(out.settings.fontFamily || "Roboto, Segoe UI, Arial") === "Roboto, Segoe UI, Arial") delete out.settings.fontFamily;
-        if ((Number(out.settings.scale) || 256) === 256) delete out.settings.scale;
-        if (String(out.settings.viewMode || "art") === "art") delete out.settings.viewMode;
-        if (isPlainObject(out.settings.snap)) {
-          const sn = out.settings.snap;
-          if (sn.grid === false) delete sn.grid;
-          if (sn.objects === true) delete sn.objects;
-          if (sn.centers === true) delete sn.centers;
-          if (sn.gaps === true) delete sn.gaps;
-          if (isEmptyObject(sn)) delete out.settings.snap;
-        } else delete out.settings.snap;
-        if (isEmptyObject(out.settings)) delete out.settings;
-      } else delete out.settings;
-      if (Array.isArray(out.rectangles)) out.rectangles = out.rectangles.map(compactRectForQuery);
-      return out;
-    };
+    const projectCodec = createProjectCodec({
+      PROJECT_QUERY_VERSION,
+      buildProject: () => buildProject(),
+      cloneProjectData: data => cloneProjectData(data),
+      autoContrast,
+      normalizeFlowLocks,
+      normalizeFlowLockRidToSigMap,
+      normalizeFlowLockCidToSeedMap,
+      normalizeRigData
+    });
+    const stripProjectCaches = data => projectCodec.stripProjectCaches(data || buildProject());
+    const compactProjectForQuery = data => projectCodec.compactProjectForQuery(data || buildProject());
     const buildPortableProject = () => {
       const out = stripProjectCaches(buildProject());
       if (out && typeof out === "object") delete out.camera;
       return out;
     };
-    const encodeProjectToQueryValue = async data => {
-      const payload = compactProjectForQuery(data || buildProject());
-      const packedPayload = remapProjectKeysDeep(payload, PROJECT_QUERY_KEY_MAP);
-      const packed = await gzipText(JSON.stringify(packedPayload));
-      return `${PROJECT_QUERY_VERSION}.${base64UrlEncodeBytes(packed)}`;
-    };
-    const decodeProjectFromQueryValue = async raw => {
-      const txt = String(raw || "").trim();
-      if (!txt) return null;
-      const dot = txt.indexOf(".");
-      const ver = dot > 0 ? txt.slice(0, dot) : "";
-      const body = dot > 0 ? txt.slice(dot + 1) : txt;
-      if (ver && ver !== PROJECT_QUERY_VERSION && ver !== "gz1") throw new Error("project_param_version_unsupported");
-      const bytes = base64UrlDecodeBytes(body);
-      const json = await ungzipToText(bytes);
-      const parsed = JSON.parse(json);
-      if (ver === PROJECT_QUERY_VERSION) return remapProjectKeysDeep(parsed, PROJECT_QUERY_KEY_UNMAP);
-      return parsed;
-    };
+    const encodeProjectToQueryValue = async data => await projectCodec.encodeProjectToQueryValue(data || buildProject());
+    const decodeProjectFromQueryValue = async raw => await projectCodec.decodeProjectFromQueryValue(raw);
     const fetchJsonWithTimeout = async (url, options = {}, timeoutMs = 5000) => {
       const ctl = (typeof AbortController === "function") ? new AbortController() : null;
       const timer = ctl ? setTimeout(() => ctl.abort(), Math.max(500, Math.round(Number(timeoutMs) || 5000))) : null;
@@ -6881,7 +6749,15 @@ self.onmessage=e=>{
       st.next = +(d && d.nextId) || (st.rects.reduce((m, r) => Math.max(m, r.id), 0) + 1);
       resetTransientState(false);
       updateViewModeUi();
-      selRect(st.rects[0] ? st.rects[0].id : null);
+      updateLockAllUi();
+      const firstId = st.rects[0] ? st.rects[0].id : null;
+      if (firstId != null && st.lockAll) {
+        setSelection([], null);
+        syncProps();
+        listRects();
+      } else {
+        selRect(firstId);
+      }
       if (syncTabSnapshot) syncActiveTabSnapshot();
       if (renderTabs) renderProjectTabs();
       resetHistoryUi();
@@ -6948,12 +6824,10 @@ self.onmessage=e=>{
       return r;
     }
     function activateToolOrSelect(mode) {
-      if (isInstallOnlyToolMode(mode) && !isInstallViewMode()) { setMode("select"); return }
-      if (mode !== "select" && st.mode === mode) { setMode("select"); return }
-      setMode(mode);
+      setMode(toolFsm.nextOnToolClick(st.mode, mode));
     }
     function setMode(m) {
-      if (isInstallOnlyToolMode(m) && !isInstallViewMode()) m = "select";
+      m = toolFsm.resolve(m);
       if (st.mode !== m && m !== "note") closeNoteEditor(true);
       st.mode = m;
       st.flowDrag = null;
@@ -8404,46 +8278,54 @@ self.onmessage=e=>{
       return true;
     };
     cv.addEventListener("contextmenu", e => e.preventDefault());
-    cv.addEventListener("mousedown", e => {
-      const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy), pan = e.button === 1 || e.button === 2 || (st.keys.space && e.button === 0); if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return } if (e.button !== 0) return;
+    const handleCanvasPointerDown = (p, opts = null) => {
+      const o = (opts && typeof opts === "object") ? opts : {};
       if (st.mode === "draw" || isNoteMode()) { st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y, kind: (isNoteMode() ? "note" : "rect") }; render(); return }
       if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) selRect(h.id); if (isRectLocked(cur())) return; addMaskPoint(p.x, p.y); return }
       if (isCellEditMode()) { const h = hit(p.x, p.y); if (!h) { selRect(null); return } if (h.id !== st.sel) selRect(h.id); if (isRectLocked(h)) return; toggleCellLinkAtPoint(h, p.x, p.y); return }
       if (isClusterEditMode()) { if (beginClusterHandleDragAtPoint(p.x, p.y)) { render(); return } handleClusterEditAtPoint(p.x, p.y); return }
       if (isRigEditMode()) { if (handleRigPointerDown(p)) return; }
       if (st.mode === "flowEdit") { if (handleFlowEditPointerDown(p)) return; }
-      const h = hit(p.x, p.y); if (h) { if (e.shiftKey) { selRect(h.id, { toggle: true }); render(); return; } if (!isSelected(h.id)) selRect(h.id); beginRectDrag(h, p); } else { beginSelectionBox(p, !!e.shiftKey, false); } render()
-    });
-    window.addEventListener("mousemove", e => {
-      const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
-      if (st.pan && st.panS) { st.camX = st.panS.cx - (sx - st.panS.sx) / st.zoom; st.camY = st.panS.cy - (sy - st.panS.sy) / st.zoom; render(); return }
-      if (st.selBox) { updateSelectionBox(p); render(); return }
-      if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); return }
-      if (isCellEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); return }
-      if (isRigEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return }
+      const h = hit(p.x, p.y);
+      if (h) {
+        if (o.shiftToggle) { selRect(h.id, { toggle: true }); render(); return; }
+        if (!isSelected(h.id)) selRect(h.id);
+        beginRectDrag(h, p);
+      } else {
+        beginSelectionBox(p, !!o.shiftToggle, !!o.touchLike);
+      }
+      render();
+    };
+    const handleCanvasPointerMove = (p, opts = null) => {
+      const o = (opts && typeof opts === "object") ? opts : {};
+      if (st.pan && st.panS) { st.camX = st.panS.cx - (o.sx - st.panS.sx) / st.zoom; st.camY = st.panS.cy - (o.sy - st.panS.sy) / st.zoom; render(); return true; }
+      if (st.selBox) { updateSelectionBox(p); render(); return true; }
+      if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); return true; }
+      if (isCellEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); return true; }
+      if (isRigEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return true; }
       if (isClusterEditMode()) {
         if (st.clusterDrag) {
           updateClusterHandleDragAtPoint(p.x, p.y);
           updateClusterEditCursor();
           render();
-          return;
+          return true;
         }
-        const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.clusterHandleHover = r ? findClusterHandle(p.x, p.y) : null; st.clusterBorderHover = r ? findActiveClusterBorder(r, p.x, p.y) : null; st.clusterStartHover = r ? findClusterStartMarker(r, p.x, p.y) : null; const cc = (r ? cellFromWorldPoint(r, p.x, p.y, true) : null); st.clusterCellHover = (r && cc ? { rectId: r.id, col: cc.col, row: cc.row } : null); updateClusterEditCursor(); render(); return
+        const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.clusterHandleHover = r ? findClusterHandle(p.x, p.y) : null; st.clusterBorderHover = r ? findActiveClusterBorder(r, p.x, p.y) : null; st.clusterStartHover = r ? findClusterStartMarker(r, p.x, p.y) : null; const cc = (r ? cellFromWorldPoint(r, p.x, p.y, true) : null); st.clusterCellHover = (r && cc ? { rectId: r.id, col: cc.col, row: cc.row } : null); updateClusterEditCursor(); render(); return true;
       }
-      if (st.mode === "flowEdit" && st.flowLinkDrag) { updateFlowLinkDragTarget(p.x, p.y); st.flowLinkHover = null; st.flowHover = null; st.flowDirHover = null; render(); return }
-      if (st.mode === "flowEdit" && !st.flowDrag) { st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y); const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart(); render(); return } const startHandle = findFlowStartHandle(p.x, p.y); if (startHandle) { st.flowHover = { kind: "start", rid: startHandle.rid, cid: startHandle.cid }; st.flowDirHover = null; render(); return } const dirBtn = findFlowDirectionButton(p.x, p.y); st.flowDirHover = dirBtn; if (dirBtn) { st.flowHover = null; render(); return } st.flowHover = findFlowEditPoint(p.x, p.y); render(); return }
-      if (st.mode === "flowEdit" && st.flowDrag) { const fp = findFlowEditPoint(p.x, p.y, st.flowDrag.rid, st.flowDrag.fromIndex); st.flowDrag.currentIndex = fp ? fp.index : st.flowDrag.fromIndex; render(); return }
-      if (st.draft) { const d = st.draft; d.x = Math.min(d.sx, p.x); d.y = Math.min(d.sy, p.y); d.width = Math.abs(p.x - d.sx); d.height = Math.abs(p.y - d.sy); render(); return }
-      if (st.drag) { moveRectDrag(p, e.ctrlKey || st.keys.ctrl); render() }
-    });
-    cv.addEventListener("mouseleave", () => { if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) { st.cellHover = null; st.cellHoverPos = null; render(); return } if (st.mode === "flowEdit" && (st.flowHover || st.flowDirHover || st.flowLinkHover)) { st.flowHover = null; st.flowDirHover = null; st.flowLinkHover = null; render(); return } if (isClusterEditMode() && (st.clusterHandleHover || st.clusterCellHover || st.clusterStartHover || st.clusterBorderHover)) { st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; updateClusterEditCursor(); render(); return } if (isRigEditMode() && st.rigHover) { st.rigHover = null; render(); } });
-    window.addEventListener("mouseup", () => {
+      if (st.mode === "flowEdit" && st.flowLinkDrag) { updateFlowLinkDragTarget(p.x, p.y); st.flowLinkHover = null; st.flowHover = null; st.flowDirHover = null; render(); return true; }
+      if (st.mode === "flowEdit" && !st.flowDrag) { st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y); const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart(); render(); return true } const startHandle = findFlowStartHandle(p.x, p.y); if (startHandle) { st.flowHover = { kind: "start", rid: startHandle.rid, cid: startHandle.cid }; st.flowDirHover = null; render(); return true } const dirBtn = findFlowDirectionButton(p.x, p.y); st.flowDirHover = dirBtn; if (dirBtn) { st.flowHover = null; render(); return true } st.flowHover = findFlowEditPoint(p.x, p.y); render(); return true }
+      if (st.mode === "flowEdit" && st.flowDrag) { const fp = findFlowEditPoint(p.x, p.y, st.flowDrag.rid, st.flowDrag.fromIndex); st.flowDrag.currentIndex = fp ? fp.index : st.flowDrag.fromIndex; render(); return true }
+      if (st.draft) { const d = st.draft; d.x = Math.min(d.sx, p.x); d.y = Math.min(d.sy, p.y); d.width = Math.abs(p.x - d.sx); d.height = Math.abs(p.y - d.sy); render(); return true }
+      if (st.drag) { moveRectDrag(p, !!o.ctrlSnap); render(); return true }
+      return false;
+    };
+    const handleCanvasPointerUp = () => {
       const hadDrag = !!st.drag; if (st.pan) { st.pan = false; st.panS = null }
-      if (st.selBox) { finishSelectionBox(); return; }
+      if (st.selBox) { finishSelectionBox(); return true; }
       if (st.clusterDrag) {
         const changed = endClusterHandleDrag();
         if (changed) schedulePersist("project");
-        render(); return;
+        render(); return true;
       }
       if (st.flowLinkDrag) {
         const fd = st.flowLinkDrag;
@@ -8453,7 +8335,7 @@ self.onmessage=e=>{
         st.flowLinkPending = null;
         st.flowLinkHover = null;
         if (changed) schedulePersist("project");
-        render(); return;
+        render(); return true;
       }
       if (st.flowDrag) {
         const r = cur(), fd = st.flowDrag; st.flowDrag = null;
@@ -8464,14 +8346,27 @@ self.onmessage=e=>{
             if (target && target.cid !== fd.cid) { setFlowStart(r, fd.rid, target.cid); schedulePersist("project"); }
           } else if (target && target.index >= fd.fromIndex && target.cid !== fd.cid) { setFlowLock(r, fd.rid, fd.fromIndex, target.cid); schedulePersist("project"); }
         }
-        render(); return;
+        render(); return true;
       }
       let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = (String(d.kind || "") === "note") ? mkNote(d.x, d.y, d.width, d.height) : mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
       st.drag = null; st.g.x = null; st.g.y = null; st.dg = null;
       if (created) { setMode("select"); selRect(created.id); if (isNoteRect(created)) openNoteEditor(created.id); }
       if (hadDrag || created) { refreshPanels(); schedulePersist("project") }
-      render()
+      render();
+      return true;
+    };
+    cv.addEventListener("mousedown", e => {
+      const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy), pan = e.button === 1 || e.button === 2 || (st.keys.space && e.button === 0);
+      if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return; }
+      if (e.button !== 0) return;
+      handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, touchLike: false });
     });
+    window.addEventListener("mousemove", e => {
+      const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
+      handleCanvasPointerMove(p, { sx, sy, ctrlSnap: !!(e.ctrlKey || st.keys.ctrl) });
+    });
+    cv.addEventListener("mouseleave", () => { if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) { st.cellHover = null; st.cellHoverPos = null; render(); return } if (st.mode === "flowEdit" && (st.flowHover || st.flowDirHover || st.flowLinkHover)) { st.flowHover = null; st.flowDirHover = null; st.flowLinkHover = null; render(); return } if (isClusterEditMode() && (st.clusterHandleHover || st.clusterCellHover || st.clusterStartHover || st.clusterBorderHover)) { st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; updateClusterEditCursor(); render(); return } if (isRigEditMode() && st.rigHover) { st.rigHover = null; render(); } });
+    window.addEventListener("mouseup", () => { handleCanvasPointerUp(); });
     cv.addEventListener("wheel", e => { e.preventDefault(); const b = cv.getBoundingClientRect(); zoomAt(e.clientX - b.left, e.clientY - b.top, st.zoom * (e.deltaY < 0 ? 1.1 : .9)) }, { passive: false });
     cv.addEventListener("dblclick", e => {
       const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
@@ -8496,64 +8391,20 @@ self.onmessage=e=>{
       const rect = cv.getBoundingClientRect(); if (e.touches.length === 2) { const m = touchMid(e.touches[0], e.touches[1], rect); st.touch = { type: "pinch", startDist: touchDist(e.touches[0], e.touches[1]), startZoom: st.zoom, worldMid: s2w(m.sx, m.sy) }; st.drag = null; st.selBox = null; st.pan = false; st.draft = null; e.preventDefault(); return }
       if (e.touches.length !== 1) return; const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy); st.touch = { type: "single" };
       if (st.lockAll) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); e.preventDefault(); return; }
-      if (st.mode === "draw" || isNoteMode()) { st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y, kind: (isNoteMode() ? "note" : "rect") }; render(); e.preventDefault(); return }
-      if (isMaskMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) selRect(h.id); if (isRectLocked(cur())) { e.preventDefault(); return } addMaskPoint(p.x, p.y); e.preventDefault(); return }
-      if (isCellEditMode()) { const h = hit(p.x, p.y); if (!h) { selRect(null); e.preventDefault(); return } if (h.id !== st.sel) selRect(h.id); if (isRectLocked(h)) { e.preventDefault(); return } toggleCellLinkAtPoint(h, p.x, p.y); e.preventDefault(); return }
-      if (isClusterEditMode()) { if (beginClusterHandleDragAtPoint(p.x, p.y)) { render(); e.preventDefault(); return } handleClusterEditAtPoint(p.x, p.y); e.preventDefault(); return }
-      if (isRigEditMode()) { if (handleRigPointerDown(p)) { e.preventDefault(); return; } }
-      if (st.mode === "flowEdit") { if (handleFlowEditPointerDown(p)) { e.preventDefault(); return; } }
-      const h = hit(p.x, p.y); if (h) { if (!isSelected(h.id)) selRect(h.id); beginRectDrag(h, p); } else { beginSelectionBox(p, false, true); } render(); e.preventDefault()
+      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true });
+      e.preventDefault();
     }, { passive: false });
     cv.addEventListener("touchmove", e => {
       const rect = cv.getBoundingClientRect(); if (st.touch && st.touch.type === "pinch" && e.touches.length >= 2) { const m = touchMid(e.touches[0], e.touches[1], rect), dist = Math.max(1, touchDist(e.touches[0], e.touches[1])), vm = getViewMetrics(); st.zoom = zc(st.touch.startZoom * (dist / st.touch.startDist)); st.camX = st.touch.worldMid.x - (m.sx - vm.centerX) / st.zoom; st.camY = st.touch.worldMid.y - (m.sy - vm.centerY) / st.zoom; render(); e.preventDefault(); return }
-      if (e.touches.length !== 1) return; const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy); if (st.pan && st.panS) { st.camX = st.panS.cx - (sx - st.panS.sx) / st.zoom; st.camY = st.panS.cy - (sy - st.panS.sy) / st.zoom; render(); e.preventDefault(); return } if (isMaskMode()) { const r = cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); e.preventDefault(); return } if (isCellEditMode()) { const r = cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); e.preventDefault(); return } if (st.selBox) { updateSelectionBox(p); render(); e.preventDefault(); return }
-      if (isRigEditMode()) { const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart() } const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); e.preventDefault(); return }
-      if (isClusterEditMode()) {
-        const r = cur();
-        if (st.clusterDrag) {
-          updateClusterHandleDragAtPoint(p.x, p.y);
-          updateClusterEditCursor();
-          render();
-          e.preventDefault();
-          return;
-        }
-        st.clusterHandleHover = r ? findClusterHandle(p.x, p.y) : null; st.clusterBorderHover = r ? findActiveClusterBorder(r, p.x, p.y) : null; st.clusterStartHover = r ? findClusterStartMarker(r, p.x, p.y) : null; const cc = (r ? cellFromWorldPoint(r, p.x, p.y, true) : null); st.clusterCellHover = (r && cc ? { rectId: r.id, col: cc.col, row: cc.row } : null); updateClusterEditCursor(); render(); e.preventDefault(); return
-      }
-      if (st.mode === "flowEdit" && st.flowLinkDrag) { updateFlowLinkDragTarget(p.x, p.y); st.flowLinkHover = null; st.flowHover = null; st.flowDirHover = null; render(); e.preventDefault(); return }
-      if (st.mode === "flowEdit" && !st.flowDrag) { st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y); const h = hit(p.x, p.y); if (h && h.id !== st.sel) { setSelection([h.id], h.id); syncPropsSmart(); render(); e.preventDefault(); return } const startHandle = findFlowStartHandle(p.x, p.y); if (startHandle) { st.flowHover = { kind: "start", rid: startHandle.rid, cid: startHandle.cid }; st.flowDirHover = null; render(); e.preventDefault(); return } const dirBtn = findFlowDirectionButton(p.x, p.y); st.flowDirHover = dirBtn; if (dirBtn) { st.flowHover = null; render(); e.preventDefault(); return } st.flowHover = findFlowEditPoint(p.x, p.y); render(); e.preventDefault(); return }
-      if (st.mode === "flowEdit" && st.flowDrag) { const fp = findFlowEditPoint(p.x, p.y, st.flowDrag.rid, st.flowDrag.fromIndex); st.flowDrag.currentIndex = fp ? fp.index : st.flowDrag.fromIndex; render(); e.preventDefault(); return }
-      if (st.draft) { const d = st.draft; d.x = Math.min(d.sx, p.x); d.y = Math.min(d.sy, p.y); d.width = Math.abs(p.x - d.sx); d.height = Math.abs(p.y - d.sy); render(); e.preventDefault(); return }
-      if (st.drag) { moveRectDrag(p, false); render(); e.preventDefault() }
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy);
+      if (handleCanvasPointerMove(p, { sx, sy, ctrlSnap: false })) e.preventDefault();
     }, { passive: false });
     cv.addEventListener("touchend", e => {
       if (st.touch && st.touch.type === "pinch" && e.touches.length >= 1) { e.preventDefault(); return } if (e.touches.length === 0) {
-        const hadDrag = !!st.drag; st.touch = null; if (st.pan) { st.pan = false; st.panS = null }
-        if (st.selBox) { finishSelectionBox(); e.preventDefault(); return; }
-        if (st.clusterDrag) {
-          const changed = endClusterHandleDrag();
-          if (changed) schedulePersist("project");
-          render(); e.preventDefault(); return;
-        }
-        if (st.flowLinkDrag) {
-          const fd = st.flowLinkDrag;
-          st.flowLinkDrag = null;
-          let changed = false;
-          if (fd && fd.from && fd.target && fd.canLink) changed = addFlowLinkBetween(fd.from, fd.target);
-          st.flowLinkPending = null;
-          st.flowLinkHover = null;
-          if (changed) schedulePersist("project");
-          render(); e.preventDefault(); return;
-        }
-        if (st.flowDrag) {
-          const r = cur(), fd = st.flowDrag; st.flowDrag = null;
-          if (r) { const isStartMove = String(fd && fd.kind || "") === "start"; const pts = (st.flowEditPoints || []).filter(p => p.rid === fd.rid && (isStartMove ? p.index >= 0 : p.index >= fd.fromIndex)), target = pts.find(p => p.index === fd.currentIndex) || pts[0]; if (isStartMove) { if (target && target.cid !== fd.cid) { setFlowStart(r, fd.rid, target.cid); schedulePersist("project"); } } else if (target && target.index >= fd.fromIndex && target.cid !== fd.cid) { setFlowLock(r, fd.rid, fd.fromIndex, target.cid); schedulePersist("project"); } }
-          render(); e.preventDefault(); return;
-        }
-        let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = (String(d.kind || "") === "note") ? mkNote(d.x, d.y, d.width, d.height) : mk(d.x, d.y, d.width, d.height); st.rects.push(created) } st.draft = null }
-        st.drag = null; st.g.x = null; st.g.y = null; st.dg = null;
-        if (created) { setMode("select"); selRect(created.id); if (isNoteRect(created)) openNoteEditor(created.id); }
-        if (hadDrag || created) { refreshPanels(); schedulePersist("project") }
-        render(); e.preventDefault()
+        st.touch = null;
+        handleCanvasPointerUp();
+        e.preventDefault();
       }
     }, { passive: false });
     function delSel() {
@@ -8603,7 +8454,43 @@ self.onmessage=e=>{
       if (idx >= 0) st.rects.splice(idx, 0, clone);
       else st.rects.unshift(clone);
     };
-    function dupSel() { normSelSet(); const src = getSelectedRects(); if (!src.length) { const r = cur(); if (!r) return; src.push(r); } const created = []; for (const r of src) { const c = { ...r, id: st.next++, name: withNameSuffixBeforeGroup(r.name, "copy"), x: r.x + 20, y: r.y + 20, rotation: r.rotation || 0, colorB: r.autoContrastB ? autoContrast(r.colorA) : r.colorB, autoContrastB: r.autoContrastB !== false, cellLinks: Array.isArray(r.cellLinks) ? [...r.cellLinks] : [], hiddenCells: Array.isArray(r.hiddenCells) ? [...r.hiddenCells] : [], flowLocks: normalizeFlowLocks(r && r.flowLocks), manualClusters: normalizeManualClusters(r && r.manualClusters), rig: normalizeRigData(r && r.rig) }; insertCloneAboveSource(r.id, c); created.push(c.id); } setSelection(created, created[created.length - 1] || null); syncProps(); listRects(); setMode("select"); schedulePersist("project") }
+    const cloneRectModel = (src, overrides = null) => {
+      const o = (overrides && typeof overrides === "object") ? overrides : {};
+      const base = {
+        ...src,
+        rotation: src.rotation || 0,
+        autoContrastB: src.autoContrastB !== false,
+        colorB: (src.autoContrastB !== false) ? autoContrast(src.colorA) : src.colorB,
+        cellLinks: Array.isArray(src.cellLinks) ? [...src.cellLinks] : [],
+        hiddenCells: Array.isArray(src.hiddenCells) ? [...src.hiddenCells] : [],
+        flowLocks: normalizeFlowLocks(src && src.flowLocks),
+        manualClusters: normalizeManualClusters(src && src.manualClusters),
+        rig: normalizeRigData(src && src.rig)
+      };
+      return { ...base, ...o };
+    };
+    const cloneRectForClipboard = src => cloneRectModel(src, { id: src.id });
+    const cloneRectForDuplicate = src => cloneRectModel(src, { id: st.next++, name: withNameSuffixBeforeGroup(src.name, "copy"), x: src.x + 20, y: src.y + 20 });
+    function dupSel() {
+      normSelSet();
+      const src = getSelectedRects();
+      if (!src.length) {
+        const r = cur();
+        if (!r) return;
+        src.push(r);
+      }
+      const created = [];
+      for (const r of src) {
+        const c = cloneRectForDuplicate(r);
+        insertCloneAboveSource(r.id, c);
+        created.push(c.id);
+      }
+      setSelection(created, created[created.length - 1] || null);
+      syncProps();
+      listRects();
+      setMode("select");
+      schedulePersist("project");
+    }
     function dupMirrorSel() {
       const r = cur(); if (!r) return; const cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); const mapIndex = i => { const x = i % cols, y = Math.floor(i / cols); if (!(x >= 0 && x < cols && y >= 0 && y < rows)) return -1; const nx = (cols - 1) - x; return y * cols + nx };
       const hiddenSrc = Array.isArray(r.hiddenCells) ? r.hiddenCells : [], hiddenSet = new Set();
@@ -8803,6 +8690,24 @@ self.onmessage=e=>{
         return toPositiveInt(Math.round(m * s), fb);
       }
       return toPositiveInt(evalExpr(inputValue, fb), fb);
+    };
+    const rectPropSchema = createRectPropSchema({
+      evalExpr,
+      parseAreaM2PxInput,
+      cabinetUiToPx,
+      normalizeDataFlow
+    });
+    const syncPropsBySchema = (rect, unit) => {
+      for (const f of rectPropSchema) {
+        if (!f || typeof f.sync !== "function") continue;
+        f.sync({ el, rect, unit, mFmt, cabinetPxToUi });
+      }
+    };
+    const applyPropsBySchema = (rect, multi, unit) => {
+      for (const f of rectPropSchema) {
+        if (!f || typeof f.apply !== "function") continue;
+        f.apply({ el, rect, multi, unit, evalExpr, parseAreaM2PxInput, cabinetUiToPx, normalizeDataFlow });
+      }
     };
     function syncProps() {
       const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
@@ -9912,10 +9817,10 @@ self.onmessage=e=>{
       const name = (raw.slice(0, at).trim() || fallback), group = (raw.slice(at + 1).trim() || "Общая");
       return { name, group };
     };
-    const mapToCabinetList = m => [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).map(([size, count]) => `${size}м – ${count} шт.`);
-    const mapToCableList = m => [...m.entries()].sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])).map(([len, count]) => `${len} – ${count} шт.`);
+    const mapToCabinetList = m => [...m.entries()].filter(([, count]) => (Number(count) || 0) > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).map(([size, count]) => `${size}м – ${count} шт.`);
+    const mapToCableList = m => [...m.entries()].filter(([, count]) => (Number(count) || 0) > 0).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])).map(([len, count]) => `${len} – ${count} шт.`);
     const mergeCountMap = (dst, src) => { for (const [k, v] of src.entries()) dst.set(k, (dst.get(k) || 0) + (v || 0)); };
-    const mapToNamedCountList = map => [...map.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ru")).map(([name, count]) => `${name} – ${count} шт.`);
+    const mapToNamedCountList = map => [...map.entries()].filter(([, count]) => (Number(count) || 0) > 0).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ru")).map(([name, count]) => `${name} – ${count} шт.`);
     const roundRigSize = v => Math.round((Number(v) || 0) * 100) / 100;
 
     const addCountToMap = (map, key, count = 1) => {
@@ -9929,13 +9834,22 @@ self.onmessage=e=>{
 
     const mapToRigSizeList = map =>
       [...map.entries()]
+        .filter(([, count]) => (Number(count) || 0) > 0)
         .sort((a, b) => Number(a[0]) - Number(b[0]))
         .map(([size, count]) => `${fmtMeters(Number(size))}м – ${count} шт.`);
 
     const mapToRigWeightList = map =>
       [...map.entries()]
+        .filter(([, count]) => (Number(count) || 0) > 0)
         .sort((a, b) => Number(a[0]) - Number(b[0]))
         .map(([kg, count]) => `${Math.round(Number(kg))}кг – ${count} шт.`);
+    const pushSpecListLine = (out, label, items) => {
+      if (Array.isArray(items) && items.length) out.push(`- ${label}: ${items.join("; ")}`);
+    };
+    const pushSpecCountLine = (out, label, count, suffix = "шт.") => {
+      const n = Math.max(0, Math.round(Number(count) || 0));
+      if (n > 0) out.push(`- ${label}: ${n} ${suffix}`);
+    };
 
     const buildRectRigSpecData = r => {
       const rig = getRectRigData(r) || {};
@@ -10039,8 +9953,9 @@ self.onmessage=e=>{
     };
     const buildInterScreenSpecData = () => {
       const anchorByKey = new Map(), rectById = new Map();
-      for (const r of st.rects) rectById.set(Math.max(1, Math.round(Number(r && r.id) || 0)), r);
-      for (const r of st.rects) {
+      const specRects = st.rects.filter(r => !isNoteRect(r));
+      for (const r of specRects) rectById.set(Math.max(1, Math.round(Number(r && r.id) || 0)), r);
+      for (const r of specRects) {
         if (normalizeDataFlow(r && r.dataFlow) === "none") continue;
         const cellX = drawCellX(r), cellY = drawCellY(r), topo = getCellTopologyCached(r, cellX, cellY), hs = getHiddenSet(r);
         const regions = planNumberRegions(r, cellX, cellY, topo, hs);
@@ -10148,27 +10063,28 @@ self.onmessage=e=>{
 
       const out = [
         `###### ${name} (${Math.round(r.width)}x${Math.round(r.height)} px / ${wM} x ${hM} м)`,
-        `- Группа: ${group}`,
-        `- Кабинеты: ${cabinetList.length ? cabinetList.join("; ") : "—"}`,
-        `- Коммутация: ${cableList.length ? cableList.join("; ") : "0м – 0 шт."}`,
-        `- Межэкранные связи: ${interTargetList.length ? interTargetList.join("; ") : "—"}`,
-        `- Межэкранная коммутация: ${interCableList.length ? interCableList.join("; ") : "0м – 0 шт."}`,
-        `- Подвесы: ${supportList.length ? supportList.join("; ") : "—"}`,
-        `- Рамы: ${frameCount > 0 ? `${frameCount} шт.` : "—"}`,
-        `- Грузы: ${bottomLoadList.length ? bottomLoadList.join("; ") : "—"}`,
-        `- Скоба монтажная для рамы: ${frameBracketCount} шт.`,
-        `- Болт для крепления скобы: ${frameBracketCount * 4} шт.`
+        `- Группа: ${group}`
       ];
+      pushSpecListLine(out, "Кабинеты", cabinetList);
+      pushSpecListLine(out, "Коммутация", cableList);
+      pushSpecListLine(out, "Межэкранные связи", interTargetList);
+      pushSpecListLine(out, "Межэкранная коммутация", interCableList);
+      pushSpecListLine(out, "Подвесы", supportList);
+      pushSpecCountLine(out, "Рамы", frameCount);
+      pushSpecListLine(out, "Грузы", bottomLoadList);
+      pushSpecCountLine(out, "Скоба монтажная для рамы", frameBracketCount);
+      pushSpecCountLine(out, "Болт для крепления скобы", frameBracketCount * 4);
 
       return out.join("\n");
     };
     const buildFlowSpecText = () => {
+      const specRects = st.rects.filter(r => !isNoteRect(r));
       const interSpec = buildInterScreenSpecData();
-      const screenBlocks = st.rects.map(r => buildRectSpecText(r, interSpec)).join("\n\n");
+      const screenBlocks = specRects.map(r => buildRectSpecText(r, interSpec)).join("\n\n");
 
       const byGroup = new Map();
 
-      for (const r of st.rects) {
+      for (const r of specRects) {
         const { group } = parseScreenNameGroup(r);
         const data = buildRectSpecData(r);
         const rigData = buildRectRigSpecData(r);
@@ -10211,21 +10127,22 @@ self.onmessage=e=>{
           const supportCount = sumMapCounts(rec.supportBySize);
           const frameBracketCount = rec.frameCount + rec.bottomRowFrameCount;
 
-          return [
+          const lines = [
             `###### Группа: ${group}`,
-            `- Площадь экранов: ${fmtAreaM2(rec.visibleAreaM2)} м²`,
-            `- Кабинеты: ${cab.length ? cab.join("; ") : "—"}`,
-            `- Коммутация: ${cbl.length ? cbl.join("; ") : "0м – 0 шт."}`,
-            `- Межэкранные связи: ${irts.length ? irts.join("; ") : "—"}`,
-            `- Межэкранная коммутация: ${icbl.length ? icbl.join("; ") : "0м – 0 шт."}`,
-            `- Подвесы: ${sup.length ? sup.join("; ") : "—"}`,
-            `- Рамы: ${rec.frameCount > 0 ? `${rec.frameCount} шт.` : "—"}`,
-            `- Грузы: ${btm.length ? btm.join("; ") : "—"}`,
-            `- Скоба такелажная: ${supportCount * 2} шт.`,
-            `- Стропа: ${supportCount * 2} шт.`,
-            `- Скоба монтажная для рамы: ${frameBracketCount} шт.`,
-            `- Болт для крепления скобы: ${frameBracketCount * 4} шт.`
-          ].join("\n");
+            `- Площадь экранов: ${fmtAreaM2(rec.visibleAreaM2)} м²`
+          ];
+          pushSpecListLine(lines, "Кабинеты", cab);
+          pushSpecListLine(lines, "Коммутация", cbl);
+          pushSpecListLine(lines, "Межэкранные связи", irts);
+          pushSpecListLine(lines, "Межэкранная коммутация", icbl);
+          pushSpecListLine(lines, "Подвесы", sup);
+          pushSpecCountLine(lines, "Рамы", rec.frameCount);
+          pushSpecListLine(lines, "Грузы", btm);
+          pushSpecCountLine(lines, "Скоба такелажная", supportCount * 2);
+          pushSpecCountLine(lines, "Стропа", supportCount * 2);
+          pushSpecCountLine(lines, "Скоба монтажная для рамы", frameBracketCount);
+          pushSpecCountLine(lines, "Болт для крепления скобы", frameBracketCount * 4);
+          return lines.join("\n");
         })
         .join("\n\n");
 
@@ -10351,8 +10268,8 @@ self.onmessage=e=>{
       if (isMaskMode() && e.key === "Enter") { applyMaskPath(); e.preventDefault(); return }
       if (e.key === "Delete") { delSel(); e.preventDefault() }
       if (e.ctrlKey && e.key.toLowerCase() === "d") { dupSel(); e.preventDefault() }
-      if (e.ctrlKey && e.key.toLowerCase() === "c") { const r = cur(); if (r) st.clip = { ...r, autoContrastB: r.autoContrastB !== false, rotation: r.rotation || 0, cellLinks: Array.isArray(r.cellLinks) ? [...r.cellLinks] : [], hiddenCells: Array.isArray(r.hiddenCells) ? [...r.hiddenCells] : [], manualClusters: normalizeManualClusters(r && r.manualClusters), rig: normalizeRigData(r && r.rig) }; e.preventDefault() }
-      if (e.ctrlKey && e.key.toLowerCase() === "v") { if (st.clip) { const c = { ...st.clip, id: st.next++, name: withNameSuffixBeforeGroup(st.clip.name, "copy"), x: st.clip.x + 20, y: st.clip.y + 20, rotation: st.clip.rotation || 0, autoContrastB: st.clip.autoContrastB !== false, colorB: (st.clip.autoContrastB !== false) ? autoContrast(st.clip.colorA) : st.clip.colorB, cellLinks: Array.isArray(st.clip.cellLinks) ? [...st.clip.cellLinks] : [], hiddenCells: Array.isArray(st.clip.hiddenCells) ? [...st.clip.hiddenCells] : [], manualClusters: normalizeManualClusters(st.clip && st.clip.manualClusters), rig: normalizeRigData(st.clip && st.clip.rig) }; insertCloneAboveSource(st.clip.id, c); selRect(c.id); setMode("select"); schedulePersist("project") } e.preventDefault() }
+      if (e.ctrlKey && e.key.toLowerCase() === "c") { const r = cur(); if (r) st.clip = cloneRectForClipboard(r); e.preventDefault() }
+      if (e.ctrlKey && e.key.toLowerCase() === "v") { if (st.clip) { const c = cloneRectForDuplicate(st.clip); insertCloneAboveSource(st.clip.id, c); selRect(c.id); setMode("select"); schedulePersist("project") } e.preventDefault() }
       const selected = getEditableSelectedRects(); if (selected.length) { const s = e.shiftKey ? 10 : 1; let dx = 0, dy = 0; if (e.key === "ArrowLeft") dx = -s; else if (e.key === "ArrowRight") dx = s; else if (e.key === "ArrowUp") dy = -s; else if (e.key === "ArrowDown") dy = s; if (dx || dy) { for (const it of selected) { it.x += dx; it.y += dy; } commitUiUpdate({ syncProps: true, listRects: true, persist: true, render: true }); e.preventDefault(); } }
     });
     window.addEventListener("keyup", e => { if (e.key === " ") st.keys.space = false; if (e.key === "Control") { st.keys.ctrl = false; st.g.x = null; st.g.y = null; st.dg = null; render() } });
