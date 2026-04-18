@@ -6057,6 +6057,10 @@
       error(text) { setSaveIndicator(text || "Ошибка автосейва", "danger"); },
       idle(text) { setSaveIndicator(text || "Автосейв включен", "secondary"); }
     };
+    const bindClick = (node, handler) => { if (node) node.onclick = handler; };
+    const bindEvent = (node, event, handler, options) => { if (node) node.addEventListener(event, handler, options); };
+    const refreshPropsListRender = () => { syncProps(); listRects(); render(); };
+    const persistProjectAndRender = () => { schedulePersist("project"); render(); };
     const commitProjectChange = (opts = {}) => {
       const o = (opts && typeof opts === "object") ? opts : {};
       if (o.syncProps) syncPropsSmart();
@@ -6810,7 +6814,7 @@
       const b = selBoxBounds(box), s = boxSize(box), clickLike = s.w < 3 / st.zoom && s.h < 3 / st.zoom;
       if (clickLike) {
         if (!box.append) setSelection([], null);
-        syncProps(); listRects(); render();
+        refreshPropsListRender();
         return true;
       }
       const ids = st.rects.filter(r => !isRectLocked(r) && rectIntersectsBox(rectAABBMasked(r), b)).map(r => r.id);
@@ -6822,7 +6826,7 @@
       } else {
         setSelection(ids, ids[ids.length - 1] || null);
       }
-      syncProps(); listRects(); render();
+      refreshPropsListRender();
       return true;
     };
     const isSelected = id => { normSelSet(); return st.selSet.has(id); };
@@ -6908,12 +6912,12 @@
     function hit(x, y) { for (let i = 0; i < st.rects.length; i++) { const r = st.rects[i]; if (isRectLocked(r)) continue; const p = worldToRectUV(r, x, y); if (p.u >= 0 && p.u <= r.width && p.v >= 0 && p.v <= r.height) return r } return null }
     function snapMaskNode(r, wx, wy) { if (!r) return null; const p = worldToRectUV(r, wx, wy); if (p.u < 0 || p.u > r.width || p.v < 0 || p.v > r.height) return null; const u = Math.max(0, Math.min(r.width, p.u)), v = Math.max(0, Math.min(r.height, p.v)), axes = getMaskNodeAxes(r); let gu = axes.xs[0], gv = axes.ys[0], bdx = 1e9, bdy = 1e9; for (const x of axes.xs) { const d = Math.abs(x - u); if (d < bdx) { bdx = d; gu = x } } for (const y of axes.ys) { const d = Math.abs(y - v); if (d < bdy) { bdy = d; gv = y } } return rectUVToWorld(r, gu, gv) }
     function addMaskPoint(wx, wy) { const r = cur(); if (!r || isRectLocked(r)) return; const p = snapMaskNode(r, wx, wy); if (!p) return; const first = st.maskPath[0], last = st.maskPath[st.maskPath.length - 1], eps = 6 / st.zoom; if (first && st.maskPath.length >= 3 && Math.hypot(p.x - first.x, p.y - first.y) <= eps) { applyMaskPath(); return } if (last && Math.abs(last.x - p.x) < 0.001 && Math.abs(last.y - p.y) < 0.001) return; st.maskPath.push(p); render() }
-    function applyMaskPath() { const r = cur(); if (!r || isRectLocked(r) || st.maskPath.length < 3) { st.maskPath = []; render(); return } const cx = drawCellX(r), cy = drawCellY(r), hs = getHiddenSet(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); for (let iy = 0; iy < rows; iy++) { for (let ix = 0; ix < cols; ix++) { const cw = Math.min(cx, r.width - ix * cx), ch = Math.min(cy, r.height - iy * cy), wp = rectUVToWorld(r, ix * cx + cw / 2, iy * cy + ch / 2); if (!pointInPoly(wp.x, wp.y, st.maskPath)) continue; const k = maskCellKey(ix, iy); if (hs.has(k)) hs.delete(k); else hs.add(k); } } setHiddenSet(r); st.maskPath = []; st.maskHover = null; schedulePersist("project"); render() }
+    function applyMaskPath() { const r = cur(); if (!r || isRectLocked(r) || st.maskPath.length < 3) { st.maskPath = []; render(); return } const cx = drawCellX(r), cy = drawCellY(r), hs = getHiddenSet(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); for (let iy = 0; iy < rows; iy++) { for (let ix = 0; ix < cols; ix++) { const cw = Math.min(cx, r.width - ix * cx), ch = Math.min(cy, r.height - iy * cy), wp = rectUVToWorld(r, ix * cx + cw / 2, iy * cy + ch / 2); if (!pointInPoly(wp.x, wp.y, st.maskPath)) continue; const k = maskCellKey(ix, iy); if (hs.has(k)) hs.delete(k); else hs.add(k); } } setHiddenSet(r); st.maskPath = []; st.maskHover = null; persistProjectAndRender() }
     function toggleCellLinkAtPoint(r, wx, wy) {
       if (!r || isRectLocked(r)) return false; const cand = getCellLinkCandidateAtPoint(r, wx, wy); if (!cand) return false; const arr = Array.isArray(r.cellLinks) ? r.cellLinks : [];
-      if (cand.exists) { const ks = new Set(cand.keys); r.cellLinks = arr.filter(v => !ks.has(v)); schedulePersist("project"); render(); return true }
+      if (cand.exists) { const ks = new Set(cand.keys); r.cellLinks = arr.filter(v => !ks.has(v)); persistProjectAndRender(); return true }
       if (!cand.canToggle) return false;
-      const next = new Set(arr); for (const k of cand.keys) next.add(k); r.cellLinks = [...next]; schedulePersist("project"); render(); return true
+      const next = new Set(arr); for (const k of cand.keys) next.add(k); r.cellLinks = [...next]; persistProjectAndRender(); return true
     }
     const clusterDragProjection = (dir, dx, dy) => {
       if (dir === "left") return -dx;
@@ -8726,7 +8730,7 @@
         e.preventDefault();
         if (!it) { listDragId = null; clearListDropMarker(); return; }
         const targetId = Math.round(Number(it.dataset.id) || 0), after = listDropNode === it ? listDropAfter : false;
-        if (targetId && reorderRects(listDragId, targetId, after)) { listRects(); schedulePersist("project"); render(); }
+        if (targetId && reorderRects(listDragId, targetId, after)) { listRects(); persistProjectAndRender(); }
         listDragId = null;
         clearListDropMarker();
       });
@@ -8999,7 +9003,7 @@
       render();
     };
     if (el.scale) bindCommitInput(el.scale, () => { applyGlobalScaleSettings(); syncProps(); });
-    const applyAreaM2Settings = () => { const r = cur(); if (!r || isRectLocked(r)) return; r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536); invalidateRectCache(r, "regions"); schedulePersist("project"); render() };
+    const applyAreaM2Settings = () => { const r = cur(); if (!r || isRectLocked(r)) return; r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536); invalidateRectCache(r, "regions"); persistProjectAndRender() };
     if (el.areaM2) bindCommitInput(el.areaM2, () => { applyAreaM2Settings(); syncProps(); });
     for (const btn of document.querySelectorAll("[data-area-m2-preset]")) {
       btn.addEventListener("click", () => {
@@ -9011,7 +9015,6 @@
     }
     bindCommitInput(el.textSize, () => { applyTextSettings(); syncProps(); });
     bindCommitInput(el.font, () => { applyTextSettings(); syncProps(); });
-    const bindClick = (btn, fn) => { if (btn) btn.onclick = fn; };
     const bindClicks = entries => { for (const [btn, fn] of entries) bindClick(btn, fn); };
     const bindProxyClick = (source, target) => bindClick(source, () => { if (target) target.click(); });
     bindClicks([
@@ -9057,8 +9060,8 @@
         }, { syncProps: true, listRects: true, persist: true, render: true });
       }]
     ]);
-    if (el.undo) el.undo.onclick = () => undoHistory();
-    if (el.redo) el.redo.onclick = () => redoHistory();
+    bindClick(el.undo, () => undoHistory());
+    bindClick(el.redo, () => redoHistory());
     const bindSnapToggles = () => {
       const bindings = [
         [el.snapGrid, "grid"],
@@ -9193,8 +9196,8 @@
       lsSet(HELP_SEEN_KEY, "1");
     };
     try { if (!lsGet(HELP_SEEN_KEY, "")) openHelpModal() } catch (_e) { openHelpModal() }
-    if (el.helpOpen) el.helpOpen.onclick = openHelpModal;
-    if (el.helpClose) el.helpClose.onclick = closeHelpModal;
+    bindClick(el.helpOpen, openHelpModal);
+    bindClick(el.helpClose, closeHelpModal);
     if (el.helpModal) el.helpModal.addEventListener("hidden.bs.modal", () => { lsSet(HELP_SEEN_KEY, "1"); });
     bindProxyClick(el.mToolSelect, el.toolSelect);
     bindProxyClick(el.mToolDraw, el.toolDraw);
@@ -9341,8 +9344,8 @@
       el.installBanner.classList.add("show");
     };
     const dismissInstallHint = () => { lsSet(INSTALL_HINT_KEY, "1"); hideInstallBanner() };
-    if (el.installBannerClose) el.installBannerClose.onclick = dismissInstallHint;
-    if (el.installApp) el.installApp.onclick = async () => {
+    bindClick(el.installBannerClose, dismissInstallHint);
+    bindClick(el.installApp, async () => {
       if (deferredInstallPrompt) {
         try {
           deferredInstallPrompt.prompt();
@@ -9357,7 +9360,7 @@
         return;
       }
       showInstallBanner("Установка недоступна в этом браузере.", "Ок", hideInstallBanner);
-    };
+    });
     window.addEventListener("beforeinstallprompt", e => {
       e.preventDefault();
       deferredInstallPrompt = e;
@@ -10064,6 +10067,7 @@
 </body>
 
 </html>
+
 
 
 
