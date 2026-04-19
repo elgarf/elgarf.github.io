@@ -1506,7 +1506,13 @@
     import { setupModalHelpers } from "./editor/modules/ui/modal-helpers.js";
     import { setupInstallBannerController } from "./editor/modules/ui/install-banner-controller.js";
     import { setupProjectLinkModalController } from "./editor/modules/ui/project-link-modal-controller.js";
+    import { setupProjectLinkActionsController } from "./editor/modules/ui/project-link-actions-controller.js";
     import { setupProjectIoController } from "./editor/modules/project-io-controller.js";
+    import { setupProjectLoadController } from "./editor/modules/project-load-controller.js";
+    import { setupTabsController } from "./editor/modules/tabs-controller.js";
+    import { setupPersistenceController } from "./editor/modules/persistence-controller.js";
+    import { setupHistoryController } from "./editor/modules/history-controller.js";
+    import { setupManualClustersController } from "./editor/modules/manual-clusters-controller.js";
     import { drawFlowStartMarker, drawFlowEndMarker } from "./editor/modules/flow/draw-helpers.js";
     import { setupInputController } from "./editor/modules/input-controller.js";
     import { setupKeyboardController } from "./editor/modules/keyboard-controller.js";
@@ -2009,42 +2015,48 @@
     const hiddenCache = new WeakMap();
     const getHiddenSet = r => { if (!r) return new Set(); const rec = hiddenCache.get(r); if (!rec || rec.src !== r.hiddenCells) { const next = { src: r.hiddenCells, set: new Set(Array.isArray(r.hiddenCells) ? r.hiddenCells : []) }; hiddenCache.set(r, next); return next.set } return rec.set };
     const setHiddenSet = r => { const src = [...getHiddenSet(r)]; r.hiddenCells = src; hiddenCache.set(r, { src: r.hiddenCells, set: new Set(src) }); invalidateRectCache(r, "topology"); };
-    const getManualClusters = r => {
-      if (!r || typeof r !== "object") return [];
-      const norm = normalizeManualClusters(r.manualClusters);
-      r.manualClusters = norm;
-      return norm;
-    };
-    const manualClustersSignature = r => {
-      const list = getManualClusters(r);
-      if (!list.length) return "";
-      return list.map(z => `${z.id}:${z.sx},${z.sy},${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join(";");
-    };
-    const clearRectRegionsAndFlow = r => invalidateRectCache(r, "regions");
+    let getManualClusters = (_r) => [];
+    let manualClustersSignature = (_r) => "";
+    let clearRectRegionsAndFlow = (_r) => { };
+    let findManualClusterById = (_r, _id) => null;
+    let findManualClusterAtCell = (_r, _col, _row) => null;
+    let normalizeClusterByMergedComponents = (_r, _cand) => null;
+    let clusterCanPlace = (_r, _cand, _ignoreId = null) => false;
+    let upsertManualCluster = (_r, _cluster) => false;
+    let removeManualCluster = (_r, _id) => false;
+    let nextManualClusterId = (_r) => 1;
+    let expandManualCluster = (_r, _id, _dir) => false;
+    let findShrinkCandidate = (_r, _z, _dir) => null;
+    let shrinkManualCluster = (_r, _id, _dir) => false;
+    ({
+      getManualClusters,
+      manualClustersSignature,
+      clearRectRegionsAndFlow,
+      findManualClusterById,
+      findManualClusterAtCell,
+      normalizeClusterByMergedComponents,
+      clusterCanPlace,
+      upsertManualCluster,
+      removeManualCluster,
+      nextManualClusterId,
+      expandManualCluster,
+      findShrinkCandidate,
+      shrinkManualCluster
+    } = setupManualClustersController({
+      st,
+      normalizeManualClusters,
+      invalidateRectCache: (r, reason) => invalidateRectCache(r, reason),
+      drawCellX: r => drawCellX(r),
+      drawCellY: r => drawCellY(r),
+      getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+      AREA_LIMIT_EPS
+    }));
     const clearFlowLockMemory = r => {
       if (!r || typeof r !== "object") return;
       try { delete r._flowLockRidToSig; } catch (_e) { r._flowLockRidToSig = {}; }
       try { delete r._flowLockSigToCfg; } catch (_e) { r._flowLockSigToCfg = {}; }
       try { delete r._flowLockCidToSeed; } catch (_e) { r._flowLockCidToSeed = {}; }
     };
-    const getMaxRegionAreaPx = r => (Math.max(1, Number(r && r.scale) || 256) * Math.max(1, Number(r && r.scale) || 256) * 655360) / Math.max(1, Number(r && r.areaM2Px) || 65536);
-    const getCellMetrics = (r, cx, cy) => {
-      const cols = Math.max(1, Math.ceil((Number(r && r.width) || 1) / Math.max(1, cx || 1))), rows = Math.max(1, Math.ceil((Number(r && r.height) || 1) / Math.max(1, cy || 1)));
-      const cellW = [], cellH = [];
-      for (let x = 0; x < r.width; x += cx)cellW.push(Math.min(cx, r.width - x));
-      for (let y = 0; y < r.height; y += cy)cellH.push(Math.min(cy, r.height - y));
-      const colPref = [0], rowPref = [0];
-      for (let i = 0; i < cellW.length; i++)colPref.push(colPref[i] + cellW[i]);
-      for (let i = 0; i < cellH.length; i++)rowPref.push(rowPref[i] + cellH[i]);
-      return { cols, rows, colPref, rowPref };
-    };
-    const clusterAreaPx = (cluster, m) => {
-      if (!cluster || !m) return 0;
-      const c0 = Math.max(0, Math.min(m.cols, Math.round(Number(cluster.c0) || 0))), c1 = Math.max(c0 + 1, Math.min(m.cols, Math.round(Number(cluster.c1) || 0)));
-      const r0 = Math.max(0, Math.min(m.rows, Math.round(Number(cluster.r0) || 0))), r1 = Math.max(r0 + 1, Math.min(m.rows, Math.round(Number(cluster.r1) || 0)));
-      return Math.max(0, (m.colPref[c1] - m.colPref[c0]) * (m.rowPref[r1] - m.rowPref[r0]));
-    };
-    const rectsOverlapCells = (a, b) => Math.min(a.c1, b.c1) > Math.max(a.c0, b.c0) && Math.min(a.r1, b.r1) > Math.max(a.r0, b.r0);
     const cellFromWorldPoint = (r, wx, wy, skipHidden = true) => {
       if (!r) return null;
       const cx = drawCellX(r), cy = drawCellY(r), p = worldToRectUV(r, wx, wy);
@@ -2053,132 +2065,6 @@
       const col = Math.max(0, Math.min(cols - 1, Math.floor(p.u / Math.max(1, cx)))), row = Math.max(0, Math.min(rows - 1, Math.floor(p.v / Math.max(1, cy))));
       if (skipHidden && getHiddenSet(r).has(maskCellKey(col, row))) return null;
       return { col, row, cx, cy, cols, rows };
-    };
-    const findManualClusterById = (r, id) => getManualClusters(r).find(z => Math.round(Number(z.id) || 0) === Math.round(Number(id) || 0)) || null;
-    const findManualClusterAtCell = (r, col, row) => getManualClusters(r).find(z => col >= z.c0 && col < z.c1 && row >= z.r0 && row < z.r1) || null;
-    const normalizeClusterByMergedComponents = (r, cand) => {
-      if (!r || !cand) return null;
-      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), cols = Math.max(1, topo && topo.cols || 1), rows = Math.max(1, topo && topo.rows || 1);
-      let out = { c0: Math.max(0, Math.min(cols - 1, Math.round(Number(cand.c0) || 0))), c1: Math.max(1, Math.min(cols, Math.round(Number(cand.c1) || 0))), r0: Math.max(0, Math.min(rows - 1, Math.round(Number(cand.r0) || 0))), r1: Math.max(1, Math.min(rows, Math.round(Number(cand.r1) || 0))) };
-      if (out.c1 <= out.c0 || out.r1 <= out.r0) return null;
-      const compBBoxes = new Map();
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          const idx = y * cols + x, cid = topo.comp[idx];
-          let b = compBBoxes.get(cid);
-          if (!b) { b = { c0: x, c1: x + 1, r0: y, r1: y + 1 }; compBBoxes.set(cid, b); }
-          else {
-            if (x < b.c0) b.c0 = x;
-            if (x + 1 > b.c1) b.c1 = x + 1;
-            if (y < b.r0) b.r0 = y;
-            if (y + 1 > b.r1) b.r1 = y + 1;
-          }
-        }
-      }
-      let changed = true, safe = 0;
-      while (changed && safe < 128) {
-        safe++;
-        changed = false;
-        for (const b of compBBoxes.values()) {
-          const intersects = Math.min(out.c1, b.c1) > Math.max(out.c0, b.c0) && Math.min(out.r1, b.r1) > Math.max(out.r0, b.r0);
-          if (!intersects) continue;
-          const fullyInside = (b.c0 >= out.c0 && b.c1 <= out.c1 && b.r0 >= out.r0 && b.r1 <= out.r1);
-          if (fullyInside) continue;
-          const n = { c0: Math.min(out.c0, b.c0), c1: Math.max(out.c1, b.c1), r0: Math.min(out.r0, b.r0), r1: Math.max(out.r1, b.r1) };
-          if (n.c0 !== out.c0 || n.c1 !== out.c1 || n.r0 !== out.r0 || n.r1 !== out.r1) { out = n; changed = true; }
-        }
-        if (out.c0 < 0 || out.r0 < 0 || out.c1 > cols || out.r1 > rows) return null;
-      }
-      return out;
-    };
-    const clusterCanPlace = (r, cand, ignoreId = null) => {
-      if (!r || !cand) return false;
-      const norm = normalizeClusterByMergedComponents(r, cand);
-      if (!norm) return false;
-      const cx = drawCellX(r), cy = drawCellY(r), m = getCellMetrics(r, cx, cy), maxArea = getMaxRegionAreaPx(r);
-      if (norm.c0 < 0 || norm.r0 < 0 || norm.c1 > m.cols || norm.r1 > m.rows || norm.c1 <= norm.c0 || norm.r1 <= norm.r0) return false;
-      if (clusterAreaPx(norm, m) > maxArea + AREA_LIMIT_EPS) return false;
-      const clusters = getManualClusters(r);
-      for (const z of clusters) {
-        if (ignoreId != null && Math.round(Number(z.id) || 0) === Math.round(Number(ignoreId) || 0)) continue;
-        if (rectsOverlapCells(norm, z)) return false;
-      }
-      return true;
-    };
-    const upsertManualCluster = (r, cluster) => {
-      if (!r || !cluster) return false;
-      const list = getManualClusters(r);
-      const id = Math.max(1, Math.round(Number(cluster.id) || 0) || 1), idx = list.findIndex(z => Math.round(Number(z.id) || 0) === id);
-      const base = { id, sx: Math.max(0, Math.round(Number(cluster.sx) || 0)), sy: Math.max(0, Math.round(Number(cluster.sy) || 0)), c0: Math.max(0, Math.round(Number(cluster.c0) || 0)), c1: Math.max(1, Math.round(Number(cluster.c1) || 1)), r0: Math.max(0, Math.round(Number(cluster.r0) || 0)), r1: Math.max(1, Math.round(Number(cluster.r1) || 1)) };
-      const norm = normalizeClusterByMergedComponents(r, base);
-      if (!norm) return false;
-      const next = { ...base, ...norm };
-      if (idx >= 0) list[idx] = next; else list.push(next);
-      r.manualClusters = normalizeManualClusters(list);
-      r.splitVariant = 0;
-      clearRectRegionsAndFlow(r);
-      return true;
-    };
-    const removeManualCluster = (r, id) => {
-      if (!r) return false;
-      const list = getManualClusters(r), next = list.filter(z => Math.round(Number(z.id) || 0) !== Math.round(Number(id) || 0));
-      if (next.length === list.length) return false;
-      r.manualClusters = normalizeManualClusters(next);
-      r.splitVariant = 0;
-      clearRectRegionsAndFlow(r);
-      if (st.clusterActiveId != null && Math.round(Number(st.clusterActiveId) || 0) === Math.round(Number(id) || 0)) st.clusterActiveId = null;
-      return true;
-    };
-    const nextManualClusterId = r => {
-      const used = new Set(getManualClusters(r).map(z => Math.max(1, Math.round(Number(z.id) || 0))));
-      let id = 1;
-      while (used.has(id)) id++;
-      return id;
-    };
-    const expandManualCluster = (r, id, dir) => {
-      const z = findManualClusterById(r, id);
-      if (!z) return false;
-      const cand = { ...z };
-      if (dir === "left") cand.c0--;
-      else if (dir === "right") cand.c1++;
-      else if (dir === "up") cand.r0--;
-      else if (dir === "down") cand.r1++;
-      else return false;
-      const norm = normalizeClusterByMergedComponents(r, cand);
-      if (!norm) return false;
-      if (!clusterCanPlace(r, norm, id)) return false;
-      return upsertManualCluster(r, { ...cand, ...norm });
-    };
-    const findShrinkCandidate = (r, z, dir) => {
-      if (!r || !z) return null;
-      const w = Math.max(1, Math.round(Number(z.c1 - z.c0) || 1)), h = Math.max(1, Math.round(Number(z.r1 - z.r0) || 1));
-      const maxStep = (dir === "left" || dir === "right") ? (w - 1) : (h - 1);
-      if (maxStep <= 0) return null;
-      const sx = Math.max(0, Math.round(Number(z.sx) || 0)), sy = Math.max(0, Math.round(Number(z.sy) || 0));
-      for (let step = 1; step <= maxStep; step++) {
-        const cand = { ...z };
-        if (dir === "left") cand.c0 += step;
-        else if (dir === "right") cand.c1 -= step;
-        else if (dir === "up") cand.r0 += step;
-        else if (dir === "down") cand.r1 -= step;
-        else return null;
-        if (cand.c1 <= cand.c0 || cand.r1 <= cand.r0) continue;
-        const norm = normalizeClusterByMergedComponents(r, cand);
-        if (!norm) continue;
-        const same = (norm.c0 === z.c0 && norm.c1 === z.c1 && norm.r0 === z.r0 && norm.r1 === z.r1);
-        if (same) continue;
-        if (!(sx >= norm.c0 && sx < norm.c1 && sy >= norm.r0 && sy < norm.r1)) continue;
-        if (!clusterCanPlace(r, norm, z.id)) continue;
-        return { ...cand, ...norm };
-      }
-      return null;
-    };
-    const shrinkManualCluster = (r, id, dir) => {
-      const z = findManualClusterById(r, id);
-      if (!z) return false;
-      const next = findShrinkCandidate(r, z, dir);
-      if (!next) return false;
-      return upsertManualCluster(r, next);
     };
     const isClusterEditMode = () => st.mode === "clusterEdit";
     const isRigEditMode = () => st.mode === "rigEdit";
@@ -6030,24 +5916,27 @@
     };
     const metricFromPx = r => { r.scale = Math.max(1, Math.round(+r.scale || 256)); r.width = Math.max(1, Math.round(+r.width || 1)); r.height = Math.max(1, Math.round(+r.height || 1)); r.widthM = Math.max(0.001, mRound(r.width / r.scale)); r.heightM = Math.max(0.001, mRound(r.height / r.scale)); };
     const pxFromMetric = r => { r.scale = Math.max(1, Math.round(+r.scale || 256)); r.widthM = Math.max(0.001, +r.widthM || 0.001); r.heightM = Math.max(0.001, +r.heightM || 0.001); r.width = Math.max(1, Math.round(r.widthM * r.scale)); r.height = Math.max(1, Math.round(r.heightM * r.scale)); };
-    let persistTimer = null;
-    let persistTabsDirty = false;
-    let persistProjectDirty = false;
-    const formatTimeHHMMSS = d => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
-    const setSaveIndicator = (text, tone = "secondary") => {
-      if (!el.saveIndicator) return;
-      el.saveIndicator.textContent = text;
-      el.saveIndicator.title = text;
-      el.saveIndicator.setAttribute("aria-label", text);
-      el.saveIndicator.classList.remove("text-secondary", "text-success", "text-warning", "text-danger");
-      el.saveIndicator.classList.add(`text-${tone}`);
+    let setSaveIndicator = (_text, _tone = "secondary") => { };
+    let saveStatus = {
+      saving() { },
+      saved(_text) { },
+      error(_text) { },
+      idle(_text) { }
     };
-    const saveStatus = {
-      saving() { setSaveIndicator("Сохранение...", "warning"); },
-      saved(text) { setSaveIndicator(text || `Сохранено ${formatTimeHHMMSS(new Date())}`, "success"); },
-      error(text) { setSaveIndicator(text || "Ошибка автосейва", "danger"); },
-      idle(text) { setSaveIndicator(text || "Автосейв включен", "secondary"); }
-    };
+    let persistNow = () => { };
+    let schedulePersist = (_kind = "project") => { };
+    let getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
+    let isMobileTabStorageMode = () => false;
+    let syncActiveTabSnapshot = () => { };
+    let renderProjectTabs = () => { };
+    let buildTabsBundle = () => ({ version: 1, nextTabId: 2, activeTabId: 1, tabs: [] });
+    let openProjectTab = (_tabId) => { };
+    let createProjectTab = (_data) => { };
+    let closeProjectTab = (_tabId) => { };
+    let initHistoryCurrent = () => { };
+    let historyCommitIfChanged = () => { };
+    let undoHistory = () => { };
+    let redoHistory = () => { };
     const {
       bindClick,
       bindEvent,
@@ -6073,15 +5962,6 @@
       if (o.listRects) listRects();
       if (o.persist !== false) schedulePersist(o.persistKind || "project");
       if (o.render !== false) render();
-    };
-    const persistNow = () => {
-      try {
-        if (persistTabsDirty) { lsSet(TABS_SAVE_KEY, JSON.stringify(buildTabsBundle())); persistTabsDirty = false; }
-        if (persistProjectDirty) { lsSet(AUTO_SAVE_KEY, JSON.stringify(buildProject())); persistProjectDirty = false; }
-        saveStatus.saved();
-      } catch (_e) {
-        saveStatus.error();
-      }
     };
     const themeMedia = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
     const isInstallViewMode = () => normalizeViewMode(st.viewMode) === "install";
@@ -6204,110 +6084,37 @@
     const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: normalizeViewMode(st.viewMode), lockAll: !!st.lockAll, snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, flowLinks: normalizeFlowLinks(st.flowLinks), rectangles: st.rects.map(serializeRectForProject) });
     const cloneProjectData = data => cloneJson(data, () => buildProject());
     const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", lockAll: !!st.lockAll, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
-    const getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
-    const isMobileTabStorageMode = () => {
-      try {
-        const byWidth = window.matchMedia && window.matchMedia("(max-width:900px)").matches;
-        const byPointer = window.matchMedia && window.matchMedia("(hover:none) and (pointer:coarse)").matches;
-        return !!(byWidth || byPointer);
-      } catch (_e) {
-        return false;
-      }
-    };
-    let tabSwitchTimer = 0;
-    const runTabSwitchTransition = task => {
-      const host = wrap;
-      if (!host) { task(); return; }
-      if (tabSwitchTimer) { clearTimeout(tabSwitchTimer); tabSwitchTimer = 0; }
-      const runTask = () => {
-        task();
-        const finishSwitch = () => {
-          render();
-          if (typeof requestAnimationFrame === "function") {
-            requestAnimationFrame(() => {
-              host.classList.remove("tab-switching");
-              render();
-            });
-          } else {
-            host.classList.remove("tab-switching");
-            render();
-          }
-        };
-        if (typeof requestAnimationFrame === "function") requestAnimationFrame(finishSwitch);
-        else finishSwitch();
-      };
-      host.classList.add("tab-switching");
-      tabSwitchTimer = setTimeout(() => {
-        tabSwitchTimer = 0;
-        runTask();
-      }, 170);
-    };
-    const syncActiveTabSnapshot = () => {
-      const t = getActiveTab();
-      if (!t) return;
-      t.title = (st.projectName || "Новый проект").trim() || "Новый проект";
-      t.data = cloneProjectData(buildProject());
-    };
-    const renderProjectTabs = () => {
-      if (!el.projectTabsList) return;
-      el.projectTabsList.innerHTML = "";
-      for (const t of st.tabs) {
-        const li = document.createElement("li");
-        li.className = "nav-item";
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = `nav-link ${t.id === st.activeTabId ? "active" : ""}`;
-        btn.title = t.title || "Новый проект";
-        btn.setAttribute("aria-selected", t.id === st.activeTabId ? "true" : "false");
-        const title = document.createElement("span");
-        title.className = "tab-title";
-        title.textContent = t.title || "Новый проект";
-        const close = document.createElement("span");
-        close.className = "tab-close-icon";
-        close.title = "Закрыть вкладку";
-        close.setAttribute("aria-label", "Закрыть вкладку");
-        close.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-        btn.appendChild(title);
-        btn.appendChild(close);
-        bindEvent(btn, "click", e => {
-          const closeEl = eventClosest(e, ".tab-close-icon");
-          if (closeEl) { closeProjectTab(t.id); return; }
-          openProjectTab(t.id);
-        });
-        li.appendChild(btn);
-        el.projectTabsList.appendChild(li);
-      }
-    };
-    const buildTabsBundle = () => {
-      syncActiveTabSnapshot();
-      if (isMobileTabStorageMode()) {
-        const active = getActiveTab() || st.tabs[0] || { id: 1, title: "Новый проект", data: makeEmptyProjectData("Новый проект") };
-        const activeId = Number(active && active.id) || 1;
-        return {
-          version: 1,
-          nextTabId: Math.max(2, activeId + 1),
-          activeTabId: activeId,
-          tabs: [{ id: activeId, title: active.title || "Новый проект", data: cloneProjectData(active.data || makeEmptyProjectData(active.title || "Новый проект")) }]
-        };
-      }
-      return { version: 1, nextTabId: st.nextTabId, activeTabId: st.activeTabId, tabs: st.tabs.map(t => ({ id: t.id, title: t.title || "Новый проект", data: cloneProjectData(t.data || makeEmptyProjectData(t.title || "Новый проект")) })) };
-    };
-    const schedulePersist = (kind = "project") => {
-      if (kind === "tabs" || kind === "all") persistTabsDirty = true;
-      if (kind === "project" || kind === "all") {
-        persistProjectDirty = true;
-        persistTabsDirty = true;
-        historyCommitIfChanged();
-      }
-      saveStatus.saving();
-      if (persistTimer) {
-        clearTimeout(persistTimer);
-      }
-      persistTimer = setTimeout(() => {
-        persistTimer = null;
-        persistNow();
-      }, PERSIST_DEBOUNCE_MS);
-    };
+    const tabsController = setupTabsController({
+      st, el, wrap, bindEvent, eventClosest, render,
+      cloneProjectData, makeEmptyProjectData, buildProject,
+      loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
+      schedulePersist: (...args) => schedulePersist(...args)
+    });
+    ({
+      getActiveTab,
+      isMobileTabStorageMode,
+      syncActiveTabSnapshot,
+      renderProjectTabs,
+      buildTabsBundle,
+      openProjectTab,
+      createProjectTab,
+      closeProjectTab
+    } = tabsController);
+    ({
+      setSaveIndicator,
+      saveStatus,
+      persistNow,
+      schedulePersist
+    } = setupPersistenceController({
+      el,
+      lsSet,
+      buildTabsBundle: () => buildTabsBundle(),
+      buildProject: () => buildProject(),
+      TABS_SAVE_KEY,
+      AUTO_SAVE_KEY,
+      PERSIST_DEBOUNCE_MS,
+      historyCommitIfChanged: () => historyCommitIfChanged()
+    }));
     const refreshPanels = () => { syncProps(); listRects(); };
     const commitUiUpdate = (opts = {}) => {
       const o = opts && typeof opts === "object" ? opts : {};
@@ -6319,42 +6126,6 @@
     const loadProjectIntoActiveState = data => {
       applyProjectData(data || makeEmptyProjectData("Новый проект"), { syncTabSnapshot: false, renderTabs: false });
     };
-    function openProjectTab(tabId) {
-      const next = st.tabs.find(t => t.id === tabId);
-      if (!next || st.activeTabId === tabId) return;
-      if (st.activeTabId !== null) syncActiveTabSnapshot();
-      runTabSwitchTransition(() => {
-        st.activeTabId = tabId;
-        loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
-        renderProjectTabs();
-      });
-    }
-    function createProjectTab(data) {
-      syncActiveTabSnapshot();
-      const d = cloneProjectData(data || makeEmptyProjectData("Новый проект"));
-      const title = (d.projectName || "Новый проект").trim() || "Новый проект";
-      const tab = { id: st.nextTabId++, title, data: d };
-      st.tabs.push(tab);
-      st.activeTabId = tab.id;
-      loadProjectIntoActiveState(d);
-      renderProjectTabs();
-      schedulePersist("all");
-    }
-    function closeProjectTab(tabId) {
-      if (st.tabs.length <= 1) return;
-      const idx = st.tabs.findIndex(t => t.id === tabId);
-      if (idx < 0) return;
-      const wasActive = st.activeTabId === tabId;
-      st.tabs.splice(idx, 1);
-      if (!wasActive) { renderProjectTabs(); schedulePersist("tabs"); return; }
-      const next = st.tabs[Math.max(0, idx - 1)] || st.tabs[0];
-      runTabSwitchTransition(() => {
-        st.activeTabId = next.id;
-        loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
-        renderProjectTabs();
-      });
-      schedulePersist("tabs");
-    }
     const evalExpr = (input, fallback) => { const s = String(input ?? "").trim(); if (!s) return fallback; const n = Number(s.replace(",", ".")); if (Number.isFinite(n)) return n; const normalized = s.replace(/,/g, ".").replace(/\s+/g, ""); if (!/^[0-9+\-*/().]+$/.test(normalized)) return fallback; try { const v = Function(`"use strict";return (${normalized});`)(); return Number.isFinite(v) ? v : fallback } catch (_e) { return fallback } };
     const toRoundedInt = (v, fallback = 0) => {
       const n = Number(v);
@@ -6816,44 +6587,21 @@
     };
     const updateModeBadges = r => {
     };
-    const historyCap = 80;
-    const initHistoryCurrent = () => { st.history.current = cloneJson(buildProject(), () => buildProject()); };
-    const historyCommitIfChanged = () => {
-      if (!st.history || st.history.suspend) return;
-      const next = cloneJson(buildProject(), () => buildProject());
-      const cur = st.history.current;
-      if (!cur) { st.history.current = next; return; }
-      if (jsonEquals(cur, next)) return;
-      st.history.undo.push(cur);
-      if (st.history.undo.length > historyCap) st.history.undo.shift();
-      st.history.current = next;
-      st.history.redo = [];
-      if (el.undo) el.undo.disabled = !st.history.undo.length;
-      if (el.redo) el.redo.disabled = !st.history.redo.length;
-    };
-    const historyApplySnapshot = snap => {
-      if (!snap) return;
-      st.history.suspend = true;
-      applyProjectData(cloneJson(snap, () => buildProject()), { syncTabSnapshot: true, renderTabs: true, render: true });
-      st.history.suspend = false;
-      st.history.current = cloneJson(buildProject(), () => buildProject());
-      if (el.undo) el.undo.disabled = !st.history.undo.length;
-      if (el.redo) el.redo.disabled = !st.history.redo.length;
-    };
-    const undoHistory = () => {
-      if (!st.history.undo.length) return;
-      const prev = st.history.undo.pop(), curSnap = cloneJson(buildProject(), () => buildProject());
-      st.history.redo.push(curSnap);
-      historyApplySnapshot(prev);
-      schedulePersist("project");
-    };
-    const redoHistory = () => {
-      if (!st.history.redo.length) return;
-      const next = st.history.redo.pop(), curSnap = cloneJson(buildProject(), () => buildProject());
-      st.history.undo.push(curSnap);
-      historyApplySnapshot(next);
-      schedulePersist("project");
-    };
+    ({
+      initHistoryCurrent,
+      historyCommitIfChanged,
+      undoHistory,
+      redoHistory
+    } = setupHistoryController({
+      st,
+      el,
+      cloneJson,
+      buildProject: () => buildProject(),
+      jsonEquals,
+      applyProjectData: (data, opts) => applyProjectData(data, opts),
+      schedulePersist: (...args) => schedulePersist(...args),
+      historyCap: 80
+    }));
     function selRect(id, opts) {
       if (id != null) {
         const rr = getRectById(id);
@@ -9071,150 +8819,35 @@
       if (!name) return;
       const url = URL.createObjectURL(blob), a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
     };
-        const legacyCopyText = text => {
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = String(text || "");
-        ta.setAttribute("readonly", "true");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        ta.style.top = "0";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        ta.setSelectionRange(0, ta.value.length);
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        return !!ok;
-      } catch (_e) {
-        return false;
-      }
-    };
-    const verifyClipboardText = async expected => {
-      try {
-        if (!navigator.clipboard || typeof navigator.clipboard.readText !== "function") return null;
-        const got = await navigator.clipboard.readText();
-        return String(got || "") === String(expected || "");
-      } catch (_e) {
-        return null;
-      }
-    };
-    const copyTextSmart = async text => {
-      const value = String(text || "");
-      let wrote = false;
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-        try {
-          await navigator.clipboard.writeText(value);
-          wrote = true;
-          const verified = await verifyClipboardText(value);
-          if (verified === true) return true;
-          if (verified === false) wrote = false;
-        } catch (_e) { }
-      }
-      if (!wrote) {
-        const legacyOk = legacyCopyText(value);
-        if (!legacyOk) return false;
-        const verified = await verifyClipboardText(value);
-        if (verified === false) return false;
-        return true;
-      }
-      return true;
-    };
-    const applyLoadedProjectData = (data, persistKind = "all") => {
-      loadProjectIntoActiveState(data);
-      syncActiveTabSnapshot();
-      renderProjectTabs();
-      schedulePersist(persistKind);
-    };
-    const loadProjectFromFile = async f => {
-      const name = String(f && f.name || "").toLowerCase();
-      const type = String(f && f.type || "").toLowerCase();
-      const isPng = type === "image/png" || name.endsWith(".png");
-      if (isPng) {
-        const bytes = new Uint8Array(await f.arrayBuffer());
-        const text = extractProjectFromPngBytes(bytes, PNG_PROJECT_META_KEY);
-        if (!text) {
-          showMessageModal("Данное изображение не содержит данных проекта", "Импорт PNG");
-          return;
-        }
-        try {
-          const d = JSON.parse(text);
-          applyLoadedProjectData(d, "all");
-        } catch (err) {
-          showErrorModal("Ошибка импорта", err, "Ошибка данных проекта в PNG");
-        }
-        return;
-      }
-      const text = await f.text();
-      try {
-        const d = JSON.parse(String(text || "{}"));
-        applyLoadedProjectData(d, "all");
-      } catch (err) {
-        showErrorModal("Ошибка импорта", err, "Ошибка JSON");
-      }
-    };
+    const { bindProjectLoadHandlers } = setupProjectLoadController({
+      el,
+      bindClick: (...args) => bindClick(...args),
+      withUiErrorBoundary: (...args) => withUiErrorBoundary(...args),
+      extractProjectFromPngBytes,
+      PNG_PROJECT_META_KEY,
+      showMessageModal: (...args) => showMessageModal(...args),
+      showErrorModal: (...args) => showErrorModal(...args),
+      loadProjectIntoActiveState: (...args) => loadProjectIntoActiveState(...args),
+      syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
+      renderProjectTabs: () => renderProjectTabs(),
+      schedulePersist: (...args) => schedulePersist(...args)
+    });
+    bindProjectLoadHandlers();
     bindClick(el.save, async () => { const text = JSON.stringify(buildProject(), null, 2); const blob = new Blob([text], { type: "application/json" }); await saveBlobWithSystemDialog(blob, `${projectFileBase()}.json`, "application/json", ".json", "JSON files", st.saveLocationId) });
-    let currentProjectShareLink = "";
-    const setProjectLinkCopyButtonState = (text, copied = false, disabled = false) => {
-      if (!el.projectLinkCopyBtn) return;
-      const label = el.projectLinkCopyBtn.querySelector("span");
-      const icon = el.projectLinkCopyBtn.querySelector("i");
-      if (label) label.textContent = text;
-      if (icon) icon.className = copied ? "fa-solid fa-check" : "fa-regular fa-clipboard";
-      el.projectLinkCopyBtn.disabled = !!disabled;
-    };
-    const onSaveProjectLinkClick = async () => {
-      showProjectLinkModal("", { loading: true, loadingText: "Формируем ссылку..." });
-      setProjectLinkCopyButtonState("Подготовка...", false, true);
-      currentProjectShareLink = "";
-      await new Promise(resolve => setTimeout(resolve, 0));
-      await withUiErrorBoundary("Ссылка проекта", async () => {
-        const value = await encodeProjectToQueryValue(buildPortableProject());
-        const url = new URL(location.href);
-        let usedServerId = 0;
-        try { usedServerId = await saveProjectToServer(st.projectName, value); } catch (_e) { usedServerId = 0; }
-        if (usedServerId > 0) {
-          url.searchParams.delete(PROJECT_QUERY_PARAM);
-          url.searchParams.set(PROJECT_ID_PARAM, String(usedServerId));
-        } else {
-          url.searchParams.set(PROJECT_QUERY_PARAM, value);
-          url.searchParams.delete(PROJECT_ID_PARAM);
-        }
-        const link = url.toString();
-        currentProjectShareLink = link;
-        setProjectLinkCopyButtonState("Скопировать ссылку", false, false);
-        showProjectLinkModal(link, { loading: false });
-      }, "Не удалось сформировать ссылку проекта");
-      if (!currentProjectShareLink) setProjectLinkCopyButtonState("Скопировать ссылку", false, false);
-    };
-    bindEvent(el.projectLinkCopyBtn, "click", async () => {
-      const link = currentProjectShareLink || (el.projectLinkText && el.projectLinkText.value) || "";
-      if (!link) return;
-      const copied = await copyTextSmart(link);
-      if (copied) {
-        setProjectLinkCopyButtonState("Ссылка скопирована", true);
-        setTimeout(() => setProjectLinkCopyButtonState("Скопировать ссылку", false), 1400);
-      } else {
-        window.prompt("Скопируйте ссылку проекта", link);
-      }
+    const { bindProjectLinkHandlers } = setupProjectLinkActionsController({
+      el,
+      bindEvent: (...args) => bindEvent(...args),
+      eventClosest: (...args) => eventClosest(...args),
+      showProjectLinkModal: (...args) => showProjectLinkModal(...args),
+      withUiErrorBoundary: (...args) => withUiErrorBoundary(...args),
+      encodeProjectToQueryValue: (...args) => encodeProjectToQueryValue(...args),
+      buildPortableProject: () => buildPortableProject(),
+      saveProjectToServer: (...args) => saveProjectToServer(...args),
+      getProjectName: () => st.projectName,
+      PROJECT_QUERY_PARAM,
+      PROJECT_ID_PARAM
     });
-    bindEvent(el.saveLink, "click", onSaveProjectLinkClick);
-    bindEvent(document, "click", e => {
-      const btn = eventClosest(e, "#saveProjectLink");
-      if (!btn) return;
-      if (btn !== el.saveLink) onSaveProjectLinkClick();
-    });
-    bindClick(el.load, () => { if (el.file) el.file.click(); });
-    el.file.addEventListener("change", async () => {
-      const f = el.file.files && el.file.files[0];
-      if (!f) return;
-      try {
-        await withUiErrorBoundary("Ошибка загрузки", async () => await loadProjectFromFile(f), "Ошибка загрузки файла");
-      } finally {
-        el.file.value = "";
-      }
-    });
+    bindProjectLinkHandlers();
     const fmtOne = v => { const n = Math.round((Number(v) || 0) * 10) / 10; return Number.isInteger(n) ? `${n.toFixed(0)}` : n.toFixed(1) };
     const fmtMeters = v => { const n = Math.round((Number(v) || 0) * 1000) / 1000; return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "") };
     const parseScreenNameGroup = r => {
