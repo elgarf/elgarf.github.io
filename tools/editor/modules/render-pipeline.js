@@ -6,6 +6,9 @@ export const setupRenderPipeline = (deps = {}) => {
     drawGrid, drawGuides, drawDistanceGuide, updateNoteEditorOverlay,
     selBoxBounds, resetClusterHoverTransient, isClusterEditMode
   } = deps;
+  let drawGridFn = drawGrid;
+  let drawGuidesFn = drawGuides;
+  let drawDistanceGuideFn = drawDistanceGuide;
 
   const resetFrameTransient = () => {
     st.flowEditPoints = [];
@@ -64,7 +67,7 @@ export const setupRenderPipeline = (deps = {}) => {
     const z = st.zoom || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight);
-    drawGrid();
+    if (typeof drawGridFn === "function") drawGridFn();
     ctx.save();
     ctx.translate(vm.centerX, vm.centerY);
     ctx.scale(z, z);
@@ -79,14 +82,17 @@ export const setupRenderPipeline = (deps = {}) => {
       drawContentBounds(ctx, z);
     }
     ctx.restore();
-    drawGuides();
-    drawDistanceGuide();
+    if (typeof drawGuidesFn === "function") drawGuidesFn();
+    if (typeof drawDistanceGuideFn === "function") drawDistanceGuideFn();
     if (wrap) wrap.dataset.panning = st.pan ? "1" : "0";
     updateNoteEditorOverlay();
   };
 
   return {
     resetFrameTransient,
-    renderScene
+    renderScene,
+    setGridRenderer: fn => { drawGridFn = fn; },
+    setGuidesRenderer: fn => { drawGuidesFn = fn; },
+    setDistanceGuideRenderer: fn => { drawDistanceGuideFn = fn; }
   };
 };
