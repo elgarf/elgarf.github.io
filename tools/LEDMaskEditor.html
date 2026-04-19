@@ -1509,6 +1509,9 @@
     import { setupInstallBannerController } from "./editor/modules/ui/install-banner-controller.js";
     import { setupProjectLinkModalController } from "./editor/modules/ui/project-link-modal-controller.js";
     import { setupNoteEditorController } from "./editor/modules/ui/note-editor-controller.js";
+    import { setupBootstrapModalFactory } from "./editor/modules/ui/bootstrap-modal-factory.js";
+    import { setupToolbarController } from "./editor/modules/ui/toolbar-controller.js";
+    import { setupViewThemeLockController } from "./editor/modules/ui/view-theme-lock-controller.js";
     import { setupTransientStateController } from "./editor/modules/ui/transient-state-controller.js";
     import { setupSelectionController } from "./editor/modules/ui/selection-controller.js";
     import { setupProjectLinkActionsController } from "./editor/modules/ui/project-link-actions-controller.js";
@@ -1520,6 +1523,7 @@
     import { setupExportPackageController } from "./editor/modules/export-package-controller.js";
     import { setupTabsController } from "./editor/modules/tabs-controller.js";
     import { setupPersistenceController } from "./editor/modules/persistence-controller.js";
+    import { setupChangeOpsController } from "./editor/modules/state/change-ops.js";
     import { setupHistoryController } from "./editor/modules/history-controller.js";
     import { setupManualClustersController } from "./editor/modules/manual-clusters-controller.js";
     import { setupRigCore } from "./editor/modules/rig-core.js";
@@ -1529,6 +1533,7 @@
     import { setupFlowAnchorResolver } from "./editor/modules/flow/anchor-resolver.js";
     import { setupInterScreenLinksRender } from "./editor/modules/flow/inter-screen-links-render.js";
     import { setupNoteRender } from "./editor/modules/render/note-render.js";
+    import { setupViewportMetricsController } from "./editor/modules/render/viewport-metrics.js";
     import { setupViewportOverlays } from "./editor/modules/render/viewport-overlays.js";
     import { setupInputController } from "./editor/modules/input-controller.js";
     import { setupKeyboardController } from "./editor/modules/keyboard-controller.js";
@@ -1561,14 +1566,7 @@
       PNG_PROJECT_META_KEY
     } from "./editor/modules/constants.js";
     const $ = id => document.getElementById(id), cv = $("editorCanvas"), ctx = cv.getContext("2d"), wrap = $("canvasWrap");
-    const ensureMobileDock = () => {
-      const host = document.querySelector(".app") || document.body;
-      let dock = document.querySelector(".mobile-dock");
-      if (!dock) return;
-      if (dock.parentElement !== host) host.appendChild(dock);
-    };
     const pickEls = ids => Object.fromEntries(ids.map(id => [id, $(id)]));
-    ensureMobileDock();
     const el = {
       ...pickEls([
         "projectTabs", "projectTabsList", "projectTabAdd", "toolbarMain", "overflowGroup", "toolbarOverflowToggle", "toolbarOverflowPopup",
@@ -1634,151 +1632,14 @@
     };
     const desktopToolButtons = [el.toolSelect, el.toolDraw, el.toolNote, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean);
     const mobileToolButtons = [el.mToolSelect, el.mToolDraw, el.mToolNote, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean);
-    const overflowButtonIds = ["toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle", "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "themeToggle"];
-    const overflowButtons = overflowButtonIds.map(id => el[id]).filter(Boolean);
-    const overflowGroups = [...new Set(overflowButtons.map(b => b.closest(".group")).filter(Boolean))];
+    let ensureMobileDock = () => { };
+    let hideToolbarOverflowPopup = () => { };
+    let hideThemePopup = () => { };
+    let showThemePopup = (_anchorEl = null) => { };
+    let showToolbarOverflowPopup = () => { };
+    let applyBootstrapClasses = () => { };
+    let updateToolbarOverflow = () => { };
     let overflowHiddenButtons = [];
-    const hideToolbarOverflowPopup = () => {
-      if (!el.overflowPopup || !el.overflowToggle) return;
-      el.overflowPopup.classList.remove("show");
-      el.overflowToggle.setAttribute("aria-expanded", "false");
-    };
-    const hideThemePopup = () => {
-      if (!el.themePopup || !el.themeToggle) return;
-      el.themePopup.classList.remove("show");
-      el.themeToggle.setAttribute("aria-expanded", "false");
-    };
-    const showThemePopup = (anchorEl = null) => {
-      if (!el.themePopup) return;
-      const anchor = anchorEl || el.themeToggle;
-      if (!anchor) return;
-      const tr = anchor.getBoundingClientRect();
-      const vw = window.innerWidth;
-      el.themePopup.style.visibility = "hidden";
-      el.themePopup.classList.add("show");
-      const pw = el.themePopup.offsetWidth || 220;
-      const left = Math.max(8, Math.min(vw - 8 - pw, tr.right - pw));
-      const top = tr.bottom + 6;
-      el.themePopup.style.left = `${left}px`;
-      el.themePopup.style.top = `${top}px`;
-      el.themePopup.style.visibility = "";
-      if (el.themeToggle) el.themeToggle.setAttribute("aria-expanded", "true");
-    };
-    const showToolbarOverflowPopup = () => {
-      if (!el.overflowPopup || !el.overflowToggle || !overflowHiddenButtons.length) return;
-      hideThemePopup();
-      el.overflowPopup.innerHTML = "";
-      for (const b of overflowHiddenButtons) {
-        if (b === el.themeToggle) {
-          const item = document.createElement("button");
-          item.type = "button";
-          item.className = "dropdown-item d-flex align-items-center justify-content-between gap-2";
-          item.setAttribute("aria-expanded", "false");
-          item.innerHTML = '<span class="d-inline-flex align-items-center gap-2"><i class="fa-solid fa-circle-half-stroke"></i><span>Тема</span></span><i class="fa-solid fa-chevron-right small"></i>';
-          const submenu = document.createElement("div");
-          submenu.className = "d-none ps-4 py-1";
-          const themeItems = [
-            { mode: "auto", label: "Авто", icon: "fa-solid fa-circle-half-stroke" },
-            { mode: "light", label: "Светлая", icon: "fa-regular fa-sun" },
-            { mode: "dark", label: "Тёмная", icon: "fa-regular fa-moon" }
-          ];
-          for (const t of themeItems) {
-            const subBtn = document.createElement("button");
-            subBtn.type = "button";
-            subBtn.className = `dropdown-item d-flex align-items-center gap-2 py-1 ${st.themeMode === t.mode ? "active" : ""}`;
-            subBtn.innerHTML = `<i class="${t.icon}"></i><span>${t.label}</span>`;
-            bindEvent(subBtn, "click", () => {
-              applyThemeMode(t.mode, true);
-              hideToolbarOverflowPopup();
-            });
-            submenu.appendChild(subBtn);
-          }
-          bindEvent(item, "click", e => {
-            e.preventDefault();
-            const open = submenu.classList.contains("d-none");
-            submenu.classList.toggle("d-none", !open);
-            item.setAttribute("aria-expanded", open ? "true" : "false");
-          });
-          el.overflowPopup.appendChild(item);
-          el.overflowPopup.appendChild(submenu);
-          continue;
-        }
-        const item = document.createElement("button");
-        item.type = "button";
-        item.className = "dropdown-item d-flex align-items-center gap-2";
-        if (b.classList.contains("btn-success") || b.dataset.toggleOn === "1") item.classList.add("active");
-        const icon = b.querySelector("i");
-        const text = (b.textContent || "").trim();
-        const title = b.getAttribute("title") || b.getAttribute("aria-label") || text || "Действие";
-        item.innerHTML = `${icon ? `<i class="${icon.className}"></i>` : ""}<span>${title}</span>`;
-        bindEvent(item, "click", () => { hideToolbarOverflowPopup(); b.click() });
-        el.overflowPopup.appendChild(item);
-      }
-      const tr = el.overflowToggle.getBoundingClientRect();
-      const vw = window.innerWidth;
-      el.overflowPopup.style.visibility = "hidden";
-      el.overflowPopup.classList.add("show");
-      const pw = el.overflowPopup.offsetWidth || 220;
-      const left = Math.max(8, Math.min(vw - 8 - pw, tr.right - pw));
-      const top = tr.bottom + 6;
-      el.overflowPopup.style.left = `${left}px`;
-      el.overflowPopup.style.top = `${top}px`;
-      el.overflowPopup.style.visibility = "";
-      el.overflowToggle.setAttribute("aria-expanded", "true");
-    };
-    const applyBootstrapClasses = () => {
-      for (const b of document.querySelectorAll("button")) {
-        if (b.classList.contains("btn-close") || b.classList.contains("dropdown-item")) continue;
-        b.classList.add("btn", "btn-sm");
-        b.classList.remove("btn-danger", "btn-outline-light", "btn-outline-secondary", "btn-secondary", "btn-success", "btn-info");
-        if (b === el.helpOpen) b.classList.add("btn-info");
-        else if (b.closest(".toolbar")) b.classList.add("btn-secondary");
-        else if (mobileToolButtons.includes(b)) b.classList.add("btn-secondary");
-        else if (b.classList.contains("danger")) b.classList.add("btn-danger");
-        else b.classList.add("btn-secondary");
-      }
-      for (const i of document.querySelectorAll("input")) {
-        if (i.type === "checkbox") continue;
-        if (i.type === "range") { i.classList.add("form-range"); continue }
-        if (i.type === "color") { i.classList.add("form-control", "form-control-color", "form-control-sm") }
-        else { i.classList.add("form-control", "form-control-sm") }
-      }
-      for (const s of document.querySelectorAll("select")) s.classList.add("form-select", "form-select-sm");
-    };
-    applyBootstrapClasses();
-    const updateToolbarOverflow = () => {
-      if (!el.toolbar || !el.overflowGroup || !el.overflowPopup) return;
-      for (const b of overflowButtons) b.classList.remove("d-none");
-      for (const g of overflowGroups) g.classList.remove("d-none");
-      overflowHiddenButtons = [];
-      hideToolbarOverflowPopup();
-      hideThemePopup();
-      el.overflowGroup.style.display = "none";
-      const isOverflowed = () => el.toolbar.scrollWidth > el.toolbar.clientWidth + 1;
-      if (!isOverflowed()) return;
-      el.overflowGroup.style.display = "flex";
-      const hidden = [];
-      const refreshGroupVisibility = () => {
-        for (const g of overflowGroups) {
-          const hasVisible = [...g.querySelectorAll("button")].some(btn => !btn.classList.contains("d-none"));
-          g.classList.toggle("d-none", !hasVisible);
-        }
-      };
-      for (let i = overflowButtons.length - 1; i >= 0 && isOverflowed(); i--) {
-        const b = overflowButtons[i];
-        if (!b || b.classList.contains("d-none")) continue;
-        if (getComputedStyle(b).display === "none") continue;
-        b.classList.add("d-none");
-        hidden.unshift(b);
-        refreshGroupVisibility();
-      }
-      if (!hidden.length) {
-        el.overflowGroup.style.display = "none";
-        for (const g of overflowGroups) g.classList.remove("d-none");
-        return;
-      }
-      overflowHiddenButtons = hidden;
-    };
     const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", lockAll: false, maskPath: [], maskHover: null, cellHover: null, cellHoverPos: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
     const rectStore = createRectStore(() => st.rects);
     const getRectById = id => rectStore.getById(id);
@@ -1902,23 +1763,19 @@
       lsSet(SAVE_LOCATION_ID_KEY, norm);
       return norm;
     };
-    const getRightPanelOcclusionPx = () => {
-      if (!window.matchMedia("(min-width:901px)").matches) return 0;
-      const side = document.getElementById("sidePanel");
-      if (!side) return 0;
-      const stl = getComputedStyle(side);
-      if (stl.display === "none" || stl.visibility === "hidden") return 0;
-      const cr = cv.getBoundingClientRect(), sr = side.getBoundingClientRect();
-      const overlap = Math.max(0, Math.min(cr.right, sr.right) - Math.max(cr.left, sr.left));
-      return Math.max(0, Math.min(cv.clientWidth, overlap));
-    };
-    const getViewMetrics = () => {
-      const occRight = getRightPanelOcclusionPx();
-      const viewWidth = Math.max(1, cv.clientWidth - occRight), viewHeight = Math.max(1, cv.clientHeight);
-      return { viewWidth, viewHeight, centerX: viewWidth / 2, centerY: viewHeight / 2 };
-    };
-    const w2s = (x, y) => { const vm = getViewMetrics(); return { x: (x - st.camX) * st.zoom + vm.centerX, y: (y - st.camY) * st.zoom + vm.centerY } };
-    const s2w = (x, y) => { const vm = getViewMetrics(); return { x: (x - vm.centerX) / st.zoom + st.camX, y: (y - vm.centerY) / st.zoom + st.camY } };
+    const viewportMetricsController = setupViewportMetricsController({
+      windowRef: window,
+      documentRef: document,
+      canvas: cv,
+      getSidePanel: () => document.getElementById("sidePanel"),
+      getCamX: () => st.camX,
+      getCamY: () => st.camY,
+      getZoom: () => st.zoom
+    });
+    const getRightPanelOcclusionPx = viewportMetricsController.getRightPanelOcclusionPx;
+    const getViewMetrics = viewportMetricsController.getViewMetrics;
+    const w2s = viewportMetricsController.w2s;
+    const s2w = viewportMetricsController.s2w;
     const noteEditorController = setupNoteEditorController({
       wrap,
       getRectById,
@@ -1939,7 +1796,7 @@
     const closeNoteEditor = noteEditorController.closeNoteEditor;
     const openNoteEditor = noteEditorController.openNoteEditor;
     const updateNoteEditorOverlay = noteEditorController.updateNoteEditorOverlay;
-    const zc = v => Math.min(8, Math.max(window.matchMedia("(max-width:900px)").matches ? 0.01 : 0.1, v));
+    const zc = viewportMetricsController.zc;
     const toInt = (v, fallback = 0) => {
       const n = Number(v);
       return Number.isFinite(n) ? Math.round(n) : Math.round(Number(fallback) || 0);
@@ -5380,22 +5237,35 @@
     } = createEventBinders({
       bindCommitInput: (...args) => bindCommitInput(...args)
     });
+    const toolbarController = setupToolbarController({
+      documentRef: document,
+      windowRef: window,
+      el,
+      st,
+      bindEvent,
+      mobileToolButtons,
+      applyThemeMode: (mode, persist) => applyThemeMode(mode, persist)
+    });
+    ensureMobileDock = toolbarController.ensureMobileDock;
+    hideToolbarOverflowPopup = toolbarController.hideToolbarOverflowPopup;
+    hideThemePopup = toolbarController.hideThemePopup;
+    showThemePopup = toolbarController.showThemePopup;
+    showToolbarOverflowPopup = toolbarController.showToolbarOverflowPopup;
+    applyBootstrapClasses = toolbarController.applyBootstrapClasses;
+    updateToolbarOverflow = toolbarController.updateToolbarOverflow;
+    overflowHiddenButtons = toolbarController.overflowHiddenButtons;
+    ensureMobileDock();
+    applyBootstrapClasses();
     const scheduleFontReadyRender = (state, delay = 140) => {
       if (!state || typeof state !== "object") return;
       if (state.timer) clearTimeout(state.timer);
       state.timer = setTimeout(() => ensureFontReady().then(() => render()).catch(() => { }), Math.max(0, Math.round(Number(delay) || 0)));
     };
-    const refreshPropsListRender = () => { syncProps(); listRects(); render(); };
-    const persistProjectAndRender = () => { schedulePersist("project"); render(); };
-    const commitProjectChange = (opts = {}) => {
-      const o = (opts && typeof opts === "object") ? opts : {};
-      if (o.syncProps) syncPropsSmart();
-      if (o.refreshPanels) refreshPanels();
-      if (o.listRects) listRects();
-      if (o.persist !== false) schedulePersist(o.persistKind || "project");
-      if (o.render !== false) render();
-    };
-    const themeMedia = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    let refreshPropsListRender = () => { };
+    let persistProjectAndRender = () => { };
+    let refreshPanels = () => { };
+    let commitProjectChange = (_opts = {}) => { };
+    let commitUiUpdate = (_opts = {}) => { };
     const isInstallViewMode = () => normalizeViewMode(st.viewMode) === "install";
     const isInstallOnlyToolMode = m => m === "flowEdit" || m === "clusterEdit" || m === "rigEdit";
     const toolFsm = createToolFsm({
@@ -5411,65 +5281,31 @@
         b.setAttribute("aria-disabled", allow ? "false" : "true");
       }
     };
-    const resolveThemeMode = v => normalizeThemeMode(v) === "auto" ? (themeMedia && themeMedia.matches ? "dark" : "light") : normalizeThemeMode(v);
-    const updateViewModeUi = () => {
-      const isInstall = isInstallViewMode();
-      if (el.viewModeArt) {
-        el.viewModeArt.classList.remove("btn-secondary");
-        el.viewModeArt.classList.toggle("btn-primary", !isInstall);
-        el.viewModeArt.classList.toggle("btn-outline-secondary", isInstall);
-        el.viewModeArt.setAttribute("aria-pressed", !isInstall ? "true" : "false");
-      }
-      if (el.viewModeInstall) {
-        el.viewModeInstall.classList.remove("btn-secondary");
-        el.viewModeInstall.classList.toggle("btn-primary", isInstall);
-        el.viewModeInstall.classList.toggle("btn-outline-secondary", !isInstall);
-        el.viewModeInstall.setAttribute("aria-pressed", isInstall ? "true" : "false");
-      }
-      if (el.mViewModeToggle) {
-        syncModeToggleButton(el.mViewModeToggle, isInstall, "Режим: Для монтажников", "Режим: Для художников");
-      }
-      updateInstallToolAvailability();
-    };
-    const updateLockAllUi = () => {
-      const on = !!st.lockAll;
-      syncLockButtons([el.lockAllToggle, el.mLockAllToggle], on);
-    };
-    const setLockAll = (next, persist = true) => {
-      st.lockAll = !!next;
-      updateLockAllUi();
-      commitProjectChange({ syncProps: true, persist, persistKind: "project", render: true });
-    };
-    const setViewMode = (mode, persist = true) => {
-      st.viewMode = normalizeViewMode(mode);
-      updateViewModeUi();
-      if (!isInstallViewMode() && isInstallOnlyToolMode(st.mode)) { setMode("select"); return; }
-      commitProjectChange({ persist, persistKind: "project", render: true });
-    };
-    const updateThemeUi = () => {
-      if (el.themeIcon) {
-        const icon = st.themeMode === "dark" ? "fa-moon" : st.themeMode === "light" ? "fa-sun" : "fa-circle-half-stroke";
-        el.themeIcon.className = `fa-solid ${icon}`;
-      }
-      if (el.themeToggle) {
-        const title = st.themeMode === "dark" ? "Тема: тёмная" : st.themeMode === "light" ? "Тема: светлая" : "Тема: авто";
-        el.themeToggle.title = title;
-        el.themeToggle.setAttribute("aria-label", title);
-      }
-      if (el.themePopup) {
-        for (const a of el.themePopup.querySelectorAll("[data-theme]")) {
-          const on = a.getAttribute("data-theme") === st.themeMode;
-          a.classList.toggle("active", on);
-        }
-      }
-    };
-    const applyThemeMode = (mode, persist = true) => {
-      st.themeMode = normalizeThemeMode(mode);
-      document.documentElement.setAttribute("data-bs-theme", resolveThemeMode(st.themeMode));
-      updateThemeUi();
-      if (persist) lsSet(THEME_MODE_KEY, st.themeMode);
-      render();
-    };
+    const viewThemeLockController = setupViewThemeLockController({
+      windowRef: window,
+      documentRef: document,
+      st,
+      el,
+      normalizeThemeMode,
+      normalizeViewMode,
+      syncModeToggleButton,
+      syncLockButtons,
+      updateInstallToolAvailability,
+      commitProjectChange: opts => commitProjectChange(opts),
+      setMode: m => setMode(m),
+      isInstallOnlyToolMode,
+      lsSet,
+      THEME_MODE_KEY,
+      render: () => render()
+    });
+    const themeMedia = viewThemeLockController.themeMedia;
+    const resolveThemeMode = viewThemeLockController.resolveThemeMode;
+    const updateViewModeUi = viewThemeLockController.updateViewModeUi;
+    const updateLockAllUi = viewThemeLockController.updateLockAllUi;
+    const setLockAll = viewThemeLockController.setLockAll;
+    const setViewMode = viewThemeLockController.setViewMode;
+    const updateThemeUi = viewThemeLockController.updateThemeUi;
+    const applyThemeMode = viewThemeLockController.applyThemeMode;
     const serializeRectForProject = r => {
       const out = { ...r };
       delete out._calcCache;
@@ -5547,14 +5383,19 @@
       PERSIST_DEBOUNCE_MS,
       historyCommitIfChanged: () => historyCommitIfChanged()
     }));
-    const refreshPanels = () => { syncProps(); listRects(); };
-    const commitUiUpdate = (opts = {}) => {
-      const o = opts && typeof opts === "object" ? opts : {};
-      if (o.syncProps) syncProps();
-      if (o.listRects) listRects();
-      if (o.persist) schedulePersist(o.persistKind || "project");
-      if (o.render !== false) render();
-    };
+    ({
+      refreshPropsListRender,
+      persistProjectAndRender,
+      refreshPanels,
+      commitProjectChange,
+      commitUiUpdate
+    } = setupChangeOpsController({
+      syncProps: () => syncProps(),
+      syncPropsSmart: () => syncPropsSmart(),
+      listRects: () => listRects(),
+      render: () => render(),
+      schedulePersist: kind => schedulePersist(kind)
+    }));
     const loadProjectIntoActiveState = data => {
       applyProjectData(data || makeEmptyProjectData("Новый проект"), { syncTabSnapshot: false, renderTabs: false });
     };
@@ -7788,23 +7629,15 @@
       el.mobileDock.classList.toggle("force-visible", show);
       el.mobileDock.classList.toggle("force-hidden", !show);
     };
-    const modalCache = { help: null, message: null, projectLink: null };
-    const getOrCreateBootstrapModal = (node, cacheKey) => {
-      if (!node || !window.bootstrap || !window.bootstrap.Modal) return null;
-      if (!modalCache[cacheKey]) modalCache[cacheKey] = window.bootstrap.Modal.getOrCreateInstance(node, { backdrop: true, keyboard: true, focus: true });
-      return modalCache[cacheKey];
-    };
-    const getHelpModal = () => {
-      return getOrCreateBootstrapModal(el.helpModal, "help");
-    };
-    const getMessageModal = () => {
-      const node = $("messageModal");
-      return getOrCreateBootstrapModal(node, "message");
-    };
-    const getProjectLinkModal = () => {
-      const node = el.projectLinkModal || $("projectLinkModal");
-      return getOrCreateBootstrapModal(node, "projectLink");
-    };
+    const bootstrapModalFactory = setupBootstrapModalFactory({
+      windowRef: window,
+      getById: id => $(id),
+      helpNode: el.helpModal,
+      projectLinkNode: el.projectLinkModal
+    });
+    const getHelpModal = bootstrapModalFactory.getHelpModal;
+    const getMessageModal = bootstrapModalFactory.getMessageModal;
+    const getProjectLinkModal = bootstrapModalFactory.getProjectLinkModal;
     const {
       showMessageModal,
       showErrorModal,
