@@ -1517,6 +1517,8 @@
     import { setupProjectLinkActionsController } from "./editor/modules/ui/project-link-actions-controller.js";
     import { setupProjectIoController } from "./editor/modules/project-io-controller.js";
     import { setupProjectLoadController } from "./editor/modules/project-load-controller.js";
+    import { setupProjectMetaController } from "./editor/modules/project-meta-controller.js";
+    import { setupProjectSaveDialogController } from "./editor/modules/project-save-dialog-controller.js";
     import { setupProjectStateController } from "./editor/modules/project-state-controller.js";
     import { setupProjectCodecBridge } from "./editor/modules/project-codec-bridge.js";
     import { setupAppInitController } from "./editor/modules/app-init-controller.js";
@@ -1750,19 +1752,17 @@
     };
     const clampTextSize = v => Math.max(6, Math.min(128, Math.round(v)));
     const getRectTextSizePx = r => { const lv = Number(r && r.textSize); return Number.isFinite(lv) && lv > 0 ? clampTextSize(lv) : clampTextSize(st.textSize || 12); };
-    const genSaveLocationId = (seed = "project") => {
-      const slug = String(seed || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
-      return normalizeSaveLocationId(`proj-${slug || "project"}`);
-    };
-    const getGlobalSaveLocationId = () => {
-      try { return normalizeSaveLocationId(lsGet(SAVE_LOCATION_ID_KEY, "") || ""); }
-      catch (_e) { return "ledmask-default"; }
-    };
-    const setGlobalSaveLocationId = id => {
-      const norm = normalizeSaveLocationId(id);
-      lsSet(SAVE_LOCATION_ID_KEY, norm);
-      return norm;
-    };
+    const projectMetaController = setupProjectMetaController({
+      normalizeSaveLocationId,
+      lsGet,
+      lsSet,
+      SAVE_LOCATION_ID_KEY,
+      getProjectName: () => st.projectName
+    });
+    const genSaveLocationId = projectMetaController.genSaveLocationId;
+    const getGlobalSaveLocationId = projectMetaController.getGlobalSaveLocationId;
+    const setGlobalSaveLocationId = projectMetaController.setGlobalSaveLocationId;
+    const projectFileBase = projectMetaController.projectFileBase;
     const viewportMetricsController = setupViewportMetricsController({
       windowRef: window,
       documentRef: document,
@@ -7790,54 +7790,18 @@
       lsSet,
       INSTALL_HINT_KEY
     });
-    const askFileName = (def, ext) => { const raw = prompt("Имя файла:", def); if (raw == null) return null; let name = raw.trim(); if (!name) name = def; if (!name.toLowerCase().endsWith(ext)) name += ext; return name };
-    const projectFileBase = () => { const raw = (st.projectName || "project").trim() || "project"; const sanitized = raw.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim(); return sanitized || "project" };
-    const isTauriRuntime = () => !!(window.__TAURI_INTERNALS__ || window.__TAURI__ || window.__TAURI_IPC__ || /\bTauri\b/i.test(navigator.userAgent || "") || location.protocol === "tauri:" || location.protocol === "asset:");
-    const tauriInvoke = (cmd, args) => {
-      if (window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === "function") return window.__TAURI_INTERNALS__.invoke(cmd, args);
-      if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === "function") return window.__TAURI__.core.invoke(cmd, args);
-      if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") return window.__TAURI__.invoke(cmd, args);
-      throw new Error("Tauri invoke API not available");
-    };
-    const blobToBase64 = async blob => {
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      const chunk = 0x8000;
-      let bin = "";
-      for (let i = 0; i < bytes.length; i += chunk)bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
-      return btoa(bin);
-    };
-    const saveBlobWithSystemDialog = async (blob, suggestedName, mime, ext, description, saveLocationId = null) => {
-      const effectiveSaveLocationId = setGlobalSaveLocationId(saveLocationId || st.saveLocationId || getGlobalSaveLocationId());
-      if (isTauriRuntime()) {
-        try {
-          const dataBase64 = await blobToBase64(blob);
-          await tauriInvoke("save_file_dialog", { suggestedName, dataBase64 });
-          return;
-        } catch (err) {
-          showErrorModal("Ошибка сохранения", err, "Ошибка нативного сохранения (Tauri)");
-          return;
-        }
-      }
-      if (window.showSaveFilePicker) {
-        try {
-          const handle = await window.showSaveFilePicker({
-            id: effectiveSaveLocationId,
-            suggestedName,
-            types: [{ description, accept: { [mime]: [ext] } }],
-          });
-          const writable = await handle.createWritable();
-          await writable.write(blob);
-          await writable.close();
-          return;
-        } catch (err) {
-          if (err && err.name === "AbortError") return;
-          console.warn("showSaveFilePicker failed, fallback to download:", err);
-        }
-      }
-      const name = askFileName(suggestedName, ext);
-      if (!name) return;
-      const url = URL.createObjectURL(blob), a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
-    };
+    const projectSaveDialogController = setupProjectSaveDialogController({
+      windowRef: window,
+      documentRef: document,
+      navigatorRef: navigator,
+      locationRef: location,
+      promptFn: (...args) => prompt(...args),
+      showErrorModal: (...args) => showErrorModal(...args),
+      setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
+      getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
+      getCurrentSaveLocationId: () => st.saveLocationId
+    });
+    const saveBlobWithSystemDialog = projectSaveDialogController.saveBlobWithSystemDialog;
     const { bindProjectLoadHandlers } = setupProjectLoadController({
       el,
       bindClick: (...args) => bindClick(...args),
