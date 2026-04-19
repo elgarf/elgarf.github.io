@@ -1496,6 +1496,7 @@
     import { createRectPropSchema } from "./editor/modules/props-schema.js";
     import { touchProgressState, setCacheWithPrune } from "./editor/modules/cache-utils.js";
     import { isWorkerBootMessage, buildWorkerMessage, collectSetValues } from "./editor/modules/worker-runtime.js";
+    import { createEditorServices } from "./editor/modules/editor-services.js";
     import { safeDefine } from "./editor/modules/utils/safe-define.js";
     import { autoContrast, hexRgb, hslToRgb, pickByContrast, rgbHex, rgbToHsl, contrastRatio, shadeHex } from "./editor/modules/utils/color-utils.js";
     import { distToSegment, overlapArea, rads, rectAABB, rectCenter, rectUVToWorld, worldToRectUV } from "./editor/modules/utils/geometry.js";
@@ -1512,23 +1513,27 @@
     import { setupBootstrapModalFactory } from "./editor/modules/ui/bootstrap-modal-factory.js";
     import { setupToolbarController } from "./editor/modules/ui/toolbar-controller.js";
     import { setupViewThemeLockController } from "./editor/modules/ui/view-theme-lock-controller.js";
+    import { setupToolModeController } from "./editor/modules/ui/tool-mode-controller.js";
     import { setupTransientStateController } from "./editor/modules/ui/transient-state-controller.js";
     import { setupSelectionController } from "./editor/modules/ui/selection-controller.js";
+    import { setupSelectionLockController } from "./editor/modules/ui/selection-lock-controller.js";
     import { setupProjectLinkActionsController } from "./editor/modules/ui/project-link-actions-controller.js";
     import { setupProjectIoController } from "./editor/modules/project-io-controller.js";
     import { setupProjectLoadController } from "./editor/modules/project-load-controller.js";
     import { setupProjectMetaController } from "./editor/modules/project-meta-controller.js";
     import { setupProjectSaveDialogController } from "./editor/modules/project-save-dialog-controller.js";
+    import { setupRectFactoryController } from "./editor/modules/rect-factory-controller.js";
+    import { setupProjectSessionController } from "./editor/modules/project/session-controller.js";
+    import { setupProjectActionsController } from "./editor/modules/project/actions-controller.js";
     import { setupProjectStateController } from "./editor/modules/project-state-controller.js";
     import { setupProjectCodecBridge } from "./editor/modules/project-codec-bridge.js";
     import { setupAppInitController } from "./editor/modules/app-init-controller.js";
     import { setupExportPackageController } from "./editor/modules/export-package-controller.js";
-    import { setupTabsController } from "./editor/modules/tabs-controller.js";
-    import { setupPersistenceController } from "./editor/modules/persistence-controller.js";
     import { setupChangeOpsController } from "./editor/modules/state/change-ops.js";
     import { setupHistoryController } from "./editor/modules/history-controller.js";
     import { setupManualClustersController } from "./editor/modules/manual-clusters-controller.js";
     import { setupRigCore } from "./editor/modules/rig-core.js";
+    import { setupRigRenderController } from "./editor/modules/rig/render.js";
     import { setupRenderPipeline } from "./editor/modules/render-pipeline.js";
     import { setupFlowLinkController } from "./editor/modules/flow-link-controller.js";
     import { drawFlowStartMarker, drawFlowEndMarker } from "./editor/modules/flow/draw-helpers.js";
@@ -1543,6 +1548,7 @@
     import { setupRectListController } from "./editor/modules/rect-list-controller.js";
     import { setupUiBinders } from "./editor/modules/ui-binders.js";
     import { buildCalcWorkerScript } from "./editor/modules/calc/worker-script.js";
+    import { rectAABBMaskedKey as buildRectAABBMaskedKey, topoCalcKey as buildTopoCalcKey } from "./editor/modules/calc/cache-keys.js";
     import {
       normalizeSaveLocationId, normalizeHiddenCells, normalizeManualClusters, normalizeRigData,
       normalizeDataFlow, normalizeDataFlowZ, normalizeFlowLocks, normalizeFlowLockRidToSigMap,
@@ -1554,6 +1560,9 @@
       mapToRigWeightList, pushSpecListLine, pushSpecCountLine
     } from "./editor/modules/spec/formatters.js";
     import { addCountToMap, mergeCountMap, mergeNumericMap, sumMapCounts } from "./editor/modules/spec/aggregation.js";
+    import { buildScreenSpecSection } from "./editor/modules/spec/build-screen-section.js";
+    import { buildSummarySection } from "./editor/modules/spec/build-summary-section.js";
+    import { buildFlowLinksSpecText } from "./editor/modules/spec/build-flow-links-section.js";
     import { embedProjectIntoPngBlob, extractProjectFromPngBytes } from "./editor/modules/png-project-meta.js";
     import { computeRectRenderFlags } from "./editor/modules/render/mode-gates.js";
     import {
@@ -1887,11 +1896,7 @@
     const drawCellY = r => Math.max(32, Math.max(1, Math.round(r.cellY || 128)));
     const getMaskNodeAxes = r => { const cx = drawCellX(r), cy = drawCellY(r), xs = [], ys = []; for (let x = 0; x <= r.width; x += cx)xs.push(x); if (xs[xs.length - 1] !== r.width) xs.push(r.width); for (let y = 0; y <= r.height; y += cy)ys.push(y); if (ys[ys.length - 1] !== r.height) ys.push(r.height); return { xs, ys } };
     const computeRectAABBMasked = r => { const hs = getHiddenSet(r); if (!hs.size) return rectAABB(r); const cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); let has = false, minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (let iy = 0; iy < rows; iy++) { for (let ix = 0; ix < cols; ix++) { if (hs.has(maskCellKey(ix, iy))) continue; const u = ix * cx, v = iy * cy, cw = Math.min(cx, r.width - u), ch = Math.min(cy, r.height - v), p1 = rectUVToWorld(r, u, v), p2 = rectUVToWorld(r, u + cw, v), p3 = rectUVToWorld(r, u + cw, v + ch), p4 = rectUVToWorld(r, u, v + ch); minX = Math.min(minX, p1.x, p2.x, p3.x, p4.x); minY = Math.min(minY, p1.y, p2.y, p3.y, p4.y); maxX = Math.max(maxX, p1.x, p2.x, p3.x, p4.x); maxY = Math.max(maxY, p1.y, p2.y, p3.y, p4.y); has = true } } return has ? { minX, minY, maxX, maxY } : rectAABB(r) };
-    const rectAABBMaskedKey = r => [
-      r && r.x || 0, r && r.y || 0, r && r.width || 0, r && r.height || 0,
-      Number(r && r.rotation) || 0, drawCellX(r), drawCellY(r),
-      listSignature(r && r.hiddenCells)
-    ].join("|");
+    const rectAABBMaskedKey = r => buildRectAABBMaskedKey(r, drawCellX, drawCellY, listSignature);
     const rectAABBMasked = r => {
       const cache = getRectCalcCache(r), key = rectAABBMaskedKey(r);
       if (cache.aabb && cache.aabb.key === key) return cache.aabb.value;
@@ -1956,13 +1961,7 @@
       }
       return { cols, rows, count, links, comp, seed, color };
     }
-    const topoCalcKey = (r, cx, cy) => [
-      r && r.width || 0,
-      r && r.height || 0,
-      cx || 0,
-      cy || 0,
-      listSignature(r && r.cellLinks)
-    ].join("|");
+    const topoCalcKey = (r, cx, cy) => buildTopoCalcKey(r, cx, cy, listSignature);
     const sortNums = (arr, dir) => [...arr].sort((a, b) => dir === "asc" ? a - b : b - a);
     const buildSnakeOrder = (items, primaryKey, primaryDir, secondaryKey, secondaryStartDir) => {
       const primaryVals = sortNums([...new Set(items.map(it => it[primaryKey]))], primaryDir);
@@ -5179,8 +5178,11 @@
         console.info("[flow-calc]", { rectId, key, ...stats, regions: dbg, ...(extra && typeof extra === "object" ? extra : {}) });
       } catch (_e) { }
     };
-    const metricFromPx = r => { r.scale = Math.max(1, Math.round(+r.scale || 256)); r.width = Math.max(1, Math.round(+r.width || 1)); r.height = Math.max(1, Math.round(+r.height || 1)); r.widthM = Math.max(0.001, mRound(r.width / r.scale)); r.heightM = Math.max(0.001, mRound(r.height / r.scale)); };
-    const pxFromMetric = r => { r.scale = Math.max(1, Math.round(+r.scale || 256)); r.widthM = Math.max(0.001, +r.widthM || 0.001); r.heightM = Math.max(0.001, +r.heightM || 0.001); r.width = Math.max(1, Math.round(r.widthM * r.scale)); r.height = Math.max(1, Math.round(r.heightM * r.scale)); };
+    let metricFromPx = (_r) => { };
+    let pxFromMetric = (_r) => { };
+    let parseProjectRect = (_r, _i, _legacyAreaM2) => ({});
+    let mk = (_x, _y, _w, _h) => ({});
+    let mkNote = (_x, _y, _w, _h) => ({});
     let setSaveIndicator = (_text, _tone = "secondary") => { };
     let saveStatus = {
       saving() { },
@@ -5352,12 +5354,6 @@
     const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: normalizeViewMode(st.viewMode), lockAll: !!st.lockAll, snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, flowLinks: normalizeFlowLinks(st.flowLinks), rectangles: st.rects.map(serializeRectForProject) });
     const cloneProjectData = data => cloneJson(data, () => buildProject());
     const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", lockAll: !!st.lockAll, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
-    const tabsController = setupTabsController({
-      st, el, wrap, bindEvent, eventClosest, render,
-      cloneProjectData, makeEmptyProjectData, buildProject,
-      loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
-      schedulePersist: (...args) => schedulePersist(...args)
-    });
     ({
       getActiveTab,
       isMobileTabStorageMode,
@@ -5366,18 +5362,24 @@
       buildTabsBundle,
       openProjectTab,
       createProjectTab,
-      closeProjectTab
-    } = tabsController);
-    ({
+      closeProjectTab,
       setSaveIndicator,
       saveStatus,
       persistNow,
       schedulePersist
-    } = setupPersistenceController({
+    } = setupProjectSessionController({
+      st,
       el,
-      lsSet,
-      buildTabsBundle: () => buildTabsBundle(),
+      wrap,
+      bindEvent,
+      eventClosest,
+      render: () => render(),
+      cloneProjectData: data => cloneProjectData(data),
+      makeEmptyProjectData: name => makeEmptyProjectData(name),
       buildProject: () => buildProject(),
+      loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
+      schedulePersistRef: fn => { schedulePersist = fn; },
+      lsSet,
       TABS_SAVE_KEY,
       AUTO_SAVE_KEY,
       PERSIST_DEBOUNCE_MS,
@@ -5473,52 +5475,34 @@
       resetSelectionTransient,
       resetTransientState
     } = setupTransientStateController({ st }));
-    const parseProjectRect = (r, i, legacyAreaM2) => {
-      const colorA = String(r.colorA || "#2fcaaf");
-      const autoB = (r.autoContrastB !== false);
-      const manualB = String(r.colorB || autoContrast(colorA));
-      const rawFlow = String(r && r.dataFlow || "none");
-      const maxSplit = Math.max(0, SPLIT_VARIANT_MAX - 1);
-      const it = {
-        id: toPositiveInt(r.id, i + 1),
-        name: String(r.name || `Rect ${i + 1}`),
-        x: toRoundedInt(r.x, 0),
-        y: toRoundedInt(r.y, 0),
-        rotation: evalExpr(r.rotation, 0),
-        width: toPositiveInt(r.width, 1),
-        height: toPositiveInt(r.height, 1),
-        scale: toPositiveInt(r.scale, Math.max(1, Math.round(Number(st.globalScale) || 256))),
-        widthM: Math.max(0.001, +r.widthM || 0),
-        heightM: Math.max(0.001, +r.heightM || 0),
-        areaM2Px: parseAreaM2PxInput(r.areaM2Px, legacyAreaM2),
-        textSize: clampInt(evalExpr(r.textSize, 0), 0, 128, 0),
-        colorA,
-        autoContrastB: autoB,
-        colorB: autoB ? autoContrast(colorA) : manualB,
-        cellX: toPositiveInt(r.cellX, 128),
-        cellY: toPositiveInt(r.cellY, 128),
-        dataFlow: normalizeDataFlow(rawFlow),
-        dataFlowZ: normalizeDataFlowZ(rawFlow, r && r.dataFlowZ),
-        numberCells: !!r.numberCells,
-        splitVariant: clampInt(evalExpr(r.splitVariant, 0), 0, maxSplit, 0),
-        cellLinks: Array.isArray(r.cellLinks) ? r.cellLinks.map(String) : [],
-        hiddenCells: normalizeHiddenCells(r.hiddenCells),
-        flowLocks: normalizeFlowLocks(r.flowLocks),
-        flowLockRidToSig: normalizeFlowLockRidToSigMap(r && r.flowLockRidToSig),
-        flowLockCidToSeed: normalizeFlowLockCidToSeedMap(r && r.flowLockCidToSeed),
-        manualClusters: normalizeManualClusters(r && r.manualClusters),
-        rig: normalizeRigData(r && r.rig),
-        locked: !!(r && r.locked),
-        kind: String((r && r.kind) || ""),
-        noteText: String((r && r.noteText) || "")
-      };
-      safeDefine(it, "_flowLockRidToSig", { ...it.flowLockRidToSig }, false);
-      safeDefine(it, "_flowLockCidToSeed", { ...it.flowLockCidToSeed }, false);
-      if (!(+r.widthM > 0 && +r.heightM > 0)) metricFromPx(it);
-      else pxFromMetric(it);
-      restorePersistedRectCache(it, r && r.projectCache);
-      return it;
-    };
+    ({
+      metricFromPx,
+      pxFromMetric,
+      parseProjectRect,
+      mk,
+      mkNote
+    } = setupRectFactoryController({
+      st,
+      mRound,
+      autoContrast,
+      normalizeRigData,
+      normalizeDataFlow,
+      normalizeDataFlowZ,
+      normalizeHiddenCells,
+      normalizeFlowLocks,
+      normalizeFlowLockRidToSigMap,
+      normalizeFlowLockCidToSeedMap,
+      normalizeManualClusters,
+      safeDefine,
+      restorePersistedRectCache,
+      SPLIT_VARIANT_MAX,
+      parseAreaM2PxInput: (input, fallback) => parseAreaM2PxInput(input, fallback),
+      toPositiveInt: (v, fallback) => toPositiveInt(v, fallback),
+      toRoundedInt: (v, fallback) => toRoundedInt(v, fallback),
+      evalExpr: (input, fallback) => evalExpr(input, fallback),
+      clampInt: (v, min, max, fallback) => clampInt(v, min, max, fallback),
+      randomColor: () => randomColor()
+    }));
     ({
       applyProjectData,
       restoreAutoSave
@@ -5557,50 +5541,35 @@
       evalExpr
     }));
     const isNoteRect = r => String((r && r.kind) || "").toLowerCase() === "note";
-    function mk(x, y, w, h) { const id = st.next++; const colorA = randomColor(); const r = { id, name: `Rect ${id}`, x: Math.round(x), y: Math.round(y), rotation: 0, width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)), scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), widthM: 1, heightM: 1, areaM2Px: 65536, textSize: 0, colorA, autoContrastB: true, colorB: autoContrast(colorA), cellX: 128, cellY: 128, dataFlow: "none", dataFlowZ: false, numberCells: false, splitVariant: 0, cellLinks: [], hiddenCells: [], flowLocks: {}, flowLockRidToSig: {}, flowLockCidToSeed: {}, manualClusters: [], rig: normalizeRigData(null), locked: false, kind: "", noteText: "" }; metricFromPx(r); return r }
-    function mkNote(x, y, w, h) {
-      const r = mk(x, y, w, h);
-      r.kind = "note";
-      r.name = `Примечание ${r.id}`;
-      r.noteText = "";
-      r.rotation = 0;
-      r.colorA = "#fff7c2";
-      r.autoContrastB = false;
-      r.colorB = "#1f2937";
-      return r;
-    }
-    function activateToolOrSelect(mode) {
-      setMode(toolFsm.nextOnToolClick(st.mode, mode));
-    }
-    function setMode(m) {
-      m = toolFsm.resolve(m);
-      if (st.mode !== m && m !== "note") closeNoteEditor(true);
-      st.mode = m;
-      st.flowDrag = null;
-      st.selBox = null;
-      resetFlowHoverTransient();
-      st.clusterDrag = null;
-      st.clusterStartHover = null;
-      st.clusterBorderHover = null;
-      resetRigHoverTransient();
-      if (m !== "flowEdit") { st.flowRegionRid = null; st.flowLinkPending = null; st.flowLinkDrag = null; }
-      if (m !== "clusterEdit") { st.clusterHandles = []; resetClusterHoverTransient(); }
-      const map = [["select", el.toolSelect, el.mToolSelect], ["draw", el.toolDraw, el.mToolDraw], ["note", el.toolNote, el.mToolNote], ["maskEdit", el.toolMaskAdd, el.mToolMaskAdd], ["cellEdit", el.toolCellEdit, el.mToolCellEdit], ["flowEdit", el.toolFlowEdit, el.mToolFlowEdit], ["clusterEdit", el.toolClusterEdit, el.mToolClusterEdit], ["rigEdit", el.toolRigEdit, el.mToolRigEdit]];
-      for (const [mode, ...btns] of map) {
-        const on = m === mode;
-        for (const b of btns) {
-          if (!b) continue;
-          b.classList.toggle("btn-success", on);
-          b.classList.toggle("btn-secondary", !on);
-        }
-      }
-      if (!isMaskMode()) resetMaskTransient();
-      if (!isCellEditMode()) resetCellTransient();
-      if (!isRigEditMode()) resetRigHoverTransient();
-      wrap.dataset.mode = m; st.draft = null; st.drag = null; updateToolbarOverflow(); updateClusterEditCursor(); render()
-    }
     const hasRect = id => st.rects.some(v => v.id === id);
-    const isRectLocked = r => !!(st.lockAll || (r && r.locked));
+    let setMode = (_m) => { };
+    let activateToolOrSelect = (_mode) => { };
+    let updateModeBadges = (_r) => { };
+    let isRectLocked = (_r) => false;
+    let getEditableSelectedRects = () => [];
+    let toggleRectLockById = (_id) => false;
+    ({
+      setMode,
+      activateToolOrSelect,
+      updateModeBadges
+    } = setupToolModeController({
+      st,
+      el,
+      wrap,
+      toolFsm,
+      closeNoteEditor: commit => closeNoteEditor(commit),
+      resetFlowHoverTransient: () => resetFlowHoverTransient(),
+      resetClusterHoverTransient: () => resetClusterHoverTransient(),
+      resetRigHoverTransient: () => resetRigHoverTransient(),
+      resetMaskTransient: () => resetMaskTransient(),
+      resetCellTransient: () => resetCellTransient(),
+      isMaskMode: () => isMaskMode(),
+      isCellEditMode: () => isCellEditMode(),
+      isRigEditMode: () => isRigEditMode(),
+      updateToolbarOverflow: () => updateToolbarOverflow(),
+      updateClusterEditCursor: () => updateClusterEditCursor(),
+      render: () => render()
+    }));
     ({
       getRectsBBox,
       normSelSet,
@@ -5624,31 +5593,22 @@
       rectAABBMasked: r => rectAABBMasked(r),
       refreshPropsListRender: () => refreshPropsListRender()
     }));
-    const getEditableSelectedRects = () => {
-      const selected = getSelectedRects();
-      return selected.filter(r => !isRectLocked(r));
-    };
-    const toggleRectLockById = (id) => {
-      const r = getRectById(id);
-      if (!r) return false;
-      normSelSet();
-      const selected = getSelectedRects();
-      const applyToGroup = selected.length > 1 && selected.some(it => it.id === id);
-      const targets = applyToGroup ? selected : [r];
-      const nextLocked = !r.locked;
-      for (const t of targets) t.locked = nextLocked;
-      st.drag = null; st.flowDrag = null; st.clusterDrag = null; st.draft = null;
-      if (nextLocked) {
-        resetMaskTransient();
-        resetCellTransient();
-      }
-      normSelSet();
-      syncProps();
-      listRects();
-      schedulePersist("project");
-      render();
-      return true;
-    };
+    ({
+      isRectLocked,
+      getEditableSelectedRects,
+      toggleRectLockById
+    } = setupSelectionLockController({
+      st,
+      getRectById: id => getRectById(id),
+      getSelectedRects: () => getSelectedRects(),
+      normSelSet: () => normSelSet(),
+      resetMaskTransient: () => resetMaskTransient(),
+      resetCellTransient: () => resetCellTransient(),
+      syncProps: () => syncProps(),
+      listRects: () => listRects(),
+      schedulePersist: kind => schedulePersist(kind),
+      render: () => render()
+    }));
     const rectHasManualRegions = r => !!(r && Array.isArray(r.manualClusters) && r.manualClusters.length > 0);
     const rectHasManualFlow = r => {
       const locks = normalizeFlowLocks(r && r.flowLocks);
@@ -5658,8 +5618,6 @@
         if (cfg.startPinned || cfg.startCid != null || String(cfg.startDir || "").trim() || String(cfg.mode || "").trim()) return true;
       }
       return false;
-    };
-    const updateModeBadges = r => {
     };
     ({
       initHistoryCurrent,
@@ -5858,7 +5816,7 @@
       getRectTextSizePx: r => getRectTextSizePx(r),
       fontFamilyCss
     });
-    function drawRect(c, r, sel, z, origin, opts) {
+    function drawRectBase(c, r, sel, z, origin, opts) {
       if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
       const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, options = opts || {}, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
       const skeleton = !st.fontReady;
@@ -6060,6 +6018,15 @@
       c.restore();
       if (installView && !cellEditActive && !clusterEditActive && !flowEditActive)
         drawRigOutsideOverlay(c, r, cellX, cellY, topo, hs, z, !!sel);
+    }
+    const drawRectOverlays = (_c, _r, _sel, _z, _origin, _opts) => {
+    };
+    const drawRectInteractions = (_c, _r, _sel, _z, _origin, _opts) => {
+    };
+    function drawRect(c, r, sel, z, origin, opts) {
+      drawRectBase(c, r, sel, z, origin, opts);
+      drawRectOverlays(c, r, sel, z, origin, opts);
+      drawRectInteractions(c, r, sel, z, origin, opts);
     }
     const buildRigLayout = (r, cx, cy, topo, hs, z) => {
       const w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1)), cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1)), rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1)), scalePx = Math.max(1, Number(r && r.scale) || 256);
@@ -6288,293 +6255,17 @@
       setRectRigData(r);
       return true;
     };
-    const drawRigOnRect = (c, r, w, h, cx, cy, topo, hs, z, sel) => {
-      const rig = getRectRigData(r), layout = buildRigLayout(r, cx, cy, topo, hs, z), ui = layout.ui, loadSize = layout.loadSizePx, frames = new Set(Array.isArray(rig.frames) ? rig.frames : []), loads = (rig && rig.loads && typeof rig.loads === "object") ? rig.loads : {}, suspends = (Array.isArray(rig.suspends) ? rig.suspends : []).filter(col => layout.anchors.has(col)).sort((a, b) => a - b), links = new Set(Array.isArray(rig.suspendLinks) ? rig.suspendLinks : []);
-      c.save();
-      const frameW = 4.5 * 2, hover = st.rigHover && st.rigHover.rectId === r.id ? st.rigHover : null;
-      const drawnSeams = new Set();
-      const isFrameDeleteHover = seam => {
-        if (!hover || hover.type !== "frame") return false;
-        const hs = resolveRigFrameSeam(layout, cy, String(hover.key || ""));
-        return !!(hs && seam && hs.key === seam.key);
-      };
-      const isLoadDeleteHover = (key, kg) => {
-        if (!hover || String(hover.key || "") !== String(key || "")) return false;
-        if (hover.type === "loadToggle") return true;
-        if (hover.type === "loadMinus" && Math.max(5, Math.round(Number(kg) || RIG_DEFAULT_LOAD_KG)) <= 5) return true;
-        return false;
-      };
-      for (const key of frames) {
-        const seam = resolveRigFrameSeam(layout, cy, String(key || ""));
-        if (!seam) continue;
-        if (drawnSeams.has(seam.key)) continue;
-        drawnSeams.add(seam.key);
-        const dangerDelete = isFrameDeleteHover(seam);
-        c.save();
-        c.globalAlpha = 1;
-
-        const fx = seam.x - frameW / 2;
-        const fy = seam.y0 + 0.6;
-        const fh = Math.max(1, seam.y1 - seam.y0 - 1.2) * 0.99;
-
-        // фон
-        c.save();
-        c.beginPath();
-        c.rect(fx, fy, frameW, fh);
-        c.clip();
-
-        c.fillStyle = dangerDelete ? "#d64646" : "#f2c200";
-        c.fillRect(fx, fy, frameW, fh);
-
-        // диагональные чёрные полосы без тайлинга
-        c.strokeStyle = dangerDelete ? "#330808" : "#111";
-        c.lineWidth = Math.max(3, 3.2 * ui);
-
-        const stripeGap = Math.max(6, 6 * ui);
-        const span = fh + frameW * 2;
-
-        for (let yy = fy - frameW; yy < fy + fh + frameW; yy += stripeGap) {
-          c.beginPath();
-          c.moveTo(fx - frameW, yy);
-          c.lineTo(fx + frameW * 2, yy - frameW * 2);
-          c.stroke();
-        }
-
-        c.restore();
-
-        c.strokeStyle = dangerDelete ? "rgba(95,10,10,.96)" : "rgba(8,12,18,.96)";
-        c.lineWidth = Math.max(1.5, 2.2 * ui);
-        c.strokeRect(fx - .5, fy - .5, frameW + 1, fh + 1);
-
-        c.strokeStyle = dangerDelete ? "rgba(255,220,220,.96)" : "rgba(255,255,255,.9)";
-        c.lineWidth = Math.max(.9, 1.3 * ui);
-        c.strokeRect(fx - .5, fy - .5, frameW + 1, fh + 1);
-        c.restore();
-      }
-      for (const [key, wk] of Object.entries(loads)) {
-        const seam = layout.bottomLoads.get(String(key || ""));
-        if (!seam) continue;
-        const kg = Math.max(5, Math.round(Number(wk) || RIG_DEFAULT_LOAD_KG)), x = seam.x, y = seam.yBottom - loadSize * 0.5, bodyR = loadSize * 0.32, btnR = 8 * ui, btnDx = bodyR + Math.max(10 * ui, loadSize * 0.22);
-        const dangerDelete = isLoadDeleteHover(key, kg);
-        c.save();
-        c.globalAlpha = 1;
-        drawLoadIcon(c, x, y, Math.max(14, loadSize), { fill: dangerDelete ? "rgba(130,18,18,.96)" : "rgba(16,20,28,.94)", stroke: dangerDelete ? "rgba(255,180,180,.95)" : "rgba(255,255,255,.86)", lineWidth: 1.25, alpha: 1 });
-        c.fillStyle = "rgba(255,255,255,.98)"; c.font = `${Math.max(6.8, Math.min(loadSize * 0.45, 18))}px ${fontFamilyCss(st.fontFamily)}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(`${kg}`, x, y + Math.max(7, loadSize * 0.2));
-        if (isRigEditMode() && sel) {
-          const drawBtn = (bx, sym) => {
-            c.beginPath();
-            c.arc(bx, y, btnR, 0, Math.PI * 2);
-            c.fillStyle = dangerDelete ? "rgba(145,22,22,.96)" : "rgba(22,27,34,.96)";
-            c.fill();
-            c.strokeStyle = dangerDelete ? "rgba(255,200,200,.9)" : "rgba(255,255,255,.6)";
-            c.lineWidth = Math.max(.8, 1.1 * ui);
-            c.stroke();
-            c.strokeStyle = "rgba(255,255,255,.95)";
-            c.lineWidth = Math.max(1.2, 1.6 * ui);
-            c.lineCap = "round";
-            const arm = Math.max(3.6, btnR * 0.45);
-            c.beginPath();
-            c.moveTo(bx - arm, y);
-            c.lineTo(bx + arm, y);
-            if (sym === "+") {
-              c.moveTo(bx, y - arm);
-              c.lineTo(bx, y + arm);
-            }
-            c.stroke();
-          };
-          drawBtn(x - btnDx, "-");
-          drawBtn(x + btnDx, "+");
-        }
-        c.restore();
-      }
-      if (isRigEditMode() && sel && hover) {
-        c.strokeStyle = "rgba(255,224,138,.97)";
-        c.lineWidth = Math.max(1.6, 2.4 * ui);
-        c.setLineDash([5 * ui, 3 * ui]);
-        if (hover.type === "frame") {
-          const seam = resolveRigFrameSeam(layout, cy, String(hover.key || ""));
-          if (seam) {
-            const fx = seam.x - frameW / 2, fy = seam.y0 + 0.6, fh = Math.max(1, seam.y1 - seam.y0 - 1.2) * 0.99;
-            c.strokeRect(fx - 1, fy - 1, frameW + 2, fh + 2);
-          }
-        } else if (hover.type === "loadToggle") {
-          const seam = layout.bottomLoads.get(String(hover.key || ""));
-          if (seam) {
-            const x = seam.x, y = seam.yBottom - loadSize * 0.5;
-            c.setLineDash([24 * ui, 16 * ui]);
-            drawLoadIcon(c, x, y, Math.max(14, loadSize), { stroke: "rgba(255,224,138,.98)", lineWidth: 2.2, fill: null, alpha: 1 });
-            c.setLineDash([5 * ui, 3 * ui]);
-          }
-        } else if (hover.type !== "suspend" && hover.type !== "suspendLink") {
-          const hx = hover.x, hy = hover.y;
-          if (Number.isFinite(hx) && Number.isFinite(hy)) { c.beginPath(); c.arc(hx, hy, 8 * ui, 0, Math.PI * 2); c.stroke(); }
-        }
-        c.setLineDash([]);
-      }
-      c.restore();
-    };
-    const drawRigOutsideOverlay = (c, r, cx, cy, topo, hs, z, sel) => {
-      const rig = getRectRigData(r), layout = buildRigLayout(r, cx, cy, topo, hs, z), ui = layout.ui, scalePx = Math.max(1, Number(r && r.scale) || 256), suspendH = Math.max(10, 0.1 * scalePx), ringD = Math.max(8, 0.1 * scalePx), suspends = (Array.isArray(rig.suspends) ? rig.suspends : []).filter(col => layout.anchors.has(col)).sort((a, b) => a - b), links = new Set(Array.isArray(rig.suspendLinks) ? rig.suspendLinks : []);
-      const invZoom = 1 / Math.max(0.01, Number(z) || 1);
-      const showAnchorHints = false;
-      if (!suspends.length && !showAnchorHints && !(isRigEditMode() && sel && st.rigHover && st.rigHover.rectId === r.id && (st.rigHover.type === "suspend" || st.rigHover.type === "suspendLink"))) return;
-      const localToWorld = (lx, ly) => rectUVToWorld(r, lx + layout.w / 2, ly + layout.h / 2);
-      const drawSuspendUPath = (xMid, yTop, size) => {
-        const half = Math.max(2, size * 0.5), leg = half * 0.5, joinY = yTop, cy = joinY - leg, steps = 16;
-        c.beginPath();
-        const p0 = localToWorld(xMid - half, joinY);
-        c.moveTo(p0.x, p0.y);
-        const p1 = localToWorld(xMid - half, cy);
-        c.lineTo(p1.x, p1.y);
-        for (let i = 0; i <= steps; i++) {
-          const t = Math.PI - (Math.PI * i / steps), lx = xMid + Math.cos(t) * half, ly = cy - Math.sin(t) * half, p = localToWorld(lx, ly);
-          c.lineTo(p.x, p.y);
-        }
-        const p2 = localToWorld(xMid + half, joinY);
-        c.lineTo(p2.x, p2.y);
-      };
-      const drawSuspendU = (xMid, yTop, danger = false) => {
-        drawSuspendUPath(xMid, yTop, ringD);
-        c.strokeStyle = danger ? "rgba(160,24,24,.98)" : "rgba(22,27,34,.97)";
-        c.lineWidth = Math.max(1, ringD * 0.24);
-        c.lineCap = "round";
-        c.lineJoin = "round";
-        c.stroke();
-        drawSuspendUPath(xMid, yTop, ringD);
-        c.strokeStyle = danger ? "rgba(255,210,210,.95)" : "rgba(255,255,255,.84)";
-        c.lineWidth = Math.max(1, 1.1 * invZoom);
-        c.lineCap = "round";
-        c.lineJoin = "round";
-        c.stroke();
-      };
-      const strokeSuspendBodyPath = (tl, tr, br, bl, danger = false) => {
-        c.beginPath();
-        c.moveTo(tl.x, tl.y);
-        c.lineTo(tr.x, tr.y);
-        c.lineTo(br.x, br.y);
-        c.lineTo(bl.x, bl.y);
-        c.closePath();
-        c.strokeStyle = danger ? "rgba(160,24,24,.98)" : "rgba(22,27,34,.97)";
-        c.lineWidth = Math.max(1, ringD * 0.24);
-        c.lineCap = "round";
-        c.lineJoin = "round";
-        c.stroke();
-        c.beginPath();
-        c.moveTo(tl.x, tl.y);
-        c.lineTo(tr.x, tr.y);
-        c.lineTo(br.x, br.y);
-        c.lineTo(bl.x, bl.y);
-        c.closePath();
-        c.strokeStyle = danger ? "rgba(255,210,210,.95)" : "rgba(255,255,255,.84)";
-        c.lineWidth = Math.max(1, 1.1 * invZoom);
-        c.lineCap = "round";
-        c.lineJoin = "round";
-        c.stroke();
-      };
-      const hover = isRigEditMode() && sel && st.rigHover && st.rigHover.rectId === r.id ? st.rigHover : null;
-      const hoveredSuspendCol = hover && hover.type === "suspend" ? Math.max(0, Math.round(Number(hover.col) || 0)) : -1;
-      const hoveredLink = hover && hover.type === "suspendLink"
-        ? { a: Math.min(hover.a, hover.b), b: Math.max(hover.a, hover.b), key: `${Math.min(hover.a, hover.b)}-${Math.max(hover.a, hover.b)}` }
-        : null;
-      c.save();
-      if (suspends.length) {
-        const visited = new Set();
-        c.strokeStyle = "rgba(22,27,34,.95)";
-        c.lineWidth = Math.max(1, 1.2) * invZoom;
-        c.lineCap = "round";
-        for (const col of suspends) {
-          if (visited.has(col)) continue;
-          let start = col, end = col;
-          visited.add(col);
-          while (links.has(`${end}-${end + 1}`) && suspends.includes(end + 1)) { end++; visited.add(end); }
-          const ap = layout.anchors.get(start), bp = layout.anchors.get(end);
-          if (!ap || !bp) continue;
-          const chainDeletesByHoverLink = !!(hoveredLink && hoveredLink.a >= start && hoveredLink.b <= end && links.has(hoveredLink.key));
-          const dangerDelete = false;
-          const hoveredSuspendInChain = (!dangerDelete && hoveredSuspendCol >= start && hoveredSuspendCol <= end && suspends.includes(hoveredSuspendCol)) ? hoveredSuspendCol : -1;
-          c.save();
-          c.globalAlpha = 1;
-          const aW = Math.max(1, ap.x1 - ap.x0), bW = Math.max(1, bp.x1 - bp.x0), x1 = ap.x0 + aW * 0.05, x2 = bp.x1 - bW * 0.05, yTop = Math.min(ap.y, bp.y) - 2 - suspendH, tl = localToWorld(x1, yTop), tr = localToWorld(x2, yTop), bl = localToWorld(x1, yTop + suspendH), br = localToWorld(x2, yTop + suspendH);
-          for (let colRing = start; colRing <= end; colRing++) {
-            const apRing = layout.anchors.get(colRing);
-            if (!apRing) continue;
-            const dangerRing = dangerDelete || (colRing === hoveredSuspendInChain);
-            drawSuspendU(apRing.x, yTop, dangerRing);
-          }
-          c.fillStyle = dangerDelete ? "rgba(130,18,18,.96)" : "rgba(22,27,34,.96)"; c.beginPath(); c.moveTo(tl.x, tl.y); c.lineTo(tr.x, tr.y); c.lineTo(br.x, br.y); c.lineTo(bl.x, bl.y); c.closePath(); c.fill();
-          strokeSuspendBodyPath(tl, tr, br, bl, dangerDelete);
-          if (chainDeletesByHoverLink && hoveredLink) {
-            const la = layout.anchors.get(hoveredLink.a), lb = layout.anchors.get(hoveredLink.b);
-            if (la && lb) {
-              const laW = Math.max(1, la.x1 - la.x0), lbW = Math.max(1, lb.x1 - lb.x0), lx1 = la.x1 - laW * 0.05, lx2 = lb.x0 + lbW * 0.05;
-              if (lx2 > lx1) {
-                const ltl = localToWorld(lx1, yTop), ltr = localToWorld(lx2, yTop), lbl = localToWorld(lx1, yTop + suspendH), lbr = localToWorld(lx2, yTop + suspendH);
-                c.fillStyle = "rgba(130,18,18,.96)";
-                c.beginPath();
-                c.moveTo(ltl.x, ltl.y);
-                c.lineTo(ltr.x, ltr.y);
-                c.lineTo(lbr.x, lbr.y);
-                c.lineTo(lbl.x, lbl.y);
-                c.closePath();
-                c.fill();
-                strokeSuspendBodyPath(ltl, ltr, lbr, lbl, true);
-              }
-            }
-          }
-          if (hoveredSuspendInChain >= 0) {
-            const hp = layout.anchors.get(hoveredSuspendInChain);
-            if (hp) {
-              const hW = Math.max(1, hp.x1 - hp.x0), hx1 = hp.x0 + hW * 0.05, hx2 = hp.x1 - hW * 0.05, htl = localToWorld(hx1, yTop), htr = localToWorld(hx2, yTop), hbl = localToWorld(hx1, yTop + suspendH), hbr = localToWorld(hx2, yTop + suspendH);
-              c.fillStyle = "rgba(130,18,18,.96)";
-              c.beginPath();
-              c.moveTo(htl.x, htl.y);
-              c.lineTo(htr.x, htr.y);
-              c.lineTo(hbr.x, hbr.y);
-              c.lineTo(hbl.x, hbl.y);
-              c.closePath();
-              c.fill();
-              strokeSuspendBodyPath(htl, htr, hbr, hbl, true);
-            }
-          }
-          c.restore();
-        }
-      }
-      if (showAnchorHints) {
-        // anchor hint markers disabled
-      }
-      if (isRigEditMode() && sel && st.rigHover && st.rigHover.rectId === r.id && (st.rigHover.type === "suspend" || st.rigHover.type === "suspendLink")) {
-        c.strokeStyle = "rgba(255,224,138,.95)";
-        c.lineWidth = Math.max(1.6, 2.4 * ui);
-        c.setLineDash([5 * ui, 3 * ui]);
-        if (st.rigHover.type === "suspend") {
-          const ap = layout.anchors.get(Math.max(0, Math.round(Number(st.rigHover.col) || 0)));
-          if (ap) {
-            const aW = Math.max(1, ap.x1 - ap.x0), x1 = ap.x0 + aW * 0.05, x2 = ap.x1 - aW * 0.05, yTop = ap.y - 2 - suspendH, tl = localToWorld(x1, yTop), tr = localToWorld(x2, yTop), bl = localToWorld(x1, yTop + suspendH), br = localToWorld(x2, yTop + suspendH);
-            drawSuspendUPath(ap.x, yTop, ringD);
-            c.stroke();
-            c.beginPath(); c.moveTo(tl.x, tl.y); c.lineTo(tr.x, tr.y); c.lineTo(br.x, br.y); c.lineTo(bl.x, bl.y); c.closePath(); c.stroke();
-          }
-        } else if (st.rigHover.type === "suspendLink") {
-          const a = Math.min(st.rigHover.a, st.rigHover.b), b = Math.max(st.rigHover.a, st.rigHover.b), ap = layout.anchors.get(a), bp = layout.anchors.get(b);
-          if (ap && bp) {
-            const aW = Math.max(1, ap.x1 - ap.x0), bW = Math.max(1, bp.x1 - bp.x0), yTop = Math.min(ap.y, bp.y) - 2 - suspendH;
-            const lx1 = ap.x1 - aW * 0.05, lx2 = bp.x0 + bW * 0.05;
-            if (lx2 > lx1) {
-              const tl = localToWorld(lx1, yTop), tr = localToWorld(lx2, yTop), bl = localToWorld(lx1, yTop + suspendH), br = localToWorld(lx2, yTop + suspendH);
-              c.beginPath();
-              c.moveTo(tl.x, tl.y);
-              c.lineTo(tr.x, tr.y);
-              c.lineTo(br.x, br.y);
-              c.lineTo(bl.x, bl.y);
-              c.closePath();
-              c.stroke();
-            }
-          }
-        }
-        c.setLineDash([]);
-      }
-      c.restore();
-    };
+    const { drawRigOnRect, drawRigOutsideOverlay } = setupRigRenderController({
+      st,
+      getRectRigData: r => getRectRigData(r),
+      buildRigLayout: (r, cx, cy, topo, hs, z) => buildRigLayout(r, cx, cy, topo, hs, z),
+      resolveRigFrameSeam: (layout, cellY, key) => resolveRigFrameSeam(layout, cellY, key),
+      drawLoadIcon: (c, x, y, size, opts) => drawLoadIcon(c, x, y, size, opts),
+      fontFamilyCss: value => fontFamilyCss(value),
+      isRigEditMode: () => isRigEditMode(),
+      rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
+      RIG_DEFAULT_LOAD_KG
+    });
     const { drawMaskOverlay, drawCellEditOverlay, drawContentBounds } = setupViewportOverlays({
       st,
       isMaskMode: () => isMaskMode(),
@@ -7815,8 +7506,6 @@
       renderProjectTabs: () => renderProjectTabs(),
       schedulePersist: (...args) => schedulePersist(...args)
     });
-    bindProjectLoadHandlers();
-    bindClick(el.save, async () => { const text = JSON.stringify(buildProject(), null, 2); const blob = new Blob([text], { type: "application/json" }); await saveBlobWithSystemDialog(blob, `${projectFileBase()}.json`, "application/json", ".json", "JSON files", st.saveLocationId) });
     const { bindProjectLinkHandlers } = setupProjectLinkActionsController({
       el,
       bindEvent: (...args) => bindEvent(...args),
@@ -7830,7 +7519,16 @@
       PROJECT_QUERY_PARAM,
       PROJECT_ID_PARAM
     });
-    bindProjectLinkHandlers();
+    setupProjectActionsController({
+      bindProjectLoadHandlers: () => bindProjectLoadHandlers(),
+      bindProjectLinkHandlers: () => bindProjectLinkHandlers(),
+      bindClick: (...args) => bindClick(...args),
+      saveButton: el.save,
+      buildProject: () => buildProject(),
+      projectFileBase: () => projectFileBase(),
+      saveBlobWithSystemDialog: (...args) => saveBlobWithSystemDialog(...args),
+      getSaveLocationId: () => st.saveLocationId
+    }).bindAll();
     const fmtOne = v => { const n = Math.round((Number(v) || 0) * 10) / 10; return Number.isInteger(n) ? `${n.toFixed(0)}` : n.toFixed(1) };
     const fmtMeters = v => { const n = Math.round((Number(v) || 0) * 1000) / 1000; return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "") };
     const roundRigSize = v => Math.round((Number(v) || 0) * 100) / 100;
@@ -8023,124 +7721,58 @@
       const scale = Math.max(1, +r.scale || 256), visibleAreaM2 = visibleAreaPx / (scale * scale);
       return { cabinetBySize, cableByLen, visibleAreaM2 };
     };
-    const buildRectSpecText = (r, interSpec = null) => {
-      const { name, group } = parseScreenNameGroup(r);
-      const { cabinetBySize, cableByLen } = buildRectSpecData(r);
-      const { supportBySize, frameCount, bottomRowFrameCount, bottomLoadByKg } = buildRectRigSpecData(r);
-      const interOut = interSpec && interSpec.byRectOut ? interSpec.byRectOut.get(r.id) : null;
-
-      const cabinetList = [...cabinetBySize.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
-        .map(([size, count]) => `${size}м – ${count} шт.`);
-
-      const cableList = [...cableByLen.entries()]
-        .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
-        .map(([len, count]) => `${len} – ${count} шт.`);
-      const interCableList = interOut ? mapToCableList(interOut.cableByLen) : [];
-      const interTargetList = interOut ? mapToNamedCountList(interOut.targets) : [];
-
-      const supportList = mapToRigSizeList(supportBySize);
-      const bottomLoadList = mapToRigWeightList(bottomLoadByKg);
-      const frameBracketCount = frameCount + bottomRowFrameCount;
-
-      const wM = fmtMeters((+r.width || 0) / Math.max(1, +r.scale || 256));
-      const hM = fmtMeters((+r.height || 0) / Math.max(1, +r.scale || 256));
-
-      const out = [
-        `###### ${name} (${Math.round(r.width)}x${Math.round(r.height)} px / ${wM} x ${hM} м)`,
-        `- Группа: ${group}`
-      ];
-      pushSpecListLine(out, "Кабинеты", cabinetList);
-      pushSpecListLine(out, "Коммутация", cableList);
-      pushSpecListLine(out, "Межэкранные связи", interTargetList);
-      pushSpecListLine(out, "Межэкранная коммутация", interCableList);
-      pushSpecListLine(out, "Подвесы", supportList);
-      pushSpecCountLine(out, "Рамы", frameCount);
-      pushSpecListLine(out, "Грузы", bottomLoadList);
-      pushSpecCountLine(out, "Скоба монтажная для рамы", frameBracketCount);
-      pushSpecCountLine(out, "Болт для крепления скобы", frameBracketCount * 4);
-
-      return out.join("\n");
-    };
-    const buildFlowSpecText = () => {
-      const specRects = st.rects.filter(r => !isNoteRect(r));
-      const interSpec = buildInterScreenSpecData();
-      const screenBlocks = specRects.map(r => buildRectSpecText(r, interSpec)).join("\n\n");
-
-      const byGroup = new Map();
-
-      for (const r of specRects) {
-        const { group } = parseScreenNameGroup(r);
-        const data = buildRectSpecData(r);
-        const rigData = buildRectRigSpecData(r);
-
-        let rec = byGroup.get(group);
-        if (!rec) {
-          rec = {
-            cabinetBySize: new Map(),
-            cableByLen: new Map(),
-            supportBySize: new Map(),
-            frameCount: 0,
-            bottomRowFrameCount: 0,
-            bottomLoadByKg: new Map(),
-            visibleAreaM2: 0
-          };
-          byGroup.set(group, rec);
-        }
-
-        mergeCountMap(rec.cabinetBySize, data.cabinetBySize);
-        mergeCountMap(rec.cableByLen, data.cableByLen);
-        mergeNumericMap(rec.supportBySize, rigData.supportBySize);
-        mergeNumericMap(rec.bottomLoadByKg, rigData.bottomLoadByKg);
-
-        rec.frameCount += Number(rigData.frameCount) || 0;
-        rec.bottomRowFrameCount += Number(rigData.bottomRowFrameCount) || 0;
-        rec.visibleAreaM2 += Number(data.visibleAreaM2) || 0;
-      }
-
-      const totalBlocks = [...byGroup.entries()]
-        .sort((a, b) => a[0].localeCompare(b[0], "ru"))
-        .map(([group, rec]) => {
-          const cab = mapToCabinetList(rec.cabinetBySize);
-          const cbl = mapToCableList(rec.cableByLen);
-          const interGroup = interSpec && interSpec.byGroupOut ? interSpec.byGroupOut.get(group) : null;
-          const icbl = interGroup ? mapToCableList(interGroup.cableByLen) : [];
-          const irts = interGroup ? mapToNamedCountList(interGroup.routes) : [];
-          const sup = mapToRigSizeList(rec.supportBySize);
-          const btm = mapToRigWeightList(rec.bottomLoadByKg);
-
-          const supportCount = sumMapCounts(rec.supportBySize);
-          const frameBracketCount = rec.frameCount + rec.bottomRowFrameCount;
-
-          const lines = [
-            `###### Группа: ${group}`,
-            `- Площадь экранов: ${fmtAreaM2(rec.visibleAreaM2)} м²`
-          ];
-          pushSpecListLine(lines, "Кабинеты", cab);
-          pushSpecListLine(lines, "Коммутация", cbl);
-          pushSpecListLine(lines, "Межэкранные связи", irts);
-          pushSpecListLine(lines, "Межэкранная коммутация", icbl);
-          pushSpecListLine(lines, "Подвесы", sup);
-          pushSpecCountLine(lines, "Рамы", rec.frameCount);
-          pushSpecListLine(lines, "Грузы", btm);
-          pushSpecCountLine(lines, "Скоба такелажная", supportCount * 2);
-          pushSpecCountLine(lines, "Стропа", supportCount * 2);
-          pushSpecCountLine(lines, "Скоба монтажная для рамы", frameBracketCount);
-          pushSpecCountLine(lines, "Болт для крепления скобы", frameBracketCount * 4);
-          return lines.join("\n");
-        })
-        .join("\n\n");
-
-      return [
-        "##### Спецификация",
-        "",
-        screenBlocks,
-        "",
-        "##### Итоговая сумма",
-        "",
-        totalBlocks
-      ].join("\n");
-    };
+    const buildRectSpecText = (r, interSpec = null) => buildScreenSpecSection({
+      rect: r,
+      interSpec,
+      parseScreenNameGroup,
+      buildRectSpecData,
+      buildRectRigSpecData,
+      mapToCableList,
+      mapToNamedCountList,
+      mapToRigSizeList,
+      mapToRigWeightList,
+      fmtMeters,
+      pushSpecListLine,
+      pushSpecCountLine
+    });
+    const buildFlowSpecText = () => buildFlowLinksSpecText({
+      rects: st.rects,
+      isNoteRect: r => isNoteRect(r),
+      buildInterScreenSpecData: () => buildInterScreenSpecData(),
+      parseScreenNameGroup,
+      buildRectSpecData,
+      buildRectRigSpecData,
+      mergeCountMap,
+      mergeNumericMap,
+      buildScreenSpecSection: ({ rect, interSpec }) => buildScreenSpecSection({
+        rect,
+        interSpec,
+        parseScreenNameGroup,
+        buildRectSpecData,
+        buildRectRigSpecData,
+        mapToCableList,
+        mapToNamedCountList,
+        mapToRigSizeList,
+        mapToRigWeightList,
+        fmtMeters,
+        pushSpecListLine,
+        pushSpecCountLine
+      }),
+      buildSummarySection: ({ group, rec, interSpec }) => buildSummarySection({
+        group,
+        rec,
+        interSpec,
+        mapToCabinetList,
+        mapToCableList,
+        mapToNamedCountList,
+        mapToRigSizeList,
+        mapToRigWeightList,
+        sumMapCounts,
+        fmtAreaM2,
+        pushSpecListLine,
+        pushSpecCountLine
+      })
+    });
     const { exportPackage } = setupExportPackageController({
       st,
       ensureFontReady: () => ensureFontReady(),
@@ -8162,6 +7794,36 @@
       showMessageModal: (text, title) => showMessageModal(text, title)
     });
     bindClick(el.exp, async () => { await exportPackage() });
+    const editorServices = createEditorServices({
+      st,
+      el,
+      themeMedia,
+      overflowHiddenButtons,
+      bindEvent,
+      bindClick,
+      bindWindowEvent,
+      bindProxyClick,
+      lsGet,
+      lsSet,
+      HELP_SEEN_KEY,
+      openHelpModal,
+      closeHelpModal,
+      syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
+      renderProjectTabs: () => renderProjectTabs(),
+      syncProps: () => syncProps(),
+      schedulePersist: (...args) => schedulePersist(...args),
+      createProjectTab: data => createProjectTab(data),
+      makeEmptyProjectData: name => makeEmptyProjectData(name),
+      applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
+      hideThemePopup: () => hideThemePopup(),
+      showThemePopup: anchorEl => showThemePopup(anchorEl),
+      hideToolbarOverflowPopup: () => hideToolbarOverflowPopup(),
+      showToolbarOverflowPopup: () => showToolbarOverflowPopup(),
+      updateMobileDock: () => updateMobileDock(),
+      updateToolbarOverflow: () => updateToolbarOverflow(),
+      persistNow: () => persistNow(),
+      scheduleCanvasResize: () => scheduleCanvasResize()
+    });
     setupUiBinders({
       st, el, themeMedia, overflowHiddenButtons,
       bindEvent, bindClick, bindWindowEvent,
@@ -8174,7 +7836,7 @@
       updateMobileDock, updateToolbarOverflow, persistNow, scheduleCanvasResize
     });
     setupKeyboardController({
-      st, el, render,
+      st: editorServices.st, el: editorServices.el, render,
       undoHistory, redoHistory, closeHelpModal, setMode,
       isMaskMode, applyMaskPath, delSel, dupSel, cur,
       cloneRectForClipboard, cloneRectForDuplicate, insertCloneAboveSource,
