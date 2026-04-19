@@ -1516,35 +1516,26 @@
     import { setupViewThemeLockController } from "./editor/modules/ui/view-theme-lock-controller.js";
     import { setupToolModeController } from "./editor/modules/ui/tool-mode-controller.js";
     import { setupPropertiesSyncController } from "./editor/modules/ui/properties-sync-controller.js";
+    import { setupPropsUiUtils } from "./editor/modules/ui/props-ui-utils.js";
     import { setupDragSnapController } from "./editor/modules/ui/drag-snap-controller.js";
-    import { setupFlowPointerDownController } from "./editor/modules/ui/flow-pointerdown-controller.js";
     import { setupTransientStateController } from "./editor/modules/ui/transient-state-controller.js";
     import { setupSelectionController } from "./editor/modules/ui/selection-controller.js";
     import { setupSelectionLockController } from "./editor/modules/ui/selection-lock-controller.js";
-    import { setupProjectLinkActionsController } from "./editor/modules/ui/project-link-actions-controller.js";
+    import { setupProjectActionsFeature } from "./editor/modules/features/project-actions-feature.js";
     import { setupProjectIoController } from "./editor/modules/project-io-controller.js";
-    import { setupProjectLoadController } from "./editor/modules/project-load-controller.js";
     import { setupProjectMetaController } from "./editor/modules/project-meta-controller.js";
-    import { setupProjectSaveDialogController } from "./editor/modules/project-save-dialog-controller.js";
     import { setupRectFactoryController } from "./editor/modules/rect-factory-controller.js";
     import { setupProjectSessionController } from "./editor/modules/project/session-controller.js";
-    import { setupProjectActionsController } from "./editor/modules/project/actions-controller.js";
     import { setupProjectLifecycleController } from "./editor/modules/project/project-lifecycle-controller.js";
     import { setupProjectSerializationController } from "./editor/modules/project/project-serialization-controller.js";
     import { setupProjectStateController } from "./editor/modules/project-state-controller.js";
-    import { setupProjectCodecBridge } from "./editor/modules/project-codec-bridge.js";
-    import { setupAppInitController } from "./editor/modules/app-init-controller.js";
-    import { setupAppBootstrapRuntime } from "./editor/modules/app-bootstrap-runtime.js";
-    import { setupInputWiring, setupBootstrapWiring } from "./editor/modules/bootstrap/wiring.js";
-    import { setupExportPackageController } from "./editor/modules/export-package-controller.js";
+    import { setupInputWiring } from "./editor/modules/bootstrap/wiring.js";
     import { setupChangeOpsController } from "./editor/modules/state/change-ops.js";
     import { setupHistoryController } from "./editor/modules/history-controller.js";
     import { setupManualClustersController } from "./editor/modules/manual-clusters-controller.js";
     import { setupRigCore } from "./editor/modules/rig-core.js";
     import { setupRigInteractionController } from "./editor/modules/rig/interaction.js";
     import { setupRigRenderController } from "./editor/modules/rig/render.js";
-    import { setupRigInputController } from "./editor/modules/ui/rig-input-controller.js";
-    import { setupRenderPipeline } from "./editor/modules/render-pipeline.js";
     import { setupFlowLinkController } from "./editor/modules/flow-link-controller.js";
     import { drawFlowStartMarker, drawFlowEndMarker } from "./editor/modules/flow/draw-helpers.js";
     import { setupFlowAnchorResolver } from "./editor/modules/flow/anchor-resolver.js";
@@ -1552,31 +1543,41 @@
     import { setupNoteRender } from "./editor/modules/render/note-render.js";
     import { setupDrawRectStagesController } from "./editor/modules/render/draw-rect-stages.js";
     import { setupDrawRectBaseController } from "./editor/modules/render/draw-rect-base.js";
-    import { setupRenderRuntimeController } from "./editor/modules/render/runtime-controller.js";
-    import { setupViewportResizeController } from "./editor/modules/render/viewport-resize-controller.js";
+    import { setupCellLinkUtilsController } from "./editor/modules/render/cell-link-utils.js";
+    import { setupTextLayoutController } from "./editor/modules/render/text-layout-controller.js";
+    import { setupRenderRuntimeFeature } from "./editor/modules/features/render-runtime-feature.js";
     import { setupViewportMetricsController } from "./editor/modules/render/viewport-metrics.js";
     import { setupViewportOverlays } from "./editor/modules/render/viewport-overlays.js";
     import { setupInputController } from "./editor/modules/input-controller.js";
-    import { setupKeyboardController } from "./editor/modules/keyboard-controller.js";
     import { setupMobileGestures } from "./editor/modules/mobile-gestures.js";
-    import { setupRectListController } from "./editor/modules/rect-list-controller.js";
-    import { setupUiBinders } from "./editor/modules/ui-binders.js";
+    import { setupAppBootstrapFeature } from "./editor/modules/features/app-bootstrap-feature.js";
+    import { setupSelectionUiFeature } from "./editor/modules/features/selection-ui-feature.js";
+    import { setupSelectionActionsFeature } from "./editor/modules/features/selection-actions-feature.js";
+    import { setupMirrorDuplicateFeature } from "./editor/modules/features/mirror-duplicate-feature.js";
+    import { setupPropsPanelFeature } from "./editor/modules/features/props-panel-feature.js";
+    import { setupTargetActionsFeature } from "./editor/modules/features/target-actions-feature.js";
+    import { setupPropsInputBindingsFeature } from "./editor/modules/features/props-input-bindings-feature.js";
+    import { setupResetActionsFeature } from "./editor/modules/features/reset-actions-feature.js";
+    import { setupModalWiringFeature } from "./editor/modules/features/modal-wiring-feature.js";
+    import { setupConvertRegionsFeature } from "./editor/modules/features/convert-regions-feature.js";
+    import { setupMobileUiFeature } from "./editor/modules/features/mobile-ui-feature.js";
+    import { setupEditingToolsCore, setupEditingToolsInput } from "./editor/modules/features/editing-tools-controller.js";
     import { buildCalcWorkerScript } from "./editor/modules/calc/worker-script.js";
-    import { rectAABBMaskedKey as buildRectAABBMaskedKey, topoCalcKey as buildTopoCalcKey } from "./editor/modules/calc/cache-keys.js";
+    import { setupCalcWorkerOrchestrator } from "./editor/modules/calc/worker-orchestrator.js";
+    import { setupRegionsFlowController } from "./editor/modules/calc/regions-flow-controller.js";
+    import {
+      rectAABBMaskedKey as buildRectAABBMaskedKey,
+      topoCalcKey as buildTopoCalcKey,
+      regionCalcKey as buildRegionCalcKey,
+      flowCalcKey as buildFlowCalcKey
+    } from "./editor/modules/calc/cache-keys.js";
     import {
       normalizeSaveLocationId, normalizeHiddenCells, normalizeManualClusters, normalizeRigData,
       normalizeDataFlow, normalizeDataFlowZ, normalizeFlowLocks, normalizeFlowLockRidToSigMap,
       normalizeFlowLockCidToSeedMap, normalizeFlowLinks, normalizeThemeMode, normalizeViewMode,
       normalizeCabinetUnit
     } from "./editor/modules/project-normalizers.js";
-    import {
-      fmtAreaM2, mapToCabinetList, mapToCableList, mapToNamedCountList, mapToRigSizeList,
-      mapToRigWeightList, pushSpecListLine, pushSpecCountLine
-    } from "./editor/modules/spec/formatters.js";
-    import { addCountToMap, mergeCountMap, mergeNumericMap, sumMapCounts } from "./editor/modules/spec/aggregation.js";
-    import { buildScreenSpecSection } from "./editor/modules/spec/build-screen-section.js";
-    import { buildSummarySection } from "./editor/modules/spec/build-summary-section.js";
-    import { buildFlowLinksSpecText } from "./editor/modules/spec/build-flow-links-section.js";
+    import { setupSpecExportFeature } from "./editor/modules/features/spec-export-feature.js";
     import { embedProjectIntoPngBlob, extractProjectFromPngBytes } from "./editor/modules/png-project-meta.js";
     import { computeRectRenderFlags } from "./editor/modules/render/mode-gates.js";
     import {
@@ -2444,31 +2445,14 @@
       arrSignatureCache.set(v, { len: v.length, first: v[0], last: v[v.length - 1], sig });
       return sig;
     };
-    const regionCalcKey = (r, cx, cy, topo) => [
-      r && r.width || 0,
-      r && r.height || 0,
-      Math.max(1, Math.round(Number(r && r.areaM2Px) || 65536)),
-      cx || 0,
-      cy || 0,
-      topo && topo.cols || 0,
-      topo && topo.rows || 0,
-      Math.max(0, Math.round(Number(r && r.splitVariant) || 0)),
-      listSignature(r && r.cellLinks),
-      listSignature(r && r.hiddenCells),
-      manualClustersSignature(r)
-    ].join("|");
-    const flowCalcKey = (r, cx, cy, topo, regions) => [
-      normalizeDataFlow(r && r.dataFlow),
-      !!(r && r.dataFlowZ),
-      r && r.width || 0,
-      r && r.height || 0,
-      cx || 0,
-      cy || 0,
-      topo && topo.cols || 0,
-      topo && topo.rows || 0,
-      flowLocksSignature(r),
-      regions && regions._calcKey ? regions._calcKey : ""
-    ].join("|");
+    const regionCalcKey = (r, cx, cy, topo) => buildRegionCalcKey(r, cx, cy, topo, {
+      listSignature,
+      manualClustersSignature
+    });
+    const flowCalcKey = (r, cx, cy, topo, regions) => buildFlowCalcKey(r, cx, cy, topo, regions, {
+      normalizeDataFlow,
+      flowLocksSignature
+    });
     const flowLocksSignature = r => {
       const locks = normalizeFlowLocks(r && r.flowLocks), parts = [];
       for (const key of Object.keys(locks).sort((a, b) => (+a) - (+b))) {
@@ -3853,197 +3837,27 @@
         state.drawn = totalSegments;
       }
     };
-    function componentsAreRectangles(topo) {
-      const stat = new Map();
-      for (let i = 0; i < topo.count; i++) {
-        const c = topo.comp[i], x = i % topo.cols, y = Math.floor(i / topo.cols);
-        let s = stat.get(c);
-        if (!s) { s = { minX: x, maxX: x, minY: y, maxY: y, count: 0 }; stat.set(c, s) }
-        s.minX = Math.min(s.minX, x); s.maxX = Math.max(s.maxX, x); s.minY = Math.min(s.minY, y); s.maxY = Math.max(s.maxY, y); s.count++;
-      }
-      for (const s of stat.values()) {
-        const area = (s.maxX - s.minX + 1) * (s.maxY - s.minY + 1);
-        if (s.count !== area) return false;
-      }
-      return true;
-    }
-    function getCellToggleSegments(r, cx, cy, topo) {
-      const segUnits = [];
-      const cols = topo.cols, rows = topo.rows;
-      const cid = (x, y) => topo.comp[y * cols + x];
-      const mkCompPair = (a, b) => a < b ? `${a}:${b}` : `${b}:${a}`;
-      for (let y = 1; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          const a = (y - 1) * cols + x, b = y * cols + x, key = mkLinkKey(a, b), exists = topo.links.has(key), ca = cid(x, y - 1), cb = cid(x, y);
-          if (exists) segUnits.push({ o: "h", line: y, pos: x, key, exists: true, group: `h:${y}:split:${ca}` });
-          else if (ca !== cb) segUnits.push({ o: "h", line: y, pos: x, key, exists: false, group: `h:${y}:merge:${mkCompPair(ca, cb)}` });
-        }
-      }
-      for (let x = 1; x < cols; x++) {
-        for (let y = 0; y < rows; y++) {
-          const a = y * cols + (x - 1), b = y * cols + x, key = mkLinkKey(a, b), exists = topo.links.has(key), ca = cid(x - 1, y), cb = cid(x, y);
-          if (exists) segUnits.push({ o: "v", line: x, pos: y, key, exists: true, group: `v:${x}:split:${ca}` });
-          else if (ca !== cb) segUnits.push({ o: "v", line: x, pos: y, key, exists: false, group: `v:${x}:merge:${mkCompPair(ca, cb)}` });
-        }
-      }
-      const byGroup = new Map();
-      for (const u of segUnits) { const arr = byGroup.get(u.group) || []; arr.push(u); byGroup.set(u.group, arr) }
-      const out = [];
-      for (const units of byGroup.values()) {
-        units.sort((a, b) => a.pos - b.pos);
-        let run = [units[0]];
-        const flush = () => {
-          if (!run.length) return;
-          const first = run[0], last = run[run.length - 1], keys = run.map(v => v.key), exists = first.exists;
-          let u1 = 0, v1 = 0, u2 = 0, v2 = 0;
-          if (first.o === "h") { u1 = first.pos * cx; u2 = Math.min(r.width, (last.pos + 1) * cx); v1 = Math.min(r.height, first.line * cy); v2 = v1 }
-          else { u1 = Math.min(r.width, first.line * cx); u2 = u1; v1 = first.pos * cy; v2 = Math.min(r.height, (last.pos + 1) * cy) }
-          const p1 = rectUVToWorld(r, u1, v1), p2 = rectUVToWorld(r, u2, v2);
-          out.push({ keys, exists, p1, p2 });
-          run = [];
-        };
-        for (let i = 1; i < units.length; i++) { if (units[i].pos === units[i - 1].pos + 1) run.push(units[i]); else { flush(); run = [units[i]] } }
-        flush();
-      }
-      for (const s of out) {
-        if (s.exists) { s.canToggle = true; continue }
-        const next = { ...r, cellLinks: [...(Array.isArray(r.cellLinks) ? r.cellLinks : []), ...s.keys] };
-        const topoNext = getCellTopology(next, cx, cy);
-        s.canToggle = componentsAreRectangles(topoNext);
-      }
-      return out;
-    }
-    function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
-      const vx = x2 - x1, vy = y2 - y1, wx = px - x1, wy = py - y1, den = vx * vx + vy * vy;
-      const t = den > 0 ? Math.max(0, Math.min(1, (wx * vx + wy * vy) / den)) : 0;
-      const cx = x1 + t * vx, cy = y1 + t * vy;
-      return Math.hypot(px - cx, py - cy);
-    }
-    function getCellLinkCandidateAtPoint(r, wx, wy) {
-      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), segs = getCellToggleSegments(r, cx, cy, topo), thr = Math.max(6, 8 / st.zoom);
-      let best = null;
-      for (const s of segs) {
-        const d = pointToSegmentDistance(wx, wy, s.p1.x, s.p1.y, s.p2.x, s.p2.y);
-        if (d > thr) continue;
-        if (!best || d < best.d) best = { ...s, d };
-      }
-      return best;
-    }
-    function getComponentBoundarySegments(r, cx, cy, topo) {
-      const segs = [];
-      const compAt = (x, y) => topo.comp[y * topo.cols + x];
-      for (let ky = 0; ky <= topo.rows; ky++) {
-        let run = -1;
-        const isBoundary = (x) => {
-          if (ky === 0 || ky === topo.rows) return true;
-          return compAt(x, ky - 1) !== compAt(x, ky);
-        };
-        for (let x = 0; x <= topo.cols; x++) {
-          const on = x < topo.cols && isBoundary(x);
-          if (on && run < 0) run = x;
-          if ((!on || x === topo.cols) && run >= 0) {
-            const u1 = run * cx, u2 = Math.min(r.width, x * cx), v = Math.min(r.height, ky * cy), p1 = rectUVToWorld(r, u1, v), p2 = rectUVToWorld(r, u2, v);
-            segs.push({ p1, p2 }); run = -1;
-          }
-        }
-      }
-      for (let kx = 0; kx <= topo.cols; kx++) {
-        let run = -1;
-        const isBoundary = (y) => {
-          if (kx === 0 || kx === topo.cols) return true;
-          return compAt(kx - 1, y) !== compAt(kx, y);
-        };
-        for (let y = 0; y <= topo.rows; y++) {
-          const on = y < topo.rows && isBoundary(y);
-          if (on && run < 0) run = y;
-          if ((!on || y === topo.rows) && run >= 0) {
-            const v1 = run * cy, v2 = Math.min(r.height, y * cy), u = Math.min(r.width, kx * cx), p1 = rectUVToWorld(r, u, v1), p2 = rectUVToWorld(r, u, v2);
-            segs.push({ p1, p2 }); run = -1;
-          }
-        }
-      }
-      return segs;
-    }
-    function getVisibleBoundarySegmentsLocal(w, h, cx, cy, hs) {
-      const cols = Math.max(1, Math.ceil(w / cx)), rows = Math.max(1, Math.ceil(h / cy)), vis = (x, y) => x >= 0 && x < cols && y >= 0 && y < rows && !hs.has(maskCellKey(x, y)), segs = [];
-      for (let ky = 0; ky <= rows; ky++) {
-        let run = -1;
-        for (let x = 0; x <= cols; x++) {
-          const on = x < cols && ((ky > 0 ? vis(x, ky - 1) : false) !== (ky < rows ? vis(x, ky) : false));
-          if (on && run < 0) run = x;
-          if ((!on || x === cols) && run >= 0) {
-            const u1 = Math.min(w, run * cx), u2 = Math.min(w, x * cx), v = Math.min(h, ky * cy);
-            segs.push({ x1: -w / 2 + u1, y1: -h / 2 + v, x2: -w / 2 + u2, y2: -h / 2 + v }); run = -1;
-          }
-        }
-      }
-      for (let kx = 0; kx <= cols; kx++) {
-        let run = -1;
-        for (let y = 0; y <= rows; y++) {
-          const on = y < rows && ((kx > 0 ? vis(kx - 1, y) : false) !== (kx < cols ? vis(kx, y) : false));
-          if (on && run < 0) run = y;
-          if ((!on || y === rows) && run >= 0) {
-            const v1 = Math.min(h, run * cy), v2 = Math.min(h, y * cy), u = Math.min(w, kx * cx);
-            segs.push({ x1: -w / 2 + u, y1: -h / 2 + v1, x2: -w / 2 + u, y2: -h / 2 + v2 }); run = -1;
-          }
-        }
-      }
-      return segs;
-    }
-    function chooseTextLayout(r, lines, measureFn, maxW, baseFs, hiddenBoxes, freeRects) {
-      const scales = [1, 0.93, 0.86], inset = 3, padY = 4, minLongSide = 256;
-      const score = (box) => { let oa = 0; for (const hb of hiddenBoxes) oa += overlapArea(box, hb); return oa };
-      const candidates = [];
-      const rects = (Array.isArray(freeRects) && freeRects.length ? freeRects : [{ x: r.x, y: r.y, w: r.width, h: r.height }]);
-      const bigRects = rects.filter(rr => Math.max(rr.w, rr.h) >= minLongSide);
-      const usedRects = bigRects.length ? bigRects : rects;
-      const bigOnly = bigRects.length > 0;
-      for (const sc of scales) {
-        const fs = Math.max(6, Math.round(baseFs * sc * 100) / 100), lh = Math.max(fs + 2, baseFs + 2), est = Math.max(...lines.map(t => measureFn(t, fs))) + 14, tw = Math.min(maxW, est), th = lines.length * lh + 8;
-        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-        const seen = new Set();
-        for (const rr of usedRects) {
-          const minX = rr.x + inset, maxX = rr.x + rr.w - inset - tw, minY = rr.y + inset, maxY = rr.y + rr.h - inset - th;
-          if (maxX < minX || maxY < minY) continue;
-          const cx = clamp(rr.x + rr.w / 2 - tw / 2, minX, maxX), cy = clamp(rr.y + rr.h / 2 - th / 2, minY, maxY);
-          const cands = [
-            { kind: "center", x: cx, y: cy },
-            { kind: "top", x: cx, y: minY }, { kind: "bottom", x: cx, y: maxY },
-            { kind: "left", x: minX, y: cy }, { kind: "right", x: maxX, y: cy },
-            { kind: "tl", x: minX, y: minY }, { kind: "tr", x: maxX, y: minY },
-            { kind: "bl", x: minX, y: maxY }, { kind: "br", x: maxX, y: maxY },
-          ];
-          for (const c of cands) {
-            const k = `${Math.round(c.x * 100) / 100},${Math.round(c.y * 100) / 100},${c.kind}`; if (seen.has(k)) continue; seen.add(k);
-            const box = { x: c.x, y: c.y, w: tw, h: th }, ov = score(box), dist = Math.hypot((c.x + tw / 2) - (r.x + r.width / 2), (c.y + th / 2) - (r.y + r.height / 2)), fitArea = rr.w * rr.h, rectPriority = (bigOnly ? 0 : (Math.max(rr.w, rr.h) >= minLongSide ? 0 : 1));
-            candidates.push({ ...c, fs, lh, tw, th, ov, dist, fitArea, rectPriority });
-          }
-        }
-      }
-      let picked = null;
-      for (const it of candidates) {
-        if (!picked) { picked = it; continue }
-        if (it.rectPriority !== picked.rectPriority) { if (it.rectPriority < picked.rectPriority) picked = it; continue }
-        if (it.ov !== picked.ov) { if (it.ov < picked.ov) picked = it; continue }
-        if (it.ov === 0 && it.fs !== picked.fs) { if (it.fs > picked.fs) picked = it; continue }
-        if (it.dist !== picked.dist) { if (it.dist < picked.dist) picked = it; continue }
-        if (it.fitArea !== picked.fitArea) { if (it.fitArea > picked.fitArea) picked = it; continue }
-      }
-      if (!picked) {
-        const fs = Math.max(6, baseFs * 0.86), lh = Math.max(fs + 2, baseFs + 2), est = Math.max(...lines.map(t => measureFn(t, fs))) + 14, tw = Math.min(maxW, est), th = lines.length * lh + 8;
-        const x = r.x + Math.max(0, (r.width - tw) / 2), y = r.y + Math.max(0, (r.height - th) / 2);
-        picked = { fs, lh, tw, th, x, y };
-      }
-      const sy = picked.y + padY + picked.lh / 2;
-      return { fs: picked.fs, lh: picked.lh, tw: picked.tw, th: picked.th, textLeft: picked.x, textX: picked.x + picked.tw / 2, textTop: picked.y, sy };
-    }
-    const getRectTextLayoutCached = (r, key, compute) => {
-      const cache = getRectCalcCache(r);
-      if (cache.textLayout && cache.textLayout.key === key) return cache.textLayout.value;
-      const value = compute();
-      cache.textLayout = { key, value };
-      return value;
-    };
+    const {
+      getCellLinkCandidateAtPoint,
+      getComponentBoundarySegments,
+      getVisibleBoundarySegmentsLocal
+    } = setupCellLinkUtilsController({
+      mkLinkKey,
+      rectUVToWorld,
+      getCellTopology,
+      getCellTopologyCached,
+      drawCellX,
+      drawCellY,
+      getZoom: () => st.zoom,
+      maskCellKey
+    });
+    const {
+      chooseTextLayout,
+      getRectTextLayoutCached
+    } = setupTextLayoutController({
+      overlapArea,
+      getRectCalcCache
+    });
     const mRound = v => Math.round(v * 10000) / 10000;
     const mFmt = v => { const n = mRound(v); return Number.isInteger(n) ? `${n.toFixed(0)}` : `${n}` };
     const fillPercent = (wm, hm, areaM2Px) => { const area = Math.max(0, (+wm || 0) * (+hm || 0)), base = Math.max(1, +areaM2Px || 65536); return (100 * (base * area)) / 655360 };
@@ -4789,67 +4603,6 @@
       safeDefine(out, "_profile", profile);
       return out;
     };
-    let regionCalcWorker = null, regionCalcReqSeq = 1;
-    const regionCalcPending = new Map();
-    let flowCalcWorker = null, flowCalcReqSeq = 1;
-    const flowCalcPending = new Map();
-    const makeRegionValue = (rr, key, cx, cy, topo, hs, timedOut = false) => {
-      let value = buildSingleRegionPlan(rr, cx, cy, topo, hs);
-      if (timedOut) safeDefine(value, "_timedOut", true);
-      if (key != null) safeDefine(value, "_calcKey", key);
-      return value;
-    };
-    const applyRegionValue = (rr, cache, value, topo, metricMs = 0, timedOut = false) => {
-      cache.regions.pending = false;
-      cache.regions.value = value;
-      syncFlowLocksWithRegions(rr, value, topo);
-      applySplitVariantLimitFromRegions(rr, value);
-      cache.flow = null;
-      markCalcMetric("regions", metricMs, timedOut);
-    };
-    const applyFlowCacheResult = (cache, key, value, metricMs = 0, timedOut = false, logMeta = null) => {
-      if (!cache || !cache.flow || cache.flow.key !== key) return;
-      cache.flow.pending = false;
-      cache.flow.value = timedOut ? [] : (Array.isArray(value) ? value : []);
-      markCalcMetric("flow", Math.max(0, Number(metricMs) || 0), !!timedOut);
-      if (logMeta && typeof logMeta === "object") {
-        logFlowCalcSummary(logMeta.rectId, key, cache.flow.value, logMeta.extra || {});
-      }
-    };
-    const buildRegionWorkerPayload = (r, cx, cy, topo, hs) => ({
-      r: {
-        id: r && r.id || 0,
-        width: r && r.width || 0,
-        height: r && r.height || 0,
-        widthM: r && r.widthM || 0,
-        heightM: r && r.heightM || 0,
-        scale: r && r.scale || 256,
-        areaM2Px: r && r.areaM2Px || 65536,
-        splitVariant: r && r.splitVariant || 0,
-        cellLinks: Array.isArray(r && r.cellLinks) ? r.cellLinks : [],
-        manualClusters: normalizeManualClusters(r && r.manualClusters)
-      },
-      cx, cy, topo, hs: collectSetValues(hs)
-    });
-    const buildFlowWorkerPayload = (r, cx, cy, topo, hs, regions) => ({
-      r: {
-        id: r && r.id || 0,
-        width: r && r.width || 0,
-        height: r && r.height || 0,
-        dataFlow: r && r.dataFlow || "none",
-        dataFlowZ: !!(r && r.dataFlowZ),
-        flowLocks: normalizeFlowLocks(r && r.flowLocks),
-        manualClusters: normalizeManualClusters(r && r.manualClusters)
-      },
-      cx, cy, topo, hs: collectSetValues(hs),
-      regions: regions ? {
-        nx: regions.nx || 1,
-        colToGroup: Array.isArray(regions.colToGroup) ? regions.colToGroup : [],
-        rowToGroup: Array.isArray(regions.rowToGroup) ? regions.rowToGroup : [],
-        cellToRegion: Array.isArray(regions.cellToRegion) ? regions.cellToRegion : [],
-        labels: Array.isArray(regions.regions) ? Object.fromEntries(regions.regions.map(it => [String(it.id), String(it.label || toLetters(it.id))])) : {}
-      } : null
-    });
     const calcWorkerScript = buildCalcWorkerScript({
       constants: {
         FLOW_WORKER_TIMEOUT_MS,
@@ -4876,345 +4629,79 @@
         planNumberRegionsUncached
       }
     });
-    const ensureCalcWorker = (kind) => {
-      if (kind === "regions") {
-        if (regionCalcWorker) return regionCalcWorker;
-        try {
-          regionCalcWorker = new Worker(CALC_WORKER_BOOT_URL);
-          regionCalcWorker.postMessage({ kind: "boot", script: calcWorkerScript });
-        } catch (err) {
-          try { console.warn("[calc-worker:regions] create failed", err); } catch (_e) { }
-          regionCalcWorker = null;
-          return null;
-        }
-        regionCalcWorker.onmessage = e => {
-          const d = e && e.data ? e.data : {};
-          if (isWorkerBootMessage(d)) return;
-          if (d.kind !== "regions") return;
-          const req = regionCalcPending.get(d.reqId);
-          if (!req) return;
-          regionCalcPending.delete(d.reqId);
-          if (req.timer) clearTimeout(req.timer);
-          const rr = getRectById(req.rectId);
-          if (!rr) return;
-          const cache = getRectCalcCache(rr);
-          if (!cache.regions || cache.regions.key !== req.key) return;
-          let value = d && d.ok ? d.result : null;
-          let timedOut = !!(d && d.timedOut) || !value;
-          if ((!d || !d.ok) && rr) {
-            try {
-              const budget = makeCalcBudget();
-              budget.deadline = calcNow() + REGION_WORKER_TIMEOUT_MS;
-              value = planNumberRegionsUncached(rr, req.cx, req.cy, req.topo, req.hs, budget);
-              timedOut = !!(budget && budget.timedOut) || !!(value && value._timedOut);
-              console.warn("[calc-worker:regions] fallback to main thread");
-            } catch (_e) {
-              value = null;
-              timedOut = true;
-              console.warn("[calc-worker:regions] worker/local failed", _e);
-            }
-          }
-          if (timedOut) {
-            value = makeRegionValue(rr, req.key, req.cx, req.cy, req.topo, req.hs, true);
-          }
-          if (value && typeof value === "object") {
-            safeDefine(value, "_calcKey", req.key);
-            const p = value && value._profile;
-            if (p && typeof p === "object" && Number(p.totalMs) > 500) {
-              try { console.info("[regions-profile]", { rectId: req.rectId, key: req.key, ...p }); } catch (_e) { }
-            }
-          }
-          applyRegionValue(rr, cache, value, req.topo, Math.max(0, Number(d && d.elapsed) || 0), timedOut);
-          if (timedOut) {
-            try { console.warn("[regions-timeout] worker returned timedOut", { rectId: req.rectId, key: req.key, elapsed: d && d.elapsed }); } catch (_e) { }
-          }
-          render();
-        };
-        regionCalcWorker.onerror = (err) => {
-          try { console.warn("[calc-worker:regions] worker error", err); } catch (_e) { }
-          for (const req of regionCalcPending.values()) {
-            if (req.timer) clearTimeout(req.timer);
-            const rr = getRectById(req.rectId);
-            if (!rr) continue;
-            const cache = getRectCalcCache(rr);
-            if (cache.regions && cache.regions.key === req.key) {
-              const value = makeRegionValue(rr, req.key, req.cx, req.cy, req.topo, req.hs, true);
-              applyRegionValue(rr, cache, value, req.topo, 0, true);
-            }
-          }
-          regionCalcPending.clear();
-          try { regionCalcWorker.terminate() } catch (_e) { }
-          regionCalcWorker = null;
-          render();
-        };
-        return regionCalcWorker;
-      }
-      if (flowCalcWorker) return flowCalcWorker;
-      try {
-        flowCalcWorker = new Worker(CALC_WORKER_BOOT_URL);
-        flowCalcWorker.postMessage({ kind: "boot", script: calcWorkerScript });
-      } catch (err) {
-        try { console.warn("[calc-worker:flow] create failed", err); } catch (_e) { }
-        flowCalcWorker = null;
-        return null;
-      }
-      flowCalcWorker.onmessage = e => {
-        const d = e && e.data ? e.data : {};
-        if (isWorkerBootMessage(d)) return;
-        if (d.kind !== "flow") return;
-        const req = flowCalcPending.get(d.reqId);
-        if (!req) return;
-        flowCalcPending.delete(d.reqId);
-        const rr = getRectById(req.rectId);
-        if (!rr) return;
-        const cache = getRectCalcCache(rr);
-        if (!cache.flow || cache.flow.key !== req.key) return;
-        let timedOut = !!(d && d.timedOut) || !Array.isArray(d && d.result);
-        let value = Array.isArray(d && d.result) ? d.result : null;
-        if ((!d || !d.ok) && rr) {
-          try {
-            const budget = makeCalcBudget();
-            budget.deadline = calcNow() + FLOW_WORKER_TIMEOUT_MS;
-            const hs = req.hs || new Set();
-            value = getDataFlowGroupsUncached(rr, req.cx, req.cy, req.topo, hs, req.regions, budget);
-            timedOut = !!(budget && budget.timedOut) || !Array.isArray(value);
-            console.warn("[calc-worker:flow] fallback to main thread");
-          } catch (_e) {
-            value = null;
-            timedOut = true;
-            console.warn("[calc-worker:flow] worker/local failed", _e);
-          }
-        }
-        applyFlowCacheResult(cache, req.key, value, Math.max(0, Number(d && d.elapsed) || 0), timedOut, {
-          rectId: req.rectId,
-          extra: { source: (d && d.ok) ? "worker" : "fallback", timedOut: !!timedOut, elapsed: Math.max(0, Number(d && d.elapsed) || 0) }
-        });
-        render();
-      };
-      flowCalcWorker.onerror = (err) => {
-        try { console.warn("[calc-worker:flow] worker error", err); } catch (_e) { }
-        for (const req of flowCalcPending.values()) {
-          const rr = getRectById(req.rectId);
-          if (!rr) continue;
-          const cache = getRectCalcCache(rr);
-          if (cache.flow && cache.flow.key === req.key) {
-            applyFlowCacheResult(cache, req.key, [], 0, true, {
-              rectId: req.rectId,
-              extra: { source: "worker-error", timedOut: true, elapsed: 0 }
-            });
-          }
-        }
-        flowCalcPending.clear();
-        try { flowCalcWorker.terminate() } catch (_e) { }
-        flowCalcWorker = null;
-        render();
-      };
-      return flowCalcWorker;
-    };
-    const resetCalcWorkers = () => {
-      for (const req of regionCalcPending.values()) if (req.timer) clearTimeout(req.timer);
-      for (const _req of flowCalcPending.values()) { }
-      regionCalcPending.clear();
-      flowCalcPending.clear();
-      if (regionCalcWorker) { try { regionCalcWorker.terminate() } catch (_e) { } }
-      if (flowCalcWorker) { try { flowCalcWorker.terminate() } catch (_e) { } }
-      regionCalcWorker = null;
-      flowCalcWorker = null;
-    };
-    const scheduleRegionCalcWorker = (r, key, cx, cy, topo, hs) => {
-      const worker = ensureCalcWorker("regions"), reqId = regionCalcReqSeq++, rectId = r.id;
-      if (!worker) {
-        const rr = getRectById(rectId);
-        if (!rr) return;
-        const cache = getRectCalcCache(rr);
-        if (!cache.regions || cache.regions.key !== key) return;
-        try {
-          const budget = makeCalcBudget();
-          budget.deadline = calcNow() + REGION_WORKER_TIMEOUT_MS;
-          let value = planNumberRegionsUncached(rr, cx, cy, topo, hs, budget);
-          const timedOut = !!(budget && budget.timedOut) || !!(value && value._timedOut);
-          if (timedOut) {
-            value = makeRegionValue(rr, key, cx, cy, topo, hs, true);
-          }
-          safeDefine(value, "_calcKey", key);
-          applyRegionValue(rr, cache, value, topo, 0, timedOut);
-          render();
-        } catch (_e) {
-          const value = makeRegionValue(rr, key, cx, cy, topo, hs, true);
-          applyRegionValue(rr, cache, value, topo, 0, true);
-          render();
-        }
-        return;
-      }
-      const timer = setTimeout(() => {
-        const req = regionCalcPending.get(reqId);
-        if (!req) return;
-        regionCalcPending.delete(reqId);
-        const rr = getRectById(rectId);
-        if (!rr) return;
-        const cache = getRectCalcCache(rr);
-        if (!cache.regions || cache.regions.key !== key) return;
-        try {
-          const budget = makeCalcBudget();
-          budget.deadline = calcNow() + REGION_WORKER_TIMEOUT_MS;
-          let value = planNumberRegionsUncached(rr, cx, cy, topo, hs, budget);
-          const timedOut = !!(budget && budget.timedOut) || !!(value && value._timedOut);
-          if (timedOut) {
-            value = makeRegionValue(rr, key, cx, cy, topo, hs, true);
-          }
-          safeDefine(value, "_calcKey", key);
-          applyRegionValue(rr, cache, value, topo, REGION_WORKER_TIMEOUT_MS, true);
-          try { console.warn("[regions-watchdog] fallback to local", { rectId, key }); } catch (_e) { }
-          render();
-        } catch (_e) {
-          const value = makeRegionValue(rr, key, cx, cy, topo, hs, true);
-          applyRegionValue(rr, cache, value, topo, REGION_WORKER_TIMEOUT_MS, true);
-          try { console.warn("[regions-watchdog] local failed", { rectId, key, error: _e && _e.message || String(_e) }); } catch (__e) { }
-          render();
-        }
-      }, REGION_WORKER_TIMEOUT_MS + 5000);
-      regionCalcPending.set(reqId, { rectId, key, cx, cy, topo, hs, timer });
-      try { console.info("[regions-worker] scheduled", { rectId, key }); } catch (_e) { }
-      worker.postMessage(buildWorkerMessage("regions", reqId, buildRegionWorkerPayload(r, cx, cy, topo, hs)));
-    };
-    const scheduleFlowCalcWorker = (r, key, cx, cy, topo, hs, regions) => {
-      const worker = ensureCalcWorker("flow"), reqId = flowCalcReqSeq++, rectId = r.id;
-      if (!worker) {
-        const rr = getRectById(rectId);
-        if (!rr) return;
-        const cache = getRectCalcCache(rr);
-        if (!cache.flow || cache.flow.key !== key) return;
-        try {
-          const budget = makeCalcBudget();
-          budget.deadline = calcNow() + FLOW_WORKER_TIMEOUT_MS;
-          const value = getDataFlowGroupsUncached(rr, cx, cy, topo, hs, regions, budget);
-          const timedOut = !!(budget && budget.timedOut) || !Array.isArray(value);
-          applyFlowCacheResult(cache, key, value, 0, timedOut, {
-            rectId,
-            extra: { source: "main", timedOut: !!timedOut, elapsed: 0 }
-          });
-          render();
-        } catch (_e) {
-          applyFlowCacheResult(cache, key, [], 0, true, {
-            rectId,
-            extra: { source: "main-error", timedOut: true, elapsed: 0, error: _e && _e.message || String(_e) }
-          });
-          render();
-        }
-        return;
-      }
-      flowCalcPending.set(reqId, { rectId, key, cx, cy, topo, hs, regions });
-      worker.postMessage(buildWorkerMessage("flow", reqId, buildFlowWorkerPayload(r, cx, cy, topo, hs, regions)));
-    };
-    const planNumberRegions = (r, cx, cy, topo, hs, useCache = true) => {
-      const cache = useCache ? getRectCalcCache(r) : { regions: null, flow: null };
-      const key = regionCalcKey(r, cx, cy, topo);
-      if (cache.regions && cache.regions.key === key) {
-        syncFlowLocksWithRegions(r, cache.regions.value, topo);
-        return cache.regions.value;
-      }
-      const manualRegionsActive = Array.isArray(r && r.manualClusters) && r.manualClusters.length > 0;
-      if (manualRegionsActive) {
-        try {
-          const budget = makeCalcBudget();
-          budget.deadline = calcNow() + REGION_WORKER_TIMEOUT_MS;
-          const value = planNumberRegionsUncached(r, cx, cy, topo, hs, budget);
-          safeDefine(value, "_calcKey", key);
-          cache.regions = { key, value, pending: false };
-          syncFlowLocksWithRegions(r, value, topo);
-          if (cache.flow && cache.flow.regionKey !== key) cache.flow = null;
-          return value;
-        } catch (_e) {
-          // fallback to async path below
-        }
-      }
-      const value = buildSingleRegionPlan(r, cx, cy, topo, hs);
-      safeDefine(value, "_calcKey", key);
-      cache.regions = { key, value, pending: true };
-      syncFlowLocksWithRegions(r, value, topo);
-      if (cache.flow && cache.flow.regionKey !== key) cache.flow = null;
-      scheduleRegionCalcWorker(r, key, cx, cy, topo, hs);
-      return value;
-    };
-    const getDataFlowGroups = (r, cx, cy, topo, hs, regions) => {
-      if (regions && regions._timedOut) {
-        markCalcMetric("flow", 0, true);
-        return [];
-      }
-      const manualRegionsActive = Array.isArray(r && r.manualClusters) && r.manualClusters.length > 0;
-      const cache = getRectCalcCache(r);
-      const regionKey = (regions && regions._calcKey) || "";
-      if (cache.regions && cache.regions.key === regionKey && cache.regions.pending) {
-        if (cache.flow && cache.flow.key === flowCalcKey(r, cx, cy, topo, regions)) return cache.flow.value;
-        return [];
-      }
-      const key = flowCalcKey(r, cx, cy, topo, regions);
-      if (cache.flow && cache.flow.key === key) return cache.flow.value;
-      if (manualRegionsActive) {
-        try {
-          const budget = makeCalcBudget();
-          budget.deadline = calcNow() + FLOW_WORKER_TIMEOUT_MS;
-          const value = getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget);
-          const timedOut = !!(budget && budget.timedOut) || !Array.isArray(value);
-          cache.flow = { key, regionKey, value: timedOut ? [] : value, pending: false };
-          markCalcMetric("flow", 0, timedOut);
-          logFlowCalcSummary(r && r.id || 0, key, cache.flow.value, { source: "main-manual", timedOut: !!timedOut, elapsed: 0 });
-          return cache.flow.value;
-        } catch (_e) {
-          cache.flow = { key, regionKey, value: [], pending: false };
-          markCalcMetric("flow", 0, true);
-          logFlowCalcSummary(r && r.id || 0, key, cache.flow.value, { source: "main-manual-error", timedOut: true, elapsed: 0, error: _e && _e.message || String(_e) });
-          return [];
-        }
-      }
-      cache.flow = { key, regionKey, value: [], pending: true };
-      scheduleFlowCalcWorker(r, key, cx, cy, topo, hs, regions);
-      return [];
-    };
-    const applySplitVariantLimitFromRegions = (r, regions) => {
-      if (!r) return;
-      const raw = Number(regions && regions.variantCount);
-      const cnt = Number.isFinite(raw) && raw > 0 ? Math.max(1, Math.round(raw)) : 1;
-      r._splitVariantCount = cnt;
-      const maxIdx = Math.max(0, Math.min(Math.max(0, SPLIT_VARIANT_MAX - 1), cnt - 1));
-      if (Math.round(Number(r.splitVariant) || 0) !== Math.min(maxIdx, Math.max(0, Math.round(Number(r.splitVariant) || 0)))) {
-        r.splitVariant = Math.min(maxIdx, Math.max(0, Math.round(Number(r.splitVariant) || 0)));
-      }
-      if (st.sel === r.id) updateSplitVariantControl(r);
-    };
-    const flowGroupsStats = groups => {
-      const list = Array.isArray(groups) ? groups : [];
-      let total = 0;
-      for (const g of list) {
-        const pts = Array.isArray(g && g.points) ? g.points : [];
-        for (let i = 1; i < pts.length; i++)total += flowDist(pts[i - 1], pts[i]);
-      }
-      return { flowCount: list.length, totalFlowLen: Math.round(total * 100) / 100 };
-    };
-    const logFlowCalcSummary = (rectId, key, groups, extra) => {
-      try {
-        const stats = flowGroupsStats(groups);
-        const dbg = [];
-        for (const g of Array.isArray(groups) ? groups : []) {
-          if (g && g._dbg && typeof g._dbg === "object") dbg.push(g._dbg);
-        }
-        console.info("[flow-calc]", { rectId, key, ...stats, regions: dbg, ...(extra && typeof extra === "object" ? extra : {}) });
-      } catch (_e) { }
-    };
-    let metricFromPx = (_r) => { };
-    let pxFromMetric = (_r) => { };
-    let parseProjectRect = (_r, _i, _legacyAreaM2) => ({});
-    let mk = (_x, _y, _w, _h) => ({});
-    let mkNote = (_x, _y, _w, _h) => ({});
-    let setSaveIndicator = (_text, _tone = "secondary") => { };
-    let saveStatus = {
-      saving() { },
-      saved(_text) { },
-      error(_text) { },
-      idle(_text) { }
-    };
+    let resetCalcWorkers = () => { };
+    let scheduleRegionCalcWorker = (_r, _key, _cx, _cy, _topo, _hs) => { };
+    let scheduleFlowCalcWorker = (_r, _key, _cx, _cy, _topo, _hs, _regions) => { };
+    let planNumberRegions = (_r, _cx, _cy, _topo, _hs, _useCache = true) => buildSingleRegionPlan(_r, _cx, _cy, _topo, _hs);
+    let getDataFlowGroups = (_r, _cx, _cy, _topo, _hs, _regions) => [];
+    let applySplitVariantLimitFromRegions = (_r, _regions) => { };
+    let flowGroupsStats = (_groups) => ({ flowCount: 0, totalFlowLen: 0 });
+    let logFlowCalcSummary = (_rectId, _key, _groups, _extra) => { };
+    ({
+      resetCalcWorkers,
+      scheduleRegionCalcWorker,
+      scheduleFlowCalcWorker
+    } = setupCalcWorkerOrchestrator({
+      safeDefine,
+      render: () => render(),
+      getRectById: id => getRectById(id),
+      getRectCalcCache: r => getRectCalcCache(r),
+      makeCalcBudget: () => makeCalcBudget(),
+      calcNow,
+      markCalcMetric: (kind, ms, timedOut) => markCalcMetric(kind, ms, timedOut),
+      logFlowCalcSummary: (rectId, key, groups, extra) => logFlowCalcSummary(rectId, key, groups, extra),
+      buildSingleRegionPlan: (rr, cx, cy, topo, hs) => buildSingleRegionPlan(rr, cx, cy, topo, hs),
+      syncFlowLocksWithRegions: (rr, value, topo) => syncFlowLocksWithRegions(rr, value, topo),
+      applySplitVariantLimitFromRegions: (rr, value) => applySplitVariantLimitFromRegions(rr, value),
+      collectSetValues,
+      normalizeManualClusters,
+      normalizeFlowLocks,
+      toLetters,
+      buildWorkerMessage,
+      isWorkerBootMessage,
+      planNumberRegionsUncached: (rr, cx, cy, topo, hs, budget) => planNumberRegionsUncached(rr, cx, cy, topo, hs, budget),
+      getDataFlowGroupsUncached: (rr, cx, cy, topo, hs, regions, budget) => getDataFlowGroupsUncached(rr, cx, cy, topo, hs, regions, budget),
+      CALC_WORKER_BOOT_URL,
+      REGION_WORKER_TIMEOUT_MS,
+      FLOW_WORKER_TIMEOUT_MS,
+      calcWorkerScript
+    }));
+    ({
+      planNumberRegions,
+      getDataFlowGroups,
+      applySplitVariantLimitFromRegions,
+      flowGroupsStats,
+      logFlowCalcSummary
+    } = setupRegionsFlowController({
+      st,
+      safeDefine,
+      getRectCalcCache: r => getRectCalcCache(r),
+      regionCalcKey: (r, cx, cy, topo) => regionCalcKey(r, cx, cy, topo),
+      flowCalcKey: (r, cx, cy, topo, regions) => flowCalcKey(r, cx, cy, topo, regions),
+      syncFlowLocksWithRegions: (r, value, topo) => syncFlowLocksWithRegions(r, value, topo),
+      buildSingleRegionPlan: (r, cx, cy, topo, hs) => buildSingleRegionPlan(r, cx, cy, topo, hs),
+      scheduleRegionCalcWorker: (r, key, cx, cy, topo, hs) => scheduleRegionCalcWorker(r, key, cx, cy, topo, hs),
+      scheduleFlowCalcWorker: (r, key, cx, cy, topo, hs, regions) => scheduleFlowCalcWorker(r, key, cx, cy, topo, hs, regions),
+      planNumberRegionsUncached: (r, cx, cy, topo, hs, budget) => planNumberRegionsUncached(r, cx, cy, topo, hs, budget),
+      getDataFlowGroupsUncached: (r, cx, cy, topo, hs, regions, budget) => getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget),
+      makeCalcBudget: () => makeCalcBudget(),
+      calcNow,
+      markCalcMetric: (kind, ms, timedOut) => markCalcMetric(kind, ms, timedOut),
+      FLOW_WORKER_TIMEOUT_MS,
+      REGION_WORKER_TIMEOUT_MS,
+      SPLIT_VARIANT_MAX,
+      updateSplitVariantControl: r => updateSplitVariantControl(r),
+      flowDist
+    }));
     let persistNow = () => { };
     let schedulePersist = (_kind = "project") => { };
+    let setSaveIndicator = (_text, _tone = "secondary") => { };
+    let saveStatus = {
+      saving: () => { },
+      saved: (_text) => { },
+      error: (_text) => { },
+      idle: (_text) => { }
+    };
     let getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
     let isMobileTabStorageMode = () => false;
     let syncActiveTabSnapshot = () => { };
@@ -5251,6 +4738,10 @@
     let getSelectedRects = () => [];
     let selectOnly = (_id) => { };
     let toggleSelect = (_id) => { };
+    let selRect = (_id, _opts) => { };
+    let cur = () => null;
+    let syncProps = () => { };
+    let listRects = () => { };
     const {
       bindClick,
       bindEvent,
@@ -5509,6 +5000,11 @@
       resetSelectionTransient,
       resetTransientState
     } = setupTransientStateController({ st }));
+    let metricFromPx = (_r) => { };
+    let pxFromMetric = (_r) => { };
+    let parseProjectRect = (_r, _i, _legacy) => null;
+    let mk = (_x, _y, _w, _h) => ({});
+    let mkNote = (_x, _y, _w, _h) => ({});
     ({
       metricFromPx,
       pxFromMetric,
@@ -5542,35 +5038,35 @@
       restoreAutoSave
     } = setupProjectStateController({
       st,
-      resetCalcWorkers: () => resetCalcWorkers(),
-      parseAreaM2PxInput: (input, fallback) => parseAreaM2PxInput(input, fallback),
-      parseProjectRect: (r, i, legacy) => parseProjectRect(r, i, legacy),
-      pxFromMetric: r => pxFromMetric(r),
+      resetCalcWorkers,
+      parseAreaM2PxInput,
+      parseProjectRect,
+      pxFromMetric,
       normalizeFlowLinks,
-      remapRectRigLoadsToBottomSeams: r => remapRectRigLoadsToBottomSeams(r),
-      resetTransientState: full => resetTransientState(full),
-      updateViewModeUi: () => updateViewModeUi(),
-      updateLockAllUi: () => updateLockAllUi(),
-      setSelection: (ids, lead) => setSelection(ids, lead),
-      syncProps: () => syncProps(),
-      listRects: () => listRects(),
-      selRect: id => selRect(id),
-      syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
-      renderProjectTabs: () => renderProjectTabs(),
-      resetHistoryUi: () => resetHistoryUi(),
+      remapRectRigLoadsToBottomSeams,
+      resetTransientState,
+      updateViewModeUi,
+      updateLockAllUi,
+      setSelection,
+      syncProps,
+      listRects,
+      selRect,
+      syncActiveTabSnapshot,
+      renderProjectTabs,
+      resetHistoryUi,
       render: () => render(),
-      cloneProjectData: data => cloneProjectData(data),
-      makeEmptyProjectData: name => makeEmptyProjectData(name),
-      isMobileTabStorageMode: () => isMobileTabStorageMode(),
-      getActiveTab: () => getActiveTab(),
-      loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
+      cloneProjectData,
+      makeEmptyProjectData,
+      isMobileTabStorageMode,
+      getActiveTab,
+      loadProjectIntoActiveState,
       lsGet,
       TABS_SAVE_KEY,
       AUTO_SAVE_KEY,
-      setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
-      getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
-      genSaveLocationId: name => genSaveLocationId(name),
-      zc: v => zc(v),
+      setGlobalSaveLocationId,
+      getGlobalSaveLocationId,
+      genSaveLocationId,
+      zc,
       normalizeViewMode,
       evalExpr
     }));
@@ -5591,17 +5087,17 @@
       el,
       wrap,
       toolFsm,
-      closeNoteEditor: commit => closeNoteEditor(commit),
-      resetFlowHoverTransient: () => resetFlowHoverTransient(),
-      resetClusterHoverTransient: () => resetClusterHoverTransient(),
-      resetRigHoverTransient: () => resetRigHoverTransient(),
-      resetMaskTransient: () => resetMaskTransient(),
-      resetCellTransient: () => resetCellTransient(),
-      isMaskMode: () => isMaskMode(),
-      isCellEditMode: () => isCellEditMode(),
-      isRigEditMode: () => isRigEditMode(),
-      updateToolbarOverflow: () => updateToolbarOverflow(),
-      updateClusterEditCursor: () => updateClusterEditCursor(),
+      closeNoteEditor,
+      resetFlowHoverTransient,
+      resetClusterHoverTransient,
+      resetRigHoverTransient,
+      resetMaskTransient,
+      resetCellTransient,
+      isMaskMode,
+      isCellEditMode,
+      isRigEditMode,
+      updateToolbarOverflow,
+      updateClusterEditCursor,
       render: () => render()
     }));
     ({
@@ -5621,11 +5117,11 @@
       toggleSelect
     } = setupSelectionController({
       st,
-      getRectById: id => getRectById(id),
-      isRectLocked: r => isRectLocked(r),
-      rectAABB: r => rectAABB(r),
-      rectAABBMasked: r => rectAABBMasked(r),
-      refreshPropsListRender: () => refreshPropsListRender()
+      getRectById,
+      isRectLocked,
+      rectAABB,
+      rectAABBMasked,
+      refreshPropsListRender
     }));
     ({
       isRectLocked,
@@ -5633,14 +5129,14 @@
       toggleRectLockById
     } = setupSelectionLockController({
       st,
-      getRectById: id => getRectById(id),
-      getSelectedRects: () => getSelectedRects(),
-      normSelSet: () => normSelSet(),
-      resetMaskTransient: () => resetMaskTransient(),
-      resetCellTransient: () => resetCellTransient(),
-      syncProps: () => syncProps(),
-      listRects: () => listRects(),
-      schedulePersist: kind => schedulePersist(kind),
+      getRectById,
+      getSelectedRects,
+      normSelSet,
+      resetMaskTransient,
+      resetCellTransient,
+      syncProps,
+      listRects,
+      schedulePersist,
       render: () => render()
     }));
     const rectHasManualRegions = r => !!(r && Array.isArray(r.manualClusters) && r.manualClusters.length > 0);
@@ -5663,140 +5159,91 @@
       st,
       el,
       cloneJson,
-      buildProject: () => buildProject(),
+      buildProject,
       jsonEquals,
-      applyProjectData: (data, opts) => applyProjectData(data, opts),
-      schedulePersist: (...args) => schedulePersist(...args),
+      applyProjectData,
+      schedulePersist,
       historyCap: 80
     }));
-    function selRect(id, opts) {
-      if (id != null) {
-        const rr = getRectById(id);
-        if (rr && isRectLocked(rr)) return;
-      }
-      const o = (opts && typeof opts === "object") ? opts : {};
-      if (o.toggle) { toggleSelect(id); }
-      else if (o.add) { normSelSet(); if (id != null && hasRect(id)) { st.selSet.add(id); st.sel = id; } }
-      else selectOnly(id);
-      resetSelectionTransient();
-      const r = getRectById(st.sel) || null; if (!r || !findManualClusterById(r, st.clusterActiveId)) st.clusterActiveId = null; if (!r || !isNoteRect(r)) closeNoteEditor(true);
-      syncProps(); listRects(); updateModeBadges(r); updateClusterEditCursor(); render();
-    }
-    const cur = () => getRectById(st.sel) || null;
-    function hit(x, y) { for (let i = 0; i < st.rects.length; i++) { const r = st.rects[i]; if (isRectLocked(r)) continue; const p = worldToRectUV(r, x, y); if (p.u >= 0 && p.u <= r.width && p.v >= 0 && p.v <= r.height) return r } return null }
-    function snapMaskNode(r, wx, wy) { if (!r) return null; const p = worldToRectUV(r, wx, wy); if (p.u < 0 || p.u > r.width || p.v < 0 || p.v > r.height) return null; const u = Math.max(0, Math.min(r.width, p.u)), v = Math.max(0, Math.min(r.height, p.v)), axes = getMaskNodeAxes(r); let gu = axes.xs[0], gv = axes.ys[0], bdx = 1e9, bdy = 1e9; for (const x of axes.xs) { const d = Math.abs(x - u); if (d < bdx) { bdx = d; gu = x } } for (const y of axes.ys) { const d = Math.abs(y - v); if (d < bdy) { bdy = d; gv = y } } return rectUVToWorld(r, gu, gv) }
-    function addMaskPoint(wx, wy) { const r = cur(); if (!r || isRectLocked(r)) return; const p = snapMaskNode(r, wx, wy); if (!p) return; const first = st.maskPath[0], last = st.maskPath[st.maskPath.length - 1], eps = 6 / st.zoom; if (first && st.maskPath.length >= 3 && Math.hypot(p.x - first.x, p.y - first.y) <= eps) { applyMaskPath(); return } if (last && Math.abs(last.x - p.x) < 0.001 && Math.abs(last.y - p.y) < 0.001) return; st.maskPath.push(p); render() }
-    function applyMaskPath() { const r = cur(); if (!r || isRectLocked(r) || st.maskPath.length < 3) { resetMaskTransient(); render(); return } const cx = drawCellX(r), cy = drawCellY(r), hs = getHiddenSet(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); for (let iy = 0; iy < rows; iy++) { for (let ix = 0; ix < cols; ix++) { const cw = Math.min(cx, r.width - ix * cx), ch = Math.min(cy, r.height - iy * cy), wp = rectUVToWorld(r, ix * cx + cw / 2, iy * cy + ch / 2); if (!pointInPoly(wp.x, wp.y, st.maskPath)) continue; const k = maskCellKey(ix, iy); if (hs.has(k)) hs.delete(k); else hs.add(k); } } setHiddenSet(r); resetMaskTransient(); persistProjectAndRender() }
-    function toggleCellLinkAtPoint(r, wx, wy) {
-      if (!r || isRectLocked(r)) return false; const cand = getCellLinkCandidateAtPoint(r, wx, wy); if (!cand) return false; const arr = Array.isArray(r.cellLinks) ? r.cellLinks : [];
-      if (cand.exists) { const ks = new Set(cand.keys); r.cellLinks = arr.filter(v => !ks.has(v)); persistProjectAndRender(); return true }
-      if (!cand.canToggle) return false;
-      const next = new Set(arr); for (const k of cand.keys) next.add(k); r.cellLinks = [...next]; persistProjectAndRender(); return true
-    }
-    const clusterDragProjection = (dir, dx, dy) => {
-      if (dir === "left") return -dx;
-      if (dir === "right") return dx;
-      if (dir === "up") return -dy;
-      if (dir === "down") return dy;
-      return 0;
-    };
-    const applyClusterHandleStep = (r, drag, sign = 1) => {
-      if (!r || !drag) return false;
-      return sign < 0 ? shrinkManualCluster(r, drag.id, drag.dir) : expandManualCluster(r, drag.id, drag.dir);
-    };
-    function beginClusterHandleDragAtPoint(wx, wy) {
-      const h = hit(wx, wy);
-      if (!h) return false;
-      if (h.id !== st.sel) selRect(h.id);
-      const r = cur(); if (!r) return false;
-      if (isRectLocked(r)) return false;
-      const border = findActiveClusterBorder(r, wx, wy);
-      if (!border || Number(border.id) !== Number(st.clusterActiveId)) return false;
-      const axisStep = (border.dir === "left" || border.dir === "right") ? drawCellX(r) : drawCellY(r);
-      st.clusterDrag = { rectId: r.id, id: Math.max(1, Math.round(Number(border.id) || 1)), dir: String(border.dir || ""), startX: wx, startY: wy, axisStep: Math.max(1, axisStep), lastAppliedSteps: 0, moved: false, changed: false };
-      st.clusterBorderHover = border;
-      st.clusterStartHover = null;
-      updateClusterEditCursor();
-      return true;
-    }
-    function updateClusterHandleDragAtPoint(wx, wy) {
-      const d = st.clusterDrag;
-      if (!d) return false;
-      const r = cur();
-      if (!r || r.id !== d.rectId || isRectLocked(r)) return false;
-      const proj = clusterDragProjection(d.dir, (+wx || 0) - (+d.startX || 0), (+wy || 0) - (+d.startY || 0));
-      const stepPx = Math.max(1, d.axisStep || 1);
-      const steps = proj >= 0 ? Math.floor(proj / stepPx) : -Math.floor(Math.abs(proj) / stepPx);
-      if (steps === d.lastAppliedSteps) return d.changed;
-      if (steps > d.lastAppliedSteps) {
-        for (let i = d.lastAppliedSteps; i < steps; i++) {
-          if (!applyClusterHandleStep(r, d, +1)) { d.lastAppliedSteps = i; return d.changed; }
-          d.lastAppliedSteps = i + 1;
-          d.changed = true;
-          d.moved = true;
-        }
-      } else {
-        for (let i = d.lastAppliedSteps; i > steps; i--) {
-          if (!applyClusterHandleStep(r, d, -1)) { d.lastAppliedSteps = i; return d.changed; }
-          d.lastAppliedSteps = i - 1;
-          d.changed = true;
-          d.moved = true;
-        }
-      }
-      return d.changed;
-    }
-    function endClusterHandleDrag() {
-      const d = st.clusterDrag;
-      if (!d) return false;
-      const r = cur();
-      const changed = !!d.changed;
-      st.clusterDrag = null;
-      updateClusterEditCursor();
-      return changed;
-    }
-    function handleClusterEditAtPoint(wx, wy) {
-      const h = hit(wx, wy);
-      if (!h) { selRect(null); return true; }
-      if (h.id !== st.sel) { selRect(h.id); }
-      const r = cur(); if (!r) return true;
-      if (isRectLocked(r)) return true;
-      const startMark = findClusterStartMarker(r, wx, wy);
-      if (startMark) {
-        st.clusterActiveId = startMark.id;
-        if (removeManualCluster(r, startMark.id)) schedulePersist("project");
-        render();
-        return true;
-      }
-      const handle = findClusterHandle(wx, wy);
-      if (handle && Number(handle.id) === Number(st.clusterActiveId)) {
-        const action = String(handle.action || "expand");
-        const changed = (action === "shrink") ? shrinkManualCluster(r, handle.id, handle.dir) : expandManualCluster(r, handle.id, handle.dir);
-        if (changed) {
-          st.clusterHandleHover = handle;
-          schedulePersist("project");
-          render();
-        } else {
-          render();
-        }
-        return true;
-      }
-      const cell = cellFromWorldPoint(r, wx, wy, true);
-      if (!cell) { render(); return true; }
-      const hitCluster = findManualClusterAtCell(r, cell.col, cell.row);
-      if (hitCluster) {
-        st.clusterActiveId = hitCluster.id;
-        render();
-        return true;
-      }
-      const id = nextManualClusterId(r), cluster = { id, sx: cell.col, sy: cell.row, c0: cell.col, c1: cell.col + 1, r0: cell.row, r1: cell.row + 1 };
-      if (clusterCanPlace(r, cluster, null)) {
-        upsertManualCluster(r, cluster);
-        st.clusterActiveId = id;
-        schedulePersist("project");
-      }
-      render();
-      return true;
-    }
+    ({
+      selRect,
+      cur,
+      listRects
+    } = setupSelectionUiFeature({
+      st,
+      el,
+      bindEvent,
+      eventClosest,
+      getRectById,
+      isRectLocked,
+      hasRect,
+      normSelSet,
+      toggleSelect,
+      selectOnly,
+      resetSelectionTransient,
+      findManualClusterById,
+      isNoteRect,
+      closeNoteEditor,
+      syncProps,
+      updateModeBadges,
+      updateClusterEditCursor,
+      render: () => render(),
+      isSelected,
+      toggleRectLockById,
+      persistProjectAndRender
+    }));
+    let hit = (_x, _y) => null;
+    let snapMaskNode = (_r, _wx, _wy) => null;
+    let addMaskPoint = (_wx, _wy) => { };
+    let applyMaskPath = () => { };
+    let toggleCellLinkAtPoint = (_r, _wx, _wy) => false;
+    let beginClusterHandleDragAtPoint = (_wx, _wy) => false;
+    let updateClusterHandleDragAtPoint = (_wx, _wy) => false;
+    let endClusterHandleDrag = () => false;
+    let handleClusterEditAtPoint = (_wx, _wy) => false;
+    ({
+      hit,
+      snapMaskNode,
+      addMaskPoint,
+      applyMaskPath,
+      toggleCellLinkAtPoint,
+      beginClusterHandleDragAtPoint,
+      updateClusterHandleDragAtPoint,
+      endClusterHandleDrag,
+      handleClusterEditAtPoint
+    } = setupEditingToolsCore({
+      st,
+      getRectById,
+      isRectLocked,
+      worldToRectUV,
+      rectUVToWorld,
+      getMaskNodeAxes,
+      drawCellX,
+      drawCellY,
+      getHiddenSet,
+      pointInPoly,
+      maskCellKey,
+      setHiddenSet,
+      resetMaskTransient,
+      persistProjectAndRender,
+      render: () => render(),
+      getCellLinkCandidateAtPoint,
+      selRect,
+      cur,
+      findActiveClusterBorder,
+      updateClusterEditCursor,
+      shrinkManualCluster,
+      expandManualCluster,
+      findClusterStartMarker,
+      removeManualCluster,
+      findClusterHandle,
+      schedulePersist,
+      cellFromWorldPoint,
+      findManualClusterAtCell,
+      nextManualClusterId,
+      clusterCanPlace,
+      upsertManualCluster
+    }));
     let snap = (_x, _y, _id, _w, _h, _off) => ({ x: Math.round(Number(_x) || 0), y: Math.round(Number(_y) || 0), gx: null, gy: null, dg: null });
     const { drawNoteRect } = setupNoteRender({
       st,
@@ -5918,60 +5365,44 @@
     let scheduleCanvasResize = () => { };
     let resize = () => { };
     let zoomAt = (_sx, _sy, _nz) => { };
-    const renderPipeline = setupRenderPipeline({
-      ctx, st, cv, wrap,
-      getViewMetrics: () => getViewMetrics(),
-      s2w: (x, y) => s2w(x, y),
-      rectAABB: r => rectAABB(r),
-      getOrigin: () => getOrigin(),
-      isSelected: id => isSelected(id),
-      drawRect: (c, rr, sel, z, origin, opts) => drawRect(c, rr, sel, z, origin, opts),
-      drawInterScreenFlowLinks: c => drawInterScreenFlowLinks(c),
-      drawMaskOverlay: (c, z) => drawMaskOverlay(c, z),
-      drawCellEditOverlay: (c, z) => drawCellEditOverlay(c, z),
-      drawContentBounds: (c, z) => drawContentBounds(c, z),
-      drawGrid: () => { },
-      drawGuides: () => { },
-      drawDistanceGuide: () => { },
-      updateNoteEditorOverlay: () => updateNoteEditorOverlay(),
-      selBoxBounds: box => selBoxBounds(box),
-      resetClusterHoverTransient: () => resetClusterHoverTransient(),
-      isClusterEditMode: () => isClusterEditMode()
-    });
     ({
       render,
-      renderNow
-    } = setupRenderRuntimeController({
+      renderNow,
+      updateAppViewportHeight,
+      resize,
+      scheduleCanvasResize,
+      zoomAt
+    } = setupRenderRuntimeFeature({
       ctx,
       st,
       cv,
       wrap,
-      s2w: (x, y) => s2w(x, y),
-      w2s: (x, y) => w2s(x, y),
-      fontFamilyCss: v => fontFamilyCss(v),
+      getViewMetrics,
+      s2w,
+      w2s,
+      rectAABB,
+      getOrigin,
+      isSelected,
+      drawRect,
+      drawInterScreenFlowLinks,
+      drawMaskOverlay,
+      drawCellEditOverlay,
+      drawContentBounds,
+      updateNoteEditorOverlay,
+      selBoxBounds,
+      resetClusterHoverTransient,
+      isClusterEditMode,
+      fontFamilyCss,
       el,
-      renderPipeline,
       onBeforeRenderFrame: () => {
         flowDrawRenderEpoch++;
         flowPointIndexSrc = null;
         flowPointIndexMap = null;
-      }
+      },
+      bindWindowEvent,
+      bindEvent,
+      zc
     }));
-    const viewportResizeController = setupViewportResizeController({
-      st,
-      cv,
-      wrap,
-      bindWindowEvent: (name, handler) => bindWindowEvent(name, handler),
-      bindEvent: (target, name, handler, opts) => bindEvent(target, name, handler, opts),
-      render: immediate => render(immediate),
-      zc: value => zc(value),
-      s2w: (x, y) => s2w(x, y)
-    });
-    updateAppViewportHeight = viewportResizeController.updateAppViewportHeight;
-    resize = viewportResizeController.resize;
-    scheduleCanvasResize = viewportResizeController.scheduleCanvasResize;
-    zoomAt = viewportResizeController.zoomAt;
-    viewportResizeController.bindResizeListeners();
     let beginRectDrag = (_target, _p) => { };
     let snapGroup = (_nx, _ny, _drag, _off) => ({ x: Math.round(Number(_nx) || 0), y: Math.round(Number(_ny) || 0), gx: null, gy: null, dg: null });
     let moveRectDrag = (_p, _disableSnap) => { };
@@ -5992,62 +5423,40 @@
     }));
     let handleFlowEditPointerDown = (_p) => false;
     ({
-      handleFlowEditPointerDown
-    } = setupFlowPointerDownController({
-      st,
-      render: () => render(),
-      hit: (x, y) => hit(x, y),
-      cur: () => cur(),
-      selRect: (id, opts) => selRect(id, opts),
-      syncProps: () => syncProps(),
-      schedulePersist: kind => schedulePersist(kind),
-      isRectLocked: r => isRectLocked(r),
-      normalizeFlowLinks,
-      flowAnchorKey: a => flowAnchorKey(a),
-      findFlowLinkAtPoint: (x, y) => findFlowLinkAtPoint(x, y),
-      findFlowStartHandle: (x, y) => findFlowStartHandle(x, y),
-      findFlowDirectionButton: (x, y) => findFlowDirectionButton(x, y),
-      setFlowDirection: (r, rid, dir, cid) => setFlowDirection(r, rid, dir, cid),
-      findFlowLinkAnchorAtPoint: (x, y, kind) => findFlowLinkAnchorAtPoint(x, y, kind),
-      updateFlowLinkDragTarget: (x, y) => updateFlowLinkDragTarget(x, y),
-      findFlowEditPoint: (x, y) => findFlowEditPoint(x, y)
-    }));
-    ({
+      handleFlowEditPointerDown,
       handleRigPointerDown,
       handleRigPointerMove,
       handleRigPointerLeave
-    } = setupRigInputController({
+    } = setupEditingToolsInput({
       st,
-      cur: () => cur(),
-      hit: (x, y) => hit(x, y),
+      hit,
+      cur,
       render: () => render(),
-      selRect: (id, opts) => selRect(id, opts),
-      setSelection: (ids, lead) => setSelection(ids, lead),
+      selRect,
+      syncProps,
+      schedulePersist,
+      isRectLocked,
+      normalizeFlowLinks,
+      flowAnchorKey,
+      findFlowLinkAtPoint,
+      findFlowStartHandle,
+      findFlowDirectionButton,
+      setFlowDirection,
+      findFlowLinkAnchorAtPoint,
+      updateFlowLinkDragTarget,
+      findFlowEditPoint,
+      setSelection,
       syncPropsSmart: () => syncPropsSmart(),
-      isRectLocked: r => isRectLocked(r),
-      getRigHitAtPoint: (r, x, y, z) => getRigHitAtPoint(r, x, y, z),
-      applyRigActionAtPoint: (r, x, y) => applyRigActionAtPoint(r, x, y),
-      resetRigHoverTransient: () => resetRigHoverTransient(),
-      commitUiUpdate: opts => commitUiUpdate(opts)
+      getRigHitAtPoint,
+      applyRigActionAtPoint,
+      resetRigHoverTransient,
+      commitUiUpdate
     }));
-    function delSel() {
-      normSelSet();
-      if (!st.selSet.size && st.sel == null) return;
-      const ids = st.selSet.size ? new Set(st.selSet) : new Set([st.sel]);
-      let removed = false;
-      st.rects = st.rects.filter(r => {
-        if (!ids.has(r.id)) return true;
-        if (isRectLocked(r)) return true;
-        removed = true;
-        return false;
-      });
-      if (!removed) return;
-      setSelection([], null);
-      resetTransientState(false);
-      refreshPanels();
-      updateClusterEditCursor();
-      commitUiUpdate({ persist: true, render: true });
-    }
+    let delSel = () => { };
+    let dupSel = () => { };
+    let insertCloneAboveSource = (_sourceId, _clone) => { };
+    let cloneRectForClipboard = _src => _src;
+    let cloneRectForDuplicate = _src => _src;
     let resetProjectCore = () => { };
     let newProject = () => { };
     ({
@@ -6068,183 +5477,56 @@
       getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
       genSaveLocationId: name => genSaveLocationId(name)
     }));
-    const insertCloneAboveSource = (sourceId, clone) => {
-      const idx = st.rects.findIndex(v => v.id === sourceId);
-      if (idx >= 0) st.rects.splice(idx, 0, clone);
-      else st.rects.unshift(clone);
-    };
-    const cloneRectModel = (src, overrides = null) => {
-      const o = (overrides && typeof overrides === "object") ? overrides : {};
-      const base = {
-        ...src,
-        rotation: src.rotation || 0,
-        autoContrastB: src.autoContrastB !== false,
-        colorB: (src.autoContrastB !== false) ? autoContrast(src.colorA) : src.colorB,
-        cellLinks: Array.isArray(src.cellLinks) ? [...src.cellLinks] : [],
-        hiddenCells: Array.isArray(src.hiddenCells) ? [...src.hiddenCells] : [],
-        flowLocks: normalizeFlowLocks(src && src.flowLocks),
-        manualClusters: normalizeManualClusters(src && src.manualClusters),
-        rig: normalizeRigData(src && src.rig)
-      };
-      return { ...base, ...o };
-    };
-    const cloneRectForClipboard = src => cloneRectModel(src, { id: src.id });
-    const cloneRectForDuplicate = src => cloneRectModel(src, { id: st.next++, name: withNameSuffixBeforeGroup(src.name, "copy"), x: src.x + 20, y: src.y + 20 });
-    function dupSel() {
-      normSelSet();
-      const src = getSelectedRects();
-      if (!src.length) {
-        const r = cur();
-        if (!r) return;
-        src.push(r);
-      }
-      const created = [];
-      for (const r of src) {
-        const c = cloneRectForDuplicate(r);
-        insertCloneAboveSource(r.id, c);
-        created.push(c.id);
-      }
-      setSelection(created, created[created.length - 1] || null);
-      syncProps();
-      listRects();
-      setMode("select");
-      schedulePersist("project");
-    }
-    function dupMirrorSel() {
-      const r = cur(); if (!r) return; const cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); const mapIndex = i => { const x = i % cols, y = Math.floor(i / cols); if (!(x >= 0 && x < cols && y >= 0 && y < rows)) return -1; const nx = (cols - 1) - x; return y * cols + nx };
-      const hiddenSrc = Array.isArray(r.hiddenCells) ? r.hiddenCells : [], hiddenSet = new Set();
-      for (const k of hiddenSrc) { const p = String(k).split(","); if (p.length !== 2) continue; const ix = +p[0], iy = +p[1]; if (!(ix >= 0 && ix < cols && iy >= 0 && iy < rows)) continue; hiddenSet.add(`${(cols - 1) - ix},${iy}`) }
-      const linkSrc = Array.isArray(r.cellLinks) ? r.cellLinks : [], linkSet = new Set();
-      for (const k of linkSrc) { const p = parseLinkKey(k); if (!p) continue; const a2 = mapIndex(p.a), b2 = mapIndex(p.b); if (a2 < 0 || b2 < 0 || a2 === b2) continue; linkSet.add(mkLinkKey(a2, b2)) }
-      const mirrorDir = d => { const s = String(d || "").toLowerCase(); if (s === "left") return "right"; if (s === "right") return "left"; return s; };
-      const mirrorMode = m => { const s = String(m || ""); if (s === "h_bl_lr") return "h_br_rl"; if (s === "h_br_rl") return "h_bl_lr"; if (s === "h_tl_lr") return "h_tr_rl"; if (s === "h_tr_rl") return "h_tl_lr"; if (s === "v_lb_bu") return "v_rb_bu"; if (s === "v_rb_bu") return "v_lb_bu"; if (s === "v_lt_td") return "v_rt_td"; if (s === "v_rt_td") return "v_lt_td"; return s; };
-      const topoOld = getCellTopology(r, cx, cy);
-      const mirrorProbe = { ...r, cellLinks: [...linkSet], hiddenCells: [...hiddenSet] };
-      const topoNew = getCellTopology(mirrorProbe, cx, cy);
-      const cidMap = new Map();
-      if (topoOld && topoNew && Array.isArray(topoOld.seed) && Array.isArray(topoNew.comp)) {
-        for (let oldCid = 0; oldCid < topoOld.seed.length; oldCid++) {
-          const seed = topoOld.seed[oldCid];
-          if (!seed) continue;
-          const oldIdx = Math.max(0, Math.min(cols - 1, Math.round(Number(seed.col) || 0))) + Math.max(0, Math.min(rows - 1, Math.round(Number(seed.row) || 0))) * cols;
-          const newIdx = mapIndex(oldIdx);
-          if (newIdx < 0 || newIdx >= topoNew.comp.length) continue;
-          const newCid = Math.max(0, Math.round(Number(topoNew.comp[newIdx]) || 0));
-          cidMap.set(oldCid, newCid);
-        }
-      }
-      let mirroredSplitVariant = Math.max(0, Math.round(Number(r && r.splitVariant) || 0));
-      let bestPlanRegs = [];
-      const regionRidMap = new Map();
-      try {
-        const hsOld = getHiddenSet(r), oldBudget = makeCalcBudget(); oldBudget.deadline = calcNow() + 350;
-        const oldPlan = planNumberRegionsUncached(r, cx, cy, topoOld, hsOld, oldBudget);
-        const oldRegs = Array.isArray(oldPlan && oldPlan.regions) ? oldPlan.regions : [];
-        if (oldRegs.length) {
-          const mirroredTargets = oldRegs.map(z => ({ srcRid: Math.max(0, Math.round(Number(z && z.id) || 0)), c0: Math.max(0, cols - Math.max(0, Math.round(Number(z && z.c1) || 0))), c1: Math.max(0, cols - Math.max(0, Math.round(Number(z && z.c0) || 0))), r0: Math.max(0, Math.round(Number(z && z.r0) || 0)), r1: Math.max(0, Math.round(Number(z && z.r1) || 0)) }));
-          const targetSig = mirroredTargets.map(z => `${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
-          const rectMatchScore = (cand, target) => {
-            const cc0 = Math.max(0, Math.round(Number(cand && cand.c0) || 0)), cc1 = Math.max(cc0 + 1, Math.round(Number(cand && cand.c1) || 0)), cr0 = Math.max(0, Math.round(Number(cand && cand.r0) || 0)), cr1 = Math.max(cr0 + 1, Math.round(Number(cand && cand.r1) || 0));
-            const tc0 = target.c0, tc1 = target.c1, tr0 = target.r0, tr1 = target.r1;
-            const dEdges = Math.abs(cc0 - tc0) + Math.abs(cc1 - tc1) + Math.abs(cr0 - tr0) + Math.abs(cr1 - tr1);
-            const cw = Math.max(1, cc1 - cc0), ch = Math.max(1, cr1 - cr0), tw = Math.max(1, tc1 - tc0), th = Math.max(1, tr1 - tr0);
-            const dSize = Math.abs(cw - tw) + Math.abs(ch - th);
-            return dEdges * 10 + dSize;
-          };
-          const scorePlan = regs => {
-            const list = Array.isArray(regs) ? regs : [];
-            if (!list.length) return 1e12;
-            const sig = list.map(z => `${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
-            if (sig === targetSig) return -1e9;
-            const used = new Set();
-            let score = Math.abs(list.length - mirroredTargets.length) * 1e6;
-            for (const t of mirroredTargets) {
-              let best = 1e9, bestIdx = -1;
-              for (let i = 0; i < list.length; i++) {
-                if (used.has(i)) continue;
-                const s = rectMatchScore(list[i], t);
-                if (s < best) { best = s; bestIdx = i; }
-              }
-              if (bestIdx >= 0) { used.add(bestIdx); score += best; }
-              else score += 1e5;
-            }
-            return score;
-          };
-          const baseProbe = { ...r, cellLinks: [...linkSet], hiddenCells: [...hiddenSet], splitVariant: 0 };
-          let bestScore = 1e12, bestVariant = mirroredSplitVariant, maxVar = Math.max(1, Math.min(SPLIT_VARIANT_MAX, 25));
-          for (let sv = 0; sv < maxVar; sv++) {
-            baseProbe.splitVariant = sv;
-            const budget = makeCalcBudget(); budget.deadline = calcNow() + 300;
-            const plan = planNumberRegionsUncached(baseProbe, cx, cy, topoNew, getHiddenSet(baseProbe), budget);
-            if (sv === 0) {
-              const vc = Math.max(1, Math.round(Number(plan && plan.variantCount) || 1));
-              maxVar = Math.max(1, Math.min(SPLIT_VARIANT_MAX, vc));
-            }
-            const s = scorePlan(plan && plan.regions);
-            if (s < bestScore) { bestScore = s; bestVariant = sv; bestPlanRegs = Array.isArray(plan && plan.regions) ? plan.regions.map(it => ({ ...it })) : []; }
-            if (bestScore <= -1e8) break;
-          }
-          mirroredSplitVariant = Math.max(0, Math.round(bestVariant || 0));
-          if (bestPlanRegs.length) {
-            const used = new Set();
-            for (const t of mirroredTargets) {
-              let best = 1e9, bestIdx = -1;
-              for (let i = 0; i < bestPlanRegs.length; i++) {
-                if (used.has(i)) continue;
-                const s = rectMatchScore(bestPlanRegs[i], t);
-                if (s < best) { best = s; bestIdx = i; }
-              }
-              if (bestIdx >= 0) {
-                used.add(bestIdx);
-                const dstRid = Math.max(0, Math.round(Number(bestPlanRegs[bestIdx] && bestPlanRegs[bestIdx].id) || bestIdx));
-                regionRidMap.set(Math.max(0, Math.round(Number(t && t.srcRid) || 0)), dstRid);
-              }
-            }
-          }
-        }
-      } catch (_e) { }
-      const srcFlowLocks = normalizeFlowLocks(r && r.flowLocks), mirFlowLocks = {};
-      for (const [rk, cfg] of Object.entries(srcFlowLocks || {})) {
-        const srcRid = Math.max(0, Math.round(Number(rk) || 0));
-        const dstRid = regionRidMap.has(srcRid) ? regionRidMap.get(srcRid) : srcRid;
-        const locks = Array.isArray(cfg && cfg.locks) ? cfg.locks : [];
-        const mappedLocks = [];
-        for (const it of locks) {
-          const idx = Math.max(0, Math.round(Number(it && it.index) || 0)), cidOld = Math.max(0, Math.round(Number(it && it.cid) || 0)), cidNew = (cidMap.has(cidOld) ? cidMap.get(cidOld) : cidOld);
-          mappedLocks.push({ index: idx, cid: cidNew });
-        }
-        const startOld = (cfg && cfg.startCid != null) ? Math.max(0, Math.round(Number(cfg.startCid) || 0)) : null;
-        const startNew = (startOld != null ? (cidMap.has(startOld) ? cidMap.get(startOld) : startOld) : null);
-        mirFlowLocks[String(dstRid)] = { locks: mappedLocks, startCid: startNew, startDir: mirrorDir(cfg && cfg.startDir || ""), mode: mirrorMode(cfg && cfg.mode || ""), startPinned: !!(cfg && cfg.startPinned) };
-      }
-      const srcRig = normalizeRigData(r && r.rig), mirRig = { frames: [], loads: {}, suspends: [], suspendLinks: [] };
-      for (const fk of srcRig.frames) {
-        const p = String(fk || "").split(",");
-        if (p.length !== 2) continue;
-        const c0 = Math.max(1, Math.round(Number(p[0]) || 0)), row = Math.max(0, Math.round(Number(p[1]) || 0));
-        const mc = Math.max(1, cols - c0);
-        mirRig.frames.push(`${mc},${row}`);
-      }
-      for (const [lk, wk] of Object.entries(srcRig.loads || {})) {
-        const p = String(lk || "").split(",");
-        if (p.length !== 2) continue;
-        const c0 = Math.max(1, Math.round(Number(p[0]) || 0)), row = Math.max(0, Math.round(Number(p[1]) || 0));
-        const mc = Math.max(1, cols - c0);
-        mirRig.loads[`${mc},${row}`] = Math.max(5, Math.round(Number(wk) || RIG_DEFAULT_LOAD_KG));
-      }
-      for (const col of srcRig.suspends || []) mirRig.suspends.push(Math.max(0, cols - 1 - Math.max(0, Math.round(Number(col) || 0))));
-      for (const lk of srcRig.suspendLinks || []) {
-        const p = String(lk || "").split("-");
-        if (p.length !== 2) continue;
-        const a = Math.max(0, cols - 1 - Math.max(0, Math.round(Number(p[0]) || 0)));
-        const b = Math.max(0, cols - 1 - Math.max(0, Math.round(Number(p[1]) || 0)));
-        const x = Math.min(a, b), y = Math.max(a, b);
-        if (x === y) continue;
-        mirRig.suspendLinks.push(`${x}-${y}`);
-      }
-      const c = { ...r, id: st.next++, name: withNameSuffixBeforeGroup(r.name, "mirror"), x: r.x + 20, y: r.y + 20, rotation: r.rotation || 0, colorB: r.autoContrastB ? autoContrast(r.colorA) : r.colorB, autoContrastB: r.autoContrastB !== false, splitVariant: mirroredSplitVariant, cellLinks: [...linkSet], hiddenCells: [...hiddenSet], flowLocks: mirFlowLocks, manualClusters: [], rig: normalizeRigData(mirRig) };
-      insertCloneAboveSource(r.id, c); selRect(c.id); setMode("select"); schedulePersist("project")
-    }
+    ({
+      insertCloneAboveSource,
+      cloneRectForClipboard,
+      cloneRectForDuplicate,
+      delSel,
+      dupSel
+    } = setupSelectionActionsFeature({
+      st,
+      isRectLocked: r => isRectLocked(r),
+      setSelection: (ids, lead) => setSelection(ids, lead),
+      resetTransientState: full => resetTransientState(full),
+      refreshPanels: () => refreshPanels(),
+      updateClusterEditCursor: () => updateClusterEditCursor(),
+      commitUiUpdate: opts => commitUiUpdate(opts),
+      normSelSet: () => normSelSet(),
+      getSelectedRects: () => getSelectedRects(),
+      cur: () => cur(),
+      normalizeFlowLocks,
+      normalizeManualClusters,
+      normalizeRigData,
+      autoContrast,
+      withNameSuffixBeforeGroup,
+      syncProps: () => syncProps(),
+      listRects: () => listRects(),
+      setMode: mode => setMode(mode),
+      schedulePersist: kind => schedulePersist(kind)
+    }));
+    const { dupMirrorSel } = setupMirrorDuplicateFeature({
+      st,
+      cur: () => cur(),
+      drawCellX,
+      drawCellY,
+      parseLinkKey,
+      mkLinkKey,
+      getCellTopology,
+      withNameSuffixBeforeGroup,
+      getHiddenSet: rect => getHiddenSet(rect),
+      makeCalcBudget: () => makeCalcBudget(),
+      calcNow: () => calcNow(),
+      planNumberRegionsUncached,
+      SPLIT_VARIANT_MAX,
+      normalizeFlowLocks,
+      normalizeRigData,
+      RIG_DEFAULT_LOAD_KG,
+      autoContrast,
+      insertCloneAboveSource: (sourceId, clone) => insertCloneAboveSource(sourceId, clone),
+      selRect: id => selRect(id),
+      setMode: mode => setMode(mode),
+      schedulePersist: kind => schedulePersist(kind)
+    });
     function fit() {
       if (!st.rects.length) { st.camX = 0; st.camY = 0; st.zoom = 1; render(); return } let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (const r of st.rects) { const bb = rectAABBMasked(r); minX = Math.min(minX, bb.minX); minY = Math.min(minY, bb.minY); maxX = Math.max(maxX, bb.maxX); maxY = Math.max(maxY, bb.maxY) }
       const vm = getViewMetrics(), w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY), pad = 80; st.zoom = zc(Math.min((vm.viewWidth - pad) / w, (vm.viewHeight - pad) / h)); st.camX = (minX + maxX) / 2; st.camY = (minY + maxY) / 2; render()
@@ -6276,118 +5558,69 @@
       render: () => render(),
       getCurrentRect: () => cur()
     });
-    const uiSetValue = (node, v) => { if (!node) return; const s = String(v ?? ""); if (node.value !== s) node.value = s; };
-    const uiSetChecked = (node, v) => { if (!node) return; const n = !!v; if (node.checked !== n) node.checked = n; };
-    const uiSetDisabled = (node, v) => { if (!node) return; const n = !!v; if (node.disabled !== n) node.disabled = n; };
-    const uiSetText = (node, v) => { if (!node) return; const s = String(v ?? ""); if (node.textContent !== s) node.textContent = s; };
-    const getCabinetUnitScale = r => Math.max(1, Math.round(Number((r && r.scale) || (cur() && cur().scale) || st.globalScale || 256) || 256));
-    const cabinetPxToUi = (px, unit, r) => {
-      const v = Math.max(1, Math.round(Number(px) || 0));
-      if (normalizeCabinetUnit(unit) === "m") return mFmt(v / getCabinetUnitScale(r));
-      return String(v);
-    };
-    const cabinetUiToPx = (inputValue, unit, fallbackPx, r) => {
-      const fb = Math.max(1, Math.round(Number(fallbackPx) || 128));
-      if (normalizeCabinetUnit(unit) === "m") {
-        const s = getCabinetUnitScale(r);
-        const fallbackM = fb / s;
-        const m = Math.max(0.001, evalExpr(inputValue, fallbackM));
-        return toPositiveInt(Math.round(m * s), fb);
-      }
-      return toPositiveInt(evalExpr(inputValue, fb), fb);
-    };
-    const rectPropSchema = createRectPropSchema({
+    const {
+      uiSetValue,
+      uiSetChecked,
+      uiSetDisabled,
+      uiSetText,
+      cabinetPxToUi,
+      cabinetUiToPx
+    } = setupPropsUiUtils({
+      st,
+      cur: () => cur(),
+      normalizeCabinetUnit,
+      mFmt,
+      toPositiveInt,
+      evalExpr
+    });
+    let applyProps = (_opts) => { };
+    ({
+      syncProps,
+      applyProps
+    } = setupPropsPanelFeature({
+      st,
+      el,
+      cur: () => cur(),
+      isRectLocked: r => isRectLocked(r),
+      isNoteRect: r => isNoteRect(r),
+      getSelectedRects: () => getSelectedRects(),
+      uiSetDisabled,
+      uiSetValue,
+      uiSetChecked,
+      uiSetText,
+      updateThemeUi: () => updateThemeUi(),
+      updateViewModeUi: () => updateViewModeUi(),
+      updateLockAllUi: () => updateLockAllUi(),
+      mFmt,
+      updateSplitVariantModeUi: arg => updateSplitVariantModeUi(arg),
+      updateModeBadges: r => updateModeBadges(r),
+      updateRectTextSizeLabel: r => updateRectTextSizeLabel(r),
+      autoContrast,
+      SPLIT_VARIANT_MAX,
+      normalizeCabinetUnit,
+      metricFromPx: rect => metricFromPx(rect),
+      normalizeDataFlow,
+      getFlowRegionConfig: (r, rid) => getFlowRegionConfig(r, rid),
+      resolveFlowModeFromStartAndDir,
+      getFlowModeRegion: (r, rid, fallback) => getFlowModeRegion(r, rid, fallback),
+      updateSplitVariantControl: r => updateSplitVariantControl(r),
+      cabinetPxToUi,
+      getRectsBBox: rects => getRectsBBox(rects),
       evalExpr,
       parseAreaM2PxInput,
+      pxFromMetric: rect => pxFromMetric(rect),
+      refreshMultiSelectionBase: () => refreshMultiSelectionBase(),
+      rectAABB,
       cabinetUiToPx,
-      normalizeDataFlow
-    });
-    const syncPropsBySchema = (rect, unit) => {
-      for (const f of rectPropSchema) {
-        if (!f || typeof f.sync !== "function") continue;
-        f.sync({ el, rect, unit, mFmt, cabinetPxToUi });
-      }
-    };
-    const applyPropsBySchema = (rect, multi, unit) => {
-      for (const f of rectPropSchema) {
-        if (!f || typeof f.apply !== "function") continue;
-        f.apply({ el, rect, multi, unit, evalExpr, parseAreaM2PxInput, cabinetUiToPx, normalizeDataFlow });
-      }
-    };
-    function syncProps() {
-      const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
-      [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.a, el.b, el.cx, el.cy, el.cUnit, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
-      if (multi && el.rot) uiSetDisabled(el.rot, true);
-      if (multi && el.name) uiSetDisabled(el.name, true);
-      if (el.multiEditBadge) {
-        const show = multi && !!r;
-        el.multiEditBadge.classList.toggle("d-none", !show);
-        if (show) el.multiEditBadge.textContent = locked ? "Текущий экран заблокирован. Разблокируйте слой для редактирования." : "Групповое редактирование: W/H масштабируют расстояния, минимум — исходный bbox";
-      }
-      if (el.areaM2) uiSetDisabled(el.areaM2, !on);
-      uiSetDisabled(el.randColor, !on);
-      if (el.btnClearMasks) uiSetDisabled(el.btnClearMasks, !on);
-      if (el.btnResetFlowLocks) uiSetDisabled(el.btnResetFlowLocks, !on);
-      if (el.btnResetManualClusters) uiSetDisabled(el.btnResetManualClusters, !on);
-      if (el.btnConvertRegionsToScreens) uiSetDisabled(el.btnConvertRegionsToScreens, !on || isNoteRect(r));
-      if (el.btnAutoContrast) uiSetDisabled(el.btnAutoContrast, !on);
-      uiSetValue(el.project, st.projectName);
-      updateThemeUi(); updateViewModeUi(); updateLockAllUi();
-      uiSetValue(el.textSize, mFmt(st.textSize));
-      uiSetValue(el.font, st.fontFamily);
-      if (el.snapGrid) uiSetChecked(el.snapGrid, !!(st.snap && st.snap.grid));
-      if (el.snapObjects) uiSetChecked(el.snapObjects, !!(st.snap && st.snap.objects));
-      if (el.snapCenters) uiSetChecked(el.snapCenters, !!(st.snap && st.snap.centers));
-      if (el.snapGaps) uiSetChecked(el.snapGaps, !!(st.snap && st.snap.gaps));
-      if (el.areaM2) uiSetValue(el.areaM2, r ? mFmt(r.areaM2Px || 65536) : "65536");
-      if (!r) {
-        updateSplitVariantModeUi(null); updateModeBadges(null);
-        uiSetValue(el.name, ""); uiSetValue(el.rectTextSize, "0"); updateRectTextSizeLabel(null);
-        uiSetValue(el.x, ""); uiSetValue(el.y, ""); uiSetValue(el.wm, ""); uiSetValue(el.hm, "");
-        uiSetValue(el.rot, "0"); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
-        uiSetValue(el.a, "#2fcaaf"); uiSetValue(el.b, autoContrast("#2fcaaf"));
-        uiSetValue(el.dataFlow, "none"); uiSetChecked(el.dataFlowZ, false); uiSetChecked(el.numCells, false);
-        if (el.splitVariant) {
-          const maxv = String(Math.max(0, SPLIT_VARIANT_MAX - 1));
-          if (el.splitVariant.max !== maxv) el.splitVariant.max = maxv;
-        }
-        uiSetValue(el.splitVariant, "0");
-        if (el.splitVariantDec) uiSetDisabled(el.splitVariantDec, true);
-        if (el.splitVariantInc) uiSetDisabled(el.splitVariantInc, true);
-        updateSplitVariantLabel(null);
-        if (el.btnAutoContrast) uiSetText(el.btnAutoContrast, "Авто дополнительный: вкл");
-        uiSetValue(el.cUnit, normalizeCabinetUnit(el.cUnit && el.cUnit.value));
-        uiSetValue(el.cx, "128"); uiSetValue(el.cy, "128");
-        return;
-      }
-      metricFromPx(r); if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA);
-      uiSetValue(el.name, r.name);
-      uiSetValue(el.rectTextSize, String(Math.max(0, Math.min(128, Math.round(Number(r.textSize) || 0)))));
-      updateRectTextSizeLabel(r);
-      uiSetValue(el.x, r.x); uiSetValue(el.y, r.y); uiSetValue(el.rot, mFmt(r.rotation || 0));
-      uiSetValue(el.wm, mFmt(r.widthM)); uiSetValue(el.hm, mFmt(r.heightM)); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
-      uiSetValue(el.a, r.colorA); uiSetValue(el.b, r.colorB);
-      {
-        const globalMode = normalizeDataFlow(r.dataFlow), rid = (st.mode === "flowEdit" && Number.isFinite(Number(st.flowRegionRid))) ? Math.max(0, Math.round(Number(st.flowRegionRid) || 0)) : null, cfg = (rid != null) ? getFlowRegionConfig(r, rid) : null, pts = (rid != null) ? (st.flowEditPoints || []).filter(p => p.rid === rid) : [], computedMode = (rid != null) ? resolveFlowModeFromStartAndDir(pts, cfg, getFlowModeRegion(r, rid, globalMode)) : "none";
-        uiSetValue(el.dataFlow, (computedMode !== "none") ? computedMode : globalMode);
-      }
-      uiSetChecked(el.dataFlowZ, !!r.dataFlowZ); uiSetChecked(el.numCells, !!r.numberCells);
-      updateSplitVariantControl(r);
-      if (el.btnAutoContrast) uiSetText(el.btnAutoContrast, `Авто дополнительный: ${r.autoContrastB !== false ? "вкл" : "выкл"}`);
-      const unit = normalizeCabinetUnit(el.cUnit && el.cUnit.value);
-      uiSetValue(el.cx, cabinetPxToUi(r.cellX, unit, r));
-      uiSetValue(el.cy, cabinetPxToUi(r.cellY, unit, r));
-      updateModeBadges(r);
-      if (multi) {
-        const selected = getSelectedRects(), bb = getRectsBBox(selected);
-        uiSetValue(el.name, `${selected.length} экранов`);
-        if (bb) {
-          uiSetValue(el.x, mFmt(bb.minX)); uiSetValue(el.y, mFmt(bb.minY));
-          uiSetValue(el.wm, mFmt(bb.width / Math.max(1, r.scale || 256)));
-          uiSetValue(el.hm, mFmt(bb.height / Math.max(1, r.scale || 256)));
-        }
-      }
-    }
+      setFlowRegionMode: (r, rid, mode) => setFlowRegionMode(r, rid, mode),
+      remapRectRigLoadsToBottomSeams: r => remapRectRigLoadsToBottomSeams(r),
+      invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
+      listRects: () => listRects(),
+      schedulePersist: kind => schedulePersist(kind),
+      render: () => render(),
+      createRectPropSchema,
+      updateSplitVariantLabel: r => updateSplitVariantLabel(r)
+    }));
     const { scheduleSyncProps, syncPropsSmart } = setupPropertiesSyncController({
       st,
       syncProps: () => syncProps(),
@@ -6396,10 +5629,7 @@
       setDelay: (cb, ms) => setTimeout(cb, ms),
       clearDelay: id => clearTimeout(id)
     });
-    setupInputWiring({
-      createEditorServices,
-      setupInputController,
-      services: {
+    const inputWiringServices = {
       cv, st, el, render, hit, s2w, zc, getViewMetrics,
       isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
       cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
@@ -6416,288 +5646,58 @@
       mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
       resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
       resetFlowRegionOverrides, syncProps, bindEvent, bindWindowEvent, zoomAt
-      }
+    };
+    setupInputWiring({
+      createEditorServices,
+      setupInputController,
+      services: inputWiringServices
     });
-    const listCtrl = setupRectListController({
-      st, el, bindEvent, eventClosest,
-      toggleRectLockById, getRectById, isRectLocked, selRect,
-      onReorder: () => { listRects(); persistProjectAndRender(); }
-    });
-    function listRects() {
-      listCtrl.ensureListEvents();
-      if (!st.rects.length) {
-        listCtrl.listNodeCache.clear();
-        listCtrl.clearListDropMarker();
-        el.list.innerHTML = "<p class='hint' style='margin:0'>Экранов пока нет.</p>";
-        return;
-      }
-      const fragment = document.createDocumentFragment();
-      const live = new Set();
-      for (const r of st.rects) {
-        const id = Math.round(Number(r.id) || 0);
-        if (!id) continue;
-        live.add(id);
-        let node = listCtrl.listNodeCache.get(id);
-        if (!node) {
-          node = document.createElement("div");
-          node.className = "rect-item";
-          node.draggable = true;
-          node.dataset.id = String(id);
-          const head = document.createElement("div");
-          head.className = "rect-item-head";
-          const title = document.createElement("strong");
-          title.className = "rect-item-title";
-          const lockBtn = document.createElement("button");
-          lockBtn.type = "button";
-          lockBtn.className = "btn btn-outline-secondary btn-sm rect-item-lock";
-          lockBtn.title = "Блокировка экрана";
-          lockBtn.setAttribute("aria-label", "Блокировка экрана");
-          const meta = document.createElement("div");
-          meta.className = "text-secondary";
-          head.appendChild(title);
-          head.appendChild(lockBtn);
-          node.appendChild(head);
-          node.appendChild(meta);
-          node._title = title;
-          node._lock = lockBtn;
-          node._meta = meta;
-          listCtrl.listNodeCache.set(id, node);
-        }
-        node.classList.toggle("active", isSelected(id));
-        node.classList.toggle("locked", isRectLocked(r));
-        if (node._lock) {
-          const on = isRectLocked(r);
-          const ic = on ? "fa-solid fa-lock" : "fa-solid fa-lock-open";
-          if (node._lock.innerHTML !== `<i class="${ic}"></i>`) node._lock.innerHTML = `<i class="${ic}"></i>`;
-          node._lock.classList.toggle("btn-secondary", on);
-          node._lock.classList.toggle("btn-outline-secondary", !on);
-          node._lock.title = on ? "Разблокировать экран" : "Заблокировать экран";
-          node._lock.setAttribute("aria-label", node._lock.title);
-        }
-        const titleText = String(r.name || `Rect ${id}`);
-        if (node._title.textContent !== titleText) node._title.textContent = titleText;
-        const metaText = `${r.width}x${r.height} @ (${r.x}, ${r.y})`;
-        if (node._meta.textContent !== metaText) node._meta.textContent = metaText;
-        fragment.appendChild(node);
-      }
-      for (const [id, node] of listCtrl.listNodeCache) {
-        if (live.has(id)) continue;
-        if (node && node.parentNode) node.parentNode.removeChild(node);
-        listCtrl.listNodeCache.delete(id);
-      }
-      el.list.replaceChildren(fragment);
-    }
-    function applyProps(opts) {
-      const o = (opts && typeof opts === "object") ? opts : {}, needList = o.list !== false, needPersist = o.persist !== false, needRender = o.render !== false;
-      const applyColor = !!o.applyColor;
-      const r = cur(); if (!r) return;
-      const selected = getSelectedRects(), targetsRaw = selected.length > 1 ? selected : [r], targets = targetsRaw.filter(t => !isRectLocked(t));
-      if (!targets.length) return;
-      const multi = targets.length > 1;
-      if (!multi) r.name = el.name.value || `Rect ${r.id}`;
-      if (!multi) {
-        r.x = Math.round(evalExpr(el.x.value, r.x));
-        r.y = Math.round(evalExpr(el.y.value, r.y));
-        r.rotation = evalExpr(el.rot.value, r.rotation || 0);
-        r.widthM = Math.max(0.001, evalExpr(el.wm.value, r.widthM || 0.001));
-        r.heightM = Math.max(0.001, evalExpr(el.hm.value, r.heightM || 0.001));
-        r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
-        pxFromMetric(r);
-      } else {
-        const ids = [...st.selSet].sort((a, b) => a - b), idsKey = ids.join(",");
-        if (!st.selMultiBase || st.selMultiBase.idsKey !== idsKey) refreshMultiSelectionBase();
-        const base = st.selMultiBase && st.selMultiBase.idsKey === idsKey ? st.selMultiBase : null;
-        const curBb = getRectsBBox(targets) || { minX: r.x, minY: r.y, width: Math.max(1, r.width), height: Math.max(1, r.height), maxX: r.x + r.width, maxY: r.y + r.height };
-        const baseBb = (base && base.bbox) ? base.bbox : curBb;
-        const scaleForBox = Math.max(1, Number(r.scale) || Number(st.globalScale) || 256);
-        const curWm = curBb.width / scaleForBox, curHm = curBb.height / scaleForBox;
-        const nextMinX = Math.round(evalExpr(el.x.value, curBb.minX));
-        const nextMinY = Math.round(evalExpr(el.y.value, curBb.minY));
-        const desiredW = Math.max(baseBb.width, Math.round(Math.max(0.001, evalExpr(el.wm.value, curWm)) * scaleForBox));
-        const desiredH = Math.max(baseBb.height, Math.round(Math.max(0.001, evalExpr(el.hm.value, curHm)) * scaleForBox));
-        const srcItems = (base && Array.isArray(base.items) && base.items.length) ? base.items.map(it => ({ ...it })) : targets.map(t => { const bb = rectAABB(t); return { id: t.id, x: t.x, y: t.y, minX: bb.minX, maxX: bb.maxX, minY: bb.minY, maxY: bb.maxY }; });
-        const mapAxis = (axis, targetMin, targetSpan) => {
-          const EPS = 1e-6;
-          const entries = srcItems.map(it => {
-            const min = axis === "x" ? it.minX : it.minY, max = axis === "x" ? it.maxX : it.maxY, pos = axis === "x" ? it.x : it.y;
-            return { id: it.id, min, max, pos };
-          }).sort((a, b) => (a.min - b.min) || (a.max - b.max) || (a.id - b.id));
-          if (!entries.length) return new Map();
-          const clusters = [];
-          for (const e of entries) {
-            const last = clusters[clusters.length - 1];
-            if (!last || e.min > last.max + EPS) clusters.push({ min: e.min, max: e.max, members: [e] });
-            else { last.max = Math.max(last.max, e.max); last.members.push(e); }
-          }
-          let sumGaps = 0, fixedSpan = 0;
-          for (let i = 0; i < clusters.length; i++) {
-            fixedSpan += Math.max(0, clusters[i].max - clusters[i].min);
-            if (i + 1 < clusters.length) sumGaps += Math.max(0, clusters[i + 1].min - clusters[i].max);
-          }
-          let gapScale = 0;
-          if (sumGaps > EPS) {
-            const targetGap = Math.max(0, targetSpan - fixedSpan);
-            gapScale = targetGap / sumGaps;
-          }
-          const nextPos = new Map();
-          let curMin = targetMin;
-          for (let i = 0; i < clusters.length; i++) {
-            const c = clusters[i];
-            const shift = curMin - c.min;
-            for (const m of c.members) nextPos.set(m.id, Math.round(m.pos + shift));
-            const width = Math.max(0, c.max - c.min);
-            const baseGap = (i + 1 < clusters.length) ? Math.max(0, clusters[i + 1].min - c.max) : 0;
-            curMin = curMin + width + baseGap * gapScale;
-          }
-          return nextPos;
-        };
-        const nextX = mapAxis("x", nextMinX, desiredW), nextY = mapAxis("y", nextMinY, desiredH);
-        for (const t of targets) {
-          if (nextX.has(t.id)) t.x = nextX.get(t.id);
-          if (nextY.has(t.id)) t.y = nextY.get(t.id);
-        }
-      }
-      for (const t of targets) {
-        const prev = { cellX: t.cellX, cellY: t.cellY, colorA: t.colorA, colorB: t.colorB, dataFlow: t.dataFlow, dataFlowZ: !!t.dataFlowZ, areaM2Px: t.areaM2Px, splitVariant: t.splitVariant };
-        if (applyColor) {
-          t.colorA = el.a.value || "#2fcaaf";
-          if (t.autoContrastB !== false) t.colorB = autoContrast(t.colorA); else t.colorB = el.b.value || t.colorB;
-        }
-        t.cellX = cabinetUiToPx(el.cx && el.cx.value, el.cUnit && el.cUnit.value, t.cellX || 128, t);
-        t.cellY = cabinetUiToPx(el.cy && el.cy.value, el.cUnit && el.cUnit.value, t.cellY || 128, t);
-        t.dataFlowZ = !!el.dataFlowZ.checked;
-        t.numberCells = !!el.numCells.checked;
-        t.areaM2Px = parseAreaM2PxInput(el.areaM2.value, t.areaM2Px || 65536);
-        const selectedMode = normalizeDataFlow(el.dataFlow.value), rid = (st.mode === "flowEdit" && Number.isFinite(Number(st.flowRegionRid))) ? Math.max(0, Math.round(Number(st.flowRegionRid) || 0)) : null;
-        if (rid != null && t.id === r.id) {
-          const cfg = getFlowRegionConfig(t, rid), curMode = normalizeDataFlow(cfg && cfg.mode || "none");
-          if (curMode !== selectedMode) setFlowRegionMode(t, rid, selectedMode);
-        } else t.dataFlow = selectedMode;
-        const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1))));
-        const prevSplit = Math.max(0, Math.round(Number(t.splitVariant) || 0));
-        t.splitVariant = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, t.splitVariant || 0))));
-        if (t.splitVariant !== prevSplit) { try { delete t._splitVariantCount; } catch (_e) { t._splitVariantCount = NaN; } }
-        const topoChanged = (prev.cellX !== t.cellX || prev.cellY !== t.cellY);
-        if (topoChanged) {
-          if (prev.cellX !== t.cellX || prev.cellY !== t.cellY) remapRectRigLoadsToBottomSeams(t);
-          invalidateRectCache(t, "topology");
-        }
-        else {
-          if (prev.colorA !== t.colorA || prev.colorB !== t.colorB) invalidateRectCache(t, "appearance");
-          if (prev.areaM2Px !== t.areaM2Px || prev.splitVariant !== t.splitVariant) invalidateRectCache(t, "regions");
-          if (prev.dataFlow !== t.dataFlow || prev.dataFlowZ !== !!t.dataFlowZ) invalidateRectCache(t, "flow");
-        }
-      }
-      updateSplitVariantControl(r); el.b.value = r.colorB; if (el.btnAutoContrast) el.btnAutoContrast.textContent = `Авто дополнительный: ${r.autoContrastB !== false ? "вкл" : "выкл"}`;
-      if (needList) listRects();
-      if (needPersist) schedulePersist("project");
-      if (needRender) render()
-    }
-    let propsInputRaf = 0;
-    const scheduleApplyPropsInput = () => { if (propsInputRaf) return; propsInputRaf = requestAnimationFrame(() => { propsInputRaf = 0; applyProps({ list: false, persist: false, render: true }); }); };
-    bindEvents([el.name, el.x, el.y, el.rot, el.cx, el.cy], "input", scheduleApplyPropsInput);
-    bindEvents([el.cUnit], "change", () => syncProps());
-    if (el.a) {
-      const scheduleApplyColorInput = () => { if (propsInputRaf) return; propsInputRaf = requestAnimationFrame(() => { propsInputRaf = 0; applyProps({ list: false, persist: false, render: true, applyColor: true }); }); };
-      bindEvent(el.a, "input", scheduleApplyColorInput);
-      bindEvent(el.a, "change", () => { applyProps({ applyColor: true }); syncProps(); });
-    }
-    const getActionTargets = () => {
-      const selected = getSelectedRects();
-      if (selected && selected.length) return selected.filter(r => !isRectLocked(r));
-      const r = cur();
-      return r && !isRectLocked(r) ? [r] : [];
-    };
-    const applyToTargets = (visitor, opts = {}) => {
-      const ts = getActionTargets();
-      if (!ts.length) return 0;
-      for (const r of ts) visitor(r);
-      const o = opts && typeof opts === "object" ? opts : {};
-      if (o.syncProps) syncProps();
-      if (o.listRects) listRects();
-      if (o.persist) schedulePersist(o.persistKind || "project");
-      if (o.render) render();
-      return ts.length;
-    };
-    const applyToTargetsAndRender = (visitor, opts = {}, after = null) => {
-      const base = (opts && typeof opts === "object") ? { ...opts } : {};
-      base.render = false;
-      const count = applyToTargets(visitor, base);
-      if (!count) return 0;
-      if (typeof after === "function") after();
-      render();
-      return count;
-    };
+    let getActionTargets = () => [];
+    let applyToTargets = (_visitor, _opts = {}) => 0;
+    let applyToTargetsAndRender = (_visitor, _opts = {}, _after = null) => 0;
+    ({
+      getActionTargets,
+      applyToTargets,
+      applyToTargetsAndRender
+    } = setupTargetActionsFeature({
+      getSelectedRects: () => getSelectedRects(),
+      cur: () => cur(),
+      isRectLocked: r => isRectLocked(r),
+      syncProps: () => syncProps(),
+      listRects: () => listRects(),
+      schedulePersist: kind => schedulePersist(kind),
+      render: () => render()
+    }));
     const bindCommitInput = (node, onCommit) => {
       if (!node || !onCommit) return;
       node.addEventListener("change", onCommit);
       node.addEventListener("keydown", e => { if (e.key === "Enter") onCommit(e); });
     };
-    let colorBInputRaf = 0;
-    const scheduleColorBInput = () => { if (colorBInputRaf) return; colorBInputRaf = requestAnimationFrame(() => { colorBInputRaf = 0; render(); }); };
-    bindEvent(el.b, "input", () => {
-      const count = applyToTargets(r => {
-        r.autoContrastB = false;
-        r.colorB = el.b.value || r.colorB;
-        invalidateRectCache(r, "appearance");
-      });
-      if (!count) return;
-      if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл";
-      scheduleColorBInput();
+    setupPropsInputBindingsFeature({
+      st,
+      el,
+      bindEvent: (...args) => bindEvent(...args),
+      bindEvents: (...args) => bindEvents(...args),
+      bindCommitInputs: (...args) => bindCommitInputs(...args),
+      bindCommitInput: (...args) => bindCommitInput(...args),
+      applyProps: opts => applyProps(opts),
+      syncProps: () => syncProps(),
+      applyToTargets: (visitor, opts) => applyToTargets(visitor, opts),
+      render: () => render(),
+      invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
+      cur: () => cur(),
+      evalExpr,
+      updateRectTextSizeLabel: r => updateRectTextSizeLabel(r),
+      scheduleFontReadyRender: (state, delay) => scheduleFontReadyRender(state, delay),
+      bindSplitVariantHandlers: () => bindSplitVariantHandlers(),
+      pxFromMetric: r => pxFromMetric(r),
+      remapRectRigLoadsToBottomSeams: r => remapRectRigLoadsToBottomSeams(r),
+      schedulePersist: kind => schedulePersist(kind),
+      listRects: () => listRects(),
+      isRectLocked: r => isRectLocked(r),
+      parseAreaM2PxInput: (input, fallback) => parseAreaM2PxInput(input, fallback),
+      persistProjectAndRender: () => persistProjectAndRender()
     });
-    bindEvent(el.b, "change", () => {
-      const count = applyToTargets(r => {
-        r.autoContrastB = false;
-        r.colorB = el.b.value || r.colorB;
-        invalidateRectCache(r, "appearance");
-      }, { listRects: true, persist: true, render: true });
-      if (!count) return;
-      if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл";
-    });
-    bindEvents([el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant], "change", applyProps);
-    let rectTextInputRaf = 0;
-    const rectTextFontState = { timer: 0 };
-    bindEvents([el.rectTextSize], "input", () => { const r = cur(); if (!r) return; r.textSize = Math.max(0, Math.min(128, Math.round(evalExpr(el.rectTextSize.value, r.textSize || 0)))); updateRectTextSizeLabel(r); if (!rectTextInputRaf) rectTextInputRaf = requestAnimationFrame(() => { rectTextInputRaf = 0; render(); }); scheduleFontReadyRender(rectTextFontState, 140); });
-    bindSplitVariantHandlers();
-    bindCommitInputs([el.x, el.y, el.rot, el.wm, el.hm, el.cx, el.cy], () => { applyProps(); syncProps(); });
-    let textSettingsRaf = 0;
-    const textSettingsFontState = { timer: 0 };
-    const readTextSettingsFromInputs = () => {
-      st.textSize = Math.max(6, evalExpr(el.textSize.value, st.textSize || 12));
-      st.fontFamily = (el.font.value || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial";
-      st.fontReady = false;
-    };
-    const applyTextSettings = () => { readTextSettingsFromInputs(); render(); scheduleFontReadyRender(textSettingsFontState, 0); };
-    const applyTextSettingsInput = () => { readTextSettingsFromInputs(); if (!textSettingsRaf) textSettingsRaf = requestAnimationFrame(() => { textSettingsRaf = 0; render(); }); scheduleFontReadyRender(textSettingsFontState, 140); };
-    bindEvents([el.textSize, el.font], "input", applyTextSettingsInput);
-    const applyGlobalScaleSettings = () => {
-      const nextScale = Math.max(1, Math.round(evalExpr(el.scale && el.scale.value, st.globalScale || 256)));
-      if (nextScale === Math.max(1, Math.round(Number(st.globalScale) || 256))) return;
-      st.globalScale = nextScale;
-      for (const rr of st.rects) {
-        rr.scale = nextScale;
-        pxFromMetric(rr);
-        remapRectRigLoadsToBottomSeams(rr);
-        invalidateRectCache(rr, "topology");
-      }
-      schedulePersist("project");
-      syncProps();
-      listRects();
-      render();
-    };
-    if (el.scale) bindCommitInput(el.scale, () => { applyGlobalScaleSettings(); syncProps(); });
-    const applyAreaM2Settings = () => { const r = cur(); if (!r || isRectLocked(r)) return; r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536); invalidateRectCache(r, "regions"); persistProjectAndRender() };
-    if (el.areaM2) bindCommitInput(el.areaM2, () => { applyAreaM2Settings(); syncProps(); });
-    for (const btn of document.querySelectorAll("[data-area-m2-preset]")) {
-      bindEvent(btn, "click", () => {
-        if (!el.areaM2) return;
-        el.areaM2.value = String(btn.getAttribute("data-area-m2-preset") || "");
-        applyAreaM2Settings();
-        syncProps();
-      });
-    }
-    bindCommitInput(el.textSize, () => { applyTextSettings(); syncProps(); });
-    bindCommitInput(el.font, () => { applyTextSettings(); syncProps(); });
     const bindProxyClick = (source, target) => bindClick(source, () => { if (target) target.click(); });
     setupToolbarActionsController({
       el,
@@ -6725,165 +5725,70 @@
       redoHistory: () => redoHistory(),
       commitProjectChange: opts => commitProjectChange(opts)
     });
-    const isMobile = () => window.matchMedia("(max-width:900px)").matches;
-    setupMobileGestures({ bindEvent });
-    const updateMobileDock = () => {
-      if (!el.mobileDock) return;
-      const show = isMobile();
-      el.mobileDock.classList.toggle("force-visible", show);
-      el.mobileDock.classList.toggle("force-hidden", !show);
-    };
-    const bootstrapModalFactory = setupBootstrapModalFactory({
+    const {
+      isMobile,
+      updateMobileDock
+    } = setupMobileUiFeature({
       windowRef: window,
-      getById: id => $(id),
-      helpNode: el.helpModal,
-      projectLinkNode: el.projectLinkModal
+      el,
+      setupMobileGestures,
+      bindEvent: (...args) => bindEvent(...args)
     });
-    const getHelpModal = bootstrapModalFactory.getHelpModal;
-    const getMessageModal = bootstrapModalFactory.getMessageModal;
-    const getProjectLinkModal = bootstrapModalFactory.getProjectLinkModal;
     const {
       showMessageModal,
       showErrorModal,
       withUiErrorBoundary,
       openHelpModal,
       closeHelpModal,
-      focusModalTextLater
-    } = setupModalHelpers({
-      getMessageModal,
-      getHelpModal,
+      focusModalTextLater,
+      showProjectLinkModal
+    } = setupModalWiringFeature({
+      windowRef: window,
       getById: id => $(id),
       el,
       focusAndSelect,
       lsSet,
-      HELP_SEEN_KEY
+      HELP_SEEN_KEY,
+      setupBootstrapModalFactory,
+      setupModalHelpers,
+      setupProjectLinkModalController
     });
-    const { showProjectLinkModal } = setupProjectLinkModalController({
+    setupResetActionsFeature({
       el,
-      getProjectLinkModal: () => getProjectLinkModal(),
-      getById: id => $(id),
+      st,
+      bindClick: (...args) => bindClick(...args),
+      applyToTargetsAndRender: (visitor, opts, after) => applyToTargetsAndRender(visitor, opts, after),
+      hiddenCache,
+      invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
+      clearFlowLockMemory: r => clearFlowLockMemory(r),
+      getRectCalcCache: r => getRectCalcCache(r),
+      clearRectRegionsAndFlow: r => clearRectRegionsAndFlow(r)
+    });
+    setupConvertRegionsFeature({
+      el,
+      st,
+      bindClick: (...args) => bindClick(...args),
+      cur: () => cur(),
+      isRectLocked: r => isRectLocked(r),
+      isNoteRect: r => isNoteRect(r),
+      drawCellX,
+      drawCellY,
+      getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+      getHiddenSet: r => getHiddenSet(r),
+      planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
       showMessageModal: (...args) => showMessageModal(...args),
-      focusModalTextLater: (...args) => focusModalTextLater(...args)
-    });
-    bindClick(el.btnClearMasks, () => {
-      applyToTargetsAndRender(r => {
-        r.hiddenCells = [];
-        hiddenCache.set(r, { src: r.hiddenCells, set: new Set() });
-        invalidateRectCache(r, "topology");
-      }, { persist: true }, () => {
-        st.maskPath = [];
-        st.maskHover = null;
-      });
-    });
-    bindClick(el.btnResetFlowLocks, () => {
-      applyToTargetsAndRender(r => {
-        r.flowLocks = {};
-        clearFlowLockMemory(r);
-        const cache = getRectCalcCache(r);
-        if (cache) cache.flow = null;
-      }, { persist: true }, () => {
-        st.flowHover = null;
-        st.flowDirHover = null;
-        st.flowDrag = null;
-      });
-    });
-    bindClick(el.btnResetManualClusters, () => {
-      applyToTargetsAndRender(r => {
-        r.manualClusters = [];
-        r.splitVariant = 0;
-        clearRectRegionsAndFlow(r);
-      }, { syncProps: true, persist: true }, () => {
-        st.clusterActiveId = null;
-        st.clusterHandleHover = null;
-        st.clusterCellHover = null;
-        st.clusterStartHover = null;
-        st.clusterBorderHover = null;
-        st.clusterDrag = null;
-      });
-    });
-    bindClick(el.btnConvertRegionsToScreens, () => {
-      const r = cur();
-      if (!r || isRectLocked(r) || isNoteRect(r)) return;
-      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r);
-      const plan = planNumberRegions(r, cx, cy, topo, hs, true);
-      const regs = (plan && Array.isArray(plan.regions)) ? plan.regions : [];
-      if (regs.length <= 1) { showMessageModal("Недостаточно регионов для преобразования"); return; }
-      const srcIdx = st.rects.findIndex(it => it.id === r.id);
-      if (srcIdx < 0) return;
-      const srcCols = Math.max(1, Math.round(Number(topo && topo.cols) || Math.ceil(Math.max(1, Number(r.width) || 1) / Math.max(1, cx))));
-      const srcRows = Math.max(1, Math.round(Number(topo && topo.rows) || Math.ceil(Math.max(1, Number(r.height) || 1) / Math.max(1, cy))));
-      const colEdges = [0], rowEdges = [0];
-      for (let x = 0; x < r.width; x += cx) colEdges.push(Math.min(r.width, x + cx));
-      for (let y = 0; y < r.height; y += cy) rowEdges.push(Math.min(r.height, y + cy));
-      const toGlobalIdx = (col, row) => row * srcCols + col;
-      const cellToRegion = (plan && Array.isArray(plan.cellToRegion)) ? plan.cellToRegion : null;
-      const srcLinks = Array.isArray(r.cellLinks) ? r.cellLinks : [];
-      const created = [];
-      for (const rg of regs) {
-        const rid = Math.max(0, Math.round(Number(rg && rg.id) || 0));
-        const c0Raw = Math.max(0, Math.min(srcCols, Math.round(Number(rg && rg.c0) || 0)));
-        const c1Raw = Math.max(c0Raw + 1, Math.min(srcCols, Math.round(Number(rg && rg.c1) || (c0Raw + 1))));
-        const r0Raw = Math.max(0, Math.min(srcRows, Math.round(Number(rg && rg.r0) || 0)));
-        const r1Raw = Math.max(r0Raw + 1, Math.min(srcRows, Math.round(Number(rg && rg.r1) || (r0Raw + 1))));
-        let c0 = c1Raw, c1 = c0Raw, r0 = r1Raw, r1 = r0Raw, hasVisible = false;
-        for (let iy = r0Raw; iy < r1Raw; iy++) for (let ix = c0Raw; ix < c1Raw; ix++) {
-          if (hs.has(maskCellKey(ix, iy))) continue;
-          if (cellToRegion && Number(cellToRegion[toGlobalIdx(ix, iy)]) !== rid) continue;
-          hasVisible = true;
-          if (ix < c0) c0 = ix;
-          if (ix + 1 > c1) c1 = ix + 1;
-          if (iy < r0) r0 = iy;
-          if (iy + 1 > r1) r1 = iy + 1;
-        }
-        if (!hasVisible) continue;
-        const rx = Math.round(r.x + (colEdges[c0] || (c0 * cx)));
-        const ry = Math.round(r.y + (rowEdges[r0] || (r0 * cy)));
-        const rw = Math.max(1, Math.round((colEdges[c1] || (c1 * cx)) - (colEdges[c0] || (c0 * cx))));
-        const rh = Math.max(1, Math.round((rowEdges[r1] || (r1 * cy)) - (rowEdges[r0] || (r0 * cy))));
-        const nr = mk(rx, ry, rw, rh);
-        nr.name = withNameSuffixBeforeGroup(r.name, String((rg && rg.label) || "").trim());
-        nr.rotation = r.rotation || 0;
-        nr.scale = r.scale;
-        nr.areaM2Px = r.areaM2Px;
-        nr.colorA = r.colorA;
-        nr.autoContrastB = r.autoContrastB !== false;
-        nr.colorB = nr.autoContrastB ? autoContrast(nr.colorA) : r.colorB;
-        nr.textSize = r.textSize || 0;
-        nr.cellX = r.cellX;
-        nr.cellY = r.cellY;
-        nr.dataFlow = r.dataFlow;
-        nr.dataFlowZ = !!r.dataFlowZ;
-        nr.numberCells = !!r.numberCells;
-        const localCols = Math.max(1, c1 - c0), localRows = Math.max(1, r1 - r0), localHidden = [];
-        for (let iy = r0; iy < r1; iy++) for (let ix = c0; ix < c1; ix++) {
-          const globalIdx = toGlobalIdx(ix, iy), notInRegion = !!(cellToRegion && Number(cellToRegion[globalIdx]) !== rid);
-          if (hs.has(maskCellKey(ix, iy)) || notInRegion) localHidden.push(maskCellKey(ix - c0, iy - r0));
-        }
-        nr.hiddenCells = localHidden;
-        hiddenCache.set(nr, { src: nr.hiddenCells, set: new Set(localHidden) });
-        const remappedLinks = [];
-        for (const lk of srcLinks) {
-          const parts = String(lk || "").split("-");
-          if (parts.length !== 2) continue;
-          const a = Math.round(Number(parts[0]) || -1), b = Math.round(Number(parts[1]) || -1);
-          if (a < 0 || b < 0) continue;
-          const ax = a % srcCols, ay = Math.floor(a / srcCols), bx = b % srcCols, by = Math.floor(b / srcCols);
-          if (ax < c0 || ax >= c1 || ay < r0 || ay >= r1 || bx < c0 || bx >= c1 || by < r0 || by >= r1) continue;
-          const la = (ax - c0) + (ay - r0) * localCols, lb = (bx - c0) + (by - r0) * localCols;
-          remappedLinks.push(`${Math.min(la, lb)}-${Math.max(la, lb)}`);
-        }
-        nr.cellLinks = [...new Set(remappedLinks)];
-        metricFromPx(nr);
-        created.push(nr);
-      }
-      if (!created.length) return;
-      st.rects.splice(srcIdx, 1, ...created);
-      setSelection(created.map(it => it.id), created[created.length - 1].id);
-      resetTransientState(false);
-      syncProps();
-      listRects();
-      render();
-      schedulePersist("project");
+      maskCellKey,
+      mk: (x, y, w, h) => mk(x, y, w, h),
+      withNameSuffixBeforeGroup,
+      autoContrast,
+      hiddenCache,
+      metricFromPx: r => metricFromPx(r),
+      setSelection: (ids, activeId) => setSelection(ids, activeId),
+      resetTransientState: full => resetTransientState(full),
+      syncProps: () => syncProps(),
+      listRects: () => listRects(),
+      render: () => render(),
+      schedulePersist: kind => schedulePersist(kind)
     });
     setupInstallBannerController({
       el,
@@ -6894,416 +5799,150 @@
       lsSet,
       INSTALL_HINT_KEY
     });
-    const projectSaveDialogController = setupProjectSaveDialogController({
+    const { saveBlobWithSystemDialog } = setupProjectActionsFeature({
       windowRef: window,
       documentRef: document,
       navigatorRef: navigator,
       locationRef: location,
-      promptFn: (...args) => prompt(...args),
-      showErrorModal: (...args) => showErrorModal(...args),
-      setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
-      getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
-      getCurrentSaveLocationId: () => st.saveLocationId
-    });
-    const saveBlobWithSystemDialog = projectSaveDialogController.saveBlobWithSystemDialog;
-    const { bindProjectLoadHandlers } = setupProjectLoadController({
+      promptFn: prompt,
+      showErrorModal,
+      setGlobalSaveLocationId,
+      getGlobalSaveLocationId,
+      getCurrentSaveLocationId: () => st.saveLocationId,
+
       el,
-      bindClick: (...args) => bindClick(...args),
-      withUiErrorBoundary: (...args) => withUiErrorBoundary(...args),
+      bindClick,
+      withUiErrorBoundary,
       extractProjectFromPngBytes,
       PNG_PROJECT_META_KEY,
-      showMessageModal: (...args) => showMessageModal(...args),
-      showErrorModal: (...args) => showErrorModal(...args),
-      loadProjectIntoActiveState: (...args) => loadProjectIntoActiveState(...args),
-      syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
-      renderProjectTabs: () => renderProjectTabs(),
-      schedulePersist: (...args) => schedulePersist(...args)
-    });
-    const { bindProjectLinkHandlers } = setupProjectLinkActionsController({
-      el,
-      bindEvent: (...args) => bindEvent(...args),
-      eventClosest: (...args) => eventClosest(...args),
-      showProjectLinkModal: (...args) => showProjectLinkModal(...args),
-      withUiErrorBoundary: (...args) => withUiErrorBoundary(...args),
-      encodeProjectToQueryValue: (...args) => encodeProjectToQueryValue(...args),
-      buildPortableProject: () => buildPortableProject(),
-      saveProjectToServer: (...args) => saveProjectToServer(...args),
+      showMessageModal,
+      loadProjectIntoActiveState,
+      syncActiveTabSnapshot,
+      renderProjectTabs,
+      schedulePersist,
+
+      bindEvent,
+      eventClosest,
+      showProjectLinkModal,
+      encodeProjectToQueryValue,
+      buildPortableProject,
+      saveProjectToServer,
       getProjectName: () => st.projectName,
       PROJECT_QUERY_PARAM,
-      PROJECT_ID_PARAM
-    });
-    setupProjectActionsController({
-      bindProjectLoadHandlers: () => bindProjectLoadHandlers(),
-      bindProjectLinkHandlers: () => bindProjectLinkHandlers(),
-      bindClick: (...args) => bindClick(...args),
+      PROJECT_ID_PARAM,
+
       saveButton: el.save,
-      buildProject: () => buildProject(),
-      projectFileBase: () => projectFileBase(),
-      saveBlobWithSystemDialog: (...args) => saveBlobWithSystemDialog(...args),
+      buildProject,
+      projectFileBase,
       getSaveLocationId: () => st.saveLocationId
-    }).bindAll();
-    const fmtOne = v => { const n = Math.round((Number(v) || 0) * 10) / 10; return Number.isInteger(n) ? `${n.toFixed(0)}` : n.toFixed(1) };
-    const fmtMeters = v => { const n = Math.round((Number(v) || 0) * 1000) / 1000; return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "") };
-    const roundRigSize = v => Math.round((Number(v) || 0) * 100) / 100;
-    const buildRectRigSpecData = r => {
-      const rig = getRectRigData(r) || {};
-      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), layout = buildRigLayout(r, cx, cy, topo, hs, 1.0);
-
-      const scalePx = Math.max(1, Number(r && r.scale) || 256);
-      const pxToM = px => px / scalePx;
-
-      const supportBySize = new Map();
-      let frameCount = 0;
-      let bottomRowFrameCount = 0;
-      const bottomLoadByKg = new Map();
-
-      const suspends = (Array.isArray(rig.suspends) ? rig.suspends : [])
-        .filter(col => layout.anchors.has(col))
-        .sort((a, b) => a - b);
-
-      const suspendSet = new Set(suspends);
-      const links = new Set(Array.isArray(rig.suspendLinks) ? rig.suspendLinks : []);
-      const frames = new Set(Array.isArray(rig.frames) ? rig.frames : []);
-      const loads = (rig && rig.loads && typeof rig.loads === "object") ? rig.loads : {};
-
-      if (suspends.length) {
-        const visited = new Set();
-
-        for (const col of suspends) {
-          if (visited.has(col)) continue;
-
-          let start = col;
-          let end = col;
-          visited.add(col);
-
-          while (links.has(`${end}-${end + 1}`) && suspendSet.has(end + 1)) {
-            end += 1;
-            visited.add(end);
-          }
-
-          let widthPx = 0;
-          for (let i = start; i <= end; i++) {
-            const a = layout.anchors.get(i);
-            if (!a) continue;
-            widthPx += Math.max(1, a.x1 - a.x0);
-          }
-
-          const sizeM = Math.round(pxToM(widthPx) * 100) / 100;
-          addCountToMap(supportBySize, sizeM, 1);
-        }
-      }
-
-      // Рамы: 1 ключ = 1 метровый сегмент
-      const frameRows = [];
-      const uniqFrameSeams = new Set();
-      for (const key of frames) {
-        const seam = resolveRigFrameSeam(layout, cy, String(key || ""));
-        if (!seam) continue;
-        if (uniqFrameSeams.has(seam.key)) continue;
-        uniqFrameSeams.add(seam.key);
-        frameCount += 1;
-        frameRows.push({ meters: 1, y1: seam.y1 });
-      }
-
-      // Сколько рам в нижнем ряду экрана
-      if (frameRows.length) {
-        const maxY = Math.max(...frameRows.map(x => x.y1));
-        const EPS = 0.5;
-        bottomRowFrameCount = frameRows
-          .filter(x => Math.abs(x.y1 - maxY) <= EPS)
-          .reduce((sum, x) => sum + x.meters, 0);
-      }
-
-      for (const val of Object.values(loads)) {
-        const kg = Math.max(5, Math.round(Number(val) || RIG_DEFAULT_LOAD_KG));
-        addCountToMap(bottomLoadByKg, kg, 1);
-      }
-
-      return {
-        supportBySize,
-        frameCount,
-        bottomRowFrameCount,
-        bottomLoadByKg
-      };
-    };
-    const sampleBezier = (p0, p1, p2, p3, t) => {
-      const u = 1 - t;
-      return {
-        x: (u * u * u) * p0.x + 3 * (u * u) * t * p1.x + 3 * u * (t * t) * p2.x + (t * t * t) * p3.x,
-        y: (u * u * u) * p0.y + 3 * (u * u) * t * p1.y + 3 * u * (t * t) * p2.y + (t * t * t) * p3.y
-      };
-    };
-    const estimateInterScreenCableLenPx = (a, b) => {
-      if (!a || !b) return 0;
-      const dx = (+b.x || 0) - (+a.x || 0), dy = (+b.y || 0) - (+a.y || 0), len = Math.max(20, Math.hypot(dx, dy));
-      const sag = Math.max(8, Math.min(120, len * 0.18));
-      const c1 = { x: (+a.x || 0) + dx * 0.25, y: (+a.y || 0) + dy * 0.25 + sag }, c2 = { x: (+a.x || 0) + dx * 0.75, y: (+a.y || 0) + dy * 0.75 + sag };
-      let total = 0;
-      let prev = { x: +a.x || 0, y: +a.y || 0 };
-      for (let i = 1; i <= 24; i++) {
-        const p = sampleBezier({ x: +a.x || 0, y: +a.y || 0 }, c1, c2, { x: +b.x || 0, y: +b.y || 0 }, i / 24);
-        total += Math.hypot((+p.x || 0) - (+prev.x || 0), (+p.y || 0) - (+prev.y || 0));
-        prev = p;
-      }
-      return total;
-    };
-    const buildInterScreenSpecData = () => {
-      const anchorByKey = new Map(), rectById = new Map();
-      const specRects = st.rects.filter(r => !isNoteRect(r));
-      for (const r of specRects) rectById.set(Math.max(1, Math.round(Number(r && r.id) || 0)), r);
-      for (const r of specRects) {
-        if (normalizeDataFlow(r && r.dataFlow) === "none") continue;
-        const cellX = drawCellX(r), cellY = drawCellY(r), topo = getCellTopologyCached(r, cellX, cellY), hs = getHiddenSet(r);
-        const regions = planNumberRegions(r, cellX, cellY, topo, hs);
-        const flowGroups = getDataFlowGroups(r, cellX, cellY, topo, hs, regions);
-        for (const g of flowGroups || []) {
-          const rid = Math.max(0, Math.round(Number(g && g.rid) || 0)), pts = Array.isArray(g && g.points) ? g.points : [];
-          if (!pts.length) continue;
-          const s = pts[0], e = pts[pts.length - 1];
-          const su = +s.u || 0, sv = +s.v || 0, eu = +e.u || 0, ev = +e.v || 0;
-          const scid = Math.max(0, Math.round(Number(s && s.cid) || 0)), ecid = Math.max(0, Math.round(Number(e && e.cid) || 0));
-          const sw = rectUVToWorld(r, su, sv), ew = rectUVToWorld(r, eu, ev);
-          const sa = { rectId: r.id, rid, cid: scid, kind: "start", x: sw.x, y: sw.y, scale: Math.max(1, Number(r && r.scale) || 256) };
-          const ea = { rectId: r.id, rid, cid: ecid, kind: "end", x: ew.x, y: ew.y, scale: Math.max(1, Number(r && r.scale) || 256) };
-          anchorByKey.set(flowAnchorKey(sa), sa);
-          anchorByKey.set(flowAnchorKey(ea), ea);
-        }
-      }
-      const byRectOut = new Map(), byGroupOut = new Map();
-      const links = normalizeFlowLinks(st.flowLinks);
-      for (const ln of links) {
-        const from = anchorByKey.get(flowAnchorKey(ln.from)), to = anchorByKey.get(flowAnchorKey(ln.to));
-        if (!from || !to) continue;
-        const fromRect = rectById.get(Math.max(1, Math.round(Number(from.rectId) || 0)));
-        const toRect = rectById.get(Math.max(1, Math.round(Number(to.rectId) || 0)));
-        if (!fromRect || !toRect) continue;
-        const fromMeta = parseScreenNameGroup(fromRect), toMeta = parseScreenNameGroup(toRect);
-        const lenPx = estimateInterScreenCableLenPx(from, to);
-        if (!(lenPx > 0)) continue;
-        const mPerPx = (1 / Math.max(1, Number(from.scale) || 256) + 1 / Math.max(1, Number(to.scale) || 256)) / 2;
-        const lenM = lenPx * mPerPx * 1.3;
-        const lenKey = `${fmtOne(lenM)}м`;
-        let rectRec = byRectOut.get(fromRect.id);
-        if (!rectRec) { rectRec = { cableByLen: new Map(), targets: new Map() }; byRectOut.set(fromRect.id, rectRec); }
-        rectRec.cableByLen.set(lenKey, (rectRec.cableByLen.get(lenKey) || 0) + 1);
-        const targetLabel = `${toMeta.name}${toMeta.group && toMeta.group !== "Общая" ? ` @${toMeta.group}` : ""}`;
-        rectRec.targets.set(targetLabel, (rectRec.targets.get(targetLabel) || 0) + 1);
-        let grpRec = byGroupOut.get(fromMeta.group);
-        if (!grpRec) { grpRec = { cableByLen: new Map(), routes: new Map() }; byGroupOut.set(fromMeta.group, grpRec); }
-        grpRec.cableByLen.set(lenKey, (grpRec.cableByLen.get(lenKey) || 0) + 1);
-        const routeLabel = `${fromMeta.group} → ${toMeta.group}`;
-        grpRec.routes.set(routeLabel, (grpRec.routes.get(routeLabel) || 0) + 1);
-      }
-      return { byRectOut, byGroupOut };
-    };
-    const buildRectSpecData = r => {
-      const cellX = drawCellX(r), cellY = drawCellY(r), topo = getCellTopologyCached(r, cellX, cellY), hs = getHiddenSet(r);
-      const cols = Math.max(1, topo && topo.cols || 1), rows = Math.max(1, topo && topo.rows || 1);
-      const colW = []; for (let x = 0; x < r.width; x += cellX)colW.push(Math.min(cellX, r.width - x));
-      const rowH = []; for (let y = 0; y < r.height; y += cellY)rowH.push(Math.min(cellY, r.height - y));
-      const colPref = [0]; for (let i = 0; i < colW.length; i++)colPref.push(colPref[i] + colW[i]);
-      const rowPref = [0]; for (let i = 0; i < rowH.length; i++)rowPref.push(rowPref[i] + rowH[i]);
-      const comp = new Map();
-      let visibleAreaPx = 0;
-      for (let iy = 0; iy < rows; iy++)for (let ix = 0; ix < cols; ix++) {
-        if (hs && hs.has(maskCellKey(ix, iy))) continue;
-        visibleAreaPx += Math.max(0, (colW[ix] || 0) * (rowH[iy] || 0));
-        const idx = iy * cols + ix, cid = ((topo && Array.isArray(topo.comp) ? topo.comp[idx] : 0) | 0);
-        let it = comp.get(cid);
-        if (!it) { it = { c0: ix, c1: ix + 1, r0: iy, r1: iy + 1, cells: 1 }; comp.set(cid, it); continue; }
-        if (ix < it.c0) it.c0 = ix; if (ix + 1 > it.c1) it.c1 = ix + 1; if (iy < it.r0) it.r0 = iy; if (iy + 1 > it.r1) it.r1 = iy + 1; it.cells++;
-      }
-      const cabinetBySize = new Map();
-      for (const it of comp.values()) {
-        const wPx = Math.max(1, Math.round((colPref[it.c1] || 0) - (colPref[it.c0] || 0))), hPx = Math.max(1, Math.round((rowPref[it.r1] || 0) - (rowPref[it.r0] || 0)));
-        const wM = fmtMeters(wPx / Math.max(1, +r.scale || 256)), hM = fmtMeters(hPx / Math.max(1, +r.scale || 256)), k = `${wM} x ${hM}`;
-        cabinetBySize.set(k, (cabinetBySize.get(k) || 0) + 1);
-      }
-      const regions = planNumberRegions(r, cellX, cellY, topo, hs);
-      const flowGroups = getDataFlowGroups(r, cellX, cellY, topo, hs, regions);
-      const cableByLen = new Map();
-      for (const g of flowGroups || []) {
-        const pts = Array.isArray(g && g.points) ? g.points : [];
-        for (let i = 1; i < pts.length; i++) {
-          const p0 = pts[i - 1], p1 = pts[i], dx = (+p1.u || 0) - (+p0.u || 0), dy = (+p1.v || 0) - (+p0.v || 0), lenPx = Math.hypot(dx, dy);
-          if (!(lenPx > 0)) continue;
-          const lenM = (lenPx / Math.max(1, +r.scale || 256)) * 1.3, k = `${fmtOne(lenM)}м`;
-          cableByLen.set(k, (cableByLen.get(k) || 0) + 1);
-        }
-      }
-      const scale = Math.max(1, +r.scale || 256), visibleAreaM2 = visibleAreaPx / (scale * scale);
-      return { cabinetBySize, cableByLen, visibleAreaM2 };
-    };
-    const buildRectSpecText = (r, interSpec = null) => buildScreenSpecSection({
-      rect: r,
-      interSpec,
-      parseScreenNameGroup,
-      buildRectSpecData,
-      buildRectRigSpecData,
-      mapToCableList,
-      mapToNamedCountList,
-      mapToRigSizeList,
-      mapToRigWeightList,
-      fmtMeters,
-      pushSpecListLine,
-      pushSpecCountLine
     });
-    const buildFlowSpecText = () => buildFlowLinksSpecText({
-      rects: st.rects,
-      isNoteRect: r => isNoteRect(r),
-      buildInterScreenSpecData: () => buildInterScreenSpecData(),
-      parseScreenNameGroup,
-      buildRectSpecData,
-      buildRectRigSpecData,
-      mergeCountMap,
-      mergeNumericMap,
-      buildScreenSpecSection: ({ rect, interSpec }) => buildScreenSpecSection({
-        rect,
-        interSpec,
-        parseScreenNameGroup,
-        buildRectSpecData,
-        buildRectRigSpecData,
-        mapToCableList,
-        mapToNamedCountList,
-        mapToRigSizeList,
-        mapToRigWeightList,
-        fmtMeters,
-        pushSpecListLine,
-        pushSpecCountLine
-      }),
-      buildSummarySection: ({ group, rec, interSpec }) => buildSummarySection({
-        group,
-        rec,
-        interSpec,
-        mapToCabinetList,
-        mapToCableList,
-        mapToNamedCountList,
-        mapToRigSizeList,
-        mapToRigWeightList,
-        sumMapCounts,
-        fmtAreaM2,
-        pushSpecListLine,
-        pushSpecCountLine
-      })
-    });
-    const { exportPackage } = setupExportPackageController({
+    const { bindExportHandlers } = setupSpecExportFeature({
       st,
-      ensureFontReady: () => ensureFontReady(),
-      rectAABBMasked: r => rectAABBMasked(r),
-      getRectRigData: r => getRectRigData(r),
+      el,
+      bindClick,
+      isNoteRect,
+      getRectRigData,
+      drawCellX,
+      drawCellY,
+      getCellTopologyCached,
+      getHiddenSet,
+      buildRigLayout,
+      resolveRigFrameSeam,
+      RIG_DEFAULT_LOAD_KG,
+      parseScreenNameGroup,
+      flowAnchorKey,
+      normalizeFlowLinks,
       normalizeDataFlow,
-      drawRect: (c, er, sel, z, origin, opts) => drawRect(c, er, sel, z, origin, opts),
-      drawInterScreenFlowLinks: (c, force) => drawInterScreenFlowLinks(c, force),
-      getRectCalcCache: r => getRectCalcCache(r),
-      embedProjectIntoPngBlob: (b, p, k) => embedProjectIntoPngBlob(b, p, k),
-      buildProject: () => buildProject(),
+      rectUVToWorld,
+      planNumberRegions,
+      getDataFlowGroups,
+      maskCellKey,
+      ensureFontReady,
+      rectAABBMasked,
+      drawRect,
+      drawInterScreenFlowLinks,
+      getRectCalcCache,
+      embedProjectIntoPngBlob,
+      buildProject,
       PNG_PROJECT_META_KEY,
-      projectFileBase: () => projectFileBase(),
-      setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
-      getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
+      projectFileBase,
+      setGlobalSaveLocationId,
+      getGlobalSaveLocationId,
       saveStatus,
-      saveBlobWithSystemDialog: (...args) => saveBlobWithSystemDialog(...args),
-      buildFlowSpecText: () => buildFlowSpecText(),
-      showMessageModal: (text, title) => showMessageModal(text, title)
+      saveBlobWithSystemDialog,
+      showMessageModal
     });
-    bindClick(el.exp, async () => { await exportPackage() });
-    setupBootstrapWiring({
-      setupAppBootstrapRuntime,
-      runtimeDeps: {
+    bindExportHandlers();
+    setupAppBootstrapFeature({
       createEditorServices,
-      setupUiBinders,
-      setupKeyboardController,
-      setupAppInitController,
-      setupProjectCodecBridge,
-      uiServices: {
-        st,
-        el,
-        themeMedia,
-        overflowHiddenButtons,
-        bindEvent,
-        bindClick,
-        bindWindowEvent,
-        bindProxyClick,
-        lsGet,
-        lsSet,
-        HELP_SEEN_KEY,
-        openHelpModal,
-        closeHelpModal,
-        syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
-        renderProjectTabs: () => renderProjectTabs(),
-        syncProps: () => syncProps(),
-        schedulePersist: (...args) => schedulePersist(...args),
-        createProjectTab: data => createProjectTab(data),
-        makeEmptyProjectData: name => makeEmptyProjectData(name),
-        applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
-        hideThemePopup: () => hideThemePopup(),
-        showThemePopup: anchorEl => showThemePopup(anchorEl),
-        hideToolbarOverflowPopup: () => hideToolbarOverflowPopup(),
-        showToolbarOverflowPopup: () => showToolbarOverflowPopup(),
-        updateMobileDock: () => updateMobileDock(),
-        updateToolbarOverflow: () => updateToolbarOverflow(),
-        persistNow: () => persistNow(),
-        scheduleCanvasResize: () => scheduleCanvasResize()
-      },
-      keyboardDeps: {
-        render,
-        undoHistory,
-        redoHistory,
-        closeHelpModal,
-        setMode,
-        isMaskMode,
-        applyMaskPath,
-        delSel,
-        dupSel,
-        cur,
-        cloneRectForClipboard,
-        cloneRectForDuplicate,
-        insertCloneAboveSource,
-        selRect,
-        getEditableSelectedRects,
-        commitUiUpdate
-      },
-      appInitDeps: {
-        st,
-        el,
-        setMode: m => setMode(m),
-        normalizeThemeMode,
-        lsGet,
-        THEME_MODE_KEY,
-        setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
-        getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
-        applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
-        updateAppViewportHeight: () => updateAppViewportHeight(),
-        updateMobileDock: () => updateMobileDock(),
-        updateToolbarOverflow: () => updateToolbarOverflow(),
-        saveStatus,
-        getProjectDataFromQueryParam: () => getProjectDataFromQueryParam(),
-        showMessageModal: msg => showMessageModal(msg),
-        restoreAutoSave: () => restoreAutoSave(),
-        mk: (x, y, w, h) => mk(x, y, w, h),
-        autoContrast,
-        selRect: id => selRect(id),
-        resize: () => resize(),
-        refreshPanels: () => refreshPanels(),
-        fit: () => fit(),
-        cloneProjectData: data => cloneProjectData(data),
-        buildProject: () => buildProject(),
-        loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
-        syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
-        renderProjectTabs: () => renderProjectTabs(),
-        clearProjectQueryParamFromUrl: () => clearProjectQueryParamFromUrl(),
-        initHistoryCurrent: () => initHistoryCurrent(),
-        ensureFontReady: () => ensureFontReady(),
-        render: () => render()
-      },
-      codecDeps: {
-        PROJECT_QUERY_VERSION,
-        PROJECT_QUERY_PARAM,
-        encodeProjectToQueryValue: value => encodeProjectToQueryValue(value),
-        decodeProjectFromQueryValue: value => decodeProjectFromQueryValue(value),
-        buildPortableProject: () => buildPortableProject()
-      }
-      }
+      st,
+      el,
+      themeMedia,
+      overflowHiddenButtons,
+      bindEvent,
+      bindClick,
+      bindWindowEvent,
+      bindProxyClick,
+      lsGet,
+      lsSet,
+      HELP_SEEN_KEY,
+      openHelpModal,
+      closeHelpModal,
+      syncActiveTabSnapshot,
+      renderProjectTabs,
+      syncProps,
+      schedulePersist,
+      createProjectTab,
+      makeEmptyProjectData,
+      applyThemeMode,
+      hideThemePopup,
+      showThemePopup,
+      hideToolbarOverflowPopup,
+      showToolbarOverflowPopup,
+      updateMobileDock,
+      updateToolbarOverflow,
+      persistNow,
+      scheduleCanvasResize,
+      render,
+      undoHistory,
+      redoHistory,
+      setMode,
+      isMaskMode,
+      applyMaskPath,
+      delSel,
+      dupSel,
+      cur,
+      cloneRectForClipboard,
+      cloneRectForDuplicate,
+      insertCloneAboveSource,
+      selRect,
+      getEditableSelectedRects,
+      commitUiUpdate,
+      normalizeThemeMode,
+      THEME_MODE_KEY,
+      setGlobalSaveLocationId,
+      getGlobalSaveLocationId,
+      updateAppViewportHeight,
+      saveStatus,
+      getProjectDataFromQueryParam,
+      showMessageModal,
+      restoreAutoSave,
+      mk,
+      autoContrast,
+      resize,
+      refreshPanels,
+      fit,
+      cloneProjectData,
+      buildProject,
+      loadProjectIntoActiveState,
+      clearProjectQueryParamFromUrl,
+      initHistoryCurrent,
+      ensureFontReady,
+      PROJECT_QUERY_VERSION,
+      PROJECT_QUERY_PARAM,
+      encodeProjectToQueryValue,
+      decodeProjectFromQueryValue,
+      buildPortableProject
     });
   </script>
 </body>

@@ -1,6 +1,8 @@
 import { setupFlowInputController } from "./ui/flow-input-controller.js";
 import { setupClusterInputController } from "./ui/cluster-input-controller.js";
 import { setupCanvasNavigationController } from "./ui/canvas-navigation-controller.js";
+import { setupPointerOrchestratorController } from "./ui/pointer-orchestrator-controller.js";
+import { setupTouchInputController } from "./ui/touch-input-controller.js";
 
 export const setupInputController = (deps = {}) => {
   const {
@@ -25,10 +27,6 @@ export const setupInputController = (deps = {}) => {
 
   if (!cv || !st || !render) return {};
 
-  const selectHitRectIfNeeded = h => {
-    if (h && h.id !== st.sel) selRect(h.id);
-    return h || null;
-  };
   const selectHoveredRectSmart = h => {
     if (!h || h.id === st.sel) return false;
     setSelection([h.id], h.id);
@@ -86,144 +84,67 @@ export const setupInputController = (deps = {}) => {
     setFlowLock: (r, rid, fromIndex, cid) => setFlowLock(r, rid, fromIndex, cid),
     finishPointerUp: changed => finishPointerUp(changed)
   });
-  const handlePointerDownDrawOrNote = p => {
-    if (!(st.mode === "draw" || isNoteMode())) return false;
-    st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y, kind: (isNoteMode() ? "note" : "rect") };
-    render();
-    return true;
-  };
-  const handlePointerDownMask = p => {
-    if (!isMaskMode()) return false;
-    selectHitRectIfNeeded(hit(p.x, p.y));
-    if (isRectLocked(cur())) return true;
-    addMaskPoint(p.x, p.y);
-    return true;
-  };
-  const handlePointerDownCell = p => {
-    if (!isCellEditMode()) return false;
-    const h = selectHitRectIfNeeded(hit(p.x, p.y));
-    if (!h) { selRect(null); return true; }
-    if (isRectLocked(h)) return true;
-    toggleCellLinkAtPoint(h, p.x, p.y);
-    return true;
-  };
-  const handlePointerDownCluster = p => {
-    if (!isClusterEditMode()) return false;
-    return !!clusterController.handlePointerDownCluster(p);
-  };
-  const handlePointerDownRig = p => {
-    if (!isRigEditMode()) return false;
-    return !!handleRigPointerDown(p);
-  };
-  const handlePointerDownFlow = p => {
-    if (st.mode !== "flowEdit") return false;
-    return !!handleFlowEditPointerDown(p);
-  };
-  const handlePointerDownSelect = (p, opts = null) => navigationController.handlePointerDownSelect(p, opts);
-  const handleCanvasPointerDown = (p, opts = null) => {
-    if (handlePointerDownDrawOrNote(p)) return;
-    if (handlePointerDownMask(p)) return;
-    if (handlePointerDownCell(p)) return;
-    if (handlePointerDownCluster(p)) return;
-    if (handlePointerDownRig(p)) return;
-    if (handlePointerDownFlow(p)) return;
-    handlePointerDownSelect(p, opts);
-  };
-  const handleFlowEditPointerMove = p => flowController.handleFlowEditPointerMove(p);
-  const handleCanvasPointerMove = (p, opts = null) => {
-    const o = (opts && typeof opts === "object") ? opts : {};
-    if (navigationController.handlePanPointerMove(p, o)) return true;
-    if (navigationController.handleSelectionBoxPointerMove(p)) return true;
-    if (isMaskMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); return true; }
-    if (isCellEditMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); return true; }
-    if (isRigEditMode()) { if (handleRigPointerMove) return !!handleRigPointerMove(p); const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return true; }
-    if (isClusterEditMode()) {
-      return !!clusterController.handleClusterPointerMove(p);
-    }
-    if (handleFlowEditPointerMove(p)) return true;
-    if (navigationController.handleDraftPointerMove(p)) return true;
-    if (navigationController.handleDragPointerMove(p, o)) return true;
-    return false;
-  };
-  const handlePointerUpCluster = () => clusterController.handlePointerUpCluster();
-  const handlePointerUpFlowLink = () => flowController.handlePointerUpFlowLink();
-  const handlePointerUpFlowDrag = () => flowController.handlePointerUpFlowDrag();
-  const handleCanvasPointerUp = () => {
-    const hadDrag = !!st.drag; if (st.pan) { st.pan = false; st.panS = null; }
-    if (st.selBox) { finishSelectionBox(); return true; }
-    if (handlePointerUpCluster()) return true;
-    if (handlePointerUpFlowLink()) return true;
-    if (handlePointerUpFlowDrag()) return true;
-    let created = null; if (st.draft) { const d = st.draft; if (d.width >= 1 && d.height >= 1) { created = (String(d.kind || "") === "note") ? mkNote(d.x, d.y, d.width, d.height) : mk(d.x, d.y, d.width, d.height); st.rects.push(created); } st.draft = null; }
-    st.drag = null; st.g.x = null; st.g.y = null; st.dg = null;
-    if (created) { setMode("select"); selRect(created.id); if (isNoteRect(created)) openNoteEditor(created.id); }
-    if (hadDrag || created) { refreshPanels(); schedulePersist("project"); }
-    render();
-    return true;
-  };
-  const handleCanvasMouseLeave = () => {
-    if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) {
-      resetCellTransient();
-      render();
-      return;
-    }
-    if (flowController.handleFlowMouseLeave()) return;
-    if (isClusterEditMode() && clusterController.handleClusterMouseLeave()) return;
-    if (isRigEditMode() && st.rigHover) { if (handleRigPointerLeave) { handleRigPointerLeave(); return; } resetRigHoverTransient(); render(); }
-  };
-  const touchDist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-  const touchMid = (a, b, rect) => ({ sx: ((a.clientX + b.clientX) / 2) - rect.left, sy: ((a.clientY + b.clientY) / 2) - rect.top });
-  const handleTouchStart = e => {
-    const rect = cv.getBoundingClientRect();
-    if (e.touches.length === 2) {
-      const m = touchMid(e.touches[0], e.touches[1], rect);
-      st.touch = { type: "pinch", startDist: touchDist(e.touches[0], e.touches[1]), startZoom: st.zoom, worldMid: s2w(m.sx, m.sy) };
-      st.drag = null;
-      st.selBox = null;
-      st.pan = false;
-      st.draft = null;
-      e.preventDefault();
-      return;
-    }
-    if (e.touches.length !== 1) return;
-    const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy);
-    st.touch = { type: "single" };
-    if (st.lockAll) {
-      st.pan = true;
-      st.panS = { sx, sy, cx: st.camX, cy: st.camY };
-      render();
-      e.preventDefault();
-      return;
-    }
-    handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true });
-    e.preventDefault();
-  };
-  const handleTouchMove = e => {
-    const rect = cv.getBoundingClientRect();
-    if (st.touch && st.touch.type === "pinch" && e.touches.length >= 2) {
-      const m = touchMid(e.touches[0], e.touches[1], rect), dist = Math.max(1, touchDist(e.touches[0], e.touches[1])), vm = getViewMetrics();
-      st.zoom = zc(st.touch.startZoom * (dist / st.touch.startDist));
-      st.camX = st.touch.worldMid.x - (m.sx - vm.centerX) / st.zoom;
-      st.camY = st.touch.worldMid.y - (m.sy - vm.centerY) / st.zoom;
-      render();
-      e.preventDefault();
-      return;
-    }
-    if (e.touches.length !== 1) return;
-    const t = e.touches[0], sx = t.clientX - rect.left, sy = t.clientY - rect.top, p = s2w(sx, sy);
-    if (handleCanvasPointerMove(p, { sx, sy, ctrlSnap: false })) e.preventDefault();
-  };
-  const handleTouchEnd = e => {
-    if (st.touch && st.touch.type === "pinch" && e.touches.length >= 1) {
-      e.preventDefault();
-      return;
-    }
-    if (e.touches.length === 0) {
-      st.touch = null;
-      handleCanvasPointerUp();
-      e.preventDefault();
-    }
-  };
+  const pointerOrchestrator = setupPointerOrchestratorController({
+    st,
+    render,
+    hit: (x, y) => hit(x, y),
+    cur: () => cur(),
+    selRect: (id, opts) => selRect(id, opts),
+    isRectLocked: r => isRectLocked(r),
+    isNoteMode: () => isNoteMode(),
+    isMaskMode: () => isMaskMode(),
+    isCellEditMode: () => isCellEditMode(),
+    isClusterEditMode: () => isClusterEditMode(),
+    isRigEditMode: () => isRigEditMode(),
+    addMaskPoint: (x, y) => addMaskPoint(x, y),
+    toggleCellLinkAtPoint: (r, x, y) => toggleCellLinkAtPoint(r, x, y),
+    snapMaskNode: (r, x, y) => snapMaskNode(r, x, y),
+    getCellLinkCandidateAtPoint: (r, x, y) => getCellLinkCandidateAtPoint(r, x, y),
+    getRigHitAtPoint: (r, x, y, z) => getRigHitAtPoint(r, x, y, z),
+    handleRigPointerDown,
+    handleRigPointerMove,
+    handleRigPointerLeave,
+    handleFlowEditPointerDown,
+    navigationController,
+    clusterController,
+    flowController,
+    resetFlowHoverTransient: () => resetFlowHoverTransient(),
+    selectHoveredRectSmart: h => selectHoveredRectSmart(h),
+    finishPointerUp: changed => finishPointerUp(changed),
+    finishSelectionBox: () => finishSelectionBox(),
+    mkNote: (x, y, w, h) => mkNote(x, y, w, h),
+    mk: (x, y, w, h) => mk(x, y, w, h),
+    isNoteRect: r => isNoteRect(r),
+    openNoteEditor: id => openNoteEditor(id),
+    setMode: mode => setMode(mode),
+    refreshPanels: () => refreshPanels(),
+    schedulePersist: kind => schedulePersist(kind),
+    resetCellTransient: () => resetCellTransient(),
+    resetRigHoverTransient: () => resetRigHoverTransient(),
+    setSelection: (ids, activeId) => setSelection(ids, activeId),
+    syncPropsSmart: () => syncPropsSmart(),
+    resetFlowRegionOverrides: (r, rid) => resetFlowRegionOverrides(r, rid),
+    syncProps: () => syncProps(),
+    findFlowStartHandle: (x, y) => findFlowStartHandle(x, y)
+  });
+  const handleCanvasPointerDown = (p, opts = null) => pointerOrchestrator.handleCanvasPointerDown(p, opts);
+  const handleCanvasPointerMove = (p, opts = null) => pointerOrchestrator.handleCanvasPointerMove(p, opts);
+  const handleCanvasPointerUp = () => pointerOrchestrator.handleCanvasPointerUp();
+  const handleCanvasMouseLeave = () => pointerOrchestrator.handleCanvasMouseLeave();
+  const touchController = setupTouchInputController({
+    cv,
+    st,
+    render,
+    s2w,
+    zc,
+    getViewMetrics,
+    handleCanvasPointerDown: (p, opts) => handleCanvasPointerDown(p, opts),
+    handleCanvasPointerMove: (p, opts) => handleCanvasPointerMove(p, opts),
+    handleCanvasPointerUp: () => handleCanvasPointerUp()
+  });
+  const handleTouchStart = e => touchController.handleTouchStart(e);
+  const handleTouchMove = e => touchController.handleTouchMove(e);
+  const handleTouchEnd = e => touchController.handleTouchEnd(e);
 
   bindEvent(cv, "contextmenu", e => e.preventDefault());
   bindEvent(cv, "mousedown", e => {
@@ -241,20 +162,7 @@ export const setupInputController = (deps = {}) => {
   bindEvent(cv, "wheel", e => { e.preventDefault(); const b = cv.getBoundingClientRect(); deps.zoomAt(e.clientX - b.left, e.clientY - b.top, st.zoom * (e.deltaY < 0 ? 1.1 : .9)); }, { passive: false });
   bindEvent(cv, "dblclick", e => {
     const b = cv.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top, p = s2w(sx, sy);
-    const h = hit(p.x, p.y); if (!h) return;
-    if (isNoteRect(h)) { if (h.id !== st.sel) selRect(h.id); openNoteEditor(h.id); e.preventDefault(); return; }
-    if (h.id !== st.sel) return;
-    if (st.mode !== "flowEdit") return;
-    const r = cur(); if (!r) return;
-    const startHandle = findFlowStartHandle(p.x, p.y);
-    if (!startHandle) return;
-    st.flowRegionRid = startHandle.rid;
-    resetFlowRegionOverrides(r, startHandle.rid);
-    resetFlowHoverTransient(); st.flowDrag = null;
-    schedulePersist("project");
-    syncProps();
-    render();
-    e.preventDefault();
+    pointerOrchestrator.handleCanvasDoubleClick(p, () => e.preventDefault());
   });
   bindEvent(cv, "touchstart", handleTouchStart, { passive: false });
   bindEvent(cv, "touchmove", handleTouchMove, { passive: false });
