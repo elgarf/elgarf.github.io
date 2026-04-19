@@ -4,7 +4,7 @@ export const setupInputController = (deps = {}) => {
     isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
     cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
     beginClusterHandleDragAtPoint, handleClusterEditAtPoint,
-    handleRigPointerDown, handleFlowEditPointerDown,
+    handleRigPointerDown, handleRigPointerMove, handleRigPointerLeave, handleFlowEditPointerDown,
     selRect, isSelected, beginRectDrag, beginSelectionBox,
     setSelection, syncPropsSmart, snapMaskNode, getCellLinkCandidateAtPoint, getRigHitAtPoint,
     updateClusterHandleDragAtPoint, updateClusterEditCursor,
@@ -136,7 +136,7 @@ export const setupInputController = (deps = {}) => {
     if (st.selBox) { updateSelectionBox(p); render(); return true; }
     if (isMaskMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); return true; }
     if (isCellEditMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); return true; }
-    if (isRigEditMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return true; }
+    if (isRigEditMode()) { if (handleRigPointerMove) return !!handleRigPointerMove(p); const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return true; }
     if (isClusterEditMode()) {
       if (st.clusterDrag) {
         updateClusterHandleDragAtPoint(p.x, p.y);
@@ -217,10 +217,7 @@ export const setupInputController = (deps = {}) => {
       render();
       return;
     }
-    if (isRigEditMode() && st.rigHover) {
-      resetRigHoverTransient();
-      render();
-    }
+    if (isRigEditMode() && st.rigHover) { if (handleRigPointerLeave) { handleRigPointerLeave(); return; } resetRigHoverTransient(); render(); }
   };
   const touchDist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   const touchMid = (a, b, rect) => ({ sx: ((a.clientX + b.clientX) / 2) - rect.left, sy: ((a.clientY + b.clientY) / 2) - rect.top });
@@ -321,3 +318,4 @@ export const setupInputController = (deps = {}) => {
     handleTouchEnd
   };
 };
+

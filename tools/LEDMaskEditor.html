@@ -1512,6 +1512,7 @@
     import { setupNoteEditorController } from "./editor/modules/ui/note-editor-controller.js";
     import { setupBootstrapModalFactory } from "./editor/modules/ui/bootstrap-modal-factory.js";
     import { setupToolbarController } from "./editor/modules/ui/toolbar-controller.js";
+    import { setupToolbarActionsController } from "./editor/modules/ui/toolbar-actions-controller.js";
     import { setupViewThemeLockController } from "./editor/modules/ui/view-theme-lock-controller.js";
     import { setupToolModeController } from "./editor/modules/ui/tool-mode-controller.js";
     import { setupTransientStateController } from "./editor/modules/ui/transient-state-controller.js";
@@ -1528,18 +1529,23 @@
     import { setupProjectStateController } from "./editor/modules/project-state-controller.js";
     import { setupProjectCodecBridge } from "./editor/modules/project-codec-bridge.js";
     import { setupAppInitController } from "./editor/modules/app-init-controller.js";
+    import { setupAppBootstrapRuntime } from "./editor/modules/app-bootstrap-runtime.js";
     import { setupExportPackageController } from "./editor/modules/export-package-controller.js";
     import { setupChangeOpsController } from "./editor/modules/state/change-ops.js";
     import { setupHistoryController } from "./editor/modules/history-controller.js";
     import { setupManualClustersController } from "./editor/modules/manual-clusters-controller.js";
     import { setupRigCore } from "./editor/modules/rig-core.js";
+    import { setupRigInteractionController } from "./editor/modules/rig/interaction.js";
     import { setupRigRenderController } from "./editor/modules/rig/render.js";
+    import { setupRigInputController } from "./editor/modules/ui/rig-input-controller.js";
     import { setupRenderPipeline } from "./editor/modules/render-pipeline.js";
     import { setupFlowLinkController } from "./editor/modules/flow-link-controller.js";
     import { drawFlowStartMarker, drawFlowEndMarker } from "./editor/modules/flow/draw-helpers.js";
     import { setupFlowAnchorResolver } from "./editor/modules/flow/anchor-resolver.js";
     import { setupInterScreenLinksRender } from "./editor/modules/flow/inter-screen-links-render.js";
     import { setupNoteRender } from "./editor/modules/render/note-render.js";
+    import { setupDrawRectStagesController } from "./editor/modules/render/draw-rect-stages.js";
+    import { setupDrawRectBaseController } from "./editor/modules/render/draw-rect-base.js";
     import { setupViewportMetricsController } from "./editor/modules/render/viewport-metrics.js";
     import { setupViewportOverlays } from "./editor/modules/render/viewport-overlays.js";
     import { setupInputController } from "./editor/modules/input-controller.js";
@@ -1834,6 +1840,15 @@
     let getRectRigData = (_r) => normalizeRigData(null);
     let setRectRigData = (_r) => { };
     let drawLoadIcon = (_c, _x, _y, _size, _opts = {}) => { };
+    let buildRigLayout = (_r, _cx, _cy, _topo, _hs, _z) => ({ seams: new Map(), bottomLoads: new Map(), anchors: new Map(), ui: 1, loadSizePx: 14, scalePx: 256 });
+    let remapRectRigLoadsToBottomSeams = (_r) => false;
+    let resolveRigFrameSeam = (_layout, _cellY, _key) => null;
+    let sanitizeRectRigFramesToBounds = (_r) => false;
+    let getRigHitAtPoint = (_r, _wx, _wy, _z) => null;
+    let applyRigActionAtPoint = (_r, _wx, _wy) => false;
+    let handleRigPointerDown = (_p) => false;
+    let handleRigPointerMove = (_p) => false;
+    let handleRigPointerLeave = () => false;
     ({
       getManualClusters,
       manualClustersSignature,
@@ -5816,445 +5831,85 @@
       getRectTextSizePx: r => getRectTextSizePx(r),
       fontFamilyCss
     });
-    function drawRectBase(c, r, sel, z, origin, opts) {
-      if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
-      const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, options = opts || {}, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
-      const skeleton = !st.fontReady;
-      const installView = (viewModeOverride || normalizeViewMode(st.viewMode)) === "install";
-      const topo = getCellTopologyCached(r, cellX, cellY), maskRender = getMaskRenderDataCached(r, cellX, cellY, hs, topo);
-      let flowEditingThisRect = !!(st.mode === "flowEdit" && sel && r.id === st.sel);
-      const cellCount = (topo.cols || 1) * (topo.rows || 1), interactiveDetail = !!(sel || st.mode === "flowEdit" || isMaskMode() || isCellEditMode() || isClusterEditMode() || isRigEditMode()), lowDetail = !!((forceLowDetail && !flowEditingThisRect) || (!disableLod && designerRender && !interactiveDetail && cellCount > 3000));
-      const clusterDraggingThisRect = !!(st.clusterDrag && Math.round(Number(st.clusterDrag.rectId) || 0) === Math.round(Number(r && r.id) || 0));
-      const showNumbers = !!r.numberCells;
-      const cellEditActive = isCellEditMode(), rigEditActive = isRigEditMode(), clusterEditActive = isClusterEditMode(), flowEditActive = st.mode === "flowEdit";
-      const flowEnabledByMode = normalizeDataFlow(r.dataFlow) !== "none";
-      const flowInteractivePause = !!(cellEditActive || rigEditActive || st.pan || st.drag || st.draft || clusterDraggingThisRect || (st.touch && st.touch.type === "pinch") || (lowDetail && !flowEditingThisRect));
-      const flowFlags = computeRectRenderFlags({
-        stMode: st.mode,
-        sel,
-        rectId: r && r.id,
-        selectedId: st.sel,
-        installView: !!(installView && includeFlow),
-        flowEnabledByMode,
-        flowInteractivePause,
-        showNumbers
-      });
-      flowEditingThisRect = flowFlags.flowEditingThisRect;
-      const wantsFlowDraw = flowFlags.wantsFlowDraw;
-      const wantsFlowForNumbers = flowFlags.wantsFlowForNumbers;
-      const showRegionsOverlayRequested = !!(installView && designerRender && !clusterDraggingThisRect);
-      const needRegions = !!(!lowDetail && (showNumbers || wantsFlowDraw || showRegionsOverlayRequested || (installView && sel && !clusterDraggingThisRect)));
-      const regions = (needRegions ? planNumberRegions(r, cellX, cellY, topo, hs, !options.noCachedRegions) : null);
-      const showRegionsOverlay = !!(regions && showRegionsOverlayRequested);
-      if (sel && r.id === st.sel && !(st.drag || st.clusterDrag || st.flowDrag || st.pan || st.draft)) updateSplitVariantControl(r);
-      const flowGroups = (wantsFlowDraw || wantsFlowForNumbers) ? (flowGroupsOverride || getDataFlowGroups(r, cellX, cellY, topo, hs, regions)) : [];
-      if (Array.isArray(flowGroups) && flowGroups.length) collectFlowLinkAnchors(r, flowGroups);
-      if (st.mode === "flowEdit" && sel && r.id === st.sel) collectFlowEditPoints(r, flowGroups);
-      let drawContent = true, maskedClip = false;
-      let deferredTextOverlay = null;
-      if (maskRender.hasMask) {
-        if (!maskRender.hasVisible) drawContent = false;
-        else if (Array.isArray(maskRender.hiddenRects) && maskRender.hiddenRects.length) {
-          c.save();
-          maskedClip = true;
-          c.beginPath();
-          c.rect(-w / 2, -h / 2, w, h);
-          for (const rc of maskRender.hiddenRects) c.rect(rc.x, rc.y, rc.w, rc.h);
-          c.clip("evenodd");
-        }
-      }
-      if (drawContent) {
-        const layer = getRectFillLayerCached(r, cellX, cellY, topo, maskRender, lowDetail);
-        if (layer) c.drawImage(layer, -w / 2, -h / 2);
-        const decorLayer = getRectDecorLayerCached(r, maskRender, z);
-        if (decorLayer) c.drawImage(decorLayer, -w / 2, -h / 2);
-        if (!lowDetail) {
-          const comps = getRectComponentRenderDataCached(r, cellX, cellY, topo);
-          if (!skeleton && showNumbers && regions) {
-            const txtTheme = rectTextTheme(r);
-            const nfs = 9, pad = 2.5;
-            c.font = `${nfs}px ${fontFamilyCss(st.fontFamily)}`;
-            c.textAlign = "left"; c.textBaseline = "top";
-            const flowOrderByRegionCid = new Map(), fallbackOrderByRegionCid = new Map(), byRegion = new Map(), flowRidByCid = new Map(), compRegionByCid = new Map(), regionBoundsById = new Map();
-            for (const g of flowGroups || []) {
-              const rid = (g && Number.isFinite(g.rid) ? g.rid : 0), pts = Array.isArray(g && g.points) ? g.points : [], seen = new Set();
-              let n = 1;
-              for (const p of pts) {
-                const cid = Number(p && p.cid);
-                if (!Number.isFinite(cid) || seen.has(cid)) continue;
-                seen.add(cid);
-                flowRidByCid.set(Math.max(0, Math.round(cid || 0)), rid);
-                flowOrderByRegionCid.set(`${rid}:${cid}`, n++);
-              }
-            }
-            const mergeRegionBounds = (rid, col, row) => {
-              const prev = regionBoundsById.get(rid);
-              if (!prev) {
-                regionBoundsById.set(rid, { c0: col, c1: col + 1, r0: row, r1: row + 1 });
-                return;
-              }
-              if (col < prev.c0) prev.c0 = col;
-              if (col + 1 > prev.c1) prev.c1 = col + 1;
-              if (row < prev.r0) prev.r0 = row;
-              if (row + 1 > prev.r1) prev.r1 = row + 1;
-            };
-            for (const it of comps) {
-              const minCol = it.minCol, minRow = it.minRow, cid = Math.max(0, Math.round(Number(it && it.cid) || 0));
-              const ridFromFlow = flowRidByCid.has(cid) ? flowRidByCid.get(cid) : -1;
-              const rid = (regions && Array.isArray(regions.cellToRegion) ? regions.cellToRegion[minRow * topo.cols + minCol] : -1);
-              const gx = regions.colToGroup[minCol] || 0, gy = regions.rowToGroup[minRow] || 0, key = (ridFromFlow >= 0 ? ridFromFlow : (rid >= 0 ? rid : (gy * regions.nx + gx)));
-              const region = regions.regionsById.get(key) || { id: key, label: toLetters(key), c0: minCol, r0: minRow };
-              compRegionByCid.set(cid, key);
-              mergeRegionBounds(key, minCol, minRow);
-              if (!byRegion.has(key)) byRegion.set(key, []);
-              byRegion.get(key).push({ cid, minCol, minRow, region });
-            }
-            for (const [rid, arr] of byRegion.entries()) {
-              arr.sort((a, b) => a.minRow - b.minRow || a.minCol - b.minCol || a.cid - b.cid);
-              for (let i = 0; i < arr.length; i++)fallbackOrderByRegionCid.set(`${rid}:${arr[i].cid}`, i + 1);
-            }
-            for (const it of comps) {
-              if (maskRender.visibleCompSet && !maskRender.visibleCompSet.has(it.cid)) continue;
-              const minCol = it.minCol, minRow = it.minRow, cid = Math.max(0, Math.round(Number(it && it.cid) || 0));
-              const ridFromFlow = compRegionByCid.has(cid) ? compRegionByCid.get(cid) : (flowRidByCid.has(cid) ? flowRidByCid.get(cid) : -1);
-              const rid = (regions && Array.isArray(regions.cellToRegion) ? regions.cellToRegion[minRow * topo.cols + minCol] : -1);
-              const gx = regions.colToGroup[minCol] || 0, gy = regions.rowToGroup[minRow] || 0, regionId = (ridFromFlow >= 0 ? ridFromFlow : (rid >= 0 ? rid : (gy * regions.nx + gx)));
-              const regionFromMap = regions.regionsById.get(regionId);
-              const regionBounds = regionBoundsById.get(regionId);
-              const region = regionFromMap || { label: toLetters(regionId), c0: regionBounds ? regionBounds.c0 : minCol, r0: regionBounds ? regionBounds.r0 : minRow };
-              const flowN = (flowOrderByRegionCid.get(`${regionId}:${cid}`) || fallbackOrderByRegionCid.get(`${regionId}:${cid}`) || 1), xCoord = Math.max(1, minCol - (Number(region.c0) || 0) + 1), yCoord = Math.max(1, minRow - (Number(region.r0) || 0) + 1);
-              const text = flowEnabledByMode ? `${region.label}${flowN} (${xCoord}, ${yCoord})` : `${region.label} (${xCoord}, ${yCoord})`, tx = it.minX + pad, ty = it.minY + pad, tw = c.measureText(text).width + 4, th = nfs + 3;
-              c.fillStyle = txtTheme.bgStrong; c.fillRect(tx - 1.5, ty - 1, tw, th);
-              c.fillStyle = txtTheme.text; c.fillText(text, tx, ty);
-            }
-          }
-          if (!skeleton && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
-            const rx = Math.round(r.x - origin.x), ry = Math.round(r.y - origin.y), baseFs = getRectTextSizePx(r), wm = (r.widthM != null ? r.widthM : r.width / Math.max(1, r.scale || 256)), hm = (r.heightM != null ? r.heightM : r.height / Math.max(1, r.scale || 256)), pct = fillPercent(wm, hm, r.areaM2Px);
-            const installExtra = installView ? buildVisibleCabinetSummary(r, cellX, cellY, topo, hs) : { areaM2: 0, groups: [] };
-            const installCabText = installExtra.groups.length ? installExtra.groups.join("\n") : "—";
-            const lsRaw = installView ? [r.name, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`, `${mFmt(installExtra.areaM2)} м²`, installCabText] : [r.name, `(${rx}; ${ry}) px`, `${Math.round(w)} x ${Math.round(h)} px`, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`];
-            const ls = lsRaw.flatMap(line => String(line == null ? "" : line).replace(/\r/g, "").split("\n")).filter(line => line.length > 0);
-            const maxW = Math.max(20, w - 6), localRect = { x: -w / 2, y: -h / 2, width: w, height: h };
-            const layoutKey = ["canvas", w, h, cellX, cellY, listSignature(r.hiddenCells), baseFs, maxW, st.fontFamily, ls.join("|")].join("|");
-            const layout = getRectTextLayoutCached(r, layoutKey, () => {
-              const hbs = hiddenCellBoxes(localRect, cellX, cellY, hs), freeRects = computeFreeRects(localRect, cellX, cellY, hs);
-              return chooseTextLayout(localRect, ls, (t, fs) => { c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`; return c.measureText(t).width }, maxW, baseFs, hbs, freeRects);
-            });
-            const txtTheme = rectTextTheme(r);
-            deferredTextOverlay = { layout, ls, maxW, txtTheme };
-          }
-        }
-      }
-      if (showRegionsOverlay) {
-        const regList = Array.isArray(regions.regions) ? regions.regions : [...regions.regionsById.values()];
-        c.save();
-        c.lineWidth = 4.5;
-        c.setLineDash([5, 4]);
-        const inset = c.lineWidth / 2;
-        for (const rg of regList) {
-          const ci = (rg.id ?? (rg.gy * regions.nx + rg.gx)) % REGION_ZONE_COLORS.length, col = REGION_ZONE_COLORS[ci];
-          c.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},.9)`;
-          const x0 = -w / 2 + (rg.c0 * cellX), x1 = -w / 2 + Math.min(w, rg.c1 * cellX), y0 = -h / 2 + (rg.r0 * cellY), y1 = -h / 2 + Math.min(h, rg.r1 * cellY);
-          const rw = Math.max(0, (x1 - x0) - inset * 2), rh = Math.max(0, (y1 - y0) - inset * 2);
-          if (rw <= 0 || rh <= 0) continue;
-          c.strokeRect(x0 + inset, y0 + inset, rw, rh);
-        }
-        c.setLineDash([]);
-        c.restore();
-      }
-      if (maskedClip) { c.restore(); maskedClip = false; }
-      c.strokeStyle = sel ? "#ffe08a" : "rgba(255,255,255,.85)"; c.lineWidth = sel ? 7 / z : 1 / z;
-      c.lineCap = "butt";
-      c.lineJoin = "miter";
-      const borderSegs = getVisibleBoundarySegmentsCached(r, cellX, cellY, hs);
-      if (borderSegs.length) {
-        if (sel) {
-          const eps = 0.001, outer = [], inner = [];
-          for (const s of borderSegs) {
-            const left = Math.abs(s.x1 + w / 2) < eps && Math.abs(s.x2 + w / 2) < eps, right = Math.abs(s.x1 - w / 2) < eps && Math.abs(s.x2 - w / 2) < eps, top = Math.abs(s.y1 + h / 2) < eps && Math.abs(s.y2 + h / 2) < eps, bottom = Math.abs(s.y1 - h / 2) < eps && Math.abs(s.y2 - h / 2) < eps;
-            (left || right || top || bottom ? outer : inner).push(s);
-          }
-          if (inner.length) {
-            c.save(); c.strokeStyle = "rgba(255,224,138,.95)"; c.lineWidth = (sel ? 7 / z : 1 / z) / 2; c.lineCap = "square"; c.lineJoin = "miter"; c.beginPath();
-            for (const s of inner) { c.moveTo(s.x1, s.y1); c.lineTo(s.x2, s.y2) }
-            c.stroke(); c.restore();
-          }
-          if (outer.length) {
-            c.beginPath();
-            for (const s of outer) { c.moveTo(s.x1, s.y1); c.lineTo(s.x2, s.y2) }
-            c.stroke();
-          }
-        } else {
-          c.beginPath();
-          for (const s of borderSegs) { c.moveTo(s.x1, s.y1); c.lineTo(s.x2, s.y2) }
-          c.stroke();
-        }
-      }
-      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive)
-        drawRigOnRect(c, r, w, h, cellX, cellY, topo, hs, z, !!sel);
-      if (wantsFlowDraw) {
-        if (st.mode === "flowEdit" && sel && r.id === st.sel && Array.isArray(flowGroups) && flowGroups.length > 1) {
-          const activeRid = Math.max(0, Math.round(Number(st.flowRegionRid) || 0)), active = flowGroups.filter(g => Math.round(Number(g && g.rid) || 0) === activeRid);
-          const passiveLayer = getRectFlowPassiveLayerCached(r, w, h, z, flowGroups, activeRid);
-          if (passiveLayer) c.drawImage(passiveLayer, -w / 2, -h / 2);
-          if (active.length) drawDataFlowOnRect(c, active, w, h, z);
-        } else {
-          drawDataFlowOnRect(c, flowGroups, w, h, z);
-        }
-      }
-      if (st.mode === "flowEdit" && sel && r.id === st.sel) drawFlowEditOverlay(c, w, h);
-      if (isClusterEditMode() && sel && r.id === st.sel) drawClusterEditOverlay(c, r, w, h, cellX, cellY);
-      if (deferredTextOverlay) {
-        const ov = deferredTextOverlay;
-        c.textAlign = "center";
-        c.textBaseline = "middle";
-        c.font = `${ov.layout.fs}px ${fontFamilyCss(st.fontFamily)}`;
-        c.fillStyle = ov.txtTheme.bg;
-        c.fillRect(ov.layout.textLeft, ov.layout.textTop, ov.layout.tw, ov.layout.th);
-        c.fillStyle = ov.txtTheme.text;
-        for (let i = 0; i < ov.ls.length; i++) c.fillText(ov.ls[i], ov.layout.textX, ov.layout.sy + i * ov.layout.lh, ov.maxW);
-      }
-      c.restore();
-      c.restore();
-      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive)
-        drawRigOutsideOverlay(c, r, cellX, cellY, topo, hs, z, !!sel);
-    }
-    const drawRectOverlays = (_c, _r, _sel, _z, _origin, _opts) => {
-    };
-    const drawRectInteractions = (_c, _r, _sel, _z, _origin, _opts) => {
-    };
+    const { drawRectBase } = setupDrawRectBaseController({
+      st,
+      isNoteRect: r => isNoteRect(r),
+      drawNoteRect: (c, r, sel, z) => drawNoteRect(c, r, sel, z),
+      drawCellX: r => drawCellX(r),
+      drawCellY: r => drawCellY(r),
+      getHiddenSet: r => getHiddenSet(r),
+      rads,
+      rectCenter,
+      normalizeViewMode,
+      getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+      getMaskRenderDataCached: (r, cx, cy, hs, topo) => getMaskRenderDataCached(r, cx, cy, hs, topo),
+      isMaskMode: () => isMaskMode(),
+      isCellEditMode: () => isCellEditMode(),
+      isClusterEditMode: () => isClusterEditMode(),
+      isRigEditMode: () => isRigEditMode(),
+      normalizeDataFlow,
+      computeRectRenderFlags,
+      planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
+      updateSplitVariantControl: r => updateSplitVariantControl(r),
+      getDataFlowGroups: (r, cx, cy, topo, hs, regions) => getDataFlowGroups(r, cx, cy, topo, hs, regions),
+      collectFlowLinkAnchors: (r, groups) => collectFlowLinkAnchors(r, groups),
+      collectFlowEditPoints: (r, groups) => collectFlowEditPoints(r, groups),
+      getRectFillLayerCached: (r, cx, cy, topo, maskRender, lowDetail) => getRectFillLayerCached(r, cx, cy, topo, maskRender, lowDetail),
+      getRectDecorLayerCached: (r, maskRender, z) => getRectDecorLayerCached(r, maskRender, z),
+      getRectComponentRenderDataCached: (r, cx, cy, topo) => getRectComponentRenderDataCached(r, cx, cy, topo),
+      rectTextTheme: r => rectTextTheme(r),
+      fontFamilyCss,
+      toLetters,
+      mFmt,
+      pctFmt,
+      fillPercent,
+      getRectTextSizePx: r => getRectTextSizePx(r),
+      buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
+      listSignature,
+      getRectTextLayoutCached: (r, key, compute) => getRectTextLayoutCached(r, key, compute),
+      hiddenCellBoxes: (r, cx, cy, hs) => hiddenCellBoxes(r, cx, cy, hs),
+      computeFreeRects: (r, cx, cy, hs) => computeFreeRects(r, cx, cy, hs),
+      chooseTextLayout,
+      REGION_ZONE_COLORS,
+      getVisibleBoundarySegmentsCached: (r, cx, cy, hs) => getVisibleBoundarySegmentsCached(r, cx, cy, hs),
+      drawRectOverlays: ctx => drawRectOverlays(ctx),
+      drawRectInteractions: ctx => drawRectInteractions(ctx),
+      drawRigOutsideOverlay: (c, r, cx, cy, topo, hs, z, sel) => drawRigOutsideOverlay(c, r, cx, cy, topo, hs, z, sel)
+    });
+
+    const { drawRectOverlays, drawRectInteractions } = setupDrawRectStagesController({
+      st,
+      isClusterEditMode: () => isClusterEditMode(),
+      fontFamilyCss: value => fontFamilyCss(value),
+      getDrawRigOnRect: () => drawRigOnRect,
+      getRectFlowPassiveLayerCached: () => getRectFlowPassiveLayerCached,
+      getDrawDataFlowOnRect: () => drawDataFlowOnRect,
+      getDrawFlowEditOverlay: () => drawFlowEditOverlay,
+      getDrawClusterEditOverlay: () => drawClusterEditOverlay
+    });
     function drawRect(c, r, sel, z, origin, opts) {
       drawRectBase(c, r, sel, z, origin, opts);
-      drawRectOverlays(c, r, sel, z, origin, opts);
-      drawRectInteractions(c, r, sel, z, origin, opts);
     }
-    const buildRigLayout = (r, cx, cy, topo, hs, z) => {
-      const w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1)), cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1)), rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1)), scalePx = Math.max(1, Number(r && r.scale) || 256);
-      const hidden = hs || new Set(), isVisible = (ix, iy) => (ix >= 0 && ix < cols && iy >= 0 && iy < rows && !hidden.has(maskCellKey(ix, iy)));
-      const seams = new Map(), bottomLoads = new Map(), anchors = new Map(), halfRow = Math.max(0, Math.floor(rows / 2));
-      const seamSpansByCol = new Map();
-      for (let iy = 0; iy < rows; iy++)for (let c = 1; c < cols; c++) {
-        if (!isVisible(c - 1, iy) || !isVisible(c, iy)) continue;
-        const y0 = iy * cy, y1 = Math.min(h, (iy + 1) * cy);
-        const spans = seamSpansByCol.get(c) || [];
-        spans.push({ y0, y1 });
-        seamSpansByCol.set(c, spans);
-        const key = `${c},${iy}`, x = -w / 2 + c * cx, yy0 = -h / 2 + y0, yy1 = -h / 2 + y1, yBottom = yy1;
-        const seam = { key, c, row: iy, x, y0: yy0, y1: yy1, yBottom };
-        if (iy >= halfRow) bottomLoads.set(key, seam);
-      }
-      const meterCount = Math.max(1, Math.ceil(h / scalePx));
-      for (let c = 1; c < cols; c++) {
-        const spans = seamSpansByCol.get(c);
-        if (!Array.isArray(spans) || !spans.length) continue;
-        for (let m = 0; m < meterCount; m++) {
-          const my0 = m * scalePx, my1 = Math.min(h, (m + 1) * scalePx);
-          if (my1 <= my0) continue;
-          let hasOverlap = false;
-          for (const sp of spans) {
-            const ov = Math.min(my1, sp.y1) - Math.max(my0, sp.y0);
-            if (ov > 0.5) { hasOverlap = true; break; }
-          }
-          if (!hasOverlap) continue;
-          const key = `${c},${m}`, x = -w / 2 + c * cx, y0 = -h / 2 + my0, y1 = -h / 2 + my1, yBottom = y1;
-          const seam = { key, c, meter: m, x, y0, y1, yBottom };
-          seams.set(key, seam);
-        }
-      }
-      for (let ix = 0; ix < cols; ix++) {
-        let bestRow = null;
-        for (let iy = 0; iy < rows; iy++) {
-          if (!isVisible(ix, iy)) continue;
-          if (iy > halfRow) continue;
-          if (iy > 0 && isVisible(ix, iy - 1)) continue;
-          bestRow = iy; break;
-        }
-        if (bestRow == null) continue;
-        const cw = Math.min(cx, w - ix * cx), x0 = -w / 2 + ix * cx, x1 = x0 + cw, x = x0 + cw / 2, y = -h / 2 + bestRow * cy;
-        anchors.set(ix, { col: ix, row: bestRow, x0, x1, x, y });
-      }
-      const ui = Math.max(0.6, 1 / Math.max(0.35, Number(z) || 1));
-      const loadSizePx = Math.max(14, 0.25 * scalePx);
-      return { w, h, cols, rows, seams, bottomLoads, anchors, ui, loadSizePx, scalePx };
-    };
-    const remapRectRigLoadsToBottomSeams = r => {
-      if (!r || typeof r !== "object") return false;
-      const rig = normalizeRigData(r.rig);
-      const srcLoads = (rig && rig.loads && typeof rig.loads === "object") ? rig.loads : {};
-      const entries = Object.entries(srcLoads);
-      if (!entries.length) { r.rig = rig; return false; }
-      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), layout = buildRigLayout(r, cx, cy, topo, hs, 1);
-      const seams = Array.from(layout.bottomLoads.values());
-      if (!seams.length) {
-        rig.loads = {};
-        r.rig = rig;
-        return Object.keys(srcLoads).length > 0;
-      }
-      let maxBottomY = -Infinity;
-      for (const s of seams) maxBottomY = Math.max(maxBottomY, Number(s && s.yBottom) || -Infinity);
-      const byCol = new Map();
-      for (const s of seams) {
-        if (!s) continue;
-        const c = Math.max(1, Math.round(Number(s.c) || 0));
-        let rec = byCol.get(c);
-        if (!rec) rec = { globalBottom: null, fallback: null };
-        if (!rec.fallback || (Number(s.yBottom) || -Infinity) > (Number(rec.fallback.yBottom) || -Infinity)) rec.fallback = s;
-        if (Math.abs((Number(s.yBottom) || 0) - maxBottomY) <= 1e-6 && !rec.globalBottom) rec.globalBottom = s;
-        byCol.set(c, rec);
-      }
-      const nextLoads = {};
-      let changed = false;
-      for (const [k, v] of entries) {
-        const p = String(k || "").split(",");
-        if (p.length !== 2) { changed = true; continue; }
-        const c = Math.max(1, Math.round(Number(p[0]) || 0));
-        const kg = Math.max(5, Math.round(Math.max(0, Number(v) || 0) / 5) * 5);
-        if (!kg) { changed = true; continue; }
-        const rec = byCol.get(c);
-        const target = (rec && (rec.globalBottom || rec.fallback)) || null;
-        if (!target || !target.key) { changed = true; continue; }
-        const targetKey = String(target.key);
-        if (targetKey !== String(k)) changed = true;
-        nextLoads[targetKey] = Math.max(Math.max(0, Math.round(Number(nextLoads[targetKey]) || 0)), kg);
-      }
-      const prevKeys = Object.keys(srcLoads).sort().join("|"), nextKeys = Object.keys(nextLoads).sort().join("|");
-      if (prevKeys !== nextKeys) changed = true;
-      if (!changed) {
-        for (const kk of Object.keys(nextLoads)) {
-          if (Math.max(0, Math.round(Number(nextLoads[kk]) || 0)) !== Math.max(0, Math.round(Number(srcLoads[kk]) || 0))) { changed = true; break; }
-        }
-      }
-      rig.loads = nextLoads;
-      r.rig = rig;
-      return changed;
-    };
-    const resolveRigFrameSeam = (layout, cellY, key) => {
-      if (!layout || !layout.seams) return null;
-      const direct = layout.seams.get(String(key || ""));
-      if (direct) return direct;
-      const p = String(key || "").split(",");
-      if (p.length !== 2) return null;
-      const c = Math.max(1, Math.round(Number(p[0]) || 0));
-      const legacyRow = Math.max(0, Math.round(Number(p[1]) || 0));
-      const meter = Math.max(0, Math.floor(((legacyRow + 0.5) * Math.max(1, Number(cellY) || 1)) / Math.max(1, Number(layout.scalePx) || 1)));
-      return layout.seams.get(`${c},${meter}`) || null;
-    };
-    const sanitizeRectRigFramesToBounds = r => {
-      if (!r || typeof r !== "object") return false;
-      const rig = normalizeRigData(r.rig);
-      const src = Array.isArray(rig.frames) ? rig.frames : [];
-      if (!src.length) { r.rig = rig; return false; }
-      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), layout = buildRigLayout(r, cx, cy, topo, hs, 1);
-      const nextSet = new Set();
-      for (const key of src) {
-        const seam = resolveRigFrameSeam(layout, cy, String(key || ""));
-        if (seam && seam.key) nextSet.add(String(seam.key));
-      }
-      const next = [...nextSet].sort((a, b) => { const pa = a.split(",").map(Number), pb = b.split(",").map(Number); return pa[1] - pb[1] || pa[0] - pb[0]; });
-      const prevSig = src.join("|"), nextSig = next.join("|");
-      rig.frames = next;
-      r.rig = rig;
-      return prevSig !== nextSig;
-    };
-    const getRigHitAtPoint = (r, wx, wy, z) => {
-      if (!r) return null;
-      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), layout = buildRigLayout(r, cx, cy, topo, hs, z), rig = getRectRigData(r);
-      const uv = worldToRectUV(r, wx, wy), lx = (+uv.u || 0) - layout.w / 2, ly = (+uv.v || 0) - layout.h / 2, ui = layout.ui, loadSize = layout.loadSizePx, scalePx = Math.max(1, Number(r && r.scale) || 256), suspendH = Math.max(10, 0.1 * scalePx), ringD = Math.max(8, 0.1 * scalePx);
-      if (lx < -layout.w / 2 - 40 * ui || lx > layout.w / 2 + 40 * ui || ly < -layout.h / 2 - 40 * ui || ly > layout.h / 2 + 70 * ui) return null;
-      const loads = rig && rig.loads && typeof rig.loads === "object" ? rig.loads : {}, bodyR = loadSize * 0.32, btnR = 8 * ui, btnDx = bodyR + Math.max(10 * ui, loadSize * 0.22);
-      for (const [key, wk] of Object.entries(loads)) {
-        const seam = layout.bottomLoads.get(String(key || ""));
-        if (!seam) continue;
-        const y = seam.yBottom - loadSize * 0.5, x = seam.x, lxBtn = x - btnDx, rxBtn = x + btnDx;
-        if (Math.hypot(lx - lxBtn, ly - y) <= btnR * 1.5) return { type: "loadMinus", key, rectId: r.id, x: lxBtn, y, hitX: lx, hitY: ly };
-        if (Math.hypot(lx - rxBtn, ly - y) <= btnR * 1.5) return { type: "loadPlus", key, rectId: r.id, x: rxBtn, y, hitX: lx, hitY: ly };
-      }
-      const suspendCols = (rig && Array.isArray(rig.suspends) ? rig.suspends : []).filter(col => layout.anchors.has(col)).sort((a, b) => a - b);
-      for (let i = 0; i < suspendCols.length - 1; i++) {
-        const a = suspendCols[i], b = suspendCols[i + 1];
-        if (Math.abs(a - b) !== 1) continue;
-        const ap = layout.anchors.get(a), bp = layout.anchors.get(b);
-        if (!ap || !bp) continue;
-        const aW = Math.max(1, ap.x1 - ap.x0), bW = Math.max(1, bp.x1 - bp.x0), aBarR = ap.x1 - aW * 0.05, bBarL = bp.x0 + bW * 0.05, yTop = Math.min(ap.y, bp.y) - 2 - suspendH, yMid = yTop + suspendH / 2;
-        if (lx >= aBarR && lx <= bBarL && Math.abs(ly - yMid) <= Math.max(6, Math.min(16, suspendH * 0.7))) return { type: "suspendLink", a, b, key: `${Math.min(a, b)}-${Math.max(a, b)}`, rectId: r.id, x: (aBarR + bBarL) / 2, y: yMid, hitX: lx, hitY: ly };
-      }
-      for (const [col, a] of layout.anchors) {
-        const cw = Math.max(1, a.x1 - a.x0), barL = a.x0 + cw * 0.05, barR = a.x1 - cw * 0.05, barTop = a.y - 2 - suspendH, barBottom = barTop + suspendH, ringCx = a.x, ringCy = barTop - ringD * 0.5;
-        if (lx >= barL && lx <= barR && ly >= barTop && ly <= barBottom) return { type: "suspend", col, key: String(col), rectId: r.id, x: ringCx, y: ringCy, hitX: lx, hitY: ly };
-        if (Math.hypot(lx - ringCx, ly - ringCy) <= ringD * 0.65) return { type: "suspend", col, key: String(col), rectId: r.id, x: ringCx, y: ringCy, hitX: lx, hitY: ly };
-        if (ly >= barTop - ringD * 1.3 && ly <= barBottom + Math.max(6, 0.03 * scalePx) && lx >= barL - 6 && lx <= barR + 6) return { type: "suspend", col, key: String(col), rectId: r.id, x: ringCx, y: ringCy, hitX: lx, hitY: ly };
-      }
-      let maxBottomY = -Infinity;
-      for (const seam of layout.bottomLoads.values()) if (seam.yBottom > maxBottomY) maxBottomY = seam.yBottom;
-      for (const seam of layout.bottomLoads.values()) {
-        if (Math.abs(seam.yBottom - maxBottomY) > 1e-6) continue;
-        const hCab = Math.max(1, seam.y1 - seam.y0), yThirdTop = seam.y0 + (hCab * 2 / 3), tx = Math.max(10 * ui, loadSize * 0.22), tolY = Math.max(2, 2.5 * ui), y = seam.yBottom - loadSize * 0.5;
-        if (Math.abs(lx - seam.x) <= tx && ly >= yThirdTop - tolY && ly <= seam.y1 + tolY) return { type: "loadToggle", key: seam.key, rectId: r.id, x: seam.x, y, hitX: lx, hitY: ly };
-      }
-      for (const seam of layout.seams.values()) {
-        const tol = 5 * ui;
-        if (Math.abs(seam.yBottom - maxBottomY) <= 1e-6) {
-          const hCab = Math.max(1, seam.y1 - seam.y0), yThirdTop = seam.y0 + (hCab * 2 / 3);
-          if (ly >= yThirdTop - tol && ly <= seam.y1 + tol) continue;
-        }
-        if (Math.abs(lx - seam.x) <= tol && ly >= seam.y0 - tol && ly <= seam.y1 + tol) return { type: "frame", key: seam.key, rectId: r.id, x: seam.x, y: (seam.y0 + seam.y1) / 2, hitX: lx, hitY: ly };
-      }
-      return null;
-    };
-    const applyRigActionAtPoint = (r, wx, wy) => {
-      const hit = getRigHitAtPoint(r, wx, wy, st.zoom);
-      st.rigHover = hit;
-      if (!hit) return false;
-      const rig = getRectRigData(r), frames = new Set(Array.isArray(rig.frames) ? rig.frames : []), suspends = new Set(Array.isArray(rig.suspends) ? rig.suspends : []), links = new Set(Array.isArray(rig.suspendLinks) ? rig.suspendLinks : []), loads = { ...(rig.loads && typeof rig.loads === "object" ? rig.loads : {}) };
-      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r), layout = buildRigLayout(r, cx, cy, topo, hs, st.zoom);
-      let changed = false;
-      if (hit.type === "frame") {
-        const targetSeam = resolveRigFrameSeam(layout, cy, String(hit.key || ""));
-        if (!targetSeam) return false;
-        const mappedKeys = [];
-        for (const fk of frames) {
-          const sm = resolveRigFrameSeam(layout, cy, String(fk || ""));
-          if (sm && sm.key === targetSeam.key) mappedKeys.push(String(fk || ""));
-        }
-        const hasFrame = mappedKeys.length > 0 || frames.has(targetSeam.key);
-        for (const k of mappedKeys) frames.delete(k);
-        frames.delete(targetSeam.key);
-        if (!hasFrame) frames.add(targetSeam.key);
-        changed = true;
-      } else if (hit.type === "loadToggle") {
-        if (loads[hit.key]) delete loads[hit.key]; else loads[hit.key] = RIG_DEFAULT_LOAD_KG;
-        changed = true;
-      } else if (hit.type === "loadPlus") {
-        const cur = Math.max(0, Math.round(Number(loads[hit.key]) || 0)); loads[hit.key] = Math.max(5, Math.round((cur + 5) / 5) * 5); changed = true;
-      } else if (hit.type === "loadMinus") {
-        const cur = Math.max(0, Math.round(Number(loads[hit.key]) || 0)) - 5;
-        if (cur <= 0) delete loads[hit.key]; else loads[hit.key] = Math.max(5, Math.round(cur / 5) * 5);
-        changed = true;
-      } else if (hit.type === "suspend") {
-        const c = Math.max(0, Math.round(Number(hit.col) || 0));
-        if (suspends.has(c)) {
-          suspends.delete(c);
-          for (const lk of [...links]) {
-            const p = String(lk || "").split("-").map(v => Math.max(0, Math.round(Number(v) || 0)));
-            if (p.length !== 2) continue;
-            if (p[0] === c || p[1] === c) links.delete(lk);
-          }
-        } else suspends.add(c);
-        changed = true;
-      } else if (hit.type === "suspendLink") {
-        const a = Math.min(hit.a, hit.b), b = Math.max(hit.a, hit.b), k = `${a}-${b}`;
-        suspends.add(a); suspends.add(b);
-        if (links.has(k)) links.delete(k); else links.add(k);
-        changed = true;
-      }
-      if (!changed) return false;
-      rig.frames = [...frames];
-      rig.loads = loads;
-      rig.suspends = [...suspends];
-      rig.suspendLinks = [...links];
-      setRectRigData(r);
-      return true;
-    };
+    ({
+      buildRigLayout,
+      remapRectRigLoadsToBottomSeams,
+      resolveRigFrameSeam,
+      sanitizeRectRigFramesToBounds,
+      getRigHitAtPoint,
+      applyRigActionAtPoint
+    } = setupRigInteractionController({
+      st,
+      drawCellX: r => drawCellX(r),
+      drawCellY: r => drawCellY(r),
+      getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+      getHiddenSet: r => getHiddenSet(r),
+      maskCellKey,
+      normalizeRigData,
+      getRectRigData: r => getRectRigData(r),
+      setRectRigData: r => setRectRigData(r),
+      worldToRectUV: (r, wx, wy) => worldToRectUV(r, wx, wy),
+      RIG_DEFAULT_LOAD_KG
+    }));
     const { drawRigOnRect, drawRigOutsideOverlay } = setupRigRenderController({
       st,
       getRectRigData: r => getRectRigData(r),
@@ -6472,34 +6127,6 @@
       }
       st.g.x = sn.gx; st.g.y = sn.gy; st.dg = sn.dg;
     };
-    const handleRigPointerDown = p => {
-      const rc = cur();
-      if (rc && !isRectLocked(rc)) {
-        const hover0 = getRigHitAtPoint(rc, p.x, p.y, st.zoom);
-        if (hover0 && hover0.rectId === rc.id) {
-          const changed = applyRigActionAtPoint(rc, p.x, p.y);
-          if (changed) commitUiUpdate({ syncProps: true, persist: true, render: true });
-          else render();
-          return true;
-        }
-      }
-      const h = hit(p.x, p.y);
-      if (!h) {
-        st.rigHover = null;
-        render();
-        return true;
-      }
-      if (h.id !== st.sel) selRect(h.id);
-      if (isRectLocked(h)) {
-        st.rigHover = null;
-        render();
-        return true;
-      }
-      const changed = applyRigActionAtPoint(h, p.x, p.y);
-      if (changed) commitUiUpdate({ syncProps: true, persist: true, render: true });
-      else render();
-      return true;
-    };
     const handleFlowEditPointerDown = p => {
       const linkHit = findFlowLinkAtPoint(p.x, p.y);
       if (linkHit && linkHit.link) {
@@ -6570,6 +6197,24 @@
       render();
       return true;
     };
+    ({
+      handleRigPointerDown,
+      handleRigPointerMove,
+      handleRigPointerLeave
+    } = setupRigInputController({
+      st,
+      cur: () => cur(),
+      hit: (x, y) => hit(x, y),
+      render: () => render(),
+      selRect: (id, opts) => selRect(id, opts),
+      setSelection: (ids, lead) => setSelection(ids, lead),
+      syncPropsSmart: () => syncPropsSmart(),
+      isRectLocked: r => isRectLocked(r),
+      getRigHitAtPoint: (r, x, y, z) => getRigHitAtPoint(r, x, y, z),
+      applyRigActionAtPoint: (r, x, y) => applyRigActionAtPoint(r, x, y),
+      resetRigHoverTransient: () => resetRigHoverTransient(),
+      commitUiUpdate: opts => commitUiUpdate(opts)
+    }));
     function delSel() {
       normSelSet();
       if (!st.selSet.size && st.sel == null) return;
@@ -6951,12 +6596,12 @@
       }
       syncProps();
     };
-    setupInputController({
+    const inputServices = createEditorServices({
       cv, st, el, render, hit, s2w, zc, getViewMetrics,
       isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
       cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
       beginClusterHandleDragAtPoint, handleClusterEditAtPoint,
-      handleRigPointerDown, handleFlowEditPointerDown,
+      handleRigPointerDown, handleRigPointerMove, handleRigPointerLeave, handleFlowEditPointerDown,
       selRect, isSelected, beginRectDrag, beginSelectionBox,
       setSelection, syncPropsSmart, snapMaskNode, getCellLinkCandidateAtPoint, getRigHitAtPoint,
       updateClusterHandleDragAtPoint, updateClusterEditCursor,
@@ -6969,6 +6614,7 @@
       resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
       resetFlowRegionOverrides, syncProps, bindEvent, bindWindowEvent, zoomAt
     });
+    setupInputController(inputServices);
     const listCtrl = setupRectListController({
       st, el, bindEvent, eventClosest,
       toggleRectLockById, getRectById, isRectLocked, selRect,
@@ -7249,69 +6895,33 @@
     }
     bindCommitInput(el.textSize, () => { applyTextSettings(); syncProps(); });
     bindCommitInput(el.font, () => { applyTextSettings(); syncProps(); });
-    const bindClicks = entries => { for (const [btn, fn] of entries) bindClick(btn, fn); };
     const bindProxyClick = (source, target) => bindClick(source, () => { if (target) target.click(); });
-    bindClicks([
-      [el.viewModeArt, () => setViewMode("art", true)],
-      [el.viewModeInstall, () => setViewMode("install", true)],
-      [el.mViewModeToggle, () => setViewMode(isInstallViewMode() ? "art" : "install", true)],
-      [el.toolSelect, () => activateToolOrSelect("select")],
-      [el.toolDraw, () => activateToolOrSelect("draw")],
-      [el.toolNote, () => activateToolOrSelect("note")],
-      [el.toolMaskAdd, () => activateToolOrSelect("maskEdit")],
-      [el.toolCellEdit, () => activateToolOrSelect("cellEdit")],
-      [el.toolFlowEdit, () => activateToolOrSelect("flowEdit")],
-      [el.toolClusterEdit, () => activateToolOrSelect("clusterEdit")],
-      [el.toolRigEdit, () => activateToolOrSelect("rigEdit")],
-      [el.lockAllToggle, () => setLockAll(!st.lockAll, true)],
-      [el.mLockAllToggle, () => setLockAll(!st.lockAll, true)],
-      [el.newProject, newProject],
-      [el.btnCopy, dupSel],
-      [el.btnCopyMirror, dupMirrorSel],
-      [el.btnDelete, delSel],
-      [el.zoomIn, () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom * 1.2) }],
-      [el.zoomOut, () => { const vm = getViewMetrics(); zoomAt(vm.centerX, vm.centerY, st.zoom / 1.2) }],
-      [el.zoomReset, () => { st.zoom = 1; render(); }],
-      [el.zoomFit, fit],
-      [el.btnAutoContrast, () => {
-        const ts = getActionTargets();
-        if (!ts.length) return;
-        const nextAuto = !(ts[0].autoContrastB !== false);
-        applyToTargets(r => {
-          r.autoContrastB = nextAuto;
-          if (r.autoContrastB) r.colorB = autoContrast(r.colorA);
-          invalidateRectCache(r, "appearance");
-        }, { syncProps: true, listRects: true, persist: true, render: true });
-      }],
-      [el.randColor, () => {
-        const ts = getActionTargets();
-        if (!ts.length) return;
-        const shared = randomColor();
-        applyToTargets(r => {
-          r.colorA = shared;
-          if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA);
-          invalidateRectCache(r, "appearance");
-        }, { syncProps: true, listRects: true, persist: true, render: true });
-      }]
-    ]);
-    bindClick(el.undo, () => undoHistory());
-    bindClick(el.redo, () => redoHistory());
-    const bindSnapToggles = () => {
-      const bindings = [
-        [el.snapGrid, "grid"],
-        [el.snapObjects, "objects"],
-        [el.snapCenters, "centers"],
-        [el.snapGaps, "gaps"]
-      ];
-      for (const [node, key] of bindings) {
-        if (!node) continue;
-        bindEvent(node, "change", () => {
-          st.snap[key] = !!node.checked;
-          commitProjectChange({ persist: true, persistKind: "project", render: false });
-        });
-      }
-    };
-    bindSnapToggles();
+    setupToolbarActionsController({
+      el,
+      st,
+      bindClick: (...args) => bindClick(...args),
+      bindEvent: (...args) => bindEvent(...args),
+      setViewMode: (mode, persist) => setViewMode(mode, persist),
+      isInstallViewMode: () => isInstallViewMode(),
+      activateToolOrSelect: mode => activateToolOrSelect(mode),
+      setLockAll: (next, persist) => setLockAll(next, persist),
+      newProject: () => newProject(),
+      dupSel: () => dupSel(),
+      dupMirrorSel: () => dupMirrorSel(),
+      delSel: () => delSel(),
+      getViewMetrics: () => getViewMetrics(),
+      zoomAt: (x, y, next) => zoomAt(x, y, next),
+      render: () => render(),
+      fit: () => fit(),
+      getActionTargets: () => getActionTargets(),
+      applyToTargets: (fn, opts) => applyToTargets(fn, opts),
+      autoContrast,
+      invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
+      randomColor: () => randomColor(),
+      undoHistory: () => undoHistory(),
+      redoHistory: () => redoHistory(),
+      commitProjectChange: opts => commitProjectChange(opts)
+    });
     const isMobile = () => window.matchMedia("(max-width:900px)").matches;
     setupMobileGestures({ bindEvent });
     const updateMobileDock = () => {
@@ -7794,101 +7404,106 @@
       showMessageModal: (text, title) => showMessageModal(text, title)
     });
     bindClick(el.exp, async () => { await exportPackage() });
-    const editorServices = createEditorServices({
-      st,
-      el,
-      themeMedia,
-      overflowHiddenButtons,
-      bindEvent,
-      bindClick,
-      bindWindowEvent,
-      bindProxyClick,
-      lsGet,
-      lsSet,
-      HELP_SEEN_KEY,
-      openHelpModal,
-      closeHelpModal,
-      syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
-      renderProjectTabs: () => renderProjectTabs(),
-      syncProps: () => syncProps(),
-      schedulePersist: (...args) => schedulePersist(...args),
-      createProjectTab: data => createProjectTab(data),
-      makeEmptyProjectData: name => makeEmptyProjectData(name),
-      applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
-      hideThemePopup: () => hideThemePopup(),
-      showThemePopup: anchorEl => showThemePopup(anchorEl),
-      hideToolbarOverflowPopup: () => hideToolbarOverflowPopup(),
-      showToolbarOverflowPopup: () => showToolbarOverflowPopup(),
-      updateMobileDock: () => updateMobileDock(),
-      updateToolbarOverflow: () => updateToolbarOverflow(),
-      persistNow: () => persistNow(),
-      scheduleCanvasResize: () => scheduleCanvasResize()
+    setupAppBootstrapRuntime({
+      createEditorServices,
+      setupUiBinders,
+      setupKeyboardController,
+      setupAppInitController,
+      setupProjectCodecBridge,
+      uiServices: {
+        st,
+        el,
+        themeMedia,
+        overflowHiddenButtons,
+        bindEvent,
+        bindClick,
+        bindWindowEvent,
+        bindProxyClick,
+        lsGet,
+        lsSet,
+        HELP_SEEN_KEY,
+        openHelpModal,
+        closeHelpModal,
+        syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
+        renderProjectTabs: () => renderProjectTabs(),
+        syncProps: () => syncProps(),
+        schedulePersist: (...args) => schedulePersist(...args),
+        createProjectTab: data => createProjectTab(data),
+        makeEmptyProjectData: name => makeEmptyProjectData(name),
+        applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
+        hideThemePopup: () => hideThemePopup(),
+        showThemePopup: anchorEl => showThemePopup(anchorEl),
+        hideToolbarOverflowPopup: () => hideToolbarOverflowPopup(),
+        showToolbarOverflowPopup: () => showToolbarOverflowPopup(),
+        updateMobileDock: () => updateMobileDock(),
+        updateToolbarOverflow: () => updateToolbarOverflow(),
+        persistNow: () => persistNow(),
+        scheduleCanvasResize: () => scheduleCanvasResize()
+      },
+      keyboardDeps: {
+        render,
+        undoHistory,
+        redoHistory,
+        closeHelpModal,
+        setMode,
+        isMaskMode,
+        applyMaskPath,
+        delSel,
+        dupSel,
+        cur,
+        cloneRectForClipboard,
+        cloneRectForDuplicate,
+        insertCloneAboveSource,
+        selRect,
+        getEditableSelectedRects,
+        commitUiUpdate
+      },
+      appInitDeps: {
+        st,
+        el,
+        setMode: m => setMode(m),
+        normalizeThemeMode,
+        lsGet,
+        THEME_MODE_KEY,
+        setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
+        getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
+        applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
+        updateAppViewportHeight: () => updateAppViewportHeight(),
+        updateMobileDock: () => updateMobileDock(),
+        updateToolbarOverflow: () => updateToolbarOverflow(),
+        saveStatus,
+        getProjectDataFromQueryParam: () => getProjectDataFromQueryParam(),
+        showMessageModal: msg => showMessageModal(msg),
+        restoreAutoSave: () => restoreAutoSave(),
+        mk: (x, y, w, h) => mk(x, y, w, h),
+        autoContrast,
+        selRect: id => selRect(id),
+        resize: () => resize(),
+        refreshPanels: () => refreshPanels(),
+        fit: () => fit(),
+        cloneProjectData: data => cloneProjectData(data),
+        buildProject: () => buildProject(),
+        loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
+        syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
+        renderProjectTabs: () => renderProjectTabs(),
+        clearProjectQueryParamFromUrl: () => clearProjectQueryParamFromUrl(),
+        initHistoryCurrent: () => initHistoryCurrent(),
+        ensureFontReady: () => ensureFontReady(),
+        render: () => render()
+      },
+      codecDeps: {
+        PROJECT_QUERY_VERSION,
+        PROJECT_QUERY_PARAM,
+        encodeProjectToQueryValue: value => encodeProjectToQueryValue(value),
+        decodeProjectFromQueryValue: value => decodeProjectFromQueryValue(value),
+        buildPortableProject: () => buildPortableProject()
+      }
     });
-    setupUiBinders({
-      st, el, themeMedia, overflowHiddenButtons,
-      bindEvent, bindClick, bindWindowEvent,
-      bindProxyClick, lsGet, lsSet, HELP_SEEN_KEY,
-      openHelpModal, closeHelpModal,
-      syncActiveTabSnapshot, renderProjectTabs, syncProps, schedulePersist,
-      createProjectTab, makeEmptyProjectData,
-      applyThemeMode, hideThemePopup, showThemePopup,
-      hideToolbarOverflowPopup, showToolbarOverflowPopup,
-      updateMobileDock, updateToolbarOverflow, persistNow, scheduleCanvasResize
-    });
-    setupKeyboardController({
-      st: editorServices.st, el: editorServices.el, render,
-      undoHistory, redoHistory, closeHelpModal, setMode,
-      isMaskMode, applyMaskPath, delSel, dupSel, cur,
-      cloneRectForClipboard, cloneRectForDuplicate, insertCloneAboveSource,
-      selRect, schedulePersist, getEditableSelectedRects, commitUiUpdate,
-      bindWindowEvent
-    });
-    const { initializeAppUi, initProjectState } = setupAppInitController({
-      st, el,
-      setMode: m => setMode(m),
-      normalizeThemeMode,
-      lsGet,
-      THEME_MODE_KEY,
-      setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
-      getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
-      applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
-      updateAppViewportHeight: () => updateAppViewportHeight(),
-      updateMobileDock: () => updateMobileDock(),
-      updateToolbarOverflow: () => updateToolbarOverflow(),
-      saveStatus,
-      getProjectDataFromQueryParam: () => getProjectDataFromQueryParam(),
-      showMessageModal: msg => showMessageModal(msg),
-      restoreAutoSave: () => restoreAutoSave(),
-      mk: (x, y, w, h) => mk(x, y, w, h),
-      autoContrast,
-      selRect: id => selRect(id),
-      resize: () => resize(),
-      refreshPanels: () => refreshPanels(),
-      fit: () => fit(),
-      cloneProjectData: data => cloneProjectData(data),
-      buildProject: () => buildProject(),
-      loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
-      syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
-      renderProjectTabs: () => renderProjectTabs(),
-      clearProjectQueryParamFromUrl: () => clearProjectQueryParamFromUrl(),
-      initHistoryCurrent: () => initHistoryCurrent(),
-      ensureFontReady: () => ensureFontReady(),
-      render: () => render()
-    });
-    initializeAppUi();
-    initProjectState();
-    const { attachProjectCodecBridge } = setupProjectCodecBridge({
-      PROJECT_QUERY_VERSION,
-      PROJECT_QUERY_PARAM,
-      encodeProjectToQueryValue: value => encodeProjectToQueryValue(value),
-      decodeProjectFromQueryValue: value => decodeProjectFromQueryValue(value),
-      buildPortableProject: () => buildPortableProject()
-    });
-    attachProjectCodecBridge();
   </script>
 </body>
 
 </html>
+
 
 
 
