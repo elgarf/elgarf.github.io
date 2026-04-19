@@ -1502,6 +1502,11 @@
     import { createRectStore } from "./editor/modules/rect-store.js";
     import { syncModeToggleButton, syncLockButtons } from "./editor/modules/ui/toggles.js";
     import { createEventBinders } from "./editor/modules/ui/event-binders.js";
+    import { setupSplitVariantController } from "./editor/modules/ui/split-variant-controller.js";
+    import { setupModalHelpers } from "./editor/modules/ui/modal-helpers.js";
+    import { setupInstallBannerController } from "./editor/modules/ui/install-banner-controller.js";
+    import { setupProjectLinkModalController } from "./editor/modules/ui/project-link-modal-controller.js";
+    import { setupProjectIoController } from "./editor/modules/project-io-controller.js";
     import { drawFlowStartMarker, drawFlowEndMarker } from "./editor/modules/flow/draw-helpers.js";
     import { setupInputController } from "./editor/modules/input-controller.js";
     import { setupKeyboardController } from "./editor/modules/keyboard-controller.js";
@@ -1892,7 +1897,6 @@
         return false;
       }
     };
-    let deferredInstallPrompt = null;
     const genSaveLocationId = (seed = "project") => {
       const slug = String(seed || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
       return normalizeSaveLocationId(`proj-${slug || "project"}`);
@@ -6185,77 +6189,18 @@
     };
     const encodeProjectToQueryValue = async data => await projectCodec.encodeProjectToQueryValue(data || buildProject());
     const decodeProjectFromQueryValue = async raw => await projectCodec.decodeProjectFromQueryValue(raw);
-    const fetchJsonWithTimeout = async (url, options = {}, timeoutMs = 5000) => {
-      const ctl = (typeof AbortController === "function") ? new AbortController() : null;
-      const timer = ctl ? setTimeout(() => ctl.abort(), Math.max(500, Math.round(Number(timeoutMs) || 5000))) : null;
-      try {
-        const res = await fetch(url, { ...(options || {}), signal: ctl ? ctl.signal : undefined });
-        let json = null;
-        try { json = await res.json(); } catch (_e) { json = null; }
-        return { ok: !!(res && res.ok), status: res ? res.status : 0, json };
-      } finally {
-        if (timer) clearTimeout(timer);
-      }
-    };
-    const saveProjectToServer = async (name, encodedData) => {
-      const api = toTrimmed(PROJECT_STORE_API_URL || "");
-      if (!api) return null;
-      const payload = { name: toTrimmed(name || "") || "project", data: String(encodedData || "") };
-      if (!payload.data) return null;
-      const r = await fetchJsonWithTimeout(api, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }, 6000);
-      if (!r.ok || !r.json || r.json.ok !== true || !Number.isFinite(Number(r.json.id))) return null;
-      return toPosInt(r.json.id, 1);
-    };
-    const loadProjectByIdFromServer = async id => {
-      const api = toTrimmed(PROJECT_STORE_API_URL || "");
-      if (!api) return null;
-      const pid = toPosInt(id, 1);
-      if (!pid) return null;
-      const u = new URL(api, location.href);
-      u.searchParams.set("id", String(pid));
-      const r = await fetchJsonWithTimeout(u.toString(), { method: "GET" }, 6000);
-      if (!r.ok || !r.json || r.json.ok !== true) return null;
-      const rec = r.json.project && typeof r.json.project === "object" ? r.json.project : null;
-      const raw = String(rec && rec.data || "");
-      if (!raw) return null;
-      return await decodeProjectFromQueryValue(raw);
-    };
-    const getProjectDataFromQueryParam = async () => {
-      try {
-        const params = new URLSearchParams(location.search || "");
-        const pidRaw = params.get(PROJECT_ID_PARAM) || "";
-        const pid = toPosInt(pidRaw, 0);
-        if (pid > 0) {
-          const byId = await loadProjectByIdFromServer(pid);
-          if (byId && typeof byId === "object") return byId;
-        }
-      } catch (_e) { }
-      let raw = "";
-      try {
-        const params = new URLSearchParams(location.search || "");
-        raw = params.get(PROJECT_QUERY_PARAM) || "";
-      } catch (_e) {
-        raw = "";
-      }
-      if (!raw) return null;
-      const data = await decodeProjectFromQueryValue(raw);
-      if (!data || typeof data !== "object") return null;
-      return data;
-    };
-    const clearProjectQueryParamFromUrl = () => {
-      try {
-        const u = new URL(location.href);
-        if (!u.searchParams.has(PROJECT_QUERY_PARAM) && !u.searchParams.has(PROJECT_ID_PARAM)) return;
-        u.searchParams.delete(PROJECT_QUERY_PARAM);
-        u.searchParams.delete(PROJECT_ID_PARAM);
-        const nextUrl = `${u.pathname}${u.search}${u.hash}`;
-        history.replaceState(history.state, "", nextUrl);
-      } catch (_e) { }
-    };
+    const {
+      saveProjectToServer,
+      getProjectDataFromQueryParam,
+      clearProjectQueryParamFromUrl
+    } = setupProjectIoController({
+      PROJECT_STORE_API_URL,
+      PROJECT_ID_PARAM,
+      PROJECT_QUERY_PARAM,
+      toTrimmed,
+      toPosInt,
+      decodeProjectFromQueryValue
+    });
     const buildProject = () => ({ version: 1, projectName: st.projectName, saveLocationId: st.saveLocationId, camera: { x: st.camX, y: st.camY, zoom: st.zoom }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: normalizeViewMode(st.viewMode), lockAll: !!st.lockAll, snap: { grid: !!(st.snap && st.snap.grid), objects: !!(st.snap && st.snap.objects), centers: !!(st.snap && st.snap.centers), gaps: !!(st.snap && st.snap.gaps) } }, nextId: st.next, flowLinks: normalizeFlowLinks(st.flowLinks), rectangles: st.rects.map(serializeRectForProject) });
     const cloneProjectData = data => cloneJson(data, () => buildProject());
     const makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", lockAll: !!st.lockAll, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
@@ -8396,32 +8341,19 @@
         el.rectTextSizeLabel.setAttribute("aria-label", `Глобальный размер: ${gv}px`);
       }
     };
-    const updateSplitVariantLabel = r => {
-      if (!el.splitVariantLabel) return;
-      const v = Math.max(0, Math.min(Math.max(0, SPLIT_VARIANT_MAX - 1), Math.round(Number(r && r.splitVariant) || 0)));
-      el.splitVariantLabel.textContent = String(v);
-      el.splitVariantLabel.title = `Номер разбиения: ${v}`;
-    };
-    const updateSplitVariantModeUi = r => {
-      const manual = !!(r && Array.isArray(r.manualClusters) && r.manualClusters.length > 0);
-      if (el.splitVariantControl) el.splitVariantControl.classList.toggle("d-none", manual);
-      if (el.splitVariantManualBadge) el.splitVariantManualBadge.classList.toggle("d-none", !manual);
-    };
-    const updateSplitVariantControl = r => {
-      updateSplitVariantModeUi(r);
-      if (!el.splitVariant) return;
-      const rawCnt = Number(r && r._splitVariantCount);
-      const hasCnt = Number.isFinite(rawCnt) && rawCnt > 0;
-      const cnt = hasCnt ? Math.max(1, Math.round(rawCnt)) : (SPLIT_VARIANT_MAX);
-      const maxv = Math.max(0, Math.min(Math.max(0, SPLIT_VARIANT_MAX - 1), cnt - 1));
-      el.splitVariant.max = String(maxv);
-      const cur = Math.max(0, Math.min(maxv, Math.round(Number(r && r.splitVariant) || 0)));
-      el.splitVariant.value = String(cur);
-      if (r && hasCnt) r.splitVariant = cur;
-      if (el.splitVariantDec) el.splitVariantDec.disabled = !r || cur <= 0;
-      if (el.splitVariantInc) el.splitVariantInc.disabled = !r || cur >= maxv;
-      updateSplitVariantLabel(r);
-    };
+    const {
+      updateSplitVariantLabel,
+      updateSplitVariantModeUi,
+      updateSplitVariantControl,
+      bindSplitVariantHandlers
+    } = setupSplitVariantController({
+      el,
+      SPLIT_VARIANT_MAX,
+      evalExpr,
+      bindEvent: (...args) => bindEvent(...args),
+      render: () => render(),
+      getCurrentRect: () => cur()
+    });
     const uiSetValue = (node, v) => { if (!node) return; const s = String(v ?? ""); if (node.value !== s) node.value = s; };
     const uiSetChecked = (node, v) => { if (!node) return; const n = !!v; if (node.checked !== n) node.checked = n; };
     const uiSetDisabled = (node, v) => { if (!node) return; const n = !!v; if (node.disabled !== n) node.disabled = n; };
@@ -8811,14 +8743,7 @@
     let rectTextInputRaf = 0;
     const rectTextFontState = { timer: 0 };
     bindEvents([el.rectTextSize], "input", () => { const r = cur(); if (!r) return; r.textSize = Math.max(0, Math.min(128, Math.round(evalExpr(el.rectTextSize.value, r.textSize || 0)))); updateRectTextSizeLabel(r); if (!rectTextInputRaf) rectTextInputRaf = requestAnimationFrame(() => { rectTextInputRaf = 0; render(); }); scheduleFontReadyRender(rectTextFontState, 140); });
-    let splitVariantInputTimer = 0;
-    bindEvent(el.splitVariant, "input", () => { const r = cur(); if (!r) return; const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1)))); r.splitVariant = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, r.splitVariant || 0)))); updateSplitVariantLabel(r); if (splitVariantInputTimer) clearTimeout(splitVariantInputTimer); splitVariantInputTimer = setTimeout(() => { splitVariantInputTimer = 0; render(); }, 180); });
-    bindEvent(el.splitVariant, "change", () => { if (splitVariantInputTimer) { clearTimeout(splitVariantInputTimer); splitVariantInputTimer = 0; } });
-    bindEvent(el.splitVariant, "keydown", e => e.preventDefault());
-    bindEvent(el.splitVariant, "wheel", e => e.preventDefault(), { passive: false });
-    const stepSplitVariant = delta => { const r = cur(); if (!r || !el.splitVariant) return; const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1)))); const curV = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, r.splitVariant || 0)))); const nextV = Math.max(0, Math.min(maxSplit, curV + Math.max(-1, Math.min(1, Math.round(Number(delta) || 0))))); if (nextV === curV) return; el.splitVariant.value = String(nextV); el.splitVariant.dispatchEvent(new Event("input", { bubbles: true })); el.splitVariant.dispatchEvent(new Event("change", { bubbles: true })); };
-    bindEvent(el.splitVariantDec, "click", () => stepSplitVariant(-1));
-    bindEvent(el.splitVariantInc, "click", () => stepSplitVariant(1));
+    bindSplitVariantHandlers();
     bindCommitInputs([el.x, el.y, el.rot, el.wm, el.hm, el.cx, el.cy], () => { applyProps(); syncProps(); });
     let textSettingsRaf = 0;
     const textSettingsFontState = { timer: 0 };
@@ -8946,84 +8871,29 @@
       const node = el.projectLinkModal || $("projectLinkModal");
       return getOrCreateBootstrapModal(node, "projectLink");
     };
-    const buildQrDataUrl = value => {
-      const text = String(value || "");
-      if (!text) return "";
-      if (typeof qrcode !== "function") return "";
-      const levels = ["L", "M", "Q", "H"];
-      for (const lvl of levels) {
-        try {
-          const qr = qrcode(0, lvl);
-          qr.addData(text);
-          qr.make();
-          return qr.createDataURL(14, 3);
-        } catch (_e) {
-          // try next correction level; L gives max capacity
-        }
-      }
-      return "";
-    };
-    const showProjectLinkModal = (link, opts = {}) => {
-      const modal = getProjectLinkModal(), qr = el.projectLinkQr || $("projectLinkQr"), txt = el.projectLinkText || $("projectLinkText"), loadingNode = el.projectLinkLoading || $("projectLinkLoading");
-      const loading = !!(opts && opts.loading);
-      const loadingText = String((opts && opts.loadingText) || "Формируем ссылку...");
-      const value = String(link || "");
-      if (txt) txt.value = loading ? loadingText : value;
-      if (loadingNode) {
-        loadingNode.classList.toggle("d-none", !loading);
-        const msg = loadingNode.querySelector("div:last-child");
-        if (msg) msg.textContent = loadingText;
-      }
-      if (qr) {
-        qr.classList.toggle("d-none", loading);
-        if (loading) {
-          qr.removeAttribute("src");
-        } else {
-          const dataUrl = buildQrDataUrl(value);
-          if (dataUrl) qr.src = dataUrl;
-        }
-      }
-      if (modal) {
-        modal.show();
-        setTimeout(() => {
-          if (!txt || loading) return;
-          focusAndSelect(txt);
-        }, 0);
-        return;
-      }
-      showMessageModal(value, "Ссылка проекта");
-    };
-    const showMessageModal = (text, title = "Сообщение") => {
-      const modal = getMessageModal(), titleEl = $("messageModalTitle"), bodyEl = $("messageModalBody"), msg = String(text == null ? "" : text);
-      if (modal && titleEl && bodyEl) {
-        titleEl.textContent = String(title || "Сообщение");
-        bodyEl.textContent = msg;
-        modal.show();
-        return;
-      }
-      console.warn(`[modal-fallback] ${title}: ${msg}`);
-    };
-    const formatErrorMessage = err => (err && err.message ? err.message : String(err));
-    const showErrorModal = (title, err, prefix = "Ошибка") => showMessageModal(`${prefix}: ${formatErrorMessage(err)}`, title);
-    const withUiErrorBoundary = async (title, task, prefix = "Ошибка") => {
-      try {
-        return await task();
-      } catch (err) {
-        showErrorModal(title, err, prefix);
-        return null;
-      }
-    };
-    const openHelpModal = () => {
-      const modal = getHelpModal();
-      if (modal) { modal.show(); return }
-      if (el.helpModal) { el.helpModal.style.display = "block"; el.helpModal.classList.add("show"); el.helpModal.setAttribute("aria-hidden", "false") }
-    };
-    const closeHelpModal = () => {
-      const modal = getHelpModal();
-      if (modal) { modal.hide(); return }
-      if (el.helpModal) { el.helpModal.classList.remove("show"); el.helpModal.style.display = "none"; el.helpModal.setAttribute("aria-hidden", "true") }
-      lsSet(HELP_SEEN_KEY, "1");
-    };
+    const {
+      showMessageModal,
+      showErrorModal,
+      withUiErrorBoundary,
+      openHelpModal,
+      closeHelpModal,
+      focusModalTextLater
+    } = setupModalHelpers({
+      getMessageModal,
+      getHelpModal,
+      getById: id => $(id),
+      el,
+      focusAndSelect,
+      lsSet,
+      HELP_SEEN_KEY
+    });
+    const { showProjectLinkModal } = setupProjectLinkModalController({
+      el,
+      getProjectLinkModal: () => getProjectLinkModal(),
+      getById: id => $(id),
+      showMessageModal: (...args) => showMessageModal(...args),
+      focusModalTextLater: (...args) => focusModalTextLater(...args)
+    });
     bindClick(el.btnClearMasks, () => {
       applyToTargetsAndRender(r => {
         r.hiddenCells = [];
@@ -9144,55 +9014,15 @@
       render();
       schedulePersist("project");
     });
-    const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-    const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent || "");
-    const hideInstallBanner = () => { if (el.installBanner) el.installBanner.classList.remove("show") };
-    const showInstallBanner = (text, actionText, actionFn) => {
-      if (!isMobile() || isStandalone() || !el.installBanner) return;
-      el.installBannerText.textContent = text;
-      el.installBannerAction.textContent = actionText;
-      el.installBannerAction.onclick = actionFn;
-      el.installBanner.classList.add("show");
-    };
-    const dismissInstallHint = () => { lsSet(INSTALL_HINT_KEY, "1"); hideInstallBanner() };
-    bindClick(el.installBannerClose, dismissInstallHint);
-    bindClick(el.installApp, async () => {
-      if (deferredInstallPrompt) {
-        try {
-          deferredInstallPrompt.prompt();
-          await deferredInstallPrompt.userChoice;
-          deferredInstallPrompt = null;
-          hideInstallBanner();
-        } catch (_e) { }
-        return;
-      }
-      if (isIOS()) {
-        showInstallBanner("iOS: нажмите «Поделиться» и выберите «На экран Домой».", "Понятно", hideInstallBanner);
-        return;
-      }
-      showInstallBanner("Установка недоступна в этом браузере.", "Ок", hideInstallBanner);
+    setupInstallBannerController({
+      el,
+      bindClick: (...args) => bindClick(...args),
+      bindWindowEvent: (...args) => bindWindowEvent(...args),
+      isMobile: () => isMobile(),
+      lsGet,
+      lsSet,
+      INSTALL_HINT_KEY
     });
-    bindWindowEvent("beforeinstallprompt", e => {
-      e.preventDefault();
-      deferredInstallPrompt = e;
-      if (el.installApp) el.installApp.style.display = "inline-flex";
-      showInstallBanner("Установить приложение на главный экран?", "Установить", async () => {
-        if (!deferredInstallPrompt) return;
-        try {
-          deferredInstallPrompt.prompt();
-          await deferredInstallPrompt.userChoice;
-        } catch (_e) { }
-        deferredInstallPrompt = null;
-        hideInstallBanner();
-      });
-    });
-    bindWindowEvent("appinstalled", () => { deferredInstallPrompt = null; hideInstallBanner(); });
-    if (isMobile() && !isStandalone() && isIOS()) {
-      const dismissed = lsGet(INSTALL_HINT_KEY, "") === "1";
-      if (!dismissed) {
-        setTimeout(() => showInstallBanner("Добавьте приложение на главный экран: «Поделиться» → «На экран Домой».", "Понятно", dismissInstallHint), 600);
-      }
-    }
     const askFileName = (def, ext) => { const raw = prompt("Имя файла:", def); if (raw == null) return null; let name = raw.trim(); if (!name) name = def; if (!name.toLowerCase().endsWith(ext)) name += ext; return name };
     const projectFileBase = () => { const raw = (st.projectName || "project").trim() || "project"; const sanitized = raw.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim(); return sanitized || "project" };
     const isTauriRuntime = () => !!(window.__TAURI_INTERNALS__ || window.__TAURI__ || window.__TAURI_IPC__ || /\bTauri\b/i.test(navigator.userAgent || "") || location.protocol === "tauri:" || location.protocol === "asset:");

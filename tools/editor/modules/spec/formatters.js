@@ -21,7 +21,12 @@ export const mapToNamedCountList = map =>
     .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ru"))
     .map(([name, count]) => `${name} – ${count} шт.`);
 
-export const mapToRigSizeList = (map, fmtMeters) =>
+const defaultFmtMeters = v => {
+  const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
+  return Number.isInteger(n) ? n.toFixed(0) : String(n).replace(/\.?0+$/, "");
+};
+
+export const mapToRigSizeList = (map, fmtMeters = defaultFmtMeters) =>
   [...map.entries()]
     .filter(([, count]) => (Number(count) || 0) > 0)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
