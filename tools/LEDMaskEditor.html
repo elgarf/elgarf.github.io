@@ -1499,6 +1499,8 @@
     import { safeDefine } from "./editor/modules/utils/safe-define.js";
     import { autoContrast, hexRgb, hslToRgb, pickByContrast, rgbHex, rgbToHsl, contrastRatio, shadeHex } from "./editor/modules/utils/color-utils.js";
     import { distToSegment, overlapArea, rads, rectAABB, rectCenter, rectUVToWorld, worldToRectUV } from "./editor/modules/utils/geometry.js";
+    import { withNameSuffixBeforeGroup, parseScreenNameGroup } from "./editor/modules/utils/name-group.js";
+    import { lsGet, lsSet, cloneJson, jsonEquals } from "./editor/modules/utils/storage-json.js";
     import { createRectStore } from "./editor/modules/rect-store.js";
     import { syncModeToggleButton, syncLockButtons } from "./editor/modules/ui/toggles.js";
     import { createEventBinders } from "./editor/modules/ui/event-binders.js";
@@ -1506,6 +1508,9 @@
     import { setupModalHelpers } from "./editor/modules/ui/modal-helpers.js";
     import { setupInstallBannerController } from "./editor/modules/ui/install-banner-controller.js";
     import { setupProjectLinkModalController } from "./editor/modules/ui/project-link-modal-controller.js";
+    import { setupNoteEditorController } from "./editor/modules/ui/note-editor-controller.js";
+    import { setupTransientStateController } from "./editor/modules/ui/transient-state-controller.js";
+    import { setupSelectionController } from "./editor/modules/ui/selection-controller.js";
     import { setupProjectLinkActionsController } from "./editor/modules/ui/project-link-actions-controller.js";
     import { setupProjectIoController } from "./editor/modules/project-io-controller.js";
     import { setupProjectLoadController } from "./editor/modules/project-load-controller.js";
@@ -1523,6 +1528,8 @@
     import { drawFlowStartMarker, drawFlowEndMarker } from "./editor/modules/flow/draw-helpers.js";
     import { setupFlowAnchorResolver } from "./editor/modules/flow/anchor-resolver.js";
     import { setupInterScreenLinksRender } from "./editor/modules/flow/inter-screen-links-render.js";
+    import { setupNoteRender } from "./editor/modules/render/note-render.js";
+    import { setupViewportOverlays } from "./editor/modules/render/viewport-overlays.js";
     import { setupInputController } from "./editor/modules/input-controller.js";
     import { setupKeyboardController } from "./editor/modules/keyboard-controller.js";
     import { setupMobileGestures } from "./editor/modules/mobile-gestures.js";
@@ -1882,36 +1889,6 @@
     };
     const clampTextSize = v => Math.max(6, Math.min(128, Math.round(v)));
     const getRectTextSizePx = r => { const lv = Number(r && r.textSize); return Number.isFinite(lv) && lv > 0 ? clampTextSize(lv) : clampTextSize(st.textSize || 12); };
-    const lsGet = (key, fallback = null) => {
-      try {
-        const value = localStorage.getItem(key);
-        return value == null ? fallback : value;
-      } catch (_e) {
-        return fallback;
-      }
-    };
-    const lsSet = (key, value) => {
-      try {
-        localStorage.setItem(key, value);
-        return true;
-      } catch (_e) {
-        return false;
-      }
-    };
-    const cloneJson = (data, fallback = null) => {
-      try {
-        return JSON.parse(JSON.stringify(data));
-      } catch (_e) {
-        return typeof fallback === "function" ? fallback() : fallback;
-      }
-    };
-    const jsonEquals = (a, b) => {
-      try {
-        return JSON.stringify(a) === JSON.stringify(b);
-      } catch (_e) {
-        return false;
-      }
-    };
     const genSaveLocationId = (seed = "project") => {
       const slug = String(seed || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
       return normalizeSaveLocationId(`proj-${slug || "project"}`);
@@ -1942,77 +1919,26 @@
     };
     const w2s = (x, y) => { const vm = getViewMetrics(); return { x: (x - st.camX) * st.zoom + vm.centerX, y: (y - st.camY) * st.zoom + vm.centerY } };
     const s2w = (x, y) => { const vm = getViewMetrics(); return { x: (x - vm.centerX) / st.zoom + st.camX, y: (y - vm.centerY) / st.zoom + st.camY } };
-    let noteEditorEl = null;
-    const ensureNoteEditorEl = () => {
-      if (noteEditorEl && noteEditorEl.parentElement) return noteEditorEl;
-      if (!wrap) return null;
-      const ta = document.createElement("textarea");
-      ta.className = "note-editor-overlay";
-      ta.spellcheck = false;
-      ta.placeholder = "Введите текст примечания";
-      ta.style.display = "none";
-      ta.addEventListener("input", () => {
-        const id = Math.round(Number(ta.dataset.rectId) || 0);
-        if (!id) return;
-        const r = getRectById(id);
-        if (!r || !isNoteRect(r)) return;
-        r.noteText = String(ta.value || "");
-        invalidateRectCache(r, "appearance");
-        render();
-      });
-      ta.addEventListener("keydown", e => {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          closeNoteEditor(true);
-        }
-      });
-      ta.addEventListener("blur", () => closeNoteEditor(true));
-      wrap.appendChild(ta);
-      noteEditorEl = ta;
-      return noteEditorEl;
-    };
-    function closeNoteEditor(commit = true) {
-      const ta = ensureNoteEditorEl();
-      if (!ta) return;
-      const id = Math.round(Number(ta.dataset.rectId) || 0);
-      if (commit && id) {
-        const r = getRectById(id);
-        if (r && isNoteRect(r)) {
-          r.noteText = String(ta.value || "");
-          invalidateRectCache(r, "appearance");
-          schedulePersist("project");
-        }
-      }
-      ta.dataset.rectId = "";
-      ta.style.display = "none";
-    }
-    function openNoteEditor(id) {
-      const r = getRectById(id);
-      if (!r || !isNoteRect(r)) return;
-      const ta = ensureNoteEditorEl();
-      if (!ta) return;
-      ta.dataset.rectId = String(id);
-      ta.value = String(r.noteText || "");
-      ta.style.display = "block";
-      updateNoteEditorOverlay();
-      focusAndSelect(ta);
-    }
-    function updateNoteEditorOverlay() {
-      const ta = ensureNoteEditorEl();
-      if (!ta || ta.style.display === "none") return;
-      const id = Math.round(Number(ta.dataset.rectId) || 0);
-      if (!id) { ta.style.display = "none"; return; }
-      const r = getRectById(id);
-      if (!r || !isNoteRect(r)) { ta.style.display = "none"; return; }
-      const bb = rectAABB(r);
-      const p0 = w2s(bb.minX, bb.minY), p1 = w2s(bb.maxX, bb.maxY);
-      const left = Math.min(p0.x, p1.x), top = Math.min(p0.y, p1.y), width = Math.max(60, Math.abs(p1.x - p0.x)), height = Math.max(40, Math.abs(p1.y - p0.y));
-      ta.style.left = `${Math.round(left)}px`;
-      ta.style.top = `${Math.round(top)}px`;
-      ta.style.width = `${Math.round(width)}px`;
-      ta.style.height = `${Math.round(height)}px`;
-      ta.style.fontSize = `${Math.max(11, Math.min(26, Math.round(12 * Math.max(0.8, st.zoom))))}px`;
-    }
+    const noteEditorController = setupNoteEditorController({
+      wrap,
+      getRectById,
+      isNoteRect: r => String((r && r.kind) || "").toLowerCase() === "note",
+      invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
+      render: () => render(),
+      schedulePersist: kind => schedulePersist(kind),
+      rectAABB,
+      w2s,
+      focusAndSelect: ta => {
+        if (!ta) return;
+        ta.focus();
+        ta.select();
+      },
+      getZoom: () => st.zoom
+    });
+    const ensureNoteEditorEl = noteEditorController.ensureNoteEditorEl;
+    const closeNoteEditor = noteEditorController.closeNoteEditor;
+    const openNoteEditor = noteEditorController.openNoteEditor;
+    const updateNoteEditorOverlay = noteEditorController.updateNoteEditorOverlay;
     const zc = v => Math.min(8, Math.max(window.matchMedia("(max-width:900px)").matches ? 0.01 : 0.1, v));
     const toInt = (v, fallback = 0) => {
       const n = Number(v);
@@ -5422,6 +5348,27 @@
     let resetHistoryUi = () => { };
     let applyProjectData = (_d, _opts) => { };
     let restoreAutoSave = () => false;
+    let resetMaskTransient = () => { };
+    let resetCellTransient = () => { };
+    let resetFlowHoverTransient = () => { };
+    let resetClusterHoverTransient = () => { };
+    let resetRigHoverTransient = () => { };
+    let resetSelectionTransient = () => { };
+    let resetTransientState = (_full = false) => { };
+    let getRectsBBox = (_rects) => null;
+    let normSelSet = () => { };
+    let refreshMultiSelectionBase = () => { };
+    let setSelection = (_ids, _activeId = null) => { };
+    let selBoxBounds = (_box) => null;
+    let boxSize = (_box) => ({ w: 0, h: 0 });
+    let rectIntersectsBox = (_bb, _b) => false;
+    let beginSelectionBox = (_p, _append = false, _touch = false) => { };
+    let updateSelectionBox = (_p) => { };
+    let finishSelectionBox = () => false;
+    let isSelected = (_id) => false;
+    let getSelectedRects = () => [];
+    let selectOnly = (_id) => { };
+    let toggleSelect = (_id) => { };
     const {
       bindClick,
       bindEvent,
@@ -5676,36 +5623,15 @@
       try { await document.fonts.ready; } catch (_e) { }
       st.fontReady = true;
     };
-    const resetTransientState = (full = false) => {
-      st.maskPath = [];
-      st.maskHover = null;
-      st.clusterActiveId = null;
-      st.clusterHandleHover = null;
-      st.clusterCellHover = null;
-      st.clusterStartHover = null;
-      st.clusterBorderHover = null;
-      st.clusterDrag = null;
-      st.rigHover = null;
-      if (full) {
-        st.cellHover = null;
-        st.cellHoverPos = null;
-        st.flowHover = null;
-        st.flowDirHover = null;
-        st.flowRegionRid = null;
-        st.flowDrag = null;
-        st.flowLinkHover = null;
-        st.flowLinkPending = null;
-        st.flowLinkDrag = null;
-        st.flowLinkAnchors = [];
-        st.flowLinkSegments = [];
-        st.clusterHandles = [];
-        st.drag = null;
-        st.draft = null;
-        st.g.x = null;
-        st.g.y = null;
-        st.dg = null;
-      }
-    };
+    ({
+      resetMaskTransient,
+      resetCellTransient,
+      resetFlowHoverTransient,
+      resetClusterHoverTransient,
+      resetRigHoverTransient,
+      resetSelectionTransient,
+      resetTransientState
+    } = setupTransientStateController({ st }));
     const parseProjectRect = (r, i, legacyAreaM2) => {
       const colorA = String(r.colorA || "#2fcaaf");
       const autoB = (r.autoContrastB !== false);
@@ -5790,16 +5716,6 @@
       evalExpr
     }));
     const isNoteRect = r => String((r && r.kind) || "").toLowerCase() === "note";
-    const withNameSuffixBeforeGroup = (name, suffix) => {
-      const src = String(name || "").trim() || "Rect";
-      const add = String(suffix || "").trim();
-      if (!add) return src;
-      const at = src.indexOf("@");
-      if (at < 0) return `${src} ${add}`.trim();
-      const base = src.slice(0, at).trim() || "Rect";
-      const group = src.slice(at);
-      return `${base} ${add}${group}`.trim();
-    };
     function mk(x, y, w, h) { const id = st.next++; const colorA = randomColor(); const r = { id, name: `Rect ${id}`, x: Math.round(x), y: Math.round(y), rotation: 0, width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)), scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), widthM: 1, heightM: 1, areaM2Px: 65536, textSize: 0, colorA, autoContrastB: true, colorB: autoContrast(colorA), cellX: 128, cellY: 128, dataFlow: "none", dataFlowZ: false, numberCells: false, splitVariant: 0, cellLinks: [], hiddenCells: [], flowLocks: {}, flowLockRidToSig: {}, flowLockCidToSeed: {}, manualClusters: [], rig: normalizeRigData(null), locked: false, kind: "", noteText: "" }; metricFromPx(r); return r }
     function mkNote(x, y, w, h) {
       const r = mk(x, y, w, h);
@@ -5844,20 +5760,29 @@
     }
     const hasRect = id => st.rects.some(v => v.id === id);
     const isRectLocked = r => !!(st.lockAll || (r && r.locked));
-    const resetMaskTransient = () => { st.maskPath = []; st.maskHover = null; };
-    const resetCellTransient = () => { st.cellHover = null; st.cellHoverPos = null; };
-    const resetFlowHoverTransient = () => { st.flowHover = null; st.flowDirHover = null; st.flowLinkHover = null; };
-    const resetClusterHoverTransient = () => { st.clusterHandleHover = null; st.clusterCellHover = null; st.clusterStartHover = null; st.clusterBorderHover = null; };
-    const resetRigHoverTransient = () => { st.rigHover = null; };
-    const resetSelectionTransient = () => {
-      resetMaskTransient();
-      resetCellTransient();
-      st.flowRegionRid = null;
-      resetFlowHoverTransient();
-      resetClusterHoverTransient();
-      st.clusterDrag = null;
-      st.selBox = null;
-    };
+    ({
+      getRectsBBox,
+      normSelSet,
+      refreshMultiSelectionBase,
+      setSelection,
+      selBoxBounds,
+      boxSize,
+      rectIntersectsBox,
+      beginSelectionBox,
+      updateSelectionBox,
+      finishSelectionBox,
+      isSelected,
+      getSelectedRects,
+      selectOnly,
+      toggleSelect
+    } = setupSelectionController({
+      st,
+      getRectById: id => getRectById(id),
+      isRectLocked: r => isRectLocked(r),
+      rectAABB: r => rectAABB(r),
+      rectAABBMasked: r => rectAABBMasked(r),
+      refreshPropsListRender: () => refreshPropsListRender()
+    }));
     const getEditableSelectedRects = () => {
       const selected = getSelectedRects();
       return selected.filter(r => !isRectLocked(r));
@@ -5882,115 +5807,6 @@
       schedulePersist("project");
       render();
       return true;
-    };
-    const getRectsBBox = rects => {
-      const list = Array.isArray(rects) ? rects : [];
-      if (!list.length) return null;
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const r of list) {
-        const bb = rectAABB(r);
-        if (!bb) continue;
-        if (bb.minX < minX) minX = bb.minX;
-        if (bb.minY < minY) minY = bb.minY;
-        if (bb.maxX > maxX) maxX = bb.maxX;
-        if (bb.maxY > maxY) maxY = bb.maxY;
-      }
-      if (!(Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY))) return null;
-      return { minX, minY, maxX, maxY, width: Math.max(0, maxX - minX), height: Math.max(0, maxY - minY) };
-    };
-    const normSelSet = () => {
-      if (!(st.selSet instanceof Set)) st.selSet = new Set();
-      for (const id of [...st.selSet]) {
-        const rr = getRectById(id);
-        if (!rr || isRectLocked(rr)) st.selSet.delete(id);
-      }
-      if (st.sel != null) {
-        const sr = getRectById(st.sel);
-        if (sr && !isRectLocked(sr)) st.selSet.add(st.sel);
-      }
-      if (!st.selSet.size) st.sel = null;
-      if (st.sel != null && !st.selSet.has(st.sel)) st.sel = [...st.selSet][0] || null;
-    };
-    const refreshMultiSelectionBase = () => {
-      normSelSet();
-      const rects = st.rects.filter(r => st.selSet.has(r.id));
-      if (rects.length <= 1) { st.selMultiBase = null; return; }
-      const bbox = getRectsBBox(rects);
-      if (!bbox) { st.selMultiBase = null; return; }
-      const items = rects.map(r => { const bb = rectAABB(r); return { id: r.id, x: r.x, y: r.y, minX: bb.minX, maxX: bb.maxX, minY: bb.minY, maxY: bb.maxY, w: Math.max(0, bb.maxX - bb.minX), h: Math.max(0, bb.maxY - bb.minY), cx: (bb.minX + bb.maxX) / 2, cy: (bb.minY + bb.maxY) / 2 }; });
-      const ids = [...st.selSet].sort((a, b) => a - b);
-      st.selMultiBase = { idsKey: ids.join(","), bbox, items };
-    };
-    const setSelection = (ids, activeId = null) => {
-      const next = new Set((Array.isArray(ids) ? ids : []).filter(id => { const rr = getRectById(id); return !!rr && !isRectLocked(rr); }));
-      st.selSet = next;
-      st.sel = (activeId != null && next.has(activeId)) ? activeId : ([...(next || [])][0] || null);
-      refreshMultiSelectionBase();
-    };
-    const selBoxBounds = box => {
-      if (!box) return null;
-      return {
-        minX: Math.min(Number(box.sx) || 0, Number(box.x) || 0),
-        minY: Math.min(Number(box.sy) || 0, Number(box.y) || 0),
-        maxX: Math.max(Number(box.sx) || 0, Number(box.x) || 0),
-        maxY: Math.max(Number(box.sy) || 0, Number(box.y) || 0)
-      };
-    };
-    const boxSize = box => {
-      const b = selBoxBounds(box);
-      if (!b) return { w: 0, h: 0 };
-      return { w: Math.max(0, b.maxX - b.minX), h: Math.max(0, b.maxY - b.minY) };
-    };
-    const rectIntersectsBox = (bb, b) => {
-      if (!bb || !b) return false;
-      return !(bb.maxX < b.minX || bb.minX > b.maxX || bb.maxY < b.minY || bb.minY > b.maxY);
-    };
-    const beginSelectionBox = (p, append = false, touch = false) => {
-      st.selBox = { sx: p.x, sy: p.y, x: p.x, y: p.y, append: !!append, touch: !!touch, moved: false };
-    };
-    const updateSelectionBox = (p) => {
-      if (!st.selBox) return;
-      st.selBox.x = p.x; st.selBox.y = p.y;
-      const s = boxSize(st.selBox);
-      if (s.w > 2 / st.zoom || s.h > 2 / st.zoom) st.selBox.moved = true;
-    };
-    const finishSelectionBox = () => {
-      const box = st.selBox;
-      st.selBox = null;
-      if (!box) return false;
-      const b = selBoxBounds(box), s = boxSize(box), clickLike = s.w < 3 / st.zoom && s.h < 3 / st.zoom;
-      if (clickLike) {
-        if (!box.append) setSelection([], null);
-        refreshPropsListRender();
-        return true;
-      }
-      const ids = st.rects.filter(r => !isRectLocked(r) && rectIntersectsBox(rectAABBMasked(r), b)).map(r => r.id);
-      if (box.append) {
-        normSelSet();
-        const set = new Set(st.selSet);
-        for (const id of ids) set.add(id);
-        setSelection([...set], ids[ids.length - 1] || st.sel || null);
-      } else {
-        setSelection(ids, ids[ids.length - 1] || null);
-      }
-      refreshPropsListRender();
-      return true;
-    };
-    const isSelected = id => { normSelSet(); return st.selSet.has(id); };
-    const getSelectedRects = () => {
-      normSelSet();
-      const ids = new Set(st.selSet);
-      return st.rects.filter(r => ids.has(r.id));
-    };
-    const selectOnly = id => setSelection(id == null ? [] : [id], id);
-    const toggleSelect = id => {
-      normSelSet();
-      if (id == null) return;
-      const rr = getRectById(id);
-      if (!rr || isRectLocked(rr)) return;
-      if (st.selSet.has(id)) st.selSet.delete(id);
-      else st.selSet.add(id);
-      st.sel = st.selSet.has(id) ? id : ([...(st.selSet || [])][0] || null);
     };
     const rectHasManualRegions = r => !!(r && Array.isArray(r.manualClusters) && r.manualClusters.length > 0);
     const rectHasManualFlow = r => {
@@ -6194,50 +6010,13 @@
       if (usedX && usedY) dg = Math.abs(bdx.d) <= Math.abs(bdy.d) ? bdx.guide : bdy.guide; else if (usedX) dg = bdx.guide; else if (usedY) dg = bdy.guide;
       return { x: Math.round(x + dx), y: Math.round(y + dy), gx, gy, dg }
     }
-    const wrapNoteText = (c, text, maxW) => {
-      const out = [];
-      const lines = String(text || "").replace(/\r/g, "").split("\n");
-      for (const ln of lines) {
-        const words = String(ln || "").split(/\s+/).filter(Boolean);
-        if (!words.length) { out.push(""); continue; }
-        let cur = words[0];
-        for (let i = 1; i < words.length; i++) {
-          const next = `${cur} ${words[i]}`;
-          if (c.measureText(next).width <= maxW) cur = next;
-          else { out.push(cur); cur = words[i]; }
-        }
-        out.push(cur);
-      }
-      return out.length ? out : [""];
-    };
-    const drawNoteRect = (c, r, sel, z) => {
-      const a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, fs = Math.max(10, getRectTextSizePx(r));
-      c.save();
-      c.translate(center.x, center.y);
-      c.rotate(a);
-      c.beginPath();
-      c.rect(-w / 2, -h / 2, w, h);
-      c.fillStyle = "rgba(255,251,209,.62)";
-      c.fill();
-      c.lineWidth = Math.max(1, 1.2 / Math.max(0.2, z || 1));
-      c.strokeStyle = sel ? "rgba(13,110,253,.96)" : "rgba(61,73,93,.78)";
-      c.stroke();
-      const pad = Math.max(6, 8 / Math.max(0.5, z || 1));
-      c.fillStyle = "#1f2937";
-      c.textAlign = "left";
-      c.textBaseline = "top";
-      c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`;
-      const text = String(r.noteText || "").trim() || "Двойной клик для ввода текста";
-      const lines = wrapNoteText(c, text, Math.max(8, w - pad * 2));
-      const lh = Math.max(12, fs * 1.3);
-      let y = -h / 2 + pad;
-      for (const line of lines) {
-        if (y + lh > h / 2 - pad) break;
-        c.fillText(line, -w / 2 + pad, y);
-        y += lh;
-      }
-      c.restore();
-    };
+    const { drawNoteRect } = setupNoteRender({
+      st,
+      rads,
+      rectCenter,
+      getRectTextSizePx: r => getRectTextSizePx(r),
+      fontFamilyCss
+    });
     function drawRect(c, r, sel, z, origin, opts) {
       if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
       const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, options = opts || {}, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
@@ -6955,64 +6734,23 @@
       }
       c.restore();
     };
-    function drawMaskOverlay(c, z) {
-      if (!isMaskMode()) return; const r = cur(); if (!r) return; const darkTheme = (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark"; const nodeCol = darkTheme ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.34)"; const hoverCol = darkTheme ? "rgba(255,255,255,.9)" : "rgba(0,0,0,.85)"; const axes = getMaskNodeAxes(r), dot = Math.max(1.8, 2.6 / z);
-      for (const gy of axes.ys) { for (const gx of axes.xs) { const p = rectUVToWorld(r, gx, gy); c.fillStyle = nodeCol; c.beginPath(); c.arc(p.x, p.y, dot, 0, Math.PI * 2); c.fill() } }
-      if (st.maskPath.length) { const col = "rgba(120,205,255,.95)"; c.strokeStyle = col; c.lineWidth = Math.max(1.2, 1.8 / z); c.fillStyle = "rgba(120,205,255,.18)"; c.beginPath(); c.moveTo(st.maskPath[0].x, st.maskPath[0].y); for (let i = 1; i < st.maskPath.length; i++)c.lineTo(st.maskPath[i].x, st.maskPath[i].y); if (st.maskHover) c.lineTo(st.maskHover.x, st.maskHover.y); c.stroke(); if (st.maskPath.length >= 3) { c.closePath(); c.fill() } for (const p of st.maskPath) { c.fillStyle = col; c.beginPath(); c.arc(p.x, p.y, Math.max(2.8, 3.4 / z), 0, Math.PI * 2); c.fill() } }
-      if (st.maskHover) { c.fillStyle = hoverCol; c.beginPath(); c.arc(st.maskHover.x, st.maskHover.y, Math.max(2.4, 3 / z), 0, Math.PI * 2); c.fill() }
-    }
-    function drawCellEditOverlay(c, z) {
-      if (!isCellEditMode()) return; const r = cur(); if (!r) return; const darkTheme = (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark"; const gridCol = darkTheme ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.28)"; const boundCol = darkTheme ? "rgba(255,255,255,.9)" : "rgba(0,0,0,.78)"; const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), axes = getMaskNodeAxes(r); c.save(); c.strokeStyle = gridCol; c.lineWidth = Math.max(1, 1.1 / z);
-      for (const x of axes.xs) { const p1 = rectUVToWorld(r, x, 0), p2 = rectUVToWorld(r, x, r.height); c.beginPath(); c.moveTo(p1.x, p1.y); c.lineTo(p2.x, p2.y); c.stroke() }
-      for (const y of axes.ys) { const p1 = rectUVToWorld(r, 0, y), p2 = rectUVToWorld(r, r.width, y); c.beginPath(); c.moveTo(p1.x, p1.y); c.lineTo(p2.x, p2.y); c.stroke() }
-      const bounds = getComponentBoundarySegments(r, cx, cy, topo); c.strokeStyle = boundCol; c.lineWidth = Math.max(1.8, 2.2 / z);
-      for (const s of bounds) { c.beginPath(); c.moveTo(s.p1.x, s.p1.y); c.lineTo(s.p2.x, s.p2.y); c.stroke() }
-      if (st.cellHover && st.cellHover.p1 && st.cellHover.p2) { c.strokeStyle = st.cellHover.canToggle ? (st.cellHover.exists ? "rgba(255,205,92,.95)" : "rgba(94,220,143,.95)") : "rgba(255,106,106,.95)"; c.lineWidth = Math.max(2.4, 3.4 / z); c.beginPath(); c.moveTo(st.cellHover.p1.x, st.cellHover.p1.y); c.lineTo(st.cellHover.p2.x, st.cellHover.p2.y); c.stroke() }
-      const hp = st.cellHoverPos;
-      if (hp && Number.isFinite(Number(hp.x)) && Number.isFinite(Number(hp.y))) {
-        const summary = buildVisibleCabinetSummary(r, cx, cy, topo, getHiddenSet(r));
-        const lines = [`Кабинетов: ${Math.max(0, Math.round(Number(summary && summary.totalCount) || 0))}`];
-        for (const row of (summary && summary.groups ? summary.groups : [])) lines.push(String(row || ""));
-        const fs = Math.max(8, 11 / Math.max(0.45, z || 1));
-        const lh = fs + Math.max(2, 3 / Math.max(0.45, z || 1));
-        c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`;
-        c.textAlign = "left";
-        c.textBaseline = "top";
-        let tw = 0;
-        for (const line of lines) tw = Math.max(tw, c.measureText(line).width);
-        const pad = Math.max(4, 6 / Math.max(0.45, z || 1));
-        const bw = tw + pad * 2;
-        const bh = lines.length * lh + pad * 2;
-        const off = Math.max(8, 12 / Math.max(0.45, z || 1));
-        let bx = (+hp.x || 0) + off;
-        let by = (+hp.y || 0) + off;
-        const minX = r.x - 10 / Math.max(0.45, z || 1), minY = r.y - 10 / Math.max(0.45, z || 1), maxX = r.x + r.width - bw + 10 / Math.max(0.45, z || 1), maxY = r.y + r.height - bh + 10 / Math.max(0.45, z || 1);
-        if (bx > maxX) bx = (+hp.x || 0) - bw - off;
-        if (by > maxY) by = (+hp.y || 0) - bh - off;
-        bx = Math.max(minX, Math.min(maxX, bx));
-        by = Math.max(minY, Math.min(maxY, by));
-        c.fillStyle = darkTheme ? "rgba(14,18,24,.92)" : "rgba(255,255,255,.94)";
-        c.strokeStyle = darkTheme ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.32)";
-        c.lineWidth = Math.max(1, 1.2 / Math.max(0.45, z || 1));
-        c.fillRect(bx, by, bw, bh);
-        c.strokeRect(bx, by, bw, bh);
-        c.fillStyle = darkTheme ? "rgba(255,255,255,.96)" : "rgba(17,24,39,.96)";
-        for (let i = 0; i < lines.length; i++) c.fillText(lines[i], bx + pad, by + pad + i * lh);
-      }
-      c.restore()
-    }
-    const contentBoundsCache = { key: "", value: null };
-    const getContentBounds = () => {
-      if (!st.rects.length) return null;
-      const key = st.rects.map(r => [r.id, r.x, r.y, r.width, r.height, Number(r.rotation) || 0, listSignature(r.hiddenCells), drawCellX(r), drawCellY(r)].join(",")).join(";");
-      if (contentBoundsCache.key === key && contentBoundsCache.value) return contentBoundsCache.value;
-      let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-      for (const r of st.rects) { const bb = rectAABBMasked(r); minX = Math.min(minX, bb.minX); minY = Math.min(minY, bb.minY); maxX = Math.max(maxX, bb.maxX); maxY = Math.max(maxY, bb.maxY) }
-      const value = { minX, minY, maxX, maxY, w: Math.ceil(maxX - minX), h: Math.ceil(maxY - minY) };
-      contentBoundsCache.key = key; contentBoundsCache.value = value;
-      return value;
-    };
-    function drawContentBounds(c, z) { const b = getContentBounds(); if (!b) return; const { minX, minY, w, h } = b; const darkTheme = (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark"; const stroke = darkTheme ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.55)", labelBg = darkTheme ? "rgba(15,19,24,.85)" : "rgba(255,255,255,.88)", labelFg = darkTheme ? "rgba(255,255,255,.92)" : "rgba(17,24,39,.95)"; c.save(); c.strokeStyle = stroke; c.lineWidth = 1.5 / z; c.setLineDash([]); c.strokeRect(minX, minY, w, h); if (st.fontReady) { const label = `${w} x ${h} px`; c.font = `${Math.max(10, 12 / z)}px ${fontFamilyCss(st.fontFamily)}`; const tw = c.measureText(label).width + 10; const th = Math.max(16, 16 / z); const y0 = minY + h + 4 / z; c.fillStyle = labelBg; c.fillRect(minX, y0, tw, th); c.fillStyle = labelFg; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(label, minX + 5, y0 + th / 2); } c.restore() }
+    const { drawMaskOverlay, drawCellEditOverlay, drawContentBounds } = setupViewportOverlays({
+      st,
+      isMaskMode: () => isMaskMode(),
+      isCellEditMode: () => isCellEditMode(),
+      cur: () => cur(),
+      getMaskNodeAxes: r => getMaskNodeAxes(r),
+      rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
+      drawCellX: r => drawCellX(r),
+      drawCellY: r => drawCellY(r),
+      getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+      getComponentBoundarySegments: (r, cx, cy, topo) => getComponentBoundarySegments(r, cx, cy, topo),
+      buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
+      getHiddenSet: r => getHiddenSet(r),
+      fontFamilyCss,
+      rectAABBMasked: r => rectAABBMasked(r),
+      listSignature
+    });
     function drawGrid() {
       let step = 64, lt = s2w(0, 0), rb = s2w(cv.clientWidth, cv.clientHeight), maxLines = 220;
       while (((rb.x - lt.x) / step) > maxLines || ((rb.y - lt.y) / step) > maxLines) step *= 2;
@@ -8298,12 +8036,6 @@
     bindProjectLinkHandlers();
     const fmtOne = v => { const n = Math.round((Number(v) || 0) * 10) / 10; return Number.isInteger(n) ? `${n.toFixed(0)}` : n.toFixed(1) };
     const fmtMeters = v => { const n = Math.round((Number(v) || 0) * 1000) / 1000; return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "") };
-    const parseScreenNameGroup = r => {
-      const fallback = `Экран #${r && r.id != null ? r.id : "?"}`, raw = String((r && r.name) || fallback).trim() || fallback, at = raw.indexOf("@");
-      if (at < 0) return { name: raw, group: "Общая" };
-      const name = (raw.slice(0, at).trim() || fallback), group = (raw.slice(at + 1).trim() || "Общая");
-      return { name, group };
-    };
     const roundRigSize = v => Math.round((Number(v) || 0) * 100) / 100;
     const buildRectRigSpecData = r => {
       const rig = getRectRigData(r) || {};
