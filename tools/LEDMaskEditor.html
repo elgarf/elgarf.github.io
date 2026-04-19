@@ -1515,6 +1515,7 @@
     import { setupToolbarActionsController } from "./editor/modules/ui/toolbar-actions-controller.js";
     import { setupViewThemeLockController } from "./editor/modules/ui/view-theme-lock-controller.js";
     import { setupToolModeController } from "./editor/modules/ui/tool-mode-controller.js";
+    import { setupPropertiesSyncController } from "./editor/modules/ui/properties-sync-controller.js";
     import { setupTransientStateController } from "./editor/modules/ui/transient-state-controller.js";
     import { setupSelectionController } from "./editor/modules/ui/selection-controller.js";
     import { setupSelectionLockController } from "./editor/modules/ui/selection-lock-controller.js";
@@ -1526,10 +1527,12 @@
     import { setupRectFactoryController } from "./editor/modules/rect-factory-controller.js";
     import { setupProjectSessionController } from "./editor/modules/project/session-controller.js";
     import { setupProjectActionsController } from "./editor/modules/project/actions-controller.js";
+    import { setupProjectLifecycleController } from "./editor/modules/project/project-lifecycle-controller.js";
     import { setupProjectStateController } from "./editor/modules/project-state-controller.js";
     import { setupProjectCodecBridge } from "./editor/modules/project-codec-bridge.js";
     import { setupAppInitController } from "./editor/modules/app-init-controller.js";
     import { setupAppBootstrapRuntime } from "./editor/modules/app-bootstrap-runtime.js";
+    import { setupInputWiring, setupBootstrapWiring } from "./editor/modules/bootstrap/wiring.js";
     import { setupExportPackageController } from "./editor/modules/export-package-controller.js";
     import { setupChangeOpsController } from "./editor/modules/state/change-ops.js";
     import { setupHistoryController } from "./editor/modules/history-controller.js";
@@ -6233,30 +6236,26 @@
       updateClusterEditCursor();
       commitUiUpdate({ persist: true, render: true });
     }
-    const resetProjectCore = () => {
-      st.rects = [];
-      st.flowLinks = [];
-      st.next = 1;
-      st.camX = 0;
-      st.camY = 0;
-      st.zoom = 1;
-      st.projectName = "Новый проект";
-      st.saveLocationId = setGlobalSaveLocationId(getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
-      st.viewMode = "art";
-      st.globalScale = 256;
-      if (el.cUnit) el.cUnit.value = "m";
-      setSelection([], null);
-      resetTransientState(true);
-    };
-    function newProject() {
-      resetProjectCore();
-      updateViewModeUi();
-      refreshPanels();
-      setMode("select");
-      syncActiveTabSnapshot();
-      renderProjectTabs();
-      commitUiUpdate({ persist: true, persistKind: "all", render: true });
-    }
+    let resetProjectCore = () => { };
+    let newProject = () => { };
+    ({
+      resetProjectCore,
+      newProject
+    } = setupProjectLifecycleController({
+      st,
+      el,
+      setSelection: (ids, lead) => setSelection(ids, lead),
+      resetTransientState: full => resetTransientState(full),
+      setMode: mode => setMode(mode),
+      refreshPanels: () => refreshPanels(),
+      syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
+      renderProjectTabs: () => renderProjectTabs(),
+      commitUiUpdate: opts => commitUiUpdate(opts),
+      updateViewModeUi: () => updateViewModeUi(),
+      setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
+      getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
+      genSaveLocationId: name => genSaveLocationId(name)
+    }));
     const insertCloneAboveSource = (sourceId, clone) => {
       const idx = st.rects.findIndex(v => v.id === sourceId);
       if (idx >= 0) st.rects.splice(idx, 0, clone);
@@ -6577,26 +6576,18 @@
         }
       }
     }
-    let syncPropsRaf = 0;
-    const scheduleSyncProps = () => {
-      if (syncPropsRaf) return;
-      if (typeof requestAnimationFrame === "function") {
-        syncPropsRaf = requestAnimationFrame(() => { syncPropsRaf = 0; syncProps(); });
-      } else {
-        syncPropsRaf = setTimeout(() => { syncPropsRaf = 0; syncProps(); }, 16);
-      }
-    };
-    const syncPropsSmart = () => {
-      const hot = !!(st.drag || st.flowDrag || st.clusterDrag || st.pan || (st.touch && st.touch.type === "pinch"));
-      if (hot) { scheduleSyncProps(); return; }
-      if (syncPropsRaf) {
-        if (typeof cancelAnimationFrame === "function") try { cancelAnimationFrame(syncPropsRaf); } catch (_e) { }
-        else clearTimeout(syncPropsRaf);
-        syncPropsRaf = 0;
-      }
-      syncProps();
-    };
-    const inputServices = createEditorServices({
+    const { scheduleSyncProps, syncPropsSmart } = setupPropertiesSyncController({
+      st,
+      syncProps: () => syncProps(),
+      requestFrame: cb => requestAnimationFrame(cb),
+      cancelFrame: id => cancelAnimationFrame(id),
+      setDelay: (cb, ms) => setTimeout(cb, ms),
+      clearDelay: id => clearTimeout(id)
+    });
+    setupInputWiring({
+      createEditorServices,
+      setupInputController,
+      services: {
       cv, st, el, render, hit, s2w, zc, getViewMetrics,
       isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
       cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
@@ -6613,8 +6604,8 @@
       mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
       resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
       resetFlowRegionOverrides, syncProps, bindEvent, bindWindowEvent, zoomAt
+      }
     });
-    setupInputController(inputServices);
     const listCtrl = setupRectListController({
       st, el, bindEvent, eventClosest,
       toggleRectLockById, getRectById, isRectLocked, selRect,
@@ -7404,7 +7395,9 @@
       showMessageModal: (text, title) => showMessageModal(text, title)
     });
     bindClick(el.exp, async () => { await exportPackage() });
-    setupAppBootstrapRuntime({
+    setupBootstrapWiring({
+      setupAppBootstrapRuntime,
+      runtimeDeps: {
       createEditorServices,
       setupUiBinders,
       setupKeyboardController,
@@ -7497,6 +7490,7 @@
         encodeProjectToQueryValue: value => encodeProjectToQueryValue(value),
         decodeProjectFromQueryValue: value => decodeProjectFromQueryValue(value),
         buildPortableProject: () => buildPortableProject()
+      }
       }
     });
   </script>

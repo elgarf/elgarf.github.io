@@ -1,3 +1,7 @@
+import { setupFlowInputController } from "./ui/flow-input-controller.js";
+import { setupClusterInputController } from "./ui/cluster-input-controller.js";
+import { setupCanvasNavigationController } from "./ui/canvas-navigation-controller.js";
+
 export const setupInputController = (deps = {}) => {
   const {
     cv, st, render, hit, s2w, zc, getViewMetrics,
@@ -31,13 +35,57 @@ export const setupInputController = (deps = {}) => {
     syncPropsSmart();
     return true;
   };
-  const updateDraftFromPoint = (d, p) => {
-    if (!d || !p) return;
-    d.x = Math.min(d.sx, p.x);
-    d.y = Math.min(d.sy, p.y);
-    d.width = Math.abs(p.x - d.sx);
-    d.height = Math.abs(p.y - d.sy);
+  const finishPointerUp = changed => {
+    if (changed) schedulePersist("project");
+    render();
+    return true;
   };
+  const navigationController = setupCanvasNavigationController({
+    st,
+    render,
+    hit: (x, y) => hit(x, y),
+    selRect: (id, opts) => selRect(id, opts),
+    isSelected: id => isSelected(id),
+    beginRectDrag: (h, p) => beginRectDrag(h, p),
+    beginSelectionBox: (p, shiftToggle, touchLike) => beginSelectionBox(p, shiftToggle, touchLike),
+    updateSelectionBox: p => updateSelectionBox(p),
+    moveRectDrag: (p, disableSnap) => moveRectDrag(p, disableSnap)
+  });
+  const clusterController = setupClusterInputController({
+    st,
+    render,
+    hit: (x, y) => hit(x, y),
+    cur: () => cur(),
+    selectHoveredRectSmart: h => selectHoveredRectSmart(h),
+    beginClusterHandleDragAtPoint: (x, y) => beginClusterHandleDragAtPoint(x, y),
+    handleClusterEditAtPoint: (x, y) => handleClusterEditAtPoint(x, y),
+    updateClusterHandleDragAtPoint: (x, y) => updateClusterHandleDragAtPoint(x, y),
+    updateClusterEditCursor: () => updateClusterEditCursor(),
+    findClusterHandle: (x, y) => findClusterHandle(x, y),
+    findActiveClusterBorder: (r, x, y) => findActiveClusterBorder(r, x, y),
+    findClusterStartMarker: (r, x, y) => findClusterStartMarker(r, x, y),
+    cellFromWorldPoint: (r, x, y, skipHidden) => cellFromWorldPoint(r, x, y, skipHidden),
+    endClusterHandleDrag: () => endClusterHandleDrag(),
+    finishPointerUp: changed => finishPointerUp(changed),
+    resetClusterHoverTransient: () => resetClusterHoverTransient()
+  });
+  const flowController = setupFlowInputController({
+    st,
+    render,
+    hit: (x, y) => hit(x, y),
+    cur: () => cur(),
+    selectHoveredRectSmart: h => selectHoveredRectSmart(h),
+    updateFlowLinkDragTarget: (x, y) => updateFlowLinkDragTarget(x, y),
+    resetFlowHoverTransient: () => resetFlowHoverTransient(),
+    findFlowLinkAtPoint: (x, y) => findFlowLinkAtPoint(x, y),
+    findFlowStartHandle: (x, y) => findFlowStartHandle(x, y),
+    findFlowDirectionButton: (x, y) => findFlowDirectionButton(x, y),
+    findFlowEditPoint: (x, y, rid, fromIndex) => findFlowEditPoint(x, y, rid, fromIndex),
+    addFlowLinkBetween: (from, to) => addFlowLinkBetween(from, to),
+    setFlowStart: (r, rid, cid) => setFlowStart(r, rid, cid),
+    setFlowLock: (r, rid, fromIndex, cid) => setFlowLock(r, rid, fromIndex, cid),
+    finishPointerUp: changed => finishPointerUp(changed)
+  });
   const handlePointerDownDrawOrNote = p => {
     if (!(st.mode === "draw" || isNoteMode())) return false;
     st.draft = { x: p.x, y: p.y, width: 0, height: 0, sx: p.x, sy: p.y, kind: (isNoteMode() ? "note" : "rect") };
@@ -61,9 +109,7 @@ export const setupInputController = (deps = {}) => {
   };
   const handlePointerDownCluster = p => {
     if (!isClusterEditMode()) return false;
-    if (beginClusterHandleDragAtPoint(p.x, p.y)) { render(); return true; }
-    handleClusterEditAtPoint(p.x, p.y);
-    return true;
+    return !!clusterController.handlePointerDownCluster(p);
   };
   const handlePointerDownRig = p => {
     if (!isRigEditMode()) return false;
@@ -73,19 +119,7 @@ export const setupInputController = (deps = {}) => {
     if (st.mode !== "flowEdit") return false;
     return !!handleFlowEditPointerDown(p);
   };
-  const handlePointerDownSelect = (p, opts = null) => {
-    const o = (opts && typeof opts === "object") ? opts : {};
-    const h = hit(p.x, p.y);
-    if (h) {
-      if (o.shiftToggle) { selRect(h.id, { toggle: true }); render(); return true; }
-      if (!isSelected(h.id)) selRect(h.id);
-      beginRectDrag(h, p);
-    } else {
-      beginSelectionBox(p, !!o.shiftToggle, !!o.touchLike);
-    }
-    render();
-    return true;
-  };
+  const handlePointerDownSelect = (p, opts = null) => navigationController.handlePointerDownSelect(p, opts);
   const handleCanvasPointerDown = (p, opts = null) => {
     if (handlePointerDownDrawOrNote(p)) return;
     if (handlePointerDownMask(p)) return;
@@ -95,98 +129,25 @@ export const setupInputController = (deps = {}) => {
     if (handlePointerDownFlow(p)) return;
     handlePointerDownSelect(p, opts);
   };
-  const handleFlowEditPointerMove = p => {
-    if (st.mode !== "flowEdit") return false;
-    if (st.flowLinkDrag) {
-      updateFlowLinkDragTarget(p.x, p.y);
-      resetFlowHoverTransient();
-      render();
-      return true;
-    }
-    if (!st.flowDrag) {
-      st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y);
-      const h = hit(p.x, p.y);
-      if (selectHoveredRectSmart(h)) { render(); return true; }
-      const startHandle = findFlowStartHandle(p.x, p.y);
-      if (startHandle) {
-        st.flowHover = { kind: "start", rid: startHandle.rid, cid: startHandle.cid };
-        st.flowDirHover = null;
-        render();
-        return true;
-      }
-      const dirBtn = findFlowDirectionButton(p.x, p.y);
-      st.flowDirHover = dirBtn;
-      if (dirBtn) {
-        st.flowHover = null;
-        render();
-        return true;
-      }
-      st.flowHover = findFlowEditPoint(p.x, p.y);
-      render();
-      return true;
-    }
-    const fp = findFlowEditPoint(p.x, p.y, st.flowDrag.rid, st.flowDrag.fromIndex);
-    st.flowDrag.currentIndex = fp ? fp.index : st.flowDrag.fromIndex;
-    render();
-    return true;
-  };
+  const handleFlowEditPointerMove = p => flowController.handleFlowEditPointerMove(p);
   const handleCanvasPointerMove = (p, opts = null) => {
     const o = (opts && typeof opts === "object") ? opts : {};
-    if (st.pan && st.panS) { st.camX = st.panS.cx - (o.sx - st.panS.sx) / st.zoom; st.camY = st.panS.cy - (o.sy - st.panS.sy) / st.zoom; render(); return true; }
-    if (st.selBox) { updateSelectionBox(p); render(); return true; }
+    if (navigationController.handlePanPointerMove(p, o)) return true;
+    if (navigationController.handleSelectionBoxPointerMove(p)) return true;
     if (isMaskMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null; render(); return true; }
     if (isCellEditMode()) { const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null; st.cellHoverPos = r ? { x: p.x, y: p.y } : null; render(); return true; }
     if (isRigEditMode()) { if (handleRigPointerMove) return !!handleRigPointerMove(p); const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null; render(); return true; }
     if (isClusterEditMode()) {
-      if (st.clusterDrag) {
-        updateClusterHandleDragAtPoint(p.x, p.y);
-        updateClusterEditCursor();
-        render();
-        return true;
-      }
-      const h = hit(p.x, p.y); selectHoveredRectSmart(h); const r = h || cur(); st.clusterHandleHover = r ? findClusterHandle(p.x, p.y) : null; st.clusterBorderHover = r ? findActiveClusterBorder(r, p.x, p.y) : null; st.clusterStartHover = r ? findClusterStartMarker(r, p.x, p.y) : null; const cc = (r ? cellFromWorldPoint(r, p.x, p.y, true) : null); st.clusterCellHover = (r && cc ? { rectId: r.id, col: cc.col, row: cc.row } : null); updateClusterEditCursor(); render(); return true;
+      return !!clusterController.handleClusterPointerMove(p);
     }
     if (handleFlowEditPointerMove(p)) return true;
-    if (st.draft) { updateDraftFromPoint(st.draft, p); render(); return true; }
-    if (st.drag) { moveRectDrag(p, !!o.ctrlSnap); render(); return true; }
+    if (navigationController.handleDraftPointerMove(p)) return true;
+    if (navigationController.handleDragPointerMove(p, o)) return true;
     return false;
   };
-  const finishPointerUp = changed => {
-    if (changed) schedulePersist("project");
-    render();
-    return true;
-  };
-  const handlePointerUpCluster = () => {
-    if (!st.clusterDrag) return false;
-    const changed = endClusterHandleDrag();
-    finishPointerUp(changed);
-    return true;
-  };
-  const handlePointerUpFlowLink = () => {
-    if (!st.flowLinkDrag) return false;
-    const fd = st.flowLinkDrag;
-    st.flowLinkDrag = null;
-    let changed = false;
-    if (fd && fd.from && fd.target && fd.canLink) changed = addFlowLinkBetween(fd.from, fd.target);
-    st.flowLinkPending = null;
-    st.flowLinkHover = null;
-    finishPointerUp(changed);
-    return true;
-  };
-  const handlePointerUpFlowDrag = () => {
-    if (!st.flowDrag) return false;
-    const r = cur(), fd = st.flowDrag; st.flowDrag = null;
-    let changed = false;
-    if (r) {
-      const isStartMove = String(fd && fd.kind || "") === "start";
-      const pts = (st.flowEditPoints || []).filter(p => p.rid === fd.rid && (isStartMove ? p.index >= 0 : p.index >= fd.fromIndex)), target = pts.find(p => p.index === fd.currentIndex) || pts[0];
-      if (isStartMove) {
-        if (target && target.cid !== fd.cid) { setFlowStart(r, fd.rid, target.cid); changed = true; }
-      } else if (target && target.index >= fd.fromIndex && target.cid !== fd.cid) { setFlowLock(r, fd.rid, fd.fromIndex, target.cid); changed = true; }
-    }
-    finishPointerUp(changed);
-    return true;
-  };
+  const handlePointerUpCluster = () => clusterController.handlePointerUpCluster();
+  const handlePointerUpFlowLink = () => flowController.handlePointerUpFlowLink();
+  const handlePointerUpFlowDrag = () => flowController.handlePointerUpFlowDrag();
   const handleCanvasPointerUp = () => {
     const hadDrag = !!st.drag; if (st.pan) { st.pan = false; st.panS = null; }
     if (st.selBox) { finishSelectionBox(); return true; }
@@ -206,17 +167,8 @@ export const setupInputController = (deps = {}) => {
       render();
       return;
     }
-    if (st.mode === "flowEdit" && (st.flowHover || st.flowDirHover || st.flowLinkHover)) {
-      resetFlowHoverTransient();
-      render();
-      return;
-    }
-    if (isClusterEditMode() && (st.clusterHandleHover || st.clusterCellHover || st.clusterStartHover || st.clusterBorderHover)) {
-      resetClusterHoverTransient();
-      updateClusterEditCursor();
-      render();
-      return;
-    }
+    if (flowController.handleFlowMouseLeave()) return;
+    if (isClusterEditMode() && clusterController.handleClusterMouseLeave()) return;
     if (isRigEditMode() && st.rigHover) { if (handleRigPointerLeave) { handleRigPointerLeave(); return; } resetRigHoverTransient(); render(); }
   };
   const touchDist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
