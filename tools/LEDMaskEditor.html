@@ -1509,11 +1509,20 @@
     import { setupProjectLinkActionsController } from "./editor/modules/ui/project-link-actions-controller.js";
     import { setupProjectIoController } from "./editor/modules/project-io-controller.js";
     import { setupProjectLoadController } from "./editor/modules/project-load-controller.js";
+    import { setupProjectStateController } from "./editor/modules/project-state-controller.js";
+    import { setupProjectCodecBridge } from "./editor/modules/project-codec-bridge.js";
+    import { setupAppInitController } from "./editor/modules/app-init-controller.js";
+    import { setupExportPackageController } from "./editor/modules/export-package-controller.js";
     import { setupTabsController } from "./editor/modules/tabs-controller.js";
     import { setupPersistenceController } from "./editor/modules/persistence-controller.js";
     import { setupHistoryController } from "./editor/modules/history-controller.js";
     import { setupManualClustersController } from "./editor/modules/manual-clusters-controller.js";
+    import { setupRigCore } from "./editor/modules/rig-core.js";
+    import { setupRenderPipeline } from "./editor/modules/render-pipeline.js";
+    import { setupFlowLinkController } from "./editor/modules/flow-link-controller.js";
     import { drawFlowStartMarker, drawFlowEndMarker } from "./editor/modules/flow/draw-helpers.js";
+    import { setupFlowAnchorResolver } from "./editor/modules/flow/anchor-resolver.js";
+    import { setupInterScreenLinksRender } from "./editor/modules/flow/inter-screen-links-render.js";
     import { setupInputController } from "./editor/modules/input-controller.js";
     import { setupKeyboardController } from "./editor/modules/keyboard-controller.js";
     import { setupMobileGestures } from "./editor/modules/mobile-gestures.js";
@@ -2028,6 +2037,11 @@
     let expandManualCluster = (_r, _id, _dir) => false;
     let findShrinkCandidate = (_r, _z, _dir) => null;
     let shrinkManualCluster = (_r, _id, _dir) => false;
+    let rigHasSuspend = (_rig, _col) => false;
+    let rigHasLink = (_rig, _a, _b) => false;
+    let getRectRigData = (_r) => normalizeRigData(null);
+    let setRectRigData = (_r) => { };
+    let drawLoadIcon = (_c, _x, _y, _size, _opts = {}) => { };
     ({
       getManualClusters,
       manualClustersSignature,
@@ -2051,6 +2065,19 @@
       getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
       AREA_LIMIT_EPS
     }));
+    ({
+      rigHasSuspend,
+      rigHasLink,
+      getRectRigData,
+      setRectRigData,
+      drawLoadIcon
+    } = setupRigCore({
+      normalizeRigData,
+      sanitizeRectRigFramesToBounds: r => sanitizeRectRigFramesToBounds(r),
+      invalidateRectCache: (r, reason) => invalidateRectCache(r, reason),
+      LOAD_ICON_VIEWBOX,
+      LOAD_ICON_PATH_D
+    }));
     const clearFlowLockMemory = r => {
       if (!r || typeof r !== "object") return;
       try { delete r._flowLockRidToSig; } catch (_e) { r._flowLockRidToSig = {}; }
@@ -2068,22 +2095,6 @@
     };
     const isClusterEditMode = () => st.mode === "clusterEdit";
     const isRigEditMode = () => st.mode === "rigEdit";
-    const rigHasSuspend = (rig, col) => Array.isArray(rig && rig.suspends) && rig.suspends.includes(col);
-    const rigHasLink = (rig, a, b) => { const x = Math.min(a, b), y = Math.max(a, b); return Array.isArray(rig && rig.suspendLinks) && rig.suspendLinks.includes(`${x}-${y}`); };
-    const drawLoadIcon = (c, x, y, size, opts = {}) => {
-      if (!(size > 0)) return;
-      const stroke = opts.stroke || null, fill = opts.fill || null, lineWidth = Math.max(1, Number(opts.lineWidth) || 1), alpha = Math.max(0, Math.min(1, Number(opts.alpha) || 1));
-      c.save();
-      c.translate(x, y);
-      const s = size / LOAD_ICON_VIEWBOX;
-      c.scale(s, s);
-      c.translate(-LOAD_ICON_VIEWBOX / 2, -LOAD_ICON_VIEWBOX / 2);
-      c.globalAlpha *= alpha;
-      const p = new Path2D(LOAD_ICON_PATH_D);
-      if (fill) { c.fillStyle = fill; c.fill(p); }
-      if (stroke) { c.strokeStyle = stroke; c.lineWidth = lineWidth / s; c.stroke(p); }
-      c.restore();
-    };
     const maskCellKey = (ix, iy) => `${ix},${iy}`;
     const pointInPoly = (x, y, poly) => { let inside = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y; const inter = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-9) + xi); if (inter) inside = !inside } return inside };
     const isMaskMode = () => st.mode === "maskEdit";
@@ -3086,18 +3097,6 @@
       const cache = getRectCalcCache(r);
       if (cache) cache.flow = null;
     };
-    const getRectRigData = r => {
-      if (!r || typeof r !== "object") return normalizeRigData(null);
-      r.rig = normalizeRigData(r.rig);
-      sanitizeRectRigFramesToBounds(r);
-      return r.rig;
-    };
-    const setRectRigData = r => {
-      if (!r || typeof r !== "object") return;
-      r.rig = normalizeRigData(r.rig);
-      sanitizeRectRigFramesToBounds(r);
-      invalidateRectCache(r, "appearance");
-    };
     const applyFlowStartRouting = (ordered, routing, budget) => {
       if (!Array.isArray(ordered) || ordered.length < 2) return ordered;
       const cfg = (routing && typeof routing === "object") ? routing : {};
@@ -3607,559 +3606,42 @@
       }
     };
     const flowAnchorKey = a => `${Math.max(1, Math.round(Number(a && a.rectId) || 0))}:${Math.max(0, Math.round(Number(a && a.rid) || 0))}:${Math.max(0, Math.round(Number(a && a.cid) || 0))}:${String(a && a.kind || "").toLowerCase() === "end" ? "end" : "start"}`;
-    const findFlowAnchorByEndpoint = (() => {
-      let renderEpoch = -1;
-      let computedByKey = new Map();
-      let groupsByRectId = new Map();
-      const resetCacheIfNeeded = () => {
-        if (renderEpoch === flowDrawRenderEpoch) return;
-        renderEpoch = flowDrawRenderEpoch;
-        computedByKey = new Map();
-        groupsByRectId = new Map();
-      };
-      const getRectFlowGroups = rectId => {
-        if (groupsByRectId.has(rectId)) return groupsByRectId.get(rectId);
-        const rr = (Array.isArray(st.rects) ? st.rects : []).find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === rectId) || null;
-        if (!rr) { groupsByRectId.set(rectId, null); return null; }
-        const rt = getRectRuntime(rr, { withGroups: true }), groups = rt.groups;
-        const out = Array.isArray(groups) ? groups : [];
-        groupsByRectId.set(rectId, { rr, groups: out });
-        return groupsByRectId.get(rectId);
-      };
-      return ep => {
-        const k = flowAnchorKey(ep);
-        const direct = (Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : []).find(a => flowAnchorKey(a) === k) || null;
-        if (direct) return direct;
-        resetCacheIfNeeded();
-        if (computedByKey.has(k)) return computedByKey.get(k);
-        const rectId = Math.max(1, Math.round(Number(ep && ep.rectId) || 0));
-        const rid = Math.max(0, Math.round(Number(ep && ep.rid) || 0));
-        const kind = String(ep && ep.kind || "").toLowerCase() === "end" ? "end" : "start";
-        const cid = Math.max(0, Math.round(Number(ep && ep.cid) || 0));
-        const rec = getRectFlowGroups(rectId);
-        if (!rec || !rec.rr || !Array.isArray(rec.groups)) { computedByKey.set(k, null); return null; }
-        const g = rec.groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rid);
-        const pts = Array.isArray(g && g.points) ? g.points : [];
-        if (!pts.length) { computedByKey.set(k, null); return null; }
-        const p0 = kind === "end" ? pts[pts.length - 1] : pts[0];
-        const pcid = Math.max(0, Math.round(Number(p0 && p0.cid) || 0));
-        if (pcid !== cid) { computedByKey.set(k, null); return null; }
-        const split = getSplitFlowMarkerWorldPositions(rec.rr, pts);
-        const uv = { u: +p0.u || 0, v: +p0.v || 0 };
-        const w0 = rectUVToWorld(rec.rr, uv.u, uv.v);
-        const ww = (kind === "end" && split && split.end) ? split.end : ((kind === "start" && split && split.start) ? split.start : w0);
-        const out = { rectId, rid, cid, kind, x: ww.x, y: ww.y };
-        computedByKey.set(k, out);
-        return out;
-      };
-    })();
-    const pruneFlowLinks = () => {
-      const links = normalizeFlowLinks(st.flowLinks);
-      const valid = [];
-      const anchorSet = new Set((Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : []).map(flowAnchorKey));
-      for (const ln of links) {
-        if (!anchorSet.has(flowAnchorKey(ln.from))) continue;
-        if (!anchorSet.has(flowAnchorKey(ln.to))) continue;
-        valid.push(ln);
-      }
-      st.flowLinks = valid;
-    };
-    const flowLinkCheckDebugState = new Map();
-    const logCanLinkFlowAnchorsDebug = (a, b, ok, reason, extra = {}) => {
-      try {
-        const fromId = Math.max(1, Math.round(Number(a && a.rectId) || 0));
-        const toId = Math.max(1, Math.round(Number(b && b.rectId) || 0));
-        const key = `${fromId}>${toId}`;
-        const payload = {
-          ok: !!ok,
-          reason: String(reason || ""),
-          from: a ? { rectId: fromId, rid: Math.max(0, Math.round(Number(a.rid) || 0)), cid: Math.max(0, Math.round(Number(a.cid) || 0)), kind: String(a.kind || "") } : null,
-          to: b ? { rectId: toId, rid: Math.max(0, Math.round(Number(b.rid) || 0)), cid: Math.max(0, Math.round(Number(b.cid) || 0)), kind: String(b.kind || "") } : null,
-          ...extra
-        };
-        const sig = JSON.stringify(payload);
-        const now = Date.now();
-        const prev = flowLinkCheckDebugState.get(key);
-        if (prev && prev.sig === sig && (now - prev.ts) < 320) return;
-        flowLinkCheckDebugState.set(key, { sig, ts: now });
-        console.info("[canLinkFlowAnchors]", payload);
-      } catch (_e) { }
-    };
-    const canLinkFlowAnchors = (a, b) => {
-      if (!a || !b) { logCanLinkFlowAnchorsDebug(a, b, false, "missing_anchor"); return false; }
-      if (a.rectId === b.rectId) { logCanLinkFlowAnchorsDebug(a, b, false, "same_rect"); return false; }
-      if (a.kind !== "end" || b.kind !== "start") { logCanLinkFlowAnchorsDebug(a, b, false, "invalid_kinds"); return false; }
-      const byId = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [Math.max(1, Math.round(Number(r && r.id) || 0)), r]));
-      const ra = byId.get(Math.max(1, Math.round(Number(a.rectId) || 0))), rb = byId.get(Math.max(1, Math.round(Number(b.rectId) || 0)));
-      if (!ra || !rb) { logCanLinkFlowAnchorsDebug(a, b, false, "rect_not_found"); return false; }
-      const linksRaw = normalizeFlowLinks(st.flowLinks);
-      const groupsByRectId = new Map();
-      const endpointLiveCache = new Map();
-      const getRectGroups = rectId => {
-        if (groupsByRectId.has(rectId)) return groupsByRectId.get(rectId);
-        const rr = byId.get(rectId);
-        if (!rr) { groupsByRectId.set(rectId, null); return null; }
-        const rt = getRectRuntime(rr, { withGroups: true }), groups = rt.groups;
-        const out = Array.isArray(groups) ? groups : [];
-        groupsByRectId.set(rectId, out);
-        return out;
-      };
-      const isEndpointLive = ep => {
-        const key = flowAnchorKey(ep);
-        if (endpointLiveCache.has(key)) return endpointLiveCache.get(key);
-        const rectId = Math.max(1, Math.round(Number(ep && ep.rectId) || 0));
-        const rid = Math.max(0, Math.round(Number(ep && ep.rid) || 0));
-        const cid = Math.max(0, Math.round(Number(ep && ep.cid) || 0));
-        const kind = String(ep && ep.kind || "").toLowerCase() === "end" ? "end" : "start";
-        const groups = getRectGroups(rectId);
-        const g = Array.isArray(groups) ? groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rid) : null;
-        const pts = Array.isArray(g && g.points) ? g.points : [];
-        if (!pts.length) { endpointLiveCache.set(key, false); return false; }
-        const p = kind === "end" ? pts[pts.length - 1] : pts[0];
-        const ok = Math.max(0, Math.round(Number(p && p.cid) || 0)) === cid;
-        endpointLiveCache.set(key, ok);
-        return ok;
-      };
-      const links = linksRaw.filter(ln => isEndpointLive(ln && ln.from) && isEndpointLive(ln && ln.to));
-      const fromRectId = Math.max(1, Math.round(Number(a.rectId) || 0)), toRectId = Math.max(1, Math.round(Number(b.rectId) || 0));
-      const fromAnchorKey = flowAnchorKey(a), toAnchorKey = flowAnchorKey(b);
-      for (const ln of links) {
-        const lkFrom = flowAnchorKey(ln && ln.from), lkTo = flowAnchorKey(ln && ln.to);
-        if (lkTo === toAnchorKey && lkFrom !== fromAnchorKey) {
-          logCanLinkFlowAnchorsDebug(a, b, false, "start_already_linked", {
-            existingFrom: ln && ln.from ? { rectId: ln.from.rectId, rid: ln.from.rid, cid: ln.from.cid, kind: ln.from.kind } : null,
-            existingTo: ln && ln.to ? { rectId: ln.to.rectId, rid: ln.to.rid, cid: ln.to.cid, kind: ln.to.kind } : null
-          });
-          return false;
-        }
-        if (lkFrom === fromAnchorKey && lkTo !== toAnchorKey) {
-          logCanLinkFlowAnchorsDebug(a, b, false, "end_already_linked", {
-            existingFrom: ln && ln.from ? { rectId: ln.from.rectId, rid: ln.from.rid, cid: ln.from.cid, kind: ln.from.kind } : null,
-            existingTo: ln && ln.to ? { rectId: ln.to.rectId, rid: ln.to.rid, cid: ln.to.cid, kind: ln.to.kind } : null
-          });
-          return false;
-        }
-      }
-      const edgeSet = new Set();
-      const outAdj = new Map(), undirAdj = new Map();
-      const addDir = (u, v) => {
-        const arr = outAdj.get(u) || [];
-        arr.push(v);
-        outAdj.set(u, arr);
-      };
-      const addUndir = (u, v) => {
-        const ua = undirAdj.get(u) || [];
-        ua.push(v);
-        undirAdj.set(u, ua);
-        const va = undirAdj.get(v) || [];
-        va.push(u);
-        undirAdj.set(v, va);
-      };
-      for (const ln of links) {
-        const u = Math.max(1, Math.round(Number(ln && ln.from && ln.from.rectId) || 0));
-        const v = Math.max(1, Math.round(Number(ln && ln.to && ln.to.rectId) || 0));
-        if (!u || !v) continue;
-        const k = `${u}>${v}`;
-        if (edgeSet.has(k)) continue;
-        edgeSet.add(k);
-        addDir(u, v);
-        addUndir(u, v);
-      }
-      if (!edgeSet.has(`${fromRectId}>${toRectId}`)) {
-        addDir(fromRectId, toRectId);
-        addUndir(fromRectId, toRectId);
-      }
-      const wouldMakeCycle = () => {
-        if (fromRectId === toRectId) return true;
-        const q = [toRectId], seen = new Set([toRectId]);
-        while (q.length) {
-          const u = q.shift();
-          if (u === fromRectId) return true;
-          const next = outAdj.get(u) || [];
-          for (const v of next) {
-            if (seen.has(v)) continue;
-            seen.add(v);
-            q.push(v);
-          }
-        }
-        return false;
-      };
-      const cycle = wouldMakeCycle();
-      if (cycle) { logCanLinkFlowAnchorsDebug(a, b, false, "cycle_detected", { fromRectId, toRectId }); return false; }
-      const regionNodeKey = (rectId, rid) => `${Math.max(1, Math.round(Number(rectId) || 0))}:${Math.max(0, Math.round(Number(rid) || 0))}`;
-      const parseRegionNodeKey = key => {
-        const p = String(key || "").split(":");
-        return { rectId: Math.max(1, Math.round(Number(p[0]) || 0)), rid: Math.max(0, Math.round(Number(p[1]) || 0)) };
-      };
-      const endpointNodeKey = ep => regionNodeKey(ep && ep.rectId, ep && ep.rid);
-      const nodeMetaMap = new Map();
-      const rememberNodeMeta = ep => {
-        if (!ep) return;
-        const key = endpointNodeKey(ep);
-        const rectId = Math.max(1, Math.round(Number(ep.rectId) || 0));
-        const rid = Math.max(0, Math.round(Number(ep.rid) || 0));
-        const cidRaw = Number(ep.cid);
-        const cid = Number.isFinite(cidRaw) ? Math.max(0, Math.round(cidRaw)) : null;
-        const prev = nodeMetaMap.get(key);
-        if (!prev) {
-          nodeMetaMap.set(key, { rectId, rid, cid });
-          return;
-        }
-        if (prev.cid == null && cid != null) prev.cid = cid;
-      };
-      for (const ln of links) {
-        rememberNodeMeta(ln && ln.from);
-        rememberNodeMeta(ln && ln.to);
-      }
-      rememberNodeMeta(a);
-      rememberNodeMeta(b);
-      const regionAdj = new Map();
-      const addRegionEdge = (k1, k2) => {
-        if (!k1 || !k2 || k1 === k2) return;
-        const a1 = regionAdj.get(k1) || [];
-        a1.push(k2);
-        regionAdj.set(k1, a1);
-        const a2 = regionAdj.get(k2) || [];
-        a2.push(k1);
-        regionAdj.set(k2, a2);
-      };
-      for (const ln of links) addRegionEdge(endpointNodeKey(ln && ln.from), endpointNodeKey(ln && ln.to));
-      const fromNode = endpointNodeKey(a), toNode = endpointNodeKey(b);
-      addRegionEdge(fromNode, toNode);
-      const chainNodeSet = new Set([fromNode]);
-      const queue = [fromNode];
-      while (queue.length) {
-        const curNode = queue.shift();
-        const next = regionAdj.get(curNode) || [];
-        for (const v of next) {
-          if (chainNodeSet.has(v)) continue;
-          chainNodeSet.add(v);
-          queue.push(v);
-        }
-      }
-      if (!chainNodeSet.has(toNode)) { logCanLinkFlowAnchorsDebug(a, b, false, "region_chain_disconnected", { fromNode, toNode }); return false; }
-      const chainEdges = [];
-      for (const ln of links) {
-        const fk = endpointNodeKey(ln && ln.from), tk = endpointNodeKey(ln && ln.to);
-        if (!chainNodeSet.has(fk) || !chainNodeSet.has(tk)) continue;
-        chainEdges.push({ from: fk, to: tk });
-      }
-      chainEdges.push({ from: fromNode, to: toNode, candidate: true });
-      const rectRidMap = new Map();
-      const chainIds = new Set();
-      for (const nk of chainNodeSet) {
-        const m = nodeMetaMap.get(nk) || parseRegionNodeKey(nk);
-        const set = rectRidMap.get(m.rectId) || new Set();
-        set.add(m.rid);
-        rectRidMap.set(m.rectId, set);
-        chainIds.add(m.rectId);
-      }
-      const regionBBoxCache = new Map();
-      const getRegionBBoxLocalPx = (rr, rid) => {
-        const rectId = Math.max(1, Math.round(Number(rr && rr.id) || 0)), rg = Math.max(0, Math.round(Number(rid) || 0));
-        const key = `${rectId}:${rg}`;
-        if (regionBBoxCache.has(key)) return regionBBoxCache.get(key);
-        const cx = drawCellX(rr), cy = drawCellY(rr);
-        const rt = getRectRuntime(rr, { withGroups: true }), groups = rt.groups, g = (Array.isArray(groups) ? groups : []).find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg);
-        if (!g || !Array.isArray(g.points) || !g.points.length) { regionBBoxCache.set(key, null); return null; }
-        let minU = Infinity, minV = Infinity, maxU = -Infinity, maxV = -Infinity;
-        for (const p of g.points) {
-          const u = +p.u || 0, v = +p.v || 0, bw = Math.max(1, Number(p && p.bw) || cx), bh = Math.max(1, Number(p && p.bh) || cy);
-          minU = Math.min(minU, u - bw / 2); maxU = Math.max(maxU, u + bw / 2);
-          minV = Math.min(minV, v - bh / 2); maxV = Math.max(maxV, v + bh / 2);
-        }
-        if (!(Number.isFinite(minU) && Number.isFinite(minV) && Number.isFinite(maxU) && Number.isFinite(maxV) && maxU > minU && maxV > minV)) { regionBBoxCache.set(key, null); return null; }
-        const out = { minU, minV, maxU, maxV, w: Math.max(1, maxU - minU), h: Math.max(1, maxV - minV) };
-        regionBBoxCache.set(key, out);
-        return out;
-      };
-      const compBBoxCache = new Map();
-      const getCompBBoxLocalPx = (rr, cid) => {
-        const rectId = Math.max(1, Math.round(Number(rr && rr.id) || 0)), compId = Math.max(0, Math.round(Number(cid) || 0));
-        const key = `${rectId}:${compId}`;
-        if (compBBoxCache.has(key)) return compBBoxCache.get(key);
-        const cx = drawCellX(rr), cy = drawCellY(rr), topo = getCellTopologyCached(rr, cx, cy);
-        const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1)), rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
-        let minU = Infinity, minV = Infinity, maxU = -Infinity, maxV = -Infinity;
-        for (let y = 0; y < rows; y++) {
-          for (let x = 0; x < cols; x++) {
-            const idx = y * cols + x, c = Math.max(0, Math.round(Number(topo && Array.isArray(topo.comp) ? topo.comp[idx] : 0) || 0));
-            if (c !== compId) continue;
-            const u1 = x * cx, v1 = y * cy, u2 = Math.min(rr.width, (x + 1) * cx), v2 = Math.min(rr.height, (y + 1) * cy);
-            minU = Math.min(minU, u1); minV = Math.min(minV, v1);
-            maxU = Math.max(maxU, u2); maxV = Math.max(maxV, v2);
-          }
-        }
-        if (!(Number.isFinite(minU) && Number.isFinite(minV) && Number.isFinite(maxU) && Number.isFinite(maxV) && maxU > minU && maxV > minV)) { compBBoxCache.set(key, null); return null; }
-        const out = { minU, minV, maxU, maxV, w: Math.max(1, maxU - minU), h: Math.max(1, maxV - minV) };
-        compBBoxCache.set(key, out);
-        return out;
-      };
-      const normalizedRects = [];
-      const regionFallbackRects = [];
-      for (const nk of chainNodeSet) {
-        const nm = nodeMetaMap.get(nk) || parseRegionNodeKey(nk);
-        const rr = byId.get(nm.rectId);
-        if (!rr) continue;
-        let bb = getRegionBBoxLocalPx(rr, nm.rid);
-        let source = "region";
-        if (!bb && nm.cid != null) {
-          bb = getCompBBoxLocalPx(rr, nm.cid);
-          source = "component";
-        }
-        if (!bb) {
-          const rb = rectAABBMasked(rr);
-          bb = { minU: 0, minV: 0, maxU: Math.max(1, rb.maxX - rb.minX), maxV: Math.max(1, rb.maxY - rb.minY), w: Math.max(1, rb.maxX - rb.minX), h: Math.max(1, rb.maxY - rb.minY) };
-          source = "rect";
-          regionFallbackRects.push({ rectId: nm.rectId, rid: nm.rid, node: nk, source });
-        }
-        const w = Math.max(1, bb.w), h = Math.max(1, bb.h);
-        const scalePx = Math.max(1, Number(st.globalScale) || Number(rr && rr.scale) || 256);
-        const areaM2Px = Math.max(1, Number(rr && rr.areaM2Px) || 65536);
-        const k = Math.sqrt(areaM2Px) / scalePx;
-        normalizedRects.push({ id: nk, rectId: nm.rectId, rid: nm.rid, source, w: Math.max(1e-6, w * k), h: Math.max(1e-6, h * k) });
-      }
-      if (!normalizedRects.length) { logCanLinkFlowAnchorsDebug(a, b, false, "empty_chain_area", { chainIds: [...chainIds] }); return false; }
-      const packRectsCompact = rects => {
-        const src = Array.isArray(rects) ? rects : [];
-        if (!src.length) return { area: 0, width: 0, height: 0 };
-        if (src.length === 1) return { area: src[0].w * src[0].h, width: src[0].w, height: src[0].h };
-        const sumArea = src.reduce((a0, r0) => a0 + Math.max(1e-6, r0.w * r0.h), 0);
-        const sumW = src.reduce((a0, r0) => a0 + Math.max(r0.w, r0.h), 0);
-        const maxSide = src.reduce((m0, r0) => Math.max(m0, r0.w, r0.h), 0);
-        const candSet = new Set([maxSide, Math.sqrt(sumArea), sumW, sumW / 2, sumW / 3, sumW / 4]);
-        for (const r0 of src) { candSet.add(r0.w); candSet.add(r0.h); }
-        const widths = [...candSet].map(v => Math.max(maxSide, Number(v) || maxSide)).filter(v => Number.isFinite(v) && v > 0).sort((a0, b0) => a0 - b0);
-        const sortedVariants = [
-          src.slice().sort((a0, b0) => Math.max(b0.w, b0.h) - Math.max(a0.w, a0.h)),
-          src.slice().sort((a0, b0) => (b0.w * b0.h) - (a0.w * a0.h)),
-          src.slice().sort((a0, b0) => b0.w - a0.w)
-        ];
-        const placeShelf = (items, limitW, allowRotate) => {
-          let x = 0, y = 0, rowH = 0, maxX = 0;
-          for (const it of items) {
-            const vars = allowRotate ? [{ w: it.w, h: it.h }, { w: it.h, h: it.w }] : [{ w: it.w, h: it.h }];
-            let choice = vars[0], fitChoice = null;
-            for (const v of vars) {
-              if (x + v.w <= limitW + 1e-9) {
-                const score = Math.max(rowH, v.h) * 1e6 + v.w;
-                if (!fitChoice || score < fitChoice.score) fitChoice = { ...v, score };
-              }
-            }
-            if (fitChoice) choice = fitChoice;
-            else if (allowRotate && vars.length > 1 && vars[1].w < vars[0].w) choice = vars[1];
-            if (x > 0 && x + choice.w > limitW + 1e-9) {
-              y += rowH;
-              x = 0;
-              rowH = 0;
-            }
-            x += choice.w;
-            rowH = Math.max(rowH, choice.h);
-            maxX = Math.max(maxX, x);
-          }
-          const totalH = y + rowH;
-          return { area: maxX * totalH, width: maxX, height: totalH };
-        };
-        let best = { area: Infinity, width: 0, height: 0 };
-        for (const wLim of widths) {
-          for (const items of sortedVariants) {
-            const a = placeShelf(items, wLim, false);
-            if (a.area < best.area) best = a;
-            const b = placeShelf(items, wLim, true);
-            if (b.area < best.area) best = b;
-          }
-        }
-        return best.area < Infinity ? best : { area: sumArea, width: Math.sqrt(sumArea), height: Math.sqrt(sumArea) };
-      };
-      const packed = packRectsCompact(normalizedRects);
-      const chainArea = Math.max(0, Number(packed && packed.area) || 0);
-      const allowed = 655360 + AREA_LIMIT_EPS;
-      const ok = chainArea <= allowed;
-      logCanLinkFlowAnchorsDebug(a, b, ok, ok ? "ok" : "chain_area_limit", {
-        chainIds: [...chainIds].sort((x, y) => x - y),
-        chainNodeCount: chainNodeSet.size,
-        chainNodes: [...chainNodeSet].sort(),
-        chainEdges,
-        chainRegionIds: [...rectRidMap.entries()].map(([rectId, set]) => ({ rectId, regions: [...set].sort((x, y) => x - y) })).sort((a0, b0) => a0.rectId - b0.rectId),
-        regionFallbackRects,
-        normalizedRects: normalizedRects.map(it => ({ id: it.id, rectId: it.rectId, rid: it.rid, source: it.source, w: Math.round(it.w * 1000) / 1000, h: Math.round(it.h * 1000) / 1000 })),
-        chainArea: Math.round(chainArea * 1000) / 1000,
-        packedW: Math.round((packed && packed.width || 0) * 1000) / 1000,
-        packedH: Math.round((packed && packed.height || 0) * 1000) / 1000,
-        chainMaxAllowed: 655360,
-        allowed: Math.round(allowed * 1000) / 1000,
-        linkCount: links.length,
-        linkCountRaw: linksRaw.length,
-        staleLinkCount: Math.max(0, linksRaw.length - links.length)
-      });
-      return ok;
-    };
-    const toggleFlowLinkBetween = (a, b) => {
-      if (!canLinkFlowAnchors(a, b)) return false;
-      const link = { from: { rectId: a.rectId, rid: a.rid, cid: a.cid, kind: "end" }, to: { rectId: b.rectId, rid: b.rid, cid: b.cid, kind: "start" } };
-      const key = `${flowAnchorKey(link.from)}>${flowAnchorKey(link.to)}`;
-      const set = normalizeFlowLinks(st.flowLinks);
-      const idx = set.findIndex(it => `${flowAnchorKey(it.from)}>${flowAnchorKey(it.to)}` === key);
-      if (idx >= 0) set.splice(idx, 1);
-      else set.push(link);
-      st.flowLinks = set;
-      return true;
-    };
-    const addFlowLinkBetween = (a, b) => {
-      if (!canLinkFlowAnchors(a, b)) return false;
-      const link = { from: { rectId: a.rectId, rid: a.rid, cid: a.cid, kind: "end" }, to: { rectId: b.rectId, rid: b.rid, cid: b.cid, kind: "start" } };
-      const key = `${flowAnchorKey(link.from)}>${flowAnchorKey(link.to)}`;
-      const set = normalizeFlowLinks(st.flowLinks);
-      if (set.some(it => `${flowAnchorKey(it.from)}>${flowAnchorKey(it.to)}` === key)) return false;
-      set.push(link);
-      st.flowLinks = set;
-      return true;
-    };
-    const sampleBezier = (p0, p1, p2, p3, t) => {
-      const u = 1 - t;
-      return {
-        x: (u * u * u) * p0.x + 3 * (u * u) * t * p1.x + 3 * u * (t * t) * p2.x + (t * t * t) * p3.x,
-        y: (u * u * u) * p0.y + 3 * (u * u) * t * p1.y + 3 * u * (t * t) * p2.y + (t * t * t) * p3.y
-      };
-    };
-    const drawFlowLinkArrow = (c, tail, head, color, z = 1) => {
-      const dx = (+head.x || 0) - (+tail.x || 0), dy = (+head.y || 0) - (+tail.y || 0), len = Math.hypot(dx, dy);
-      if (len <= 1e-6) return;
-      const ux = dx / len, uy = dy / len;
-      const size = Math.max(6, 12 / Math.max(0.3, z || 1));
-      const halfW = size * 0.48;
-      const bx = (+head.x || 0) - ux * size, by = (+head.y || 0) - uy * size;
-      const nx = -uy, ny = ux;
-      c.save();
-      c.fillStyle = color;
-      c.strokeStyle = "rgba(0,0,0,.55)";
-      c.lineWidth = Math.max(0.8, 1 / Math.max(0.3, z || 1));
-      c.beginPath();
-      c.moveTo(+head.x || 0, +head.y || 0);
-      c.lineTo(bx + nx * halfW, by + ny * halfW);
-      c.lineTo(bx - nx * halfW, by - ny * halfW);
-      c.closePath();
-      c.fill();
-      c.stroke();
-      c.restore();
-    };
-    const findFlowLinkAtPoint = (wx, wy) => {
-      const segs = Array.isArray(st.flowLinkSegments) ? st.flowLinkSegments : [];
-      const tol = Math.max(10, 16 / Math.max(0.2, st.zoom || 1));
-      let best = null, bestD = Infinity;
-      for (const s of segs) {
-        const d = distToSegment(wx, wy, s.a.x, s.a.y, s.b.x, s.b.y);
-        if (d < bestD) { bestD = d; best = s; }
-      }
-      return (best && bestD <= tol) ? best : null;
-    };
-    const findFlowLinkAnchorAtPoint = (wx, wy, kind = "") => {
-      const pts = Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : [];
-      const tol = Math.max(6, 9 / Math.max(0.35, st.zoom || 1));
-      const kindNorm = String(kind || "").toLowerCase();
-      let best = null, bestD = Infinity;
-      for (const p of pts) {
-        if (kindNorm && String(p && p.kind || "").toLowerCase() !== kindNorm) continue;
-        const d = Math.hypot((+p.x || 0) - wx, (+p.y || 0) - wy);
-        if (d < bestD) { bestD = d; best = p; }
-      }
-      return (best && bestD <= tol) ? best : null;
-    };
-    const updateFlowLinkDragTarget = (wx, wy) => {
-      const drag = st.flowLinkDrag;
-      if (!drag || !drag.from) return;
-      drag.x = wx;
-      drag.y = wy;
-      const target = findFlowLinkAnchorAtPoint(wx, wy, "start");
-      drag.target = target || null;
-      drag.canLink = !!(target && canLinkFlowAnchors(drag.from, target));
-    };
-    const drawInterScreenFlowLinks = (c, force = false) => {
-      if (isCellEditMode() || isRigEditMode()) return;
-      if (!force && normalizeViewMode(st.viewMode) !== "install" && st.mode !== "flowEdit") return;
-      const links = normalizeFlowLinks(st.flowLinks);
-      st.flowLinkSegments = [];
-      const hoverSegKey = st.flowLinkHover && st.flowLinkHover.key ? String(st.flowLinkHover.key) : "";
-      const linkDrag = st.mode === "flowEdit" ? st.flowLinkDrag : null;
-      const dragTargetKey = (linkDrag && linkDrag.target) ? flowAnchorKey(linkDrag.target) : "";
-      for (const ln of links) {
-        const a = findFlowAnchorByEndpoint(ln.from), b = findFlowAnchorByEndpoint(ln.to);
-        if (!a || !b) continue;
-        const key = `${flowAnchorKey(ln.from)}>${flowAnchorKey(ln.to)}`;
-        const dx = b.x - a.x, dy = b.y - a.y, len = Math.max(20, Math.hypot(dx, dy));
-        const sag = Math.max(8, Math.min(120, len * 0.18));
-        const c1 = { x: a.x + dx * 0.25, y: a.y + dy * 0.25 + sag }, c2 = { x: a.x + dx * 0.75, y: a.y + dy * 0.75 + sag };
-        const strokeColor = (key === hoverSegKey) ? "rgba(255,99,99,.98)" : "rgba(255,193,7,.95)";
-        const pts = [];
-        let prev = { x: a.x, y: a.y };
-        for (let i = 1; i <= 18; i++) {
-          const p = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, i / 18);
-          st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
-          pts.push(p);
-          prev = p;
-        }
-        c.save();
-        const baseW = Math.max(1.2, 2.2 / Math.max(0.2, st.zoom || 1));
-        c.strokeStyle = "rgba(12,16,22,.92)";
-        c.lineWidth = baseW + Math.max(1.2, 1.8 / Math.max(0.25, st.zoom || 1));
-        c.beginPath();
-        c.moveTo(a.x, a.y);
-        for (const p of pts) c.lineTo(p.x, p.y);
-        c.stroke();
-        c.strokeStyle = strokeColor;
-        c.lineWidth = baseW;
-        c.beginPath();
-        c.moveTo(a.x, a.y);
-        for (const p of pts) c.lineTo(p.x, p.y);
-        c.stroke();
-        c.restore();
-        const t0 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.48);
-        const t1 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.52);
-        drawFlowLinkArrow(c, t0, t1, strokeColor, st.zoom || 1);
-      }
-      if (linkDrag && linkDrag.from) {
-        const a = linkDrag.from, b = { x: +linkDrag.x || 0, y: +linkDrag.y || 0 };
-        const dx = b.x - a.x, dy = b.y - a.y, len = Math.max(20, Math.hypot(dx, dy));
-        const sag = Math.max(8, Math.min(120, len * 0.18));
-        const c1 = { x: a.x + dx * 0.25, y: a.y + dy * 0.25 + sag }, c2 = { x: a.x + dx * 0.75, y: a.y + dy * 0.75 + sag };
-        c.save();
-        const previewColor = linkDrag.canLink ? "rgba(255,193,7,.98)" : "rgba(255,99,99,.98)";
-        const previewW = Math.max(1.4, 2.4 / Math.max(0.2, st.zoom || 1));
-        c.setLineDash([7 / Math.max(0.2, st.zoom || 1), 5 / Math.max(0.2, st.zoom || 1)]);
-        c.strokeStyle = "rgba(12,16,22,.92)";
-        c.lineWidth = previewW + Math.max(1.2, 1.8 / Math.max(0.25, st.zoom || 1));
-        c.beginPath();
-        c.moveTo(a.x, a.y);
-        c.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y);
-        c.stroke();
-        c.strokeStyle = previewColor;
-        c.lineWidth = previewW;
-        c.beginPath();
-        c.moveTo(a.x, a.y);
-        c.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y);
-        c.stroke();
-        c.setLineDash([]);
-        c.restore();
-        const t0 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.48);
-        const t1 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.52);
-        drawFlowLinkArrow(c, t0, t1, previewColor, st.zoom || 1);
-      }
-      if (st.mode === "flowEdit") {
-        for (const a of st.flowLinkAnchors) {
-          const isStart = a.kind === "start", k = flowAnchorKey(a), isDragTarget = (dragTargetKey && dragTargetKey === k);
-          c.save();
-          c.fillStyle = isStart ? "rgba(64,190,255,.92)" : "rgba(255,170,64,.92)";
-          if (isDragTarget) c.fillStyle = linkDrag && linkDrag.canLink ? "rgba(255,193,7,.96)" : "rgba(255,99,99,.96)";
-          c.strokeStyle = "rgba(0,0,0,.75)";
-          c.lineWidth = Math.max(1, 1.2 / Math.max(0.2, st.zoom || 1));
-          c.beginPath();
-          c.arc(a.x, a.y, Math.max(4, 6 / Math.max(0.6, st.zoom || 1)), 0, Math.PI * 2);
-          c.fill();
-          c.stroke();
-          c.restore();
-        }
-      }
-    };
+    const { findFlowAnchorByEndpoint } = setupFlowAnchorResolver({
+      st,
+      flowAnchorKey,
+      getFlowDrawRenderEpoch: () => flowDrawRenderEpoch,
+      getRectRuntime: (r, opts) => getRectRuntime(r, opts),
+      getSplitFlowMarkerWorldPositions: (r, pts) => getSplitFlowMarkerWorldPositions(r, pts),
+      rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v)
+    });
+    const {
+      pruneFlowLinks,
+      canLinkFlowAnchors,
+      toggleFlowLinkBetween,
+      addFlowLinkBetween,
+      findFlowLinkAtPoint,
+      findFlowLinkAnchorAtPoint,
+      updateFlowLinkDragTarget
+    } = setupFlowLinkController({
+      st,
+      normalizeFlowLinks,
+      flowAnchorKey,
+      getRectRuntime: (r, opts) => getRectRuntime(r, opts),
+      drawCellX: r => drawCellX(r),
+      drawCellY: r => drawCellY(r),
+      getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+      rectAABBMasked: r => rectAABBMasked(r),
+      AREA_LIMIT_EPS
+    });
+    const { drawInterScreenFlowLinks } = setupInterScreenLinksRender({
+      st,
+      isCellEditMode: () => isCellEditMode(),
+      isRigEditMode: () => isRigEditMode(),
+      normalizeViewMode,
+      normalizeFlowLinks,
+      flowAnchorKey,
+      findFlowAnchorByEndpoint: ep => findFlowAnchorByEndpoint(ep)
+    });
     const findFlowStartHandle = (wx, wy, rid = null) => {
       const pts = Array.isArray(st.flowStartHandles) ? st.flowStartHandles : [], maxDist = Math.min(20, Math.max(11, 18 / Math.max(0.2, st.zoom || 1)));
       let best = null, bestD = Infinity;
@@ -5937,6 +5419,9 @@
     let historyCommitIfChanged = () => { };
     let undoHistory = () => { };
     let redoHistory = () => { };
+    let resetHistoryUi = () => { };
+    let applyProjectData = (_d, _opts) => { };
+    let restoreAutoSave = () => false;
     const {
       bindClick,
       bindEvent,
@@ -6267,111 +5752,43 @@
       restorePersistedRectCache(it, r && r.projectCache);
       return it;
     };
-    const applyLoadedProjectSettings = d => {
-      if (d && d.camera) {
-        st.camX = +d.camera.x || 0;
-        st.camY = +d.camera.y || 0;
-        st.zoom = zc(+d.camera.zoom || 1);
-      }
-      if (d && d.settings) {
-        st.textSize = Math.max(6, evalExpr(d.settings.textSize, 12));
-        st.fontFamily = String(d.settings.fontFamily || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial";
-        st.globalScale = Math.max(1, Math.round(evalExpr(d.settings.scale, 256)));
-        st.viewMode = normalizeViewMode(d.settings.viewMode);
-        st.lockAll = !!(d.settings && d.settings.lockAll);
-        const ss = (d.settings && d.settings.snap) || {};
-        st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false };
-      } else {
-        st.globalScale = 256;
-        st.viewMode = "art";
-        st.lockAll = false;
-        st.snap = { grid: false, objects: true, centers: true, gaps: true };
-      }
-      st.projectName = String((d && d.projectName) || "project").trim() || "project";
-      st.saveLocationId = setGlobalSaveLocationId((d && d.saveLocationId) || getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
-    };
-    const resetHistoryUi = () => {
-      if (st.history.suspend) return;
-      st.history.undo = [];
-      st.history.redo = [];
-      initHistoryCurrent();
-      if (el.undo) el.undo.disabled = true;
-      if (el.redo) el.redo.disabled = true;
-    };
-    function applyProjectData(d, opts) {
-      resetCalcWorkers();
-      const o = (opts && typeof opts === "object") ? opts : {};
-      const syncTabSnapshot = o.syncTabSnapshot !== false;
-      const renderTabs = o.renderTabs !== false;
-      const doRender = o.render !== false;
-      applyLoadedProjectSettings(d);
-      const rs = Array.isArray(d && d.rectangles) ? d.rectangles : [];
-      const legacyAreaM2 = parseAreaM2PxInput(d && d.settings ? d.settings.areaM2Px : null, 65536);
-      st.rects = rs.map((r, i) => parseProjectRect(r, i, legacyAreaM2));
-      const hasGlobalScale = !!(d && d.settings && d.settings.scale != null && d.settings.scale !== "");
-      if (hasGlobalScale) {
-        const gs = Math.max(1, Math.round(Number(st.globalScale) || 256));
-        for (const rr of st.rects) {
-          rr.scale = gs;
-          pxFromMetric(rr);
-        }
-      }
-      st.flowLinks = normalizeFlowLinks(d && d.flowLinks);
-      for (const rr of st.rects) remapRectRigLoadsToBottomSeams(rr);
-      st.next = +(d && d.nextId) || (st.rects.reduce((m, r) => Math.max(m, r.id), 0) + 1);
-      resetTransientState(false);
-      updateViewModeUi();
-      updateLockAllUi();
-      const firstId = st.rects[0] ? st.rects[0].id : null;
-      if (firstId != null && st.lockAll) {
-        setSelection([], null);
-        syncProps();
-        listRects();
-      } else {
-        selRect(firstId);
-      }
-      if (syncTabSnapshot) syncActiveTabSnapshot();
-      if (renderTabs) renderProjectTabs();
-      resetHistoryUi();
-      if (doRender) render();
-    }
-    function restoreAutoSave() {
-      try {
-        const rawTabs = lsGet(TABS_SAVE_KEY, "");
-        if (rawTabs) {
-          const parsed = JSON.parse(rawTabs);
-          if (parsed && Array.isArray(parsed.tabs) && parsed.tabs.length) {
-            if (isMobileTabStorageMode()) {
-              const activeId = +parsed.activeTabId;
-              const src = parsed.tabs.find(t => (+t.id || 0) === activeId) || parsed.tabs[0];
-              const oneId = +((src && src.id) || 1) || 1;
-              st.tabs = [{ id: oneId, title: String(src && src.title || "Новый проект"), data: cloneProjectData(src && src.data || makeEmptyProjectData("Новый проект")) }];
-              st.nextTabId = Math.max(2, oneId + 1);
-              st.activeTabId = oneId;
-            } else {
-              st.tabs = parsed.tabs.map((t, i) => ({ id: +t.id || i + 1, title: String(t && t.title || "Новый проект"), data: cloneProjectData(t && t.data || makeEmptyProjectData("Новый проект")) }));
-              st.nextTabId = Math.max((+parsed.nextTabId || 1), st.tabs.reduce((m, t) => Math.max(m, t.id), 0) + 1);
-              st.activeTabId = st.tabs.some(t => t.id === +parsed.activeTabId) ? +parsed.activeTabId : st.tabs[0].id;
-            }
-            const active = getActiveTab();
-            loadProjectIntoActiveState(active && active.data || makeEmptyProjectData("Новый проект"));
-            renderProjectTabs();
-            return true;
-          }
-        }
-      } catch (_e) { }
-      try {
-        const rawSaved = lsGet(AUTO_SAVE_KEY, "");
-        if (!rawSaved) return false;
-        const data = JSON.parse(rawSaved);
-        st.tabs = [{ id: 1, title: String((data && data.projectName) || "Новый проект"), data: cloneProjectData(data) }];
-        st.nextTabId = 2;
-        st.activeTabId = 1;
-        loadProjectIntoActiveState(data);
-        renderProjectTabs();
-        return true;
-      } catch (_e) { return false }
-    }
+    ({
+      applyProjectData,
+      restoreAutoSave
+    } = setupProjectStateController({
+      st,
+      resetCalcWorkers: () => resetCalcWorkers(),
+      parseAreaM2PxInput: (input, fallback) => parseAreaM2PxInput(input, fallback),
+      parseProjectRect: (r, i, legacy) => parseProjectRect(r, i, legacy),
+      pxFromMetric: r => pxFromMetric(r),
+      normalizeFlowLinks,
+      remapRectRigLoadsToBottomSeams: r => remapRectRigLoadsToBottomSeams(r),
+      resetTransientState: full => resetTransientState(full),
+      updateViewModeUi: () => updateViewModeUi(),
+      updateLockAllUi: () => updateLockAllUi(),
+      setSelection: (ids, lead) => setSelection(ids, lead),
+      syncProps: () => syncProps(),
+      listRects: () => listRects(),
+      selRect: id => selRect(id),
+      syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
+      renderProjectTabs: () => renderProjectTabs(),
+      resetHistoryUi: () => resetHistoryUi(),
+      render: () => render(),
+      cloneProjectData: data => cloneProjectData(data),
+      makeEmptyProjectData: name => makeEmptyProjectData(name),
+      isMobileTabStorageMode: () => isMobileTabStorageMode(),
+      getActiveTab: () => getActiveTab(),
+      loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
+      lsGet,
+      TABS_SAVE_KEY,
+      AUTO_SAVE_KEY,
+      setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
+      getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
+      genSaveLocationId: name => genSaveLocationId(name),
+      zc: v => zc(v),
+      normalizeViewMode,
+      evalExpr
+    }));
     const isNoteRect = r => String((r && r.kind) || "").toLowerCase() === "note";
     const withNameSuffixBeforeGroup = (name, suffix) => {
       const src = String(name || "").trim() || "Rect";
@@ -6591,7 +6008,8 @@
       initHistoryCurrent,
       historyCommitIfChanged,
       undoHistory,
-      redoHistory
+      redoHistory,
+      resetHistoryUi
     } = setupHistoryController({
       st,
       el,
@@ -7620,12 +7038,42 @@
       if (st.dg.ref) drawDim(st.dg.ref, "#ffd77a", 0);
       drawDim(st.dg, "#71d7ff", 18);
     }
+    const renderPipeline = setupRenderPipeline({
+      ctx, st, cv, wrap,
+      getViewMetrics: () => getViewMetrics(),
+      s2w: (x, y) => s2w(x, y),
+      rectAABB: r => rectAABB(r),
+      getOrigin: () => getOrigin(),
+      isSelected: id => isSelected(id),
+      drawRect: (c, rr, sel, z, origin, opts) => drawRect(c, rr, sel, z, origin, opts),
+      drawInterScreenFlowLinks: c => drawInterScreenFlowLinks(c),
+      drawMaskOverlay: (c, z) => drawMaskOverlay(c, z),
+      drawCellEditOverlay: (c, z) => drawCellEditOverlay(c, z),
+      drawContentBounds: (c, z) => drawContentBounds(c, z),
+      drawGrid: () => drawGrid(),
+      drawGuides: () => drawGuides(),
+      drawDistanceGuide: () => drawDistanceGuide(),
+      updateNoteEditorOverlay: () => updateNoteEditorOverlay(),
+      selBoxBounds: box => selBoxBounds(box),
+      resetClusterHoverTransient: () => resetClusterHoverTransient(),
+      isClusterEditMode: () => isClusterEditMode()
+    });
     let renderRaf = 0;
     function renderNow() {
-      flowDrawRenderEpoch++; const r = window.devicePixelRatio || 1, vm = getViewMetrics(), fastPan = !!st.pan, tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching")), interactiveFast = !!(st.drag || st.draft || st.clusterDrag || st.flowDrag), flowEditActive = st.mode === "flowEdit", forceLowDetail = !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive)); st.flowEditPoints = []; st.flowStartHandles = []; st.flowDirButtons = []; st.flowLinkAnchors = []; st.flowLinkSegments = []; st.clusterHandles = []; if (!isClusterEditMode()) { resetClusterHoverTransient(); } flowPointIndexSrc = null; flowPointIndexMap = null; ctx.setTransform(r, 0, 0, r, 0, 0); ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight); drawGrid(); ctx.save(); ctx.translate(vm.centerX, vm.centerY); ctx.scale(st.zoom, st.zoom); ctx.translate(-st.camX, -st.camY);
-      const vw0 = s2w(0, 0), vw1 = s2w(vm.viewWidth, vm.viewHeight), vmargin = Math.max(48, 80 / Math.max(0.25, st.zoom)), viewMinX = Math.min(vw0.x, vw1.x) - vmargin, viewMinY = Math.min(vw0.y, vw1.y) - vmargin, viewMaxX = Math.max(vw0.x, vw1.x) + vmargin, viewMaxY = Math.max(vw0.y, vw1.y) + vmargin;
-      const origin = getOrigin(); for (let i = st.rects.length - 1; i >= 0; i--) { const rr = st.rects[i], bb = rectAABB(rr); if (bb.maxX < viewMinX || bb.minX > viewMaxX || bb.maxY < viewMinY || bb.minY > viewMaxY) continue; drawRect(ctx, rr, isSelected(rr.id), st.zoom, origin, { designerRender: true, forceLowDetail }) } drawInterScreenFlowLinks(ctx); if (st.draft) { const d = st.draft; ctx.strokeStyle = "#7fd4f8"; ctx.lineWidth = 1 / st.zoom; ctx.setLineDash([8 / st.zoom, 5 / st.zoom]); ctx.strokeRect(d.x, d.y, d.width, d.height); ctx.setLineDash([]) } if (st.selBox) { const b = selBoxBounds(st.selBox); ctx.save(); ctx.strokeStyle = "rgba(125,208,255,.95)"; ctx.fillStyle = "rgba(125,208,255,.12)"; ctx.lineWidth = Math.max(1, 1.2 / st.zoom); ctx.setLineDash([6 / st.zoom, 4 / st.zoom]); ctx.fillRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY); ctx.strokeRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY); ctx.restore(); } if (!(fastPan || tabSwitching || (interactiveFast && !flowEditActive))) { drawMaskOverlay(ctx, st.zoom); drawCellEditOverlay(ctx, st.zoom); drawContentBounds(ctx, st.zoom); }
-      ctx.restore(); drawGuides(); drawDistanceGuide(); el.zoomLabel.textContent = `${Math.round(st.zoom * 100)}%`; wrap.dataset.panning = st.pan ? "1" : "0"; updateNoteEditorOverlay()
+      flowDrawRenderEpoch++;
+      const fastPan = !!st.pan;
+      const tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching"));
+      const interactiveFast = !!(st.drag || st.draft || st.clusterDrag || st.flowDrag);
+      const flowEditActive = st.mode === "flowEdit";
+      const forceLowDetail = !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive));
+      renderPipeline.resetFrameTransient();
+      flowPointIndexSrc = null;
+      flowPointIndexMap = null;
+      renderPipeline.renderScene({
+        forceLowDetail,
+        skipHeavyOverlays: !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive))
+      });
+      el.zoomLabel.textContent = `${Math.round(st.zoom * 100)}%`;
     }
     function render(immediate = false) {
       if (immediate || typeof requestAnimationFrame !== "function") {
@@ -8938,6 +8386,13 @@
         bottomLoadByKg
       };
     };
+    const sampleBezier = (p0, p1, p2, p3, t) => {
+      const u = 1 - t;
+      return {
+        x: (u * u * u) * p0.x + 3 * (u * u) * t * p1.x + 3 * u * (t * t) * p2.x + (t * t * t) * p3.x,
+        y: (u * u * u) * p0.y + 3 * (u * u) * t * p1.y + 3 * u * (t * t) * p2.y + (t * t * t) * p3.y
+      };
+    };
     const estimateInterScreenCableLenPx = (a, b) => {
       if (!a || !b) return 0;
       const dx = (+b.x || 0) - (+a.x || 0), dy = (+b.y || 0) - (+a.y || 0), len = Math.max(20, Math.hypot(dx, dy));
@@ -9157,82 +8612,26 @@
         totalBlocks
       ].join("\n");
     };
-    const getExportFlowGroupsFromCache = r => {
-      if (normalizeDataFlow(r && r.dataFlow) === "none") return [];
-      const cache = getRectCalcCache(r);
-      if (!cache || !cache.flow || cache.flow.pending || !Array.isArray(cache.flow.value)) return [];
-      return cache.flow.value;
-    };
-    const canvasToBlob = (canvas, type = "image/png", quality) => new Promise(resolve => canvas.toBlob(resolve, type, quality));
-    const renderExportPngBlob = async (includeFlow) => {
-      if (!st.rects.length) return null;
-      await ensureFontReady();
-      let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9, startY = 0;
-      for (const r of st.rects) { const bb = rectAABBMasked(r); minX = Math.min(minX, bb.minX); minY = Math.min(minY, bb.minY); maxX = Math.max(maxX, bb.maxX); maxY = Math.max(maxY, bb.maxY);
-        const rig = getRectRigData(r), scalePx = Math.max(1, Number(r && r.scale) || 256), suspendH = Math.max(10, 0.1 * scalePx), ringD = Math.max(8, 0.1 * scalePx), suspends = Array.isArray(rig.suspends) ? rig.suspends : [];
-        if (suspends.length > 0)
-          startY = Math.max(startY, suspendH + ringD + 2.4);
-      }
-      const out = document.createElement("canvas"), w = Math.max(1, Math.ceil(maxX - minX)), h = Math.max(1, Math.ceil(maxY - minY));
-      out.width = w; out.height = h + startY;
-      const c = out.getContext("2d");
-      const prevFlowAnchors = st.flowLinkAnchors, prevFlowSegments = st.flowLinkSegments, prevFlowHover = st.flowLinkHover, prevFlowDrag = st.flowLinkDrag;
-      st.flowLinkAnchors = [];
-      st.flowLinkSegments = [];
-      st.flowLinkHover = null;
-      st.flowLinkDrag = null;
-      try {
-        for (let i = st.rects.length - 1; i >= 0; i--) {
-          const r = st.rects[i], er = { ...r, x: r.x - minX, y: r.y - minY + startY }, includeFlowRect = !!(includeFlow && normalizeDataFlow(r && r.dataFlow) !== "none"), flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(r) : [];
-          drawRect(c, er, false, 1, { x: 0, y: 0 }, { noCachedRegions: true, includeFlow: includeFlowRect, disableLod: true, flowGroupsOverride: flowGroups, viewModeOverride: includeFlow ? "install" : "art" });
-        }
-        if (includeFlow) drawInterScreenFlowLinks(c, true);
-      } finally {
-        st.flowLinkAnchors = prevFlowAnchors;
-        st.flowLinkSegments = prevFlowSegments;
-        st.flowLinkHover = prevFlowHover;
-        st.flowLinkDrag = prevFlowDrag;
-      }
-      const b = await canvasToBlob(out, "image/png");
-      if (!b) return null;
-      try {
-        return await embedProjectIntoPngBlob(b, buildProject(), PNG_PROJECT_META_KEY);
-      } catch (err) {
-        console.warn("PNG metadata export failed, saving plain PNG:", err);
-        return b;
-      }
-    };
-    const writeFileToDirectory = async (dirHandle, fileName, blob) => {
-      const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-    };
-    const showExportPackageMessage = text => showMessageModal(text, "Экспорт пакета");
-    const exportPackage = async () => {
-      if (!st.rects.length) { showExportPackageMessage("Нечего экспортировать"); return }
-      const [pngArt, pngFlow] = await Promise.all([renderExportPngBlob(false), renderExportPngBlob(true)]);
-      if (!pngArt || !pngFlow) { showExportPackageMessage("Ошибка экспорта"); return }
-      const specBlob = new Blob([buildFlowSpecText()], { type: "text/markdown;charset=utf-8" });
-      const baseName = projectFileBase();
-      const fileArt = `${baseName}.png`, fileFlow = `${baseName}-flow.png`, fileSpec = `${baseName}-flow.md`;
-      if (window.showDirectoryPicker) {
-        try {
-          const dirHandle = await window.showDirectoryPicker({ mode: "readwrite", id: setGlobalSaveLocationId(st.saveLocationId || getGlobalSaveLocationId()) });
-          await writeFileToDirectory(dirHandle, fileArt, pngArt);
-          await writeFileToDirectory(dirHandle, fileFlow, pngFlow);
-          await writeFileToDirectory(dirHandle, fileSpec, specBlob);
-          saveStatus.saved("Пакет экспортирован");
-          return;
-        } catch (err) {
-          if (err && err.name === "AbortError") return;
-          console.warn("showDirectoryPicker failed, fallback to save dialogs:", err);
-        }
-      }
-      await saveBlobWithSystemDialog(pngArt, fileArt, "image/png", ".png", "PNG images", st.saveLocationId);
-      await saveBlobWithSystemDialog(pngFlow, fileFlow, "image/png", ".png", "PNG images", st.saveLocationId);
-      await saveBlobWithSystemDialog(specBlob, fileSpec, "text/markdown", ".md", "Markdown files", st.saveLocationId);
-    };
+    const { exportPackage } = setupExportPackageController({
+      st,
+      ensureFontReady: () => ensureFontReady(),
+      rectAABBMasked: r => rectAABBMasked(r),
+      getRectRigData: r => getRectRigData(r),
+      normalizeDataFlow,
+      drawRect: (c, er, sel, z, origin, opts) => drawRect(c, er, sel, z, origin, opts),
+      drawInterScreenFlowLinks: (c, force) => drawInterScreenFlowLinks(c, force),
+      getRectCalcCache: r => getRectCalcCache(r),
+      embedProjectIntoPngBlob: (b, p, k) => embedProjectIntoPngBlob(b, p, k),
+      buildProject: () => buildProject(),
+      PNG_PROJECT_META_KEY,
+      projectFileBase: () => projectFileBase(),
+      setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
+      getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
+      saveStatus,
+      saveBlobWithSystemDialog: (...args) => saveBlobWithSystemDialog(...args),
+      buildFlowSpecText: () => buildFlowSpecText(),
+      showMessageModal: (text, title) => showMessageModal(text, title)
+    });
     bindClick(el.exp, async () => { await exportPackage() });
     setupUiBinders({
       st, el, themeMedia, overflowHiddenButtons,
@@ -9253,68 +8652,48 @@
       selRect, schedulePersist, getEditableSelectedRects, commitUiUpdate,
       bindWindowEvent
     });
-    setMode(st.mode);
-    st.themeMode = normalizeThemeMode(lsGet(THEME_MODE_KEY, st.themeMode) || st.themeMode);
-    st.saveLocationId = setGlobalSaveLocationId(st.saveLocationId || getGlobalSaveLocationId());
-    applyThemeMode(st.themeMode, false);
-    updateAppViewportHeight();
-    updateMobileDock();
-    updateToolbarOverflow();
-    saveStatus.idle();
-    const initProjectState = async () => {
-      let queryProjectData = null;
-      try {
-        queryProjectData = await getProjectDataFromQueryParam();
-      } catch (_e) {
-        showMessageModal("Параметр проекта в URL повреждён или не поддерживается");
-        queryProjectData = null;
-      }
-      let loaded = restoreAutoSave();
-      if (!loaded) {
-        const a = mk(-180, -90, 260, 180); a.name = "Main";
-        const b = mk(180, -30, 220, 160); b.name = "Side"; b.colorA = "#db8f37"; b.colorB = autoContrast(b.colorA);
-        st.rects.push(a, b); selRect(a.id); resize(); refreshPanels(); fit();
-      } else {
-        resize(); refreshPanels();
-      }
-      if (!st.tabs.length) {
-        st.tabs = [{ id: 1, title: (st.projectName || "Новый проект"), data: cloneProjectData(buildProject()) }];
-        st.activeTabId = 1;
-        st.nextTabId = 2;
-      }
-      if (queryProjectData && typeof queryProjectData === "object") {
-        const tabTitle = String((queryProjectData && queryProjectData.projectName) || "Новый проект").trim() || "Новый проект";
-        const nextTabId = Math.max((+st.nextTabId || 1), st.tabs.reduce((m, t) => Math.max(m, Number(t && t.id) || 0), 0) + 1);
-        st.nextTabId = nextTabId + 1;
-        st.tabs.push({ id: nextTabId, title: tabTitle, data: cloneProjectData(queryProjectData) });
-        st.activeTabId = nextTabId;
-        loadProjectIntoActiveState(queryProjectData);
-        fit();
-        // Ensure the tab title reflects normalized projectName from loaded data.
-        syncActiveTabSnapshot();
-        renderProjectTabs();
-        clearProjectQueryParamFromUrl();
-      }
-      initHistoryCurrent();
-      if (el.undo) el.undo.disabled = !st.history.undo.length;
-      if (el.redo) el.redo.disabled = !st.history.redo.length;
-      syncActiveTabSnapshot();
-      renderProjectTabs();
-      ensureFontReady().then(() => { render() }).catch(() => { });
-    };
+    const { initializeAppUi, initProjectState } = setupAppInitController({
+      st, el,
+      setMode: m => setMode(m),
+      normalizeThemeMode,
+      lsGet,
+      THEME_MODE_KEY,
+      setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
+      getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
+      applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
+      updateAppViewportHeight: () => updateAppViewportHeight(),
+      updateMobileDock: () => updateMobileDock(),
+      updateToolbarOverflow: () => updateToolbarOverflow(),
+      saveStatus,
+      getProjectDataFromQueryParam: () => getProjectDataFromQueryParam(),
+      showMessageModal: msg => showMessageModal(msg),
+      restoreAutoSave: () => restoreAutoSave(),
+      mk: (x, y, w, h) => mk(x, y, w, h),
+      autoContrast,
+      selRect: id => selRect(id),
+      resize: () => resize(),
+      refreshPanels: () => refreshPanels(),
+      fit: () => fit(),
+      cloneProjectData: data => cloneProjectData(data),
+      buildProject: () => buildProject(),
+      loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
+      syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
+      renderProjectTabs: () => renderProjectTabs(),
+      clearProjectQueryParamFromUrl: () => clearProjectQueryParamFromUrl(),
+      initHistoryCurrent: () => initHistoryCurrent(),
+      ensureFontReady: () => ensureFontReady(),
+      render: () => render()
+    });
+    initializeAppUi();
     initProjectState();
-    try {
-      window.ledMaskProjectCodec = {
-        version: PROJECT_QUERY_VERSION,
-        async toQueryValue() { return await encodeProjectToQueryValue(buildPortableProject()); },
-        async toUrl() {
-          const u = new URL(location.href);
-          u.searchParams.set(PROJECT_QUERY_PARAM, await encodeProjectToQueryValue(buildPortableProject()));
-          return u.toString();
-        },
-        async fromQueryValue(value) { return await decodeProjectFromQueryValue(value); }
-      };
-    } catch (_e) { }
+    const { attachProjectCodecBridge } = setupProjectCodecBridge({
+      PROJECT_QUERY_VERSION,
+      PROJECT_QUERY_PARAM,
+      encodeProjectToQueryValue: value => encodeProjectToQueryValue(value),
+      decodeProjectFromQueryValue: value => decodeProjectFromQueryValue(value),
+      buildPortableProject: () => buildPortableProject()
+    });
+    attachProjectCodecBridge();
   </script>
 </body>
 
