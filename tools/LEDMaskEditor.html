@@ -1517,6 +1517,7 @@
     import { setupToolModeController } from "./editor/modules/ui/tool-mode-controller.js";
     import { setupPropertiesSyncController } from "./editor/modules/ui/properties-sync-controller.js";
     import { setupDragSnapController } from "./editor/modules/ui/drag-snap-controller.js";
+    import { setupFlowPointerDownController } from "./editor/modules/ui/flow-pointerdown-controller.js";
     import { setupTransientStateController } from "./editor/modules/ui/transient-state-controller.js";
     import { setupSelectionController } from "./editor/modules/ui/selection-controller.js";
     import { setupSelectionLockController } from "./editor/modules/ui/selection-lock-controller.js";
@@ -5989,76 +5990,28 @@
       selectOnly: id => selectOnly(id),
       getEditableSelectedRects: () => getEditableSelectedRects()
     }));
-    const handleFlowEditPointerDown = p => {
-      const linkHit = findFlowLinkAtPoint(p.x, p.y);
-      if (linkHit && linkHit.link) {
-        const killKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
-        st.flowLinks = normalizeFlowLinks(st.flowLinks).filter(it => `${flowAnchorKey(it.from)}>${flowAnchorKey(it.to)}` !== killKey);
-        st.flowLinkPending = null;
-        st.flowLinkDrag = null;
-        st.flowLinkHover = null;
-        schedulePersist("project");
-        render();
-        return true;
-      }
-      const h = hit(p.x, p.y);
-      if (h && h.id === st.sel && !isRectLocked(h)) {
-        const startHandle = findFlowStartHandle(p.x, p.y);
-        if (startHandle) {
-          st.flowRegionRid = startHandle.rid;
-          st.flowDrag = { kind: "start", rid: startHandle.rid, fromIndex: 0, currentIndex: 0, cid: startHandle.cid };
-          syncProps();
-          render();
-          return true;
-        }
-        const dirBtn = findFlowDirectionButton(p.x, p.y);
-        if (dirBtn) {
-          st.flowRegionRid = dirBtn.rid;
-          const r = cur();
-          if (r) {
-            setFlowDirection(r, dirBtn.rid, dirBtn.dir, dirBtn.cid);
-            st.flowHover = null;
-            st.flowDirHover = dirBtn;
-            schedulePersist("project");
-            syncProps();
-          }
-          render();
-          return true;
-        }
-      }
-      const endAnchorHit = findFlowLinkAnchorAtPoint(p.x, p.y, "end");
-      if (endAnchorHit) {
-        st.flowLinkDrag = { from: { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end", x: endAnchorHit.x, y: endAnchorHit.y }, x: p.x, y: p.y, target: null, canLink: false };
-        updateFlowLinkDragTarget(p.x, p.y);
-        st.flowLinkPending = null;
-        render();
-        return true;
-      }
-      if (!h) {
-        st.flowLinkPending = null;
-        st.flowLinkDrag = null;
-        selRect(null);
-        render();
-        return true;
-      }
-      if (h.id !== st.sel) {
-        selRect(h.id);
-        render();
-        return true;
-      }
-      if (isRectLocked(h)) {
-        render();
-        return true;
-      }
-      const fp = findFlowEditPoint(p.x, p.y);
-      if (fp) {
-        st.flowRegionRid = fp.rid;
-        st.flowDrag = { rid: fp.rid, fromIndex: fp.index, currentIndex: fp.index, cid: fp.cid };
-        syncProps();
-      }
-      render();
-      return true;
-    };
+    let handleFlowEditPointerDown = (_p) => false;
+    ({
+      handleFlowEditPointerDown
+    } = setupFlowPointerDownController({
+      st,
+      render: () => render(),
+      hit: (x, y) => hit(x, y),
+      cur: () => cur(),
+      selRect: (id, opts) => selRect(id, opts),
+      syncProps: () => syncProps(),
+      schedulePersist: kind => schedulePersist(kind),
+      isRectLocked: r => isRectLocked(r),
+      normalizeFlowLinks,
+      flowAnchorKey: a => flowAnchorKey(a),
+      findFlowLinkAtPoint: (x, y) => findFlowLinkAtPoint(x, y),
+      findFlowStartHandle: (x, y) => findFlowStartHandle(x, y),
+      findFlowDirectionButton: (x, y) => findFlowDirectionButton(x, y),
+      setFlowDirection: (r, rid, dir, cid) => setFlowDirection(r, rid, dir, cid),
+      findFlowLinkAnchorAtPoint: (x, y, kind) => findFlowLinkAnchorAtPoint(x, y, kind),
+      updateFlowLinkDragTarget: (x, y) => updateFlowLinkDragTarget(x, y),
+      findFlowEditPoint: (x, y) => findFlowEditPoint(x, y)
+    }));
     ({
       handleRigPointerDown,
       handleRigPointerMove,
