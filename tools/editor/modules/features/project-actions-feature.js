@@ -156,19 +156,7 @@ export const setupProjectActionsFeature = (deps = {}) => {
     });
   };
 
-  const { bindProjectLinkHandlers } = setupProjectLinkActionsController({
-    el,
-    bindEvent,
-    eventClosest,
-    showProjectLinkModal,
-    withUiErrorBoundary,
-    encodeProjectToQueryValue,
-    buildPortableProject,
-    saveProjectToServer,
-    getProjectName,
-    PROJECT_QUERY_PARAM,
-    PROJECT_ID_PARAM
-  });
+  const { bindProjectLinkHandlers } = setupProjectLinkActionsController(deps);
 
   bindProjectLoadHandlers();
   bindProjectLinkHandlers();
