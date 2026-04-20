@@ -52,16 +52,20 @@ export const setupTabsController = (deps = {}) => {
     t.title = (st.projectName || "Новый проект").trim() || "Новый проект";
     t.data = cloneProjectData(buildProject());
   };
+  const activateTabData = tab => {
+    if (!tab) return;
+    st.activeTabId = tab.id;
+    loadProjectIntoActiveState(tab.data || makeEmptyProjectData(tab.title || "Новый проект"));
+    if (typeof onTabActivated === "function") onTabActivated(tab);
+    renderProjectTabs();
+    if (typeof persistAfterTabSwitch === "function") persistAfterTabSwitch();
+  };
   const openProjectTab = tabId => {
     const next = st.tabs.find(t => t.id === tabId);
     if (!next || st.activeTabId === tabId) return;
     if (st.activeTabId !== null) syncActiveTabSnapshot();
     runTabSwitchTransition(() => {
-      st.activeTabId = tabId;
-      loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
-      if (typeof onTabActivated === "function") onTabActivated(next);
-      renderProjectTabs();
-      if (typeof persistAfterTabSwitch === "function") persistAfterTabSwitch();
+      activateTabData(next);
     });
   };
   const createProjectTab = data => {
@@ -70,11 +74,7 @@ export const setupTabsController = (deps = {}) => {
     const title = (d.projectName || "Новый проект").trim() || "Новый проект";
     const tab = { id: st.nextTabId++, title, data: d };
     st.tabs.push(tab);
-    st.activeTabId = tab.id;
-    loadProjectIntoActiveState(d);
-    if (typeof onTabActivated === "function") onTabActivated(tab);
-    renderProjectTabs();
-    if (typeof persistAfterTabSwitch === "function") persistAfterTabSwitch();
+    activateTabData(tab);
     schedulePersist("all");
   };
   const closeProjectTab = tabId => {
@@ -86,11 +86,7 @@ export const setupTabsController = (deps = {}) => {
     if (!wasActive) { renderProjectTabs(); schedulePersist("tabs"); return; }
     const next = st.tabs[Math.max(0, idx - 1)] || st.tabs[0];
     runTabSwitchTransition(() => {
-      st.activeTabId = next.id;
-      loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
-      if (typeof onTabActivated === "function") onTabActivated(next);
-      renderProjectTabs();
-      if (typeof persistAfterTabSwitch === "function") persistAfterTabSwitch();
+      activateTabData(next);
     });
     schedulePersist("tabs");
   };

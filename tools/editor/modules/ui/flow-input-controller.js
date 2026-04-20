@@ -42,18 +42,21 @@ export const setupFlowInputController = (deps = {}) => {
       points: merged.map(p => ({ u: +p.u || 0, v: +p.v || 0, index: Math.max(0, Math.round(Number(p.index) || 0)) }))
     };
   };
+  const clearDragPreview = () => {
+    st.flowDragPreview = null;
+  };
 
   const handleFlowEditPointerMove = p => {
     if (st.mode !== "flowEdit") return false;
     if (st.flowLinkDrag) {
       updateFlowLinkDragTarget(p.x, p.y);
       resetFlowHoverTransient();
-      st.flowDragPreview = null;
+      clearDragPreview();
       render();
       return true;
     }
     if (!st.flowDrag) {
-      st.flowDragPreview = null;
+      clearDragPreview();
       st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y);
       const h = hit(p.x, p.y);
       if (selectHoveredRectSmart(h)) {
@@ -93,7 +96,7 @@ export const setupFlowInputController = (deps = {}) => {
     if (!st.flowLinkDrag) return false;
     const fd = st.flowLinkDrag;
     st.flowLinkDrag = null;
-    st.flowDragPreview = null;
+    clearDragPreview();
     let changed = false;
     if (fd && fd.from && fd.target && fd.canLink) changed = addFlowLinkBetween(fd.from, fd.target);
     st.flowLinkPending = null;
@@ -107,7 +110,7 @@ export const setupFlowInputController = (deps = {}) => {
     const r = cur();
     const fd = st.flowDrag;
     st.flowDrag = null;
-    st.flowDragPreview = null;
+    clearDragPreview();
     let changed = false;
     if (r) {
       const isStartMove = String((fd && fd.kind) || "") === "start";
@@ -131,7 +134,7 @@ export const setupFlowInputController = (deps = {}) => {
     if (st.mode !== "flowEdit") return false;
     if (!(st.flowHover || st.flowDirHover || st.flowLinkHover)) return false;
     resetFlowHoverTransient();
-    st.flowDragPreview = null;
+    clearDragPreview();
     render();
     return true;
   };
