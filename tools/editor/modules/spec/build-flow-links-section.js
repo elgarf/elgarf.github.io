@@ -62,12 +62,8 @@ const buildScreenSpecSection = (deps = {}) => {
   const { cabinetBySize, cableByLen } = buildRectSpecData(r);
   const { supportBySize, frameCount, bottomRowFrameCount, bottomLoadByKg } = buildRectRigSpecData(r);
   const interOut = interSpec && interSpec.byRectOut ? interSpec.byRectOut.get(r.id) : null;
-  const cabinetList = [...cabinetBySize.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
-    .map(([size, count]) => `${size}м – ${count} шт.`);
-  const cableList = [...cableByLen.entries()]
-    .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
-    .map(([len, count]) => `${len} – ${count} шт.`);
+  const cabinetList = mapToCabinetList(cabinetBySize);
+  const cableList = mapToCableList(cableByLen);
   const interCableList = interOut ? mapToCableList(interOut.cableByLen) : [];
   const interTargetList = interOut ? mapToNamedCountList(interOut.targets) : [];
   const supportList = mapToRigSizeList(supportBySize);
