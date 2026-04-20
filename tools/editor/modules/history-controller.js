@@ -8,15 +8,17 @@ export const setupHistoryController = (deps = {}) => {
     if (el && el.undo) el.undo.disabled = !(st && st.history && st.history.undo && st.history.undo.length);
     if (el && el.redo) el.redo.disabled = !(st && st.history && st.history.redo && st.history.redo.length);
   };
+  const cloneSnapshot = data => cloneJson(data, buildProject);
+  const currentSnapshot = () => cloneSnapshot(buildProject());
 
   const initHistoryCurrent = () => {
     if (!st || !st.history) return;
-    st.history.current = cloneJson(buildProject(), () => buildProject());
+    st.history.current = currentSnapshot();
   };
 
   const historyCommitIfChanged = () => {
     if (!st || !st.history || st.history.suspend) return;
-    const next = cloneJson(buildProject(), () => buildProject());
+    const next = currentSnapshot();
     const cur = st.history.current;
     if (!cur) {
       st.history.current = next;
@@ -33,16 +35,16 @@ export const setupHistoryController = (deps = {}) => {
   const historyApplySnapshot = snap => {
     if (!snap || !st || !st.history) return;
     st.history.suspend = true;
-    applyProjectData(cloneJson(snap, () => buildProject()), { syncTabSnapshot: true, renderTabs: true, render: true });
+    applyProjectData(cloneSnapshot(snap), { syncTabSnapshot: true, renderTabs: true, render: true });
     st.history.suspend = false;
-    st.history.current = cloneJson(buildProject(), () => buildProject());
+    st.history.current = currentSnapshot();
     syncButtons();
   };
 
   const undoHistory = () => {
     if (!st || !st.history || !st.history.undo.length) return;
     const prev = st.history.undo.pop();
-    const curSnap = cloneJson(buildProject(), () => buildProject());
+    const curSnap = currentSnapshot();
     st.history.redo.push(curSnap);
     historyApplySnapshot(prev);
     schedulePersist("project");
@@ -51,7 +53,7 @@ export const setupHistoryController = (deps = {}) => {
   const redoHistory = () => {
     if (!st || !st.history || !st.history.redo.length) return;
     const next = st.history.redo.pop();
-    const curSnap = cloneJson(buildProject(), () => buildProject());
+    const curSnap = currentSnapshot();
     st.history.undo.push(curSnap);
     historyApplySnapshot(next);
     schedulePersist("project");

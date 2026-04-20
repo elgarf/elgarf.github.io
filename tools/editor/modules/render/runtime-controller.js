@@ -126,13 +126,13 @@ export const setupRenderRuntimeController = (deps = {}) => {
   };
 
   if (renderPipeline && typeof renderPipeline.setGridRenderer === "function") {
-    renderPipeline.setGridRenderer(() => drawGrid());
+    renderPipeline.setGridRenderer(drawGrid);
   }
   if (renderPipeline && typeof renderPipeline.setGuidesRenderer === "function") {
-    renderPipeline.setGuidesRenderer(() => drawGuides());
+    renderPipeline.setGuidesRenderer(drawGuides);
   }
   if (renderPipeline && typeof renderPipeline.setDistanceGuideRenderer === "function") {
-    renderPipeline.setDistanceGuideRenderer(() => drawDistanceGuide());
+    renderPipeline.setDistanceGuideRenderer(drawDistanceGuide);
   }
 
   let renderRaf = 0;
