@@ -196,6 +196,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     resetFlowRegionOverrides(r, startHandle.rid);
     resetFlowHoverTransient();
     st.flowDrag = null;
+    st.flowDragPreview = null;
     schedulePersist("project");
     syncProps();
     render();

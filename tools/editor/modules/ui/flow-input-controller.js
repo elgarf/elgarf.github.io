@@ -14,18 +14,46 @@ export const setupFlowInputController = (deps = {}) => {
     addFlowLinkBetween,
     setFlowStart,
     setFlowLock,
+    buildRebuiltFlowPreview,
     finishPointerUp
   } = deps;
+
+  const buildFlowDragPreview = () => {
+    const fd = st.flowDrag;
+    if (!fd) return null;
+    const rid = Math.max(0, Math.round(Number(fd.rid) || 0));
+    const fromIndex = Math.max(0, Math.round(Number(fd.fromIndex) || 0));
+    const currentIndex = Math.max(fromIndex, Math.round(Number(fd.currentIndex) || fromIndex));
+    const points = (st.flowEditPoints || [])
+      .filter(p => Math.max(0, Math.round(Number(p && p.rid) || 0)) === rid)
+      .sort((a, b) => (Number(a && a.index) || 0) - (Number(b && b.index) || 0));
+    if (!points.length) return null;
+
+    const isStartMove = String((fd && fd.kind) || "") === "start";
+    const prefix = isStartMove ? [] : points.filter(p => (Number(p && p.index) || 0) < fromIndex);
+    const suffix = points.filter(p => (Number(p && p.index) || 0) >= currentIndex);
+    const merged = [...prefix, ...suffix];
+    if (!merged.length) return null;
+    return {
+      rid,
+      fromIndex,
+      currentIndex,
+      kind: isStartMove ? "start" : "lock",
+      points: merged.map(p => ({ u: +p.u || 0, v: +p.v || 0, index: Math.max(0, Math.round(Number(p.index) || 0)) }))
+    };
+  };
 
   const handleFlowEditPointerMove = p => {
     if (st.mode !== "flowEdit") return false;
     if (st.flowLinkDrag) {
       updateFlowLinkDragTarget(p.x, p.y);
       resetFlowHoverTransient();
+      st.flowDragPreview = null;
       render();
       return true;
     }
     if (!st.flowDrag) {
+      st.flowDragPreview = null;
       st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y);
       const h = hit(p.x, p.y);
       if (selectHoveredRectSmart(h)) {
@@ -51,7 +79,12 @@ export const setupFlowInputController = (deps = {}) => {
       return true;
     }
     const fp = findFlowEditPoint(p.x, p.y, st.flowDrag.rid, st.flowDrag.fromIndex);
+    const prevIndex = Math.max(0, Math.round(Number(st.flowDrag.currentIndex) || 0));
     st.flowDrag.currentIndex = fp ? fp.index : st.flowDrag.fromIndex;
+    if (st.flowDrag.currentIndex !== prevIndex || !st.flowDragPreview) {
+      const rebuilt = typeof buildRebuiltFlowPreview === "function" ? buildRebuiltFlowPreview(st.flowDrag) : null;
+      st.flowDragPreview = rebuilt || buildFlowDragPreview();
+    }
     render();
     return true;
   };
@@ -60,6 +93,7 @@ export const setupFlowInputController = (deps = {}) => {
     if (!st.flowLinkDrag) return false;
     const fd = st.flowLinkDrag;
     st.flowLinkDrag = null;
+    st.flowDragPreview = null;
     let changed = false;
     if (fd && fd.from && fd.target && fd.canLink) changed = addFlowLinkBetween(fd.from, fd.target);
     st.flowLinkPending = null;
@@ -73,6 +107,7 @@ export const setupFlowInputController = (deps = {}) => {
     const r = cur();
     const fd = st.flowDrag;
     st.flowDrag = null;
+    st.flowDragPreview = null;
     let changed = false;
     if (r) {
       const isStartMove = String((fd && fd.kind) || "") === "start";
@@ -96,6 +131,7 @@ export const setupFlowInputController = (deps = {}) => {
     if (st.mode !== "flowEdit") return false;
     if (!(st.flowHover || st.flowDirHover || st.flowLinkHover)) return false;
     resetFlowHoverTransient();
+    st.flowDragPreview = null;
     render();
     return true;
   };

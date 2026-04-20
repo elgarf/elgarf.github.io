@@ -87,6 +87,35 @@ export function setupFlowEditOverlayRender(deps = {}) {
       c.fill();
       c.stroke();
     }
+    const preview = st.flowDragPreview;
+    if (st.flowDrag && preview && Array.isArray(preview.points) && preview.points.length > 1) {
+      c.save();
+      c.strokeStyle = "rgba(64,196,255,.98)";
+      c.lineWidth = 2.8;
+      c.setLineDash([7, 5]);
+      c.lineJoin = "round";
+      c.lineCap = "round";
+      c.beginPath();
+      for (let i = 0; i < preview.points.length; i++) {
+        const pt = preview.points[i];
+        const x = -w / 2 + (+pt.u || 0);
+        const y = -h / 2 + (+pt.v || 0);
+        if (i === 0) c.moveTo(x, y);
+        else c.lineTo(x, y);
+      }
+      c.stroke();
+      c.setLineDash([]);
+      c.fillStyle = "rgba(64,196,255,.98)";
+      const head = preview.points[0];
+      const tail = preview.points[preview.points.length - 1];
+      c.beginPath();
+      c.arc(-w / 2 + (+head.u || 0), -h / 2 + (+head.v || 0), 4.2, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.arc(-w / 2 + (+tail.u || 0), -h / 2 + (+tail.v || 0), 3.1, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+    }
     c.restore();
   };
 

@@ -25,6 +25,7 @@ export const setupToolModeController = (deps = {}) => {
     if (st.mode !== m && m !== "note") closeNoteEditor(true);
     st.mode = m;
     st.flowDrag = null;
+    st.flowDragPreview = null;
     st.selBox = null;
     resetFlowHoverTransient();
     st.clusterDrag = null;

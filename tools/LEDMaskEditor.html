@@ -3171,7 +3171,10 @@
       endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock,
       mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
       resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
-      resetFlowRegionOverrides, syncProps, bindEvent, bindWindowEvent, zoomAt
+      resetFlowRegionOverrides, syncProps,
+      normalizeFlowLocks, drawCellX, drawCellY, getCellTopologyCached, getHiddenSet,
+      planNumberRegionsUncached, getDataFlowGroupsUncached, makeCalcBudget, calcNow,
+      bindEvent, bindWindowEvent, zoomAt
     };
     setupInputController({ ...inputWiringServices });
     let getActionTargets = () => [];

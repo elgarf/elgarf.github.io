@@ -55,6 +55,7 @@ export const setupTransientStateController = (deps = {}) => {
       st.flowDirHover = null;
       st.flowRegionRid = null;
       st.flowDrag = null;
+      st.flowDragPreview = null;
       st.flowLinkHover = null;
       st.flowLinkPending = null;
       st.flowLinkDrag = null;

@@ -53,6 +53,12 @@ export const setupProjectSessionController = (deps = {}) => {
   });
 
   schedulePersist = persistence.schedulePersist;
+  if (typeof tabsController.setPersistAfterTabSwitch === "function") {
+    tabsController.setPersistAfterTabSwitch(() => {
+      persistence.schedulePersist("all");
+      persistence.persistNow();
+    });
+  }
   if (typeof schedulePersistRef === "function") schedulePersistRef(schedulePersist);
 
   return {

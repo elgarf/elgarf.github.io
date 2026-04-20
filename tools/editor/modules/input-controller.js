@@ -22,6 +22,8 @@ export const setupInputController = (deps = {}) => {
     mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
     resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
     resetFlowRegionOverrides, syncProps,
+    normalizeFlowLocks, drawCellX, drawCellY, getCellTopologyCached, getHiddenSet,
+    planNumberRegionsUncached, getDataFlowGroupsUncached, makeCalcBudget, calcNow,
     bindEvent, bindWindowEvent
   } = deps;
 
@@ -38,6 +40,50 @@ export const setupInputController = (deps = {}) => {
     render();
     return true;
   };
+  const buildRebuiltFlowPreview = flowDrag => {
+    if (!flowDrag) return null;
+    if (typeof drawCellX !== "function" || typeof drawCellY !== "function" || typeof getCellTopologyCached !== "function") return null;
+    if (typeof getHiddenSet !== "function" || typeof planNumberRegionsUncached !== "function" || typeof getDataFlowGroupsUncached !== "function") return null;
+    const r = cur();
+    if (!r || isRectLocked(r)) return null;
+    const rid = Math.max(0, Math.round(Number(flowDrag.rid) || 0));
+    const fromIndex = Math.max(0, Math.round(Number(flowDrag.fromIndex) || 0));
+    const currentIndex = Math.max(fromIndex, Math.round(Number(flowDrag.currentIndex) || fromIndex));
+    const regionPoints = (st.flowEditPoints || []).filter(p => Math.max(0, Math.round(Number(p && p.rid) || 0)) === rid);
+    if (!regionPoints.length) return null;
+    const target = regionPoints.find(p => Math.max(0, Math.round(Number(p && p.index) || 0)) === currentIndex);
+    if (!target) return null;
+    const rr = {
+      ...r,
+      flowLocks: typeof normalizeFlowLocks === "function" ? normalizeFlowLocks(r.flowLocks) : (r.flowLocks && typeof r.flowLocks === "object" ? { ...r.flowLocks } : {})
+    };
+    if (String(flowDrag.kind || "") === "start") setFlowStart(rr, rid, target.cid);
+    else setFlowLock(rr, rid, fromIndex, target.cid);
+    const cx = drawCellX(rr), cy = drawCellY(rr);
+    const topo = getCellTopologyCached(rr, cx, cy);
+    const hs = getHiddenSet(rr);
+    const budget = typeof makeCalcBudget === "function" ? makeCalcBudget() : { timedOut: false, deadline: 0 };
+    if (typeof calcNow === "function") budget.deadline = calcNow() + 5000;
+    const regions = planNumberRegionsUncached(rr, cx, cy, topo, hs, budget);
+    if (!regions || budget.timedOut) return null;
+    const groups = getDataFlowGroupsUncached(rr, cx, cy, topo, hs, regions, budget);
+    if (!Array.isArray(groups) || budget.timedOut) return null;
+    const g = groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rid);
+    if (!g || !Array.isArray(g.points) || g.points.length < 2) return null;
+    return {
+      rid,
+      fromIndex,
+      currentIndex,
+      kind: String(flowDrag.kind || "") === "start" ? "start" : "lock",
+      points: g.points.map((p, i) => ({
+        u: +p.u || 0,
+        v: +p.v || 0,
+        index: i,
+        cid: Math.max(0, Math.round(Number(p && p.cid) || 0))
+      }))
+    };
+  };
+
   const navigationController = setupCanvasNavigationController({
     st,
     render,
@@ -82,6 +128,7 @@ export const setupInputController = (deps = {}) => {
     addFlowLinkBetween,
     setFlowStart,
     setFlowLock,
+    buildRebuiltFlowPreview,
     finishPointerUp
   });
   const pointerOrchestrator = setupPointerOrchestratorController({

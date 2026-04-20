@@ -32,6 +32,7 @@ export const setupResetActionsFeature = (deps = {}) => {
       st.flowHover = null;
       st.flowDirHover = null;
       st.flowDrag = null;
+      st.flowDragPreview = null;
     });
   });
 

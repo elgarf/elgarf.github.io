@@ -31,6 +31,7 @@ export const setupSelectionLockController = (deps = {}) => {
 
     st.drag = null;
     st.flowDrag = null;
+    st.flowDragPreview = null;
     st.clusterDrag = null;
     st.draft = null;
 

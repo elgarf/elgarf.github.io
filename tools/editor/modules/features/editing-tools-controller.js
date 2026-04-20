@@ -317,6 +317,7 @@ export const setupEditingToolsInput = (deps = {}) => {
       st.flowLinkPending = null;
       st.flowLinkDrag = null;
       st.flowLinkHover = null;
+      st.flowDragPreview = null;
       schedulePersist("project");
       render();
       return true;
@@ -327,6 +328,7 @@ export const setupEditingToolsInput = (deps = {}) => {
       if (startHandle) {
         st.flowRegionRid = startHandle.rid;
         st.flowDrag = { kind: "start", rid: startHandle.rid, fromIndex: 0, currentIndex: 0, cid: startHandle.cid };
+        st.flowDragPreview = null;
         syncProps();
         render();
         return true;
@@ -351,12 +353,14 @@ export const setupEditingToolsInput = (deps = {}) => {
       st.flowLinkDrag = { from: { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end", x: endAnchorHit.x, y: endAnchorHit.y }, x: p.x, y: p.y, target: null, canLink: false };
       updateFlowLinkDragTarget(p.x, p.y);
       st.flowLinkPending = null;
+      st.flowDragPreview = null;
       render();
       return true;
     }
     if (!h) {
       st.flowLinkPending = null;
       st.flowLinkDrag = null;
+      st.flowDragPreview = null;
       selRect(null);
       render();
       return true;
@@ -374,6 +378,7 @@ export const setupEditingToolsInput = (deps = {}) => {
     if (fp) {
       st.flowRegionRid = fp.rid;
       st.flowDrag = { rid: fp.rid, fromIndex: fp.index, currentIndex: fp.index, cid: fp.cid };
+      st.flowDragPreview = null;
       syncProps();
     }
     render();

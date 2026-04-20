@@ -7,6 +7,7 @@ export const setupTabsController = (deps = {}) => {
   } = deps;
 
   let tabSwitchTimer = 0;
+  let persistAfterTabSwitch = null;
 
   const getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
   const isMobileTabStorageMode = () => {
@@ -60,6 +61,7 @@ export const setupTabsController = (deps = {}) => {
       loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
       if (typeof onTabActivated === "function") onTabActivated(next);
       renderProjectTabs();
+      if (typeof persistAfterTabSwitch === "function") persistAfterTabSwitch();
     });
   };
   const createProjectTab = data => {
@@ -72,6 +74,7 @@ export const setupTabsController = (deps = {}) => {
     loadProjectIntoActiveState(d);
     if (typeof onTabActivated === "function") onTabActivated(tab);
     renderProjectTabs();
+    if (typeof persistAfterTabSwitch === "function") persistAfterTabSwitch();
     schedulePersist("all");
   };
   const closeProjectTab = tabId => {
@@ -87,6 +90,7 @@ export const setupTabsController = (deps = {}) => {
       loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
       if (typeof onTabActivated === "function") onTabActivated(next);
       renderProjectTabs();
+      if (typeof persistAfterTabSwitch === "function") persistAfterTabSwitch();
     });
     schedulePersist("tabs");
   };
@@ -139,6 +143,9 @@ export const setupTabsController = (deps = {}) => {
       tabs: st.tabs.map(t => ({ id: t.id, title: t.title || "Новый проект", data: cloneProjectData(t.data || makeEmptyProjectData(t.title || "Новый проект")) }))
     };
   };
+  const setPersistAfterTabSwitch = fn => {
+    persistAfterTabSwitch = typeof fn === "function" ? fn : null;
+  };
 
   return {
     getActiveTab,
@@ -147,6 +154,7 @@ export const setupTabsController = (deps = {}) => {
     syncActiveTabSnapshot,
     renderProjectTabs,
     buildTabsBundle,
+    setPersistAfterTabSwitch,
     openProjectTab,
     createProjectTab,
     closeProjectTab
