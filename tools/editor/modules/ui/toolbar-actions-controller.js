@@ -33,7 +33,9 @@ export const setupToolbarActionsController = (deps = {}) => {
   bindClicks([
     [el.viewModeArt, () => setViewMode("art", true)],
     [el.viewModeInstall, () => setViewMode("install", true)],
+    [el.viewModeSpec, () => setViewMode("spec", true)],
     [el.mViewModeToggle, () => setViewMode(isInstallViewMode() ? "art" : "install", true)],
+    [el.mViewModeSpec, () => setViewMode("spec", true)],
     [el.toolSelect, () => activateToolOrSelect("select")],
     [el.toolDraw, () => activateToolOrSelect("draw")],
     [el.toolNote, () => activateToolOrSelect("note")],

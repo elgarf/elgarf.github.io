@@ -8,13 +8,37 @@
   <link rel="stylesheet" href="./vendor/bootstrap/bootstrap.min.css">
   <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
   <link rel="stylesheet" href="./vendor/fonts/roboto/roboto.css">
+  <link rel="stylesheet" href="./vendor/easymde/easymde.min.css">
   <style>
     * {
       box-sizing: border-box
     }
 
     :root {
-      --app-vh: 100dvh
+      --app-vh: 100dvh;
+      --spec-bg: rgba(9, 12, 15, .9);
+      --spec-block-bg: rgba(255, 255, 255, .04);
+      --spec-border: rgba(255, 255, 255, .12);
+      --spec-header-bg: rgba(255, 255, 255, .05);
+      --spec-header-border: rgba(255, 255, 255, .1);
+      --spec-text: rgba(255, 255, 255, .92);
+      --spec-muted: rgba(255, 255, 255, .75);
+      --spec-toolbar-bg: rgba(255, 255, 255, .04);
+      --spec-editor-bg: rgba(255, 255, 255, .02);
+      --spec-caret: #8fd3ff;
+    }
+
+    [data-bs-theme="light"] {
+      --spec-bg: rgba(247, 249, 252, .95);
+      --spec-block-bg: rgba(255, 255, 255, .88);
+      --spec-border: rgba(21, 36, 56, .18);
+      --spec-header-bg: rgba(17, 40, 72, .06);
+      --spec-header-border: rgba(17, 40, 72, .14);
+      --spec-text: rgba(20, 30, 44, .95);
+      --spec-muted: rgba(47, 66, 90, .82);
+      --spec-toolbar-bg: rgba(17, 40, 72, .05);
+      --spec-editor-bg: rgba(255, 255, 255, .9);
+      --spec-caret: #1d4ed8;
     }
 
     html,
@@ -586,6 +610,248 @@
     .canvas-wrap[data-panning="1"] canvas {
       cursor: grabbing
     }
+
+    .spec-mode-panel {
+      position: absolute;
+      inset: 0;
+      z-index: 25;
+      overflow: auto;
+      padding: 12px;
+      background: var(--spec-bg);
+      backdrop-filter: blur(2px);
+    }
+
+    .spec-mode-scroll {
+      display: grid;
+      gap: 8px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .spec-mode-block {
+      border: 1px solid var(--spec-border);
+      border-radius: 0;
+      background: var(--spec-block-bg);
+      overflow: hidden;
+    }
+
+    .spec-mode-parent {
+      overflow: visible;
+      padding: 0 10px 10px 0;
+    }
+
+    .spec-mode-parent .spec-mode-accordion {
+      margin: 8px 0 0 18px;
+      border-left: 2px solid var(--spec-header-border);
+      padding-left: 8px;
+      --bs-accordion-bg: var(--spec-block-bg);
+      --bs-accordion-color: var(--spec-text);
+      --bs-accordion-border-color: var(--spec-border);
+      --bs-accordion-btn-bg: var(--spec-header-bg);
+      --bs-accordion-btn-color: var(--spec-text);
+      --bs-accordion-active-bg: var(--spec-header-bg);
+      --bs-accordion-active-color: var(--spec-text);
+    }
+
+    .spec-mode-parent .spec-mode-sub {
+      margin: 0;
+      border-left: 0;
+    }
+
+    .spec-mode-parent .spec-mode-sub .accordion-header {
+      margin: 0;
+    }
+
+    .spec-mode-parent .spec-mode-sub .accordion-button {
+      padding: 6px 10px;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .spec-mode-parent .spec-mode-sub .accordion-button:not(.collapsed) {
+      box-shadow: none;
+    }
+
+    .spec-mode-parent.has-manual>header::after {
+      content: "•";
+      color: #22c55e;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+
+    .spec-mode-parent .spec-mode-sub.has-manual .accordion-button::before {
+      content: "•";
+      color: #22c55e;
+      font-weight: 700;
+      margin-right: 8px;
+      flex: 0 0 auto;
+    }
+
+    .spec-mode-parent .spec-mode-sub + .spec-mode-sub {
+      margin-top: 0;
+    }
+
+    .spec-mode-parent .spec-mode-sub .accordion-body {
+      padding: 8px 10px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .spec-mode-parent .spec-mode-sub .accordion-body pre {
+      text-wrap: auto;
+    }
+
+    .spec-mode-parent>header,
+    .spec-mode-parent>pre {
+      margin-right: -10px;
+      margin-bottom: 0;
+    }
+
+    .spec-mode-block>header,
+    .spec-mode-block>summary {
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--spec-text);
+      border-bottom: 1px solid var(--spec-header-border);
+      background: var(--spec-header-bg);
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .spec-mode-block>summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .spec-mode-block>summary::before {
+      content: "▸";
+      display: inline-block;
+      width: 14px;
+      margin-right: 2px;
+      color: rgba(255, 255, 255, .75);
+    }
+
+    .spec-mode-block[open]>summary::before {
+      content: "▾";
+    }
+
+    .spec-mode-block>pre {
+      margin: 0;
+      padding: 10px;
+      min-width: 0;
+      inline-size: 100%;
+      max-inline-size: 100%;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.38;
+      color: var(--spec-text);
+      font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .spec-mode-empty {
+      padding: 12px;
+      font-size: 12px;
+      color: var(--spec-muted);
+    }
+
+    .spec-mode-manual {
+      border-top: 1px dashed var(--spec-header-border);
+      padding: 10px;
+      font-size: 12px;
+    }
+
+    .spec-mode-manual-title {
+      margin: 0 0 6px;
+      color: var(--spec-text);
+      font-weight: 600;
+    }
+
+    .spec-mode-manual-preview {
+      color: var(--spec-text);
+      white-space: normal;
+    }
+
+    .spec-mode-manual-preview p,
+    .spec-mode-manual-preview ul,
+    .spec-mode-manual-preview ol,
+    .spec-mode-manual-preview h6 {
+      margin: 0 0 6px;
+    }
+
+    .spec-mode-manual-edit {
+      margin-top: 8px;
+    }
+
+    .spec-mode-manual-edit textarea,
+    .spec-mode-manual-edit .CodeMirror {
+      height: 160px;
+      min-height: 160px;
+      max-height: 160px;
+      font-size: 12px;
+      line-height: 1.35;
+      font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .spec-mode-manual-edit textarea {
+      overflow: auto;
+      resize: none;
+    }
+    .spec-mode-manual-edit .CodeMirror-scroll {
+      min-height: 160px !important;
+      max-height: 160px !important;
+      overflow: auto !important;
+    }
+    .spec-mode-manual-edit textarea {
+      caret-color: var(--spec-caret);
+    }
+    .spec-mode-manual-edit .EasyMDEContainer {
+      border: 1px solid var(--spec-header-border);
+      background: var(--spec-editor-bg);
+    }
+    .spec-mode-manual-edit .editor-toolbar {
+      border-left: 0;
+      border-right: 0;
+      border-top: 0;
+      background: var(--spec-toolbar-bg);
+    }
+    .spec-mode-manual-edit .editor-toolbar button {
+      color: var(--bs-body-color) !important;
+    }
+    .spec-mode-manual-edit .editor-toolbar button:hover,
+    .spec-mode-manual-edit .editor-toolbar button:focus-visible {
+      background: rgba(255, 255, 255, .22) !important;
+      color: #ffffff !important;
+      border-color: rgba(255, 255, 255, .45) !important;
+    }
+    .spec-mode-manual-edit .editor-toolbar button.active,
+    .spec-mode-manual-edit .editor-toolbar button:hover.active {
+      background: rgba(255, 255, 255, .3) !important;
+      color: #ffffff !important;
+      border-color: rgba(255, 255, 255, .55) !important;
+    }
+    [data-bs-theme="light"] .spec-mode-manual-edit .editor-toolbar button:hover,
+    [data-bs-theme="light"] .spec-mode-manual-edit .editor-toolbar button:focus-visible {
+      background: rgba(17, 40, 72, .12) !important;
+      color: #0f172a !important;
+      border-color: rgba(17, 40, 72, .28) !important;
+    }
+    [data-bs-theme="light"] .spec-mode-manual-edit .editor-toolbar button.active,
+    [data-bs-theme="light"] .spec-mode-manual-edit .editor-toolbar button:hover.active {
+      background: rgba(17, 40, 72, .18) !important;
+      color: #0f172a !important;
+      border-color: rgba(17, 40, 72, .32) !important;
+    }
+    .spec-mode-manual-edit .CodeMirror,
+    .spec-mode-manual-edit .editor-preview,
+    .spec-mode-manual-edit .editor-preview-side {
+      background: var(--spec-editor-bg);
+      color: var(--spec-text);
+    }
+    .spec-mode-manual-edit .CodeMirror-cursor {
+      border-left-color: var(--spec-caret) !important;
+    }
     .note-editor-overlay {
       position: absolute;
       z-index: 1200;
@@ -1078,6 +1344,8 @@
             aria-label="Для художников"><i class="fa-solid fa-palette"></i></button>
           <button id="viewModeInstall" type="button" class="btn btn-outline-secondary" title="Для монтажников"
             aria-label="Для монтажников"><i class="fa-solid fa-screwdriver-wrench"></i></button>
+          <button id="viewModeSpec" type="button" class="btn btn-outline-secondary" title="Спецификация"
+            aria-label="Спецификация"><i class="fa-solid fa-file-lines"></i></button>
         </div>
       </div>
       <div class="group mobile-hide">
@@ -1186,7 +1454,14 @@
           class="fa-regular fa-moon"></i><span>Тёмная</span></button>
     </div>
     <div class="main">
-      <div id="canvasWrap" class="canvas-wrap" data-mode="select"><canvas id="editorCanvas"></canvas></div>
+      <div id="canvasWrap" class="canvas-wrap" data-mode="select">
+        <canvas id="editorCanvas"></canvas>
+        <div id="specModePanel" class="spec-mode-panel d-none">
+          <div class="spec-mode-scroll">
+            <div id="specAutoBlocks"></div>
+          </div>
+        </div>
+      </div>
       <aside id="sidePanel" class="side offcanvas offcanvas-end bg-body border-start shadow-sm" tabindex="-1"
         aria-labelledby="sideTitle">
         <div class="side-head">
@@ -1487,9 +1762,12 @@
       <span class="half half-art" aria-hidden="true"><i class="fa-solid fa-palette"></i></span>
       <span class="half half-install" aria-hidden="true"><i class="fa-solid fa-screwdriver-wrench"></i></span>
     </button>
+    <button id="mViewModeSpec" class="icon-btn btn btn-outline-secondary" title="Спецификация"
+      aria-label="Спецификация" aria-pressed="false"><i class="fa-solid fa-file-lines"></i></button>
   </div>
   <script src="./vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="./vendor/qrcode-generator/qrcode.js"></script>
+  <script src="./vendor/easymde/easymde.min.js"></script>
   <script type="module">
     import { createProjectCodec } from "./editor/modules/project-codec.js";
     import { createToolFsm, createModePredicates } from "./editor/modules/tool-fsm.js";
@@ -1513,6 +1791,7 @@
     import { setupToolbarController } from "./editor/modules/ui/toolbar-controller.js";
     import { setupToolbarActionsController } from "./editor/modules/ui/toolbar-actions-controller.js";
     import { setupViewThemeLockController } from "./editor/modules/ui/view-theme-lock-controller.js";
+    import { setupSpecViewController } from "./editor/modules/ui/spec-view-controller.js";
     import { setupToolModeController } from "./editor/modules/ui/tool-mode-controller.js";
     import { setupPropertiesSyncController } from "./editor/modules/ui/properties-sync-controller.js";
     import { setupPropsUiUtils } from "./editor/modules/ui/props-ui-utils.js";
@@ -1603,12 +1882,12 @@
     const el = {
       ...pickEls([
         "projectTabs", "projectTabsList", "projectTabAdd", "toolbarMain", "overflowGroup", "toolbarOverflowToggle", "toolbarOverflowPopup",
-        "projectName", "saveIndicator", "themeToggle", "themeIcon", "themePopup", "helpOpen", "viewModeArt", "viewModeInstall",
+        "projectName", "saveIndicator", "themeToggle", "themeIcon", "themePopup", "helpOpen", "viewModeArt", "viewModeInstall", "viewModeSpec",
         "mobileMenu", "installApp", "installBanner", "installBannerText", "installBannerAction", "installBannerClose",
         "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkLoading", "projectLinkText", "projectLinkCopyBtn",
         "sidePanel", "sideClose", "multiEditBadge",
         "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
-        "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle",
+        "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle", "mViewModeSpec",
         "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
         "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
         "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
@@ -1617,6 +1896,7 @@
         "propCellX", "propCellY", "propCellUnit", "propDataFlow", "propDataFlowZ", "propNumberCells",
         "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
         "propSplitVariantLabel", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "btnConvertRegionsToScreens", "rectList"
+        , "specModePanel", "specAutoBlocks"
       ]),
       toolbar: $("toolbarMain"),
       overflowToggle: $("toolbarOverflowToggle"),
@@ -1673,7 +1953,7 @@
     let applyBootstrapClasses = () => { };
     let updateToolbarOverflow = () => { };
     let overflowHiddenButtons = [];
-    const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", lockAll: false, maskPath: [], maskHover: null, cellHover: null, cellHoverPos: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
+    const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", lockAll: false, specCustomText: "", specCustomSections: {}, maskPath: [], maskHover: null, cellHover: null, cellHoverPos: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
     const rectStore = createRectStore(() => st.rects);
     const getRectById = id => rectStore.getById(id);
     let flowDrawRenderEpoch = 0;
@@ -2365,6 +2645,20 @@
     let refreshPanels = () => { };
     let commitProjectChange = (_opts = {}) => { };
     let commitUiUpdate = (_opts = {}) => { };
+    let buildFlowSpecTextForView = () => "";
+    let updateSpecViewUi = (_force = false) => { };
+    let refreshSpecAuto = (_force = false) => { };
+    ({
+      updateSpecViewUi,
+      refreshAutoSpec: refreshSpecAuto
+    } = setupSpecViewController({
+      st,
+      el,
+      wrap,
+      normalizeViewMode,
+      commitProjectChange: opts => commitProjectChange(opts),
+      getAutoSpecText: () => buildFlowSpecTextForView()
+    }));
     const isInstallViewMode = () => normalizeViewMode(st.viewMode) === "install";
     const isInstallOnlyToolMode = m => m === "flowEdit" || m === "clusterEdit" || m === "rigEdit";
     const toolFsm = createToolFsm({
@@ -2390,6 +2684,7 @@
       syncModeToggleButton,
       syncLockButtons,
       updateInstallToolAvailability,
+      onViewModeUiUpdated: () => updateSpecViewUi(),
       commitProjectChange: opts => commitProjectChange(opts),
       setMode: m => setMode(m),
       isInstallOnlyToolMode,
@@ -2399,7 +2694,10 @@
     });
     const themeMedia = viewThemeLockController.themeMedia;
     const resolveThemeMode = viewThemeLockController.resolveThemeMode;
-    const updateViewModeUi = viewThemeLockController.updateViewModeUi;
+    const updateViewModeUi = (...args) => {
+      viewThemeLockController.updateViewModeUi(...args);
+      updateSpecViewUi();
+    };
     const updateLockAllUi = viewThemeLockController.updateLockAllUi;
     const setLockAll = viewThemeLockController.setLockAll;
     const setViewMode = viewThemeLockController.setViewMode;
@@ -2417,9 +2715,9 @@
       if (pc) out.projectCache = pc; else delete out.projectCache;
       return out;
     };
-    let buildProject = () => ({ version: 1, projectName: "Новый проект", saveLocationId: "", camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: 12, fontFamily: "", scale: 256, viewMode: "art", lockAll: false, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
+    let buildProject = () => ({ version: 1, projectName: "Новый проект", saveLocationId: "", camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: 12, fontFamily: "", scale: 256, viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: false, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
     let cloneProjectData = data => cloneJson(data, () => buildProject());
-    let makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", lockAll: !!st.lockAll, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
+    let makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: !!st.lockAll, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
     let buildPortableProjectBase = (_strip) => _strip(buildProject());
     let buildPortableProject = () => buildPortableProjectBase(stripProjectCaches);
     ({
@@ -2924,6 +3222,7 @@
       onBeforeRenderFrame: () => {
         flowDrawRenderEpoch++;
         resetFlowPointIndexCache();
+        refreshSpecAuto(false);
       },
       bindWindowEvent,
       bindEvent,
@@ -3257,7 +3556,8 @@
       updateMobileDock,
       openHelpModal,
       closeHelpModal,
-      showMessageModal
+      showMessageModal,
+      buildFlowSpecText
     } = setupUiTailFeature({
       toolbarDeps: {
         el,
@@ -3408,6 +3708,8 @@
         }
       }
     });
+    if (typeof buildFlowSpecText === "function") buildFlowSpecTextForView = () => buildFlowSpecText();
+    updateSpecViewUi(true);
     const appBootstrapDeps = {
       st,
       el,

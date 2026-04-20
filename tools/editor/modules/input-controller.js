@@ -233,7 +233,8 @@ export const setupInputController = (deps = {}) => {
   bindEvent(cv, "contextmenu", e => e.preventDefault());
   bindEvent(cv, "mousedown", e => {
     const { sx, sy, p } = getCanvasPoint(e);
-    const pan = e.button === 1 || e.button === 2 || (st.keys.space && e.button === 0);
+    const panWithLeft = e.button === 0 && (st.keys.space || st.lockAll);
+    const pan = e.button === 1 || e.button === 2 || panWithLeft;
     if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return; }
     if (e.button !== 0) return;
     handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, touchLike: false });

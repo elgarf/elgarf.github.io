@@ -45,12 +45,18 @@ export const setupProjectStateController = (deps = {}) => {
       st.fontFamily = String(d.settings.fontFamily || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial";
       st.globalScale = Math.max(1, Math.round(evalExpr(d.settings.scale, 256)));
       st.viewMode = normalizeViewMode(d.settings.viewMode);
+      st.specCustomText = String(d.settings.specCustomText || "");
+      st.specCustomSections = (d.settings.specCustomSections && typeof d.settings.specCustomSections === "object")
+        ? { ...d.settings.specCustomSections }
+        : {};
       st.lockAll = !!(d.settings && d.settings.lockAll);
       const ss = (d.settings && d.settings.snap) || {};
       st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false };
     } else {
       st.globalScale = 256;
       st.viewMode = "art";
+      st.specCustomText = "";
+      st.specCustomSections = {};
       st.lockAll = false;
       st.snap = { grid: false, objects: true, centers: true, gaps: true };
     }

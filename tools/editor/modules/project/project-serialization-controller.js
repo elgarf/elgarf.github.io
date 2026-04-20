@@ -18,6 +18,8 @@ export const setupProjectSerializationController = (deps = {}) => {
       fontFamily: st.fontFamily,
       scale: Math.max(1, Math.round(Number(st.globalScale) || 256)),
       viewMode: normalizeViewMode(st.viewMode),
+      specCustomText: String(st.specCustomText || ""),
+      specCustomSections: (st.specCustomSections && typeof st.specCustomSections === "object") ? { ...st.specCustomSections } : {},
       lockAll: !!st.lockAll,
       snap: {
         grid: !!(st.snap && st.snap.grid),
@@ -43,6 +45,8 @@ export const setupProjectSerializationController = (deps = {}) => {
       fontFamily: st.fontFamily,
       scale: Math.max(1, Math.round(Number(st.globalScale) || 256)),
       viewMode: "art",
+      specCustomText: "",
+      specCustomSections: {},
       lockAll: !!st.lockAll,
       snap: { grid: false, objects: true, centers: true, gaps: true }
     },

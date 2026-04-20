@@ -22,11 +22,11 @@ export const setupPostSetupFeature = (deps = {}) => {
     getSaveLocationId
   });
 
-  const { bindExportHandlers } = setupSpecExportFeature({
+  const { bindExportHandlers, buildFlowSpecText } = setupSpecExportFeature({
     ...specExportDeps,
     saveBlobWithSystemDialog
   });
   bindExportHandlers();
 
-  return { saveBlobWithSystemDialog };
+  return { saveBlobWithSystemDialog, buildFlowSpecText };
 };

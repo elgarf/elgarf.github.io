@@ -25,7 +25,7 @@ export const setupUiTailFeature = (deps = {}) => {
     showMessageModal
   });
 
-  setupPostSetupFeature({
+  const postSetupResult = setupPostSetupFeature({
     ...(postSetupDeps || {}),
     isMobile,
     showErrorModal,
@@ -39,6 +39,9 @@ export const setupUiTailFeature = (deps = {}) => {
     updateMobileDock,
     openHelpModal,
     closeHelpModal,
-    showMessageModal
+    showMessageModal,
+    buildFlowSpecText: postSetupResult && typeof postSetupResult.buildFlowSpecText === "function"
+      ? postSetupResult.buildFlowSpecText
+      : (() => "")
   };
 };

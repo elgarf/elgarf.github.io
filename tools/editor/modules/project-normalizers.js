@@ -214,5 +214,10 @@ export const normalizeFlowLinks = raw => {
 };
 
 export const normalizeThemeMode = v => ({ light: 1, dark: 1, auto: 1 }[v] ? v : "auto");
-export const normalizeViewMode = v => (String(v || "") === "install" ? "install" : "art");
+export const normalizeViewMode = v => {
+  const mode = String(v || "");
+  if (mode === "install") return "install";
+  if (mode === "spec") return "spec";
+  return "art";
+};
 export const normalizeCabinetUnit = v => (v === "m" ? "m" : "px");

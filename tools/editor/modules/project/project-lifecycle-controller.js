@@ -25,6 +25,8 @@ export const setupProjectLifecycleController = (deps = {}) => {
     st.projectName = "Новый проект";
     st.saveLocationId = setGlobalSaveLocationId(getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
     st.viewMode = "art";
+    st.specCustomText = "";
+    st.specCustomSections = {};
     st.globalScale = 256;
     if (el.cUnit) el.cUnit.value = "m";
     setSelection([], null);

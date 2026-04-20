@@ -5,7 +5,7 @@ export const createProjectCodec = (deps) => {
   const PROJECT_QUERY_VERSION = String(d.PROJECT_QUERY_VERSION || "gz2");
   const PROJECT_QUERY_KEY_MAP = Object.freeze({
     version: "v", projectName: "pn", saveLocationId: "sl", camera: "c", settings: "s", nextId: "n", flowLinks: "fl", rectangles: "r",
-    x: "x", y: "y", zoom: "z", textSize: "ts", fontFamily: "ff", viewMode: "vm", lockAll: "la", snap: "sn", grid: "g", objects: "o", centers: "ct", gaps: "gp",
+    x: "x", y: "y", zoom: "z", textSize: "ts", fontFamily: "ff", viewMode: "vm", specCustomText: "sct", specCustomSections: "scs", lockAll: "la", snap: "sn", grid: "g", objects: "o", centers: "ct", gaps: "gp",
     id: "i", name: "nm", rotation: "rt", width: "w", height: "h", scale: "sc", widthM: "wm", heightM: "hm", areaM2Px: "a2", colorA: "ca", autoContrastB: "ab", colorB: "cb",
     cellX: "cx", cellY: "cy", dataFlow: "df", dataFlowZ: "dz", numberCells: "nc", splitVariant: "sv", cellLinks: "cl", hiddenCells: "hc", flowLocks: "fk", flowLockRidToSig: "frs", flowLockCidToSeed: "fcs", manualClusters: "mc",
     rig: "rg", locked: "lk", kind: "kd", noteText: "nt", projectCache: "pc",
@@ -76,6 +76,10 @@ export const createProjectCodec = (deps) => {
     out.settings.fontFamily = String(out.settings.fontFamily || DEFAULT_FONT_FAMILY).trim() || DEFAULT_FONT_FAMILY;
     if (!Number.isFinite(Number(out.settings.scale))) out.settings.scale = 256;
     out.settings.viewMode = String(out.settings.viewMode || "art");
+    out.settings.specCustomText = String(out.settings.specCustomText || "");
+    out.settings.specCustomSections = (out.settings.specCustomSections && typeof out.settings.specCustomSections === "object")
+      ? { ...out.settings.specCustomSections }
+      : {};
     out.settings.lockAll = !!out.settings.lockAll;
     if (!isPlainObject(out.settings.snap)) out.settings.snap = {};
     const snap = out.settings.snap;
@@ -157,6 +161,8 @@ export const createProjectCodec = (deps) => {
       if (String(out.settings.fontFamily || DEFAULT_FONT_FAMILY) === DEFAULT_FONT_FAMILY) delete out.settings.fontFamily;
       if ((Number(out.settings.scale) || 256) === 256) delete out.settings.scale;
       if (String(out.settings.viewMode || "art") === "art") delete out.settings.viewMode;
+      if (!String(out.settings.specCustomText || "").trim()) delete out.settings.specCustomText;
+      if (!out.settings.specCustomSections || !Object.keys(out.settings.specCustomSections).length) delete out.settings.specCustomSections;
       if (isPlainObject(out.settings.snap)) {
         const sn = out.settings.snap;
         if (sn.grid === false) delete sn.grid;
@@ -204,4 +210,3 @@ export const createProjectCodec = (deps) => {
     decodeProjectFromQueryValue
   });
 };
-
