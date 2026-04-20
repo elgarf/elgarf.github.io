@@ -402,24 +402,26 @@ export const setupFlowLinkController = (deps = {}) => {
   };
 
   const toggleFlowLinkBetween = (a, b) => {
+    return mutateFlowLinkBetween(a, b, { toggle: true });
+  };
+
+  const addFlowLinkBetween = (a, b) => {
+    return mutateFlowLinkBetween(a, b, { toggle: false });
+  };
+
+  const mutateFlowLinkBetween = (a, b, opts = {}) => {
     if (!canLinkFlowAnchors(a, b)) return false;
+    const toggle = !!(opts && opts.toggle);
     const link = { from: { rectId: a.rectId, rid: a.rid, cid: a.cid, kind: "end" }, to: { rectId: b.rectId, rid: b.rid, cid: b.cid, kind: "start" } };
     const key = `${flowAnchorKey(link.from)}>${flowAnchorKey(link.to)}`;
     const set = normalizeFlowLinks(st.flowLinks);
     const idx = set.findIndex(it => `${flowAnchorKey(it.from)}>${flowAnchorKey(it.to)}` === key);
-    if (idx >= 0) set.splice(idx, 1);
-    else set.push(link);
-    st.flowLinks = set;
-    return true;
-  };
-
-  const addFlowLinkBetween = (a, b) => {
-    if (!canLinkFlowAnchors(a, b)) return false;
-    const link = { from: { rectId: a.rectId, rid: a.rid, cid: a.cid, kind: "end" }, to: { rectId: b.rectId, rid: b.rid, cid: b.cid, kind: "start" } };
-    const key = `${flowAnchorKey(link.from)}>${flowAnchorKey(link.to)}`;
-    const set = normalizeFlowLinks(st.flowLinks);
-    if (set.some(it => `${flowAnchorKey(it.from)}>${flowAnchorKey(it.to)}` === key)) return false;
-    set.push(link);
+    if (idx >= 0) {
+      if (!toggle) return false;
+      set.splice(idx, 1);
+    } else {
+      set.push(link);
+    }
     st.flowLinks = set;
     return true;
   };

@@ -94,6 +94,14 @@ export const setupRigInteractionController = (deps = {}) => {
     const loadSizePx = Math.max(14, 0.25 * scalePx);
     return { w, h, cols, rows, seams, bottomLoads, anchors, ui, loadSizePx, scalePx };
   };
+  const getRigContext = (r, z = 1) => {
+    const cx = drawCellX(r);
+    const cy = drawCellY(r);
+    const topo = getCellTopologyCached(r, cx, cy);
+    const hs = getHiddenSet(r);
+    const layout = buildRigLayout(r, cx, cy, topo, hs, z);
+    return { cx, cy, topo, hs, layout };
+  };
 
   const remapRectRigLoadsToBottomSeams = r => {
     if (!r || typeof r !== "object") return false;
@@ -104,11 +112,7 @@ export const setupRigInteractionController = (deps = {}) => {
       r.rig = rig;
       return false;
     }
-    const cx = drawCellX(r);
-    const cy = drawCellY(r);
-    const topo = getCellTopologyCached(r, cx, cy);
-    const hs = getHiddenSet(r);
-    const layout = buildRigLayout(r, cx, cy, topo, hs, 1);
+    const { layout } = getRigContext(r, 1);
     const seams = Array.from(layout.bottomLoads.values());
     if (!seams.length) {
       rig.loads = {};
@@ -187,11 +191,7 @@ export const setupRigInteractionController = (deps = {}) => {
       r.rig = rig;
       return false;
     }
-    const cx = drawCellX(r);
-    const cy = drawCellY(r);
-    const topo = getCellTopologyCached(r, cx, cy);
-    const hs = getHiddenSet(r);
-    const layout = buildRigLayout(r, cx, cy, topo, hs, 1);
+    const { cy, layout } = getRigContext(r, 1);
     const nextSet = new Set();
     for (const key of src) {
       const seam = resolveRigFrameSeam(layout, cy, String(key || ""));
@@ -211,11 +211,7 @@ export const setupRigInteractionController = (deps = {}) => {
 
   const getRigHitAtPoint = (r, wx, wy, z) => {
     if (!r) return null;
-    const cx = drawCellX(r);
-    const cy = drawCellY(r);
-    const topo = getCellTopologyCached(r, cx, cy);
-    const hs = getHiddenSet(r);
-    const layout = buildRigLayout(r, cx, cy, topo, hs, z);
+    const { cx, cy, layout } = getRigContext(r, z);
     const rig = getRectRigData(r);
     const uv = worldToRectUV(r, wx, wy);
     const lx = (+uv.u || 0) - layout.w / 2;
@@ -306,11 +302,7 @@ export const setupRigInteractionController = (deps = {}) => {
     const suspends = new Set(Array.isArray(rig.suspends) ? rig.suspends : []);
     const links = new Set(Array.isArray(rig.suspendLinks) ? rig.suspendLinks : []);
     const loads = { ...(rig.loads && typeof rig.loads === "object" ? rig.loads : {}) };
-    const cx = drawCellX(r);
-    const cy = drawCellY(r);
-    const topo = getCellTopologyCached(r, cx, cy);
-    const hs = getHiddenSet(r);
-    const layout = buildRigLayout(r, cx, cy, topo, hs, st.zoom);
+    const { cy, layout } = getRigContext(r, st.zoom);
     let changed = false;
 
     if (hit.type === "frame") {

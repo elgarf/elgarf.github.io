@@ -308,16 +308,19 @@ export const setupEditingToolsInput = (deps = {}) => {
     resetRigHoverTransient,
     commitUiUpdate
   } = deps;
+  const clearFlowLinkInteractionState = () => {
+    st.flowLinkPending = null;
+    st.flowLinkDrag = null;
+    st.flowLinkHover = null;
+    st.flowDragPreview = null;
+  };
 
   const handleFlowEditPointerDown = p => {
     const linkHit = findFlowLinkAtPoint(p.x, p.y);
     if (linkHit && linkHit.link) {
       const killKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
       st.flowLinks = normalizeFlowLinks(st.flowLinks).filter(it => `${flowAnchorKey(it.from)}>${flowAnchorKey(it.to)}` !== killKey);
-      st.flowLinkPending = null;
-      st.flowLinkDrag = null;
-      st.flowLinkHover = null;
-      st.flowDragPreview = null;
+      clearFlowLinkInteractionState();
       schedulePersist("project");
       render();
       return true;
@@ -358,9 +361,7 @@ export const setupEditingToolsInput = (deps = {}) => {
       return true;
     }
     if (!h) {
-      st.flowLinkPending = null;
-      st.flowLinkDrag = null;
-      st.flowDragPreview = null;
+      clearFlowLinkInteractionState();
       selRect(null);
       render();
       return true;

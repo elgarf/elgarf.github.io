@@ -38,6 +38,18 @@ export const setupSpecExportFeature = (deps = {}) => {
     saveBlobWithSystemDialog,
     showMessageModal
   } = deps;
+  const getRectFlowContext = r => {
+    const cellX = drawCellX(r);
+    const cellY = drawCellY(r);
+    const topo = getCellTopologyCached(r, cellX, cellY);
+    const hs = getHiddenSet(r);
+    const regions = planNumberRegions(r, cellX, cellY, topo, hs);
+    const flowGroups = getDataFlowGroups(r, cellX, cellY, topo, hs, regions);
+    return { cellX, cellY, topo, hs, regions, flowGroups };
+  };
+  const bumpMap = (map, key, delta = 1) => {
+    map.set(key, (map.get(key) || 0) + delta);
+  };
 
   const buildRectRigSpecData = r => {
     const rig = getRectRigData(r) || {};
@@ -148,12 +160,7 @@ export const setupSpecExportFeature = (deps = {}) => {
     for (const r of specRects) rectById.set(Math.max(1, Math.round(Number(r && r.id) || 0)), r);
     for (const r of specRects) {
       if (normalizeDataFlow(r && r.dataFlow) === "none") continue;
-      const cellX = drawCellX(r);
-      const cellY = drawCellY(r);
-      const topo = getCellTopologyCached(r, cellX, cellY);
-      const hs = getHiddenSet(r);
-      const regions = planNumberRegions(r, cellX, cellY, topo, hs);
-      const flowGroups = getDataFlowGroups(r, cellX, cellY, topo, hs, regions);
+      const { flowGroups } = getRectFlowContext(r);
       for (const g of flowGroups || []) {
         const rid = Math.max(0, Math.round(Number(g && g.rid) || 0));
         const pts = Array.isArray(g && g.points) ? g.points : [];
@@ -192,26 +199,24 @@ export const setupSpecExportFeature = (deps = {}) => {
         rectRec = { cableByLen: new Map(), targets: new Map() };
         byRectOut.set(fromRect.id, rectRec);
       }
-      rectRec.cableByLen.set(lenKey, (rectRec.cableByLen.get(lenKey) || 0) + 1);
+      bumpMap(rectRec.cableByLen, lenKey, 1);
       const targetLabel = `${toMeta.name}${toMeta.group && toMeta.group !== "Общая" ? ` @${toMeta.group}` : ""}`;
-      rectRec.targets.set(targetLabel, (rectRec.targets.get(targetLabel) || 0) + 1);
+      bumpMap(rectRec.targets, targetLabel, 1);
 
       let grpRec = byGroupOut.get(fromMeta.group);
       if (!grpRec) {
         grpRec = { cableByLen: new Map(), routes: new Map() };
         byGroupOut.set(fromMeta.group, grpRec);
       }
-      grpRec.cableByLen.set(lenKey, (grpRec.cableByLen.get(lenKey) || 0) + 1);
+      bumpMap(grpRec.cableByLen, lenKey, 1);
       const routeLabel = `${fromMeta.group} → ${toMeta.group}`;
-      grpRec.routes.set(routeLabel, (grpRec.routes.get(routeLabel) || 0) + 1);
+      bumpMap(grpRec.routes, routeLabel, 1);
     }
     return { byRectOut, byGroupOut };
   };
 
   const buildRectSpecData = r => {
-    const cellX = drawCellX(r), cellY = drawCellY(r);
-    const topo = getCellTopologyCached(r, cellX, cellY);
-    const hs = getHiddenSet(r);
+    const { cellX, cellY, topo, hs, flowGroups } = getRectFlowContext(r);
     const cols = Math.max(1, topo && topo.cols || 1);
     const rows = Math.max(1, topo && topo.rows || 1);
     const colW = [];
@@ -250,8 +255,6 @@ export const setupSpecExportFeature = (deps = {}) => {
       const k = `${wM} x ${hM}`;
       cabinetBySize.set(k, (cabinetBySize.get(k) || 0) + 1);
     }
-    const regions = planNumberRegions(r, cellX, cellY, topo, hs);
-    const flowGroups = getDataFlowGroups(r, cellX, cellY, topo, hs, regions);
     const cableByLen = new Map();
     for (const g of flowGroups || []) {
       const pts = Array.isArray(g && g.points) ? g.points : [];
