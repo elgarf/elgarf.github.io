@@ -10,6 +10,7 @@ export const setupViewThemeLockController = (deps = {}) => {
     syncLockButtons,
     updateInstallToolAvailability,
     onViewModeUiUpdated,
+    refreshToolButtons,
     commitProjectChange,
     setMode,
     isInstallOnlyToolMode,
@@ -107,6 +108,8 @@ export const setupViewThemeLockController = (deps = {}) => {
     st.themeMode = normalizeThemeMode(mode);
     documentRef.documentElement.setAttribute("data-bs-theme", resolveThemeMode(st.themeMode));
     updateThemeUi();
+    updateLockAllUi();
+    if (typeof refreshToolButtons === "function") refreshToolButtons();
     if (persist && typeof lsSet === "function") lsSet(THEME_MODE_KEY, st.themeMode);
     if (typeof render === "function") render();
   };

@@ -182,11 +182,6 @@
       line-height: 1
     }
 
-    #lockAllToggle,
-    #mLockAllToggle {
-      color: var(--bs-secondary-color)
-    }
-
     #lockAllToggle.btn-primary,
     #mLockAllToggle.btn-primary,
     #lockAllToggle.btn-danger,
@@ -197,6 +192,33 @@
     #lockAllToggle.btn-outline-secondary,
     #mLockAllToggle.btn-outline-secondary {
       color: var(--bs-secondary-color)
+    }
+
+    #lockAllToggle.btn-outline-light,
+    #mLockAllToggle.btn-outline-light {
+      color: var(--bs-body-color);
+    }
+
+    #lockAllToggle.btn-outline-light:hover,
+    #mLockAllToggle.btn-outline-light:hover,
+    #lockAllToggle.btn-outline-light:focus-visible,
+    #mLockAllToggle.btn-outline-light:focus-visible {
+      color: var(--bs-body-bg);
+      background-color: var(--bs-body-color);
+      border-color: var(--bs-body-color);
+    }
+
+    #helpOpen.btn-info {
+      color: var(--bs-body-color);
+      background-color: transparent;
+      border-color: rgba(127, 127, 127, .45);
+    }
+
+    #helpOpen.btn-info:hover,
+    #helpOpen.btn-info:focus-visible {
+      color: var(--bs-body-bg);
+      background-color: var(--bs-body-color);
+      border-color: var(--bs-body-color);
     }
 
     .icon-label-btn {
@@ -2685,6 +2707,7 @@
       syncLockButtons,
       updateInstallToolAvailability,
       onViewModeUiUpdated: () => updateSpecViewUi(),
+      refreshToolButtons: () => setMode(st.mode),
       commitProjectChange: opts => commitProjectChange(opts),
       setMode: m => setMode(m),
       isInstallOnlyToolMode,

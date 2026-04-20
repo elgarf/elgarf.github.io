@@ -1,5 +1,6 @@
 export const setupToolModeController = (deps = {}) => {
   const {
+    documentRef = document,
     st,
     el,
     wrap,
@@ -17,6 +18,11 @@ export const setupToolModeController = (deps = {}) => {
     updateClusterEditCursor,
     render
   } = deps;
+
+  const getInactiveOutlineClass = () => {
+    const theme = String(documentRef && documentRef.documentElement && documentRef.documentElement.getAttribute("data-bs-theme") || "").toLowerCase();
+    return theme === "light" ? "btn-outline-dark" : "btn-outline-light";
+  };
 
   const updateModeBadges = (_r) => {};
 
@@ -52,13 +58,15 @@ export const setupToolModeController = (deps = {}) => {
       ["clusterEdit", el.toolClusterEdit, el.mToolClusterEdit],
       ["rigEdit", el.toolRigEdit, el.mToolRigEdit]
     ];
+    const inactiveClass = getInactiveOutlineClass();
 
     for (const [mode, ...btns] of map) {
       const on = m === mode;
       for (const b of btns) {
         if (!b) continue;
+        b.classList.remove("btn-outline-light", "btn-outline-dark");
         b.classList.toggle("btn-success", on);
-        b.classList.toggle("btn-secondary", !on);
+        if (!on) b.classList.add(inactiveClass);
       }
     }
 

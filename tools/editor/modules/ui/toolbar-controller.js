@@ -135,13 +135,23 @@ export const setupToolbarController = (deps = {}) => {
   };
 
   const applyBootstrapClasses = () => {
+    const theme = String(documentRef && documentRef.documentElement && documentRef.documentElement.getAttribute("data-bs-theme") || "").toLowerCase();
+    const toolOffClass = theme === "light" ? "btn-outline-dark" : "btn-outline-light";
     for (const b of documentRef.querySelectorAll("button")) {
-      if (b.classList.contains("btn-close") || b.classList.contains("dropdown-item")) continue;
+      if (
+        b.classList.contains("btn-close")
+        || b.classList.contains("dropdown-item")
+        || b.closest(".EasyMDEContainer")
+        || b.closest(".editor-toolbar")
+      ) continue;
       b.classList.add("btn", "btn-sm");
-      b.classList.remove("btn-danger", "btn-outline-light", "btn-outline-secondary", "btn-secondary", "btn-success", "btn-info");
+      b.classList.remove("btn-danger", "btn-outline-light", "btn-outline-dark", "btn-outline-secondary", "btn-secondary", "btn-success", "btn-info");
+      const isToolButton = /^(?:tool|mTool)/.test(String(b.id || ""));
+      const isLockToggle = b === (el && el.lockAllToggle) || b === (el && el.mLockAllToggle);
       if (b === (el && el.helpOpen)) b.classList.add("btn-info");
+      else if (isToolButton || mobileToolButtons.includes(b)) b.classList.add(toolOffClass);
+      else if (isLockToggle) b.classList.add(toolOffClass);
       else if (b.closest(".toolbar")) b.classList.add("btn-secondary");
-      else if (mobileToolButtons.includes(b)) b.classList.add("btn-secondary");
       else if (b.classList.contains("danger")) b.classList.add("btn-danger");
       else b.classList.add("btn-secondary");
     }

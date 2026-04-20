@@ -11,10 +11,12 @@ export const syncModeToggleButton = (button, isActive, activeTitle, inactiveTitl
 };
 
 export const syncLockButtons = (buttons, on) => {
+  const theme = String(document && document.documentElement && document.documentElement.getAttribute("data-bs-theme") || "").toLowerCase();
+  const offClass = theme === "light" ? "btn-outline-dark" : "btn-outline-light";
   for (const b of buttons) {
     if (!b) continue;
-    b.classList.remove("btn-primary", "btn-danger", "btn-outline-secondary");
-    b.classList.add(on ? "btn-danger" : "btn-outline-secondary");
+    b.classList.remove("btn-primary", "btn-danger", "btn-secondary", "btn-outline-secondary", "btn-outline-light", "btn-outline-dark");
+    b.classList.add(on ? "btn-danger" : offClass);
     b.setAttribute("aria-pressed", on ? "true" : "false");
     const title = on ? "Разблокировать всё" : "Заблокировать всё";
     b.title = title;
