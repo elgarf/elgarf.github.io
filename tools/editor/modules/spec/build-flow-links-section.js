@@ -2,21 +2,17 @@ export const fmtAreaM2 = v => {
   const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
   return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "");
 };
-const mapToCabinetList = m =>
-  [...m.entries()]
-    .filter(([, count]) => (Number(count) || 0) > 0)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
-    .map(([size, count]) => `${size}м – ${count} шт.`);
-const mapToCableList = m =>
-  [...m.entries()]
-    .filter(([, count]) => (Number(count) || 0) > 0)
-    .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
-    .map(([len, count]) => `${len} – ${count} шт.`);
-const mapToNamedCountList = map =>
+const mapEntriesToList = (map, sortFn, fmtKey = k => k) =>
   [...map.entries()]
     .filter(([, count]) => (Number(count) || 0) > 0)
-    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ru"))
-    .map(([name, count]) => `${name} – ${count} шт.`);
+    .sort(sortFn)
+    .map(([key, count]) => `${fmtKey(key)} – ${count} шт.`);
+const mapToCabinetList = map =>
+  mapEntriesToList(map, (a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"), key => `${key}м`);
+const mapToCableList = map =>
+  mapEntriesToList(map, (a, b) => parseFloat(a[0]) - parseFloat(b[0]));
+const mapToNamedCountList = map =>
+  mapEntriesToList(map, (a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ru"));
 export const fmtMeters = v => {
   const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
   return Number.isInteger(n) ? n.toFixed(0) : String(n).replace(/\.?0+$/, "");
@@ -26,15 +22,9 @@ export const fmtOne = v => {
   return Number.isInteger(n) ? `${n.toFixed(0)}` : n.toFixed(1);
 };
 const mapToRigSizeList = map =>
-  [...map.entries()]
-    .filter(([, count]) => (Number(count) || 0) > 0)
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([size, count]) => `${fmtMeters(Number(size))}м – ${count} шт.`);
+  mapEntriesToList(map, (a, b) => Number(a[0]) - Number(b[0]), key => `${fmtMeters(Number(key))}м`);
 const mapToRigWeightList = map =>
-  [...map.entries()]
-    .filter(([, count]) => (Number(count) || 0) > 0)
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([kg, count]) => `${Math.round(Number(kg))}кг – ${count} шт.`);
+  mapEntriesToList(map, (a, b) => Number(a[0]) - Number(b[0]), key => `${Math.round(Number(key))}кг`);
 const pushSpecListLine = (out, label, items) => {
   if (Array.isArray(items) && items.length) out.push(`- ${label}: ${items.join("; ")}`);
 };

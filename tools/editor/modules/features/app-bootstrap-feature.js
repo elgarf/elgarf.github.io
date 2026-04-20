@@ -104,24 +104,6 @@ export const setupAppBootstrapFeature = (deps = {}) => {
     persistNow,
     scheduleCanvasResize
   };
-  const bootstrapKeyboardDeps = {
-    render,
-    undoHistory,
-    redoHistory,
-    closeHelpModal,
-    setMode,
-    isMaskMode,
-    applyMaskPath,
-    delSel,
-    dupSel,
-    cur,
-    cloneRectForClipboard,
-    cloneRectForDuplicate,
-    insertCloneAboveSource,
-    selRect,
-    getEditableSelectedRects,
-    commitUiUpdate
-  };
   const bootstrapAppInitDeps = {
     st,
     el,
@@ -155,19 +137,32 @@ export const setupAppBootstrapFeature = (deps = {}) => {
     ensureFontReady,
     render
   };
-  const editorServices = bootstrapUiServices;
-  setupUiBinders(editorServices);
+  setupUiBinders(bootstrapUiServices);
 
   setupKeyboardController({
-    ...(bootstrapKeyboardDeps || {}),
-    st: editorServices.st,
-    el: editorServices.el,
-    schedulePersist: editorServices.schedulePersist,
-    bindWindowEvent: editorServices.bindWindowEvent
+    render,
+    undoHistory,
+    redoHistory,
+    closeHelpModal,
+    setMode,
+    isMaskMode,
+    applyMaskPath,
+    delSel,
+    dupSel,
+    cur,
+    cloneRectForClipboard,
+    cloneRectForDuplicate,
+    insertCloneAboveSource,
+    selRect,
+    getEditableSelectedRects,
+    commitUiUpdate,
+    st: bootstrapUiServices.st,
+    el: bootstrapUiServices.el,
+    schedulePersist: bootstrapUiServices.schedulePersist,
+    bindWindowEvent: bootstrapUiServices.bindWindowEvent
   });
 
-  const appInitServices = bootstrapAppInitDeps;
-  const { initializeAppUi, initProjectState } = setupAppInitController(appInitServices);
+  const { initializeAppUi, initProjectState } = setupAppInitController(bootstrapAppInitDeps);
   initializeAppUi();
   initProjectState();
 
