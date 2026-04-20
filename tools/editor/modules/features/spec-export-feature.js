@@ -1,18 +1,5 @@
 import { setupExportPackageController } from "../export-package-controller.js";
-import { buildScreenSpecSection } from "../spec/build-screen-section.js";
-import { buildSummarySection } from "../spec/build-summary-section.js";
 import { buildFlowLinksSpecText } from "../spec/build-flow-links-section.js";
-import { addCountToMap, mergeCountMap, mergeNumericMap, sumMapCounts } from "../spec/aggregation.js";
-import {
-  fmtAreaM2,
-  mapToCabinetList,
-  mapToCableList,
-  mapToNamedCountList,
-  mapToRigSizeList,
-  mapToRigWeightList,
-  pushSpecListLine,
-  pushSpecCountLine
-} from "../spec/formatters.js";
 
 export const setupSpecExportFeature = (deps = {}) => {
   const {
@@ -59,6 +46,10 @@ export const setupSpecExportFeature = (deps = {}) => {
   const fmtMeters = v => {
     const n = Math.round((Number(v) || 0) * 1000) / 1000;
     return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "");
+  };
+  const addCountToMap = (map, key, count = 1) => {
+    if (key == null || !Number.isFinite(Number(key))) return;
+    map.set(key, (map.get(key) || 0) + count);
   };
 
   const buildRectRigSpecData = r => {
@@ -293,24 +284,6 @@ export const setupSpecExportFeature = (deps = {}) => {
     return { cabinetBySize, cableByLen, visibleAreaM2 };
   };
 
-  const screenSpecSectionDeps = {
-    parseScreenNameGroup,
-    buildRectSpecData,
-    buildRectRigSpecData,
-    mapToCableList,
-    mapToNamedCountList,
-    mapToRigSizeList,
-    mapToRigWeightList,
-    fmtMeters,
-    pushSpecListLine,
-    pushSpecCountLine
-  };
-  const renderScreenSpecSection = (rect, interSpec = null) => buildScreenSpecSection({
-    rect,
-    interSpec,
-    ...screenSpecSectionDeps
-  });
-
   const buildFlowSpecText = () => buildFlowLinksSpecText({
     rects: st.rects,
     isNoteRect: r => isNoteRect(r),
@@ -318,23 +291,7 @@ export const setupSpecExportFeature = (deps = {}) => {
     parseScreenNameGroup,
     buildRectSpecData,
     buildRectRigSpecData,
-    mergeCountMap,
-    mergeNumericMap,
-    buildScreenSpecSection: ({ rect, interSpec }) => renderScreenSpecSection(rect, interSpec),
-    buildSummarySection: ({ group, rec, interSpec }) => buildSummarySection({
-      group,
-      rec,
-      interSpec,
-      mapToCabinetList,
-      mapToCableList,
-      mapToNamedCountList,
-      mapToRigSizeList,
-      mapToRigWeightList,
-      sumMapCounts,
-      fmtAreaM2,
-      pushSpecListLine,
-      pushSpecCountLine
-    })
+    fmtMeters
   });
 
   const { exportPackage } = setupExportPackageController({

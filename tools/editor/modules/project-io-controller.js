@@ -1,7 +1,8 @@
 export const setupProjectIoController = (deps = {}) => {
   const {
+    PROJECT_QUERY_VERSION,
     PROJECT_STORE_API_URL, PROJECT_ID_PARAM, PROJECT_QUERY_PARAM,
-    toTrimmed, toPosInt, decodeProjectFromQueryValue
+    toTrimmed, toPosInt, decodeProjectFromQueryValue, encodeProjectToQueryValue, buildPortableProject
   } = deps;
 
   const fetchJsonWithTimeout = async (url, options = {}, timeoutMs = 5000) => {
@@ -80,11 +81,27 @@ export const setupProjectIoController = (deps = {}) => {
     } catch (_e) { }
   };
 
+  const attachProjectCodecBridge = () => {
+    try {
+      window.ledMaskProjectCodec = {
+        version: PROJECT_QUERY_VERSION,
+        async toQueryValue() { return await encodeProjectToQueryValue(buildPortableProject()); },
+        async toUrl() {
+          const u = new URL(location.href);
+          u.searchParams.set(PROJECT_QUERY_PARAM, await encodeProjectToQueryValue(buildPortableProject()));
+          return u.toString();
+        },
+        async fromQueryValue(value) { return await decodeProjectFromQueryValue(value); }
+      };
+    } catch (_e) { }
+  };
+
   return {
     fetchJsonWithTimeout,
     saveProjectToServer,
     loadProjectByIdFromServer,
     getProjectDataFromQueryParam,
-    clearProjectQueryParamFromUrl
+    clearProjectQueryParamFromUrl,
+    attachProjectCodecBridge
   };
 };

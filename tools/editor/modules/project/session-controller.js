@@ -15,6 +15,7 @@ export const setupProjectSessionController = (deps = {}) => {
     loadProjectIntoActiveState,
     onTabActivated,
     schedulePersistRef,
+    lsGet,
     lsSet,
     TABS_SAVE_KEY,
     AUTO_SAVE_KEY,
@@ -41,6 +42,7 @@ export const setupProjectSessionController = (deps = {}) => {
 
   const persistence = setupPersistenceController({
     el,
+    lsGet,
     lsSet,
     buildTabsBundle: () => tabsController.buildTabsBundle(),
     buildProject: () => buildProject(),

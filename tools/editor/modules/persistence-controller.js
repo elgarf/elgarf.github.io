@@ -1,6 +1,6 @@
 export const setupPersistenceController = (deps = {}) => {
   const {
-    el, lsSet, buildTabsBundle, buildProject,
+    el, lsSet, lsGet, buildTabsBundle, buildProject,
     TABS_SAVE_KEY, AUTO_SAVE_KEY, PERSIST_DEBOUNCE_MS,
     historyCommitIfChanged
   } = deps;
@@ -24,11 +24,37 @@ export const setupPersistenceController = (deps = {}) => {
     error(text) { setSaveIndicator(text || "Ошибка автосейва", "danger"); },
     idle(text) { setSaveIndicator(text || "Автосейв включен", "secondary"); }
   };
+  const isProjectEffectivelyEmpty = p => {
+    const rects = Array.isArray(p && p.rectangles) ? p.rectangles : [];
+    const flowLinks = Array.isArray(p && p.flowLinks) ? p.flowLinks : [];
+    return rects.length === 0 && flowLinks.length === 0;
+  };
+  const canOverwriteAutosaveWithProject = nextProject => {
+    if (!isProjectEffectivelyEmpty(nextProject)) return true;
+    if (typeof lsGet !== "function") return true;
+    try {
+      const rawPrev = lsGet(AUTO_SAVE_KEY, "");
+      if (!rawPrev) return true;
+      const prevProject = JSON.parse(rawPrev);
+      if (!isProjectEffectivelyEmpty(prevProject)) return false;
+    } catch (_e) { }
+    return true;
+  };
   const persistNow = () => {
     try {
       if (persistTabsDirty) { lsSet(TABS_SAVE_KEY, JSON.stringify(buildTabsBundle())); persistTabsDirty = false; }
-      if (persistProjectDirty) { lsSet(AUTO_SAVE_KEY, JSON.stringify(buildProject())); persistProjectDirty = false; }
-      saveStatus.saved();
+      if (persistProjectDirty) {
+        const nextProject = buildProject();
+        if (canOverwriteAutosaveWithProject(nextProject)) {
+          lsSet(AUTO_SAVE_KEY, JSON.stringify(nextProject));
+          saveStatus.saved();
+        } else {
+          saveStatus.error("Защита автосейва: пустой проект не записан");
+        }
+        persistProjectDirty = false;
+      } else {
+        saveStatus.saved();
+      }
     } catch (_e) {
       saveStatus.error();
     }

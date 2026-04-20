@@ -1,9 +1,6 @@
-import { setupAppBootstrapRuntime } from "../app-bootstrap-runtime.js";
 import { setupAppInitController } from "../app-init-controller.js";
-import { setupProjectCodecBridge } from "../project-codec-bridge.js";
 import { setupKeyboardController } from "../keyboard-controller.js";
 import { setupUiBinders } from "../ui-binders.js";
-import { setupBootstrapWiring } from "../bootstrap/wiring.js";
 
 export const setupAppBootstrapFeature = (deps = {}) => {
   const {
@@ -159,26 +156,32 @@ export const setupAppBootstrapFeature = (deps = {}) => {
     ensureFontReady,
     render
   };
-  const bootstrapCodecDeps = {
-    PROJECT_QUERY_VERSION,
-    PROJECT_QUERY_PARAM,
-    encodeProjectToQueryValue,
-    decodeProjectFromQueryValue,
-    buildPortableProject
-  };
-  const bootstrapRuntimeDeps = {
-    createEditorServices,
-    setupUiBinders,
-    setupKeyboardController,
-    setupAppInitController,
-    setupProjectCodecBridge,
-    uiServices: bootstrapUiServices,
-    keyboardDeps: bootstrapKeyboardDeps,
-    appInitDeps: bootstrapAppInitDeps,
-    codecDeps: bootstrapCodecDeps
-  };
-  setupBootstrapWiring({
-    setupAppBootstrapRuntime,
-    runtimeDeps: bootstrapRuntimeDeps
+  const editorServices = createEditorServices(bootstrapUiServices || {});
+  setupUiBinders(editorServices);
+
+  setupKeyboardController({
+    ...(bootstrapKeyboardDeps || {}),
+    st: editorServices.st,
+    el: editorServices.el,
+    schedulePersist: editorServices.schedulePersist,
+    bindWindowEvent: editorServices.bindWindowEvent
   });
+
+  const appInitServices = createEditorServices(bootstrapAppInitDeps || {});
+  const { initializeAppUi, initProjectState } = setupAppInitController(appInitServices);
+  initializeAppUi();
+  initProjectState();
+
+  try {
+    window.ledMaskProjectCodec = {
+      version: PROJECT_QUERY_VERSION,
+      async toQueryValue() { return await encodeProjectToQueryValue(buildPortableProject()); },
+      async toUrl() {
+        const u = new URL(location.href);
+        u.searchParams.set(PROJECT_QUERY_PARAM, await encodeProjectToQueryValue(buildPortableProject()));
+        return u.toString();
+      },
+      async fromQueryValue(value) { return await decodeProjectFromQueryValue(value); }
+    };
+  } catch (_e) { }
 };

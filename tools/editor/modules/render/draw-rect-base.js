@@ -1,5 +1,21 @@
 export const setupDrawRectBaseController = (deps = {}) => {
-  const { st, isNoteRect, drawNoteRect, drawCellX, drawCellY, getHiddenSet, rads, rectCenter, normalizeViewMode, getCellTopologyCached, getMaskRenderDataCached, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode, normalizeDataFlow, computeRectRenderFlags, planNumberRegions, updateSplitVariantControl, getDataFlowGroups, collectFlowLinkAnchors, collectFlowEditPoints, getRectFillLayerCached, getRectDecorLayerCached, getRectComponentRenderDataCached, rectTextTheme, fontFamilyCss, toLetters, mFmt, pctFmt, fillPercent, getRectTextSizePx, buildVisibleCabinetSummary, listSignature, getRectTextLayoutCached, hiddenCellBoxes, computeFreeRects, chooseTextLayout, REGION_ZONE_COLORS, getVisibleBoundarySegmentsCached, drawRectOverlays, drawRectInteractions, drawRigOutsideOverlay } = deps;
+  const { st, isNoteRect, drawNoteRect, drawCellX, drawCellY, getHiddenSet, rads, rectCenter, normalizeViewMode, getCellTopologyCached, getMaskRenderDataCached, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode, normalizeDataFlow, planNumberRegions, updateSplitVariantControl, getDataFlowGroups, collectFlowLinkAnchors, collectFlowEditPoints, getRectFillLayerCached, getRectDecorLayerCached, getRectComponentRenderDataCached, rectTextTheme, fontFamilyCss, toLetters, mFmt, pctFmt, fillPercent, getRectTextSizePx, buildVisibleCabinetSummary, listSignature, getRectTextLayoutCached, hiddenCellBoxes, computeFreeRects, chooseTextLayout, REGION_ZONE_COLORS, getVisibleBoundarySegmentsCached, drawRectOverlays, drawRectInteractions, drawRigOutsideOverlay } = deps;
+
+  const computeRectRenderFlags = ({
+    stMode,
+    sel,
+    rectId,
+    selectedId,
+    installView,
+    flowEnabledByMode,
+    flowInteractivePause,
+    showNumbers
+  }) => {
+    const flowEditingThisRect = !!(stMode === "flowEdit" && sel && rectId === selectedId);
+    const wantsFlowDraw = !!(installView && flowEnabledByMode && !flowInteractivePause);
+    const wantsFlowForNumbers = !!(showNumbers && flowEnabledByMode && !flowInteractivePause);
+    return { flowEditingThisRect, wantsFlowDraw, wantsFlowForNumbers };
+  };
 
   function drawRectBase(c, r, sel, z, origin, opts) {
       if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }

@@ -1508,11 +1508,9 @@
     import { syncModeToggleButton, syncLockButtons } from "./editor/modules/ui/toggles.js";
     import { createEventBinders } from "./editor/modules/ui/event-binders.js";
     import { setupSplitVariantController } from "./editor/modules/ui/split-variant-controller.js";
-    import { setupModalHelpers } from "./editor/modules/ui/modal-helpers.js";
     import { setupInstallBannerController } from "./editor/modules/ui/install-banner-controller.js";
     import { setupProjectLinkModalController } from "./editor/modules/ui/project-link-modal-controller.js";
     import { setupNoteEditorController } from "./editor/modules/ui/note-editor-controller.js";
-    import { setupBootstrapModalFactory } from "./editor/modules/ui/bootstrap-modal-factory.js";
     import { setupToolbarController } from "./editor/modules/ui/toolbar-controller.js";
     import { setupToolbarActionsController } from "./editor/modules/ui/toolbar-actions-controller.js";
     import { setupViewThemeLockController } from "./editor/modules/ui/view-theme-lock-controller.js";
@@ -1531,7 +1529,6 @@
     import { setupProjectLifecycleController } from "./editor/modules/project/project-lifecycle-controller.js";
     import { setupProjectSerializationController } from "./editor/modules/project/project-serialization-controller.js";
     import { setupProjectStateController } from "./editor/modules/project-state-controller.js";
-    import { setupInputWiring } from "./editor/modules/bootstrap/wiring.js";
     import { setupChangeOpsController } from "./editor/modules/state/change-ops.js";
     import { setupHistoryController } from "./editor/modules/history-controller.js";
     import { setupManualClustersController } from "./editor/modules/manual-clusters-controller.js";
@@ -1554,7 +1551,6 @@
     import { setupViewportMetricsController } from "./editor/modules/render/viewport-metrics.js";
     import { setupViewportOverlays } from "./editor/modules/render/viewport-overlays.js";
     import { setupInputController } from "./editor/modules/input-controller.js";
-    import { setupMobileGestures } from "./editor/modules/mobile-gestures.js";
     import { setupAppBootstrapFeature } from "./editor/modules/features/app-bootstrap-feature.js";
     import { setupSelectionUiFeature } from "./editor/modules/features/selection-ui-feature.js";
     import { setupSelectionActionsFeature } from "./editor/modules/features/selection-actions-feature.js";
@@ -1592,7 +1588,6 @@
     } from "./editor/modules/project-normalizers.js";
     import { setupSpecExportFeature } from "./editor/modules/features/spec-export-feature.js";
     import { embedProjectIntoPngBlob, extractProjectFromPngBytes } from "./editor/modules/png-project-meta.js";
-    import { computeRectRenderFlags } from "./editor/modules/render/mode-gates.js";
     import {
       FLOW_DRAW_BATCH_THRESHOLD, FLOW_DRAW_BATCH_STEP, FLOW_POINT_INDEX_CELL,
       INSTALL_HINT_KEY, HELP_SEEN_KEY, SAVE_LOCATION_ID_KEY,
@@ -2804,7 +2799,6 @@
       isClusterEditMode: () => isClusterEditMode(),
       isRigEditMode: () => isRigEditMode(),
       normalizeDataFlow,
-      computeRectRenderFlags,
       planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
       updateSplitVariantControl: r => updateSplitVariantControl(r),
       getDataFlowGroups: (r, cx, cy, topo, hs, regions) => getDataFlowGroups(r, cx, cy, topo, hs, regions),
@@ -3180,11 +3174,7 @@
       resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
       resetFlowRegionOverrides, syncProps, bindEvent, bindWindowEvent, zoomAt
     };
-    setupInputWiring({
-      createEditorServices,
-      setupInputController,
-      services: inputWiringServices
-    });
+    setupInputController({ ...inputWiringServices });
     let getActionTargets = () => [];
     let applyToTargets = (_visitor, _opts = {}) => 0;
     let applyToTargetsAndRender = (_visitor, _opts = {}, _after = null) => 0;
@@ -3268,7 +3258,6 @@
       mobileDeps: {
         windowRef: window,
         el,
-        setupMobileGestures,
         bindEvent: (...args) => bindEvent(...args)
       },
       modalDeps: {
@@ -3278,8 +3267,6 @@
         focusAndSelect,
         lsSet,
         HELP_SEEN_KEY,
-        setupBootstrapModalFactory,
-        setupModalHelpers,
         setupProjectLinkModalController
       },
       resetDeps: {
