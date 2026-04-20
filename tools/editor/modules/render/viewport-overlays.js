@@ -19,6 +19,7 @@ export const setupViewportOverlays = (deps = {}) => {
   const contentBoundsCache = { key: "", value: null };
   const cellBoundaryCache = { key: "", value: [] };
   const cellSummaryCache = { key: "", value: null };
+  const cellOverlayPathCache = { key: "", gridPath: null, borderPath: null };
 
   const getComponentBoundarySegmentsLocalCached = (r, cx, cy, topo) => {
     const key = [
@@ -166,58 +167,79 @@ export const setupViewportOverlays = (deps = {}) => {
     c.save();
     c.translate(centerX, centerY);
     c.rotate(ang);
+    const hasLinks = Array.isArray(r && r.cellLinks) && r.cellLinks.length > 0;
+    const zQuant = Math.max(1, Math.round((Number(z) || 1) * 100) / 100);
+    const pathKey = [
+      Math.max(0, Math.round(Number(r && r.id) || 0)),
+      Math.max(1, Math.round(Number(w) || 1)),
+      Math.max(1, Math.round(Number(h) || 1)),
+      Math.max(1, Math.round(Number(cx) || 1)),
+      Math.max(1, Math.round(Number(cy) || 1)),
+      Math.max(1, Math.round(Number(cols) || 1)),
+      Math.max(1, Math.round(Number(rows) || 1)),
+      zQuant,
+      listSignature(r && r.cellLinks)
+    ].join("|");
+    if (cellOverlayPathCache.key !== pathKey || !cellOverlayPathCache.gridPath || !cellOverlayPathCache.borderPath) {
+      const pxStepMin = 6;
+      const lineStepX = Math.max(1, Math.ceil(pxStepMin / Math.max(1e-6, cx * Math.max(0.01, z))));
+      const lineStepY = Math.max(1, Math.ceil(pxStepMin / Math.max(1e-6, cy * Math.max(0.01, z))));
+      const maxLines = 1400;
+      const capStep = Math.max(
+        1,
+        Math.ceil((Math.max(0, Math.ceil(cols / lineStepX)) + Math.max(0, Math.ceil(rows / lineStepY))) / maxLines)
+      );
+      const xStep = lineStepX * capStep;
+      const yStep = lineStepY * capStep;
+      const gridPath = new Path2D();
+      for (let ix = 0; ix <= cols; ix += xStep) {
+        const x = Math.min(w, ix * cx);
+        const lx = -w / 2 + x;
+        gridPath.moveTo(lx, -h / 2);
+        gridPath.lineTo(lx, h / 2);
+      }
+      if (cols % xStep !== 0) {
+        const lx = -w / 2 + w;
+        gridPath.moveTo(lx, -h / 2);
+        gridPath.lineTo(lx, h / 2);
+      }
+      for (let iy = 0; iy <= rows; iy += yStep) {
+        const y = Math.min(h, iy * cy);
+        const ly = -h / 2 + y;
+        gridPath.moveTo(-w / 2, ly);
+        gridPath.lineTo(w / 2, ly);
+      }
+      if (rows % yStep !== 0) {
+        const ly = -h / 2 + h;
+        gridPath.moveTo(-w / 2, ly);
+        gridPath.lineTo(w / 2, ly);
+      }
+      const borderPath = new Path2D();
+      if (hasLinks) {
+        const bounds = getComponentBoundarySegmentsLocalCached(r, cx, cy, topo);
+        for (const s of bounds) {
+          borderPath.moveTo(s.x1, s.y1);
+          borderPath.lineTo(s.x2, s.y2);
+        }
+      } else {
+        borderPath.rect(-w / 2, -h / 2, w, h);
+      }
+      cellOverlayPathCache.key = pathKey;
+      cellOverlayPathCache.gridPath = gridPath;
+      cellOverlayPathCache.borderPath = borderPath;
+    }
     c.strokeStyle = gridCol;
     c.lineWidth = Math.max(1, 1.1 / z);
-    const pxStepMin = 6;
-    const lineStepX = Math.max(1, Math.ceil(pxStepMin / Math.max(1e-6, cx * Math.max(0.01, z))));
-    const lineStepY = Math.max(1, Math.ceil(pxStepMin / Math.max(1e-6, cy * Math.max(0.01, z))));
-    const maxLines = 1400;
-    const capStep = Math.max(
-      1,
-      Math.ceil((Math.max(0, Math.ceil(cols / lineStepX)) + Math.max(0, Math.ceil(rows / lineStepY))) / maxLines)
-    );
-    const xStep = lineStepX * capStep;
-    const yStep = lineStepY * capStep;
-    c.beginPath();
-    for (let ix = 0; ix <= cols; ix += xStep) {
-      const x = Math.min(w, ix * cx);
-      const lx = -w / 2 + x;
-      c.moveTo(lx, -h / 2);
-      c.lineTo(lx, h / 2);
-    }
-    if (cols % xStep !== 0) {
-      const lx = -w / 2 + w;
-      c.moveTo(lx, -h / 2);
-      c.lineTo(lx, h / 2);
-    }
-    for (let iy = 0; iy <= rows; iy += yStep) {
-      const y = Math.min(h, iy * cy);
-      const ly = -h / 2 + y;
-      c.moveTo(-w / 2, ly);
-      c.lineTo(w / 2, ly);
-    }
-    if (rows % yStep !== 0) {
-      const ly = -h / 2 + h;
-      c.moveTo(-w / 2, ly);
-      c.lineTo(w / 2, ly);
-    }
-    c.stroke();
-    const hasLinks = Array.isArray(r && r.cellLinks) && r.cellLinks.length > 0;
+    c.stroke(cellOverlayPathCache.gridPath);
     if (hasLinks) {
-      const bounds = getComponentBoundarySegmentsLocalCached(r, cx, cy, topo);
       c.strokeStyle = boundCol;
       c.lineWidth = Math.max(1.8, 2.2 / z);
-      c.beginPath();
-      for (const s of bounds) {
-        c.moveTo(s.x1, s.y1);
-        c.lineTo(s.x2, s.y2);
-      }
-      c.stroke();
+      c.stroke(cellOverlayPathCache.borderPath);
     } else {
       // Fast path for large unlinked grids: draw only outer border, skip component-boundary pass.
       c.strokeStyle = boundCol;
       c.lineWidth = Math.max(1.6, 2 / z);
-      c.strokeRect(-w / 2, -h / 2, w, h);
+      c.stroke(cellOverlayPathCache.borderPath);
     }
     c.restore();
     if (st.cellHover && st.cellHover.p1 && st.cellHover.p2) {

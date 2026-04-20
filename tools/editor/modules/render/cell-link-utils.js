@@ -9,6 +9,7 @@ export const setupCellLinkUtilsController = (deps = {}) => {
     getZoom,
     maskCellKey
   } = deps;
+  const toggleSegCache = { key: "", value: [] };
 
   const componentsAreRectangles = topo => {
     const stat = new Map();
@@ -91,7 +92,28 @@ export const setupCellLinkUtilsController = (deps = {}) => {
   };
 
   const getCellLinkCandidateAtPoint = (r, wx, wy) => {
-    const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), segs = getCellToggleSegments(r, cx, cy, topo), thr = Math.max(6, 8 / Math.max(0.0001, Number(getZoom && getZoom()) || 1));
+    const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy);
+    const segKey = [
+      Math.max(0, Math.round(Number(r && r.id) || 0)),
+      Math.round(Number(r && r.x) || 0),
+      Math.round(Number(r && r.y) || 0),
+      Math.max(1, Math.round(Number(r && r.width) || 1)),
+      Math.max(1, Math.round(Number(r && r.height) || 1)),
+      Math.round(Number(r && r.rotation) || 0),
+      Math.max(1, Math.round(Number(cx) || 1)),
+      Math.max(1, Math.round(Number(cy) || 1)),
+      Math.max(1, Math.round(Number(topo && topo.cols) || 1)),
+      Math.max(1, Math.round(Number(topo && topo.rows) || 1)),
+      Math.max(0, Math.round(Number(topo && topo.count) || 0)),
+      Math.max(0, Math.round(Number(topo && topo.links && topo.links.size) || 0)),
+      Array.isArray(r && r.cellLinks) ? r.cellLinks.join(";") : ""
+    ].join("|");
+    if (toggleSegCache.key !== segKey || !Array.isArray(toggleSegCache.value)) {
+      toggleSegCache.key = segKey;
+      toggleSegCache.value = getCellToggleSegments(r, cx, cy, topo);
+    }
+    const segs = toggleSegCache.value;
+    const thr = Math.max(6, 8 / Math.max(0.0001, Number(getZoom && getZoom()) || 1));
     let best = null;
     for (const s of segs) {
       const d = pointToSegmentDistance(wx, wy, s.p1.x, s.p1.y, s.p2.x, s.p2.y);
