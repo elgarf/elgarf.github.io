@@ -298,6 +298,7 @@ export const setupEditingToolsInput = (deps = {}) => {
     findFlowStartHandle,
     findFlowDirectionButton,
     setFlowDirection,
+    rebuildAndPatchFlowRegion,
     findFlowLinkAnchorAtPoint,
     updateFlowLinkDragTarget,
     findFlowEditPoint,
@@ -342,6 +343,7 @@ export const setupEditingToolsInput = (deps = {}) => {
         const r = cur();
         if (r) {
           setFlowDirection(r, dirBtn.rid, dirBtn.dir, dirBtn.cid);
+          if (typeof rebuildAndPatchFlowRegion === "function") rebuildAndPatchFlowRegion(r, dirBtn.rid, 5000);
           st.flowHover = null;
           st.flowDirHover = dirBtn;
           schedulePersist("project");

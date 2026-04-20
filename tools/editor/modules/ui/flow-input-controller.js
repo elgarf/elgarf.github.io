@@ -15,6 +15,7 @@ export const setupFlowInputController = (deps = {}) => {
     setFlowStart,
     setFlowLock,
     buildRebuiltFlowPreview,
+    rebuildAndPatchFlowRegion,
     finishPointerUp
   } = deps;
 
@@ -125,6 +126,7 @@ export const setupFlowInputController = (deps = {}) => {
         setFlowLock(r, fd.rid, fd.fromIndex, target.cid);
         changed = true;
       }
+      if (changed && typeof rebuildAndPatchFlowRegion === "function") rebuildAndPatchFlowRegion(r, fd.rid, 5000);
     }
     finishPointerUp(changed);
     return true;

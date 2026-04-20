@@ -2948,6 +2948,33 @@
       getEditableSelectedRects: () => getEditableSelectedRects()
     }));
     let handleFlowEditPointerDown = (_p) => false;
+    const rebuildAndPatchFlowRegion = (r, rid, timeoutMs = 5000) => {
+      if (!r) return false;
+      const rg = Math.max(0, Math.round(Number(rid) || 0));
+      const cx = drawCellX(r), cy = drawCellY(r);
+      const topo = getCellTopologyCached(r, cx, cy);
+      const hs = getHiddenSet(r);
+      const budget = makeCalcBudget();
+      budget.deadline = calcNow() + Math.max(50, Math.round(Number(timeoutMs) || 0));
+      const regions = planNumberRegionsUncached(r, cx, cy, topo, hs, budget);
+      if (!regions || budget.timedOut) return false;
+      const groups = getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget, { onlyRid: rg });
+      if (!Array.isArray(groups) || budget.timedOut) return false;
+      const group = groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg) || null;
+      const cache = getRectCalcCache(r);
+      if (!cache) return false;
+      const prev = (cache.flow && Array.isArray(cache.flow.value)) ? cache.flow.value : [];
+      const next = prev.filter(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) !== rg);
+      if (group) next.push(group);
+      next.sort((a, b) => Math.max(0, Math.round(Number(a && a.rid) || 0)) - Math.max(0, Math.round(Number(b && b.rid) || 0)));
+      if (cache.flow && typeof cache.flow === "object") {
+        cache.flow.value = next;
+        cache.flow.pending = false;
+      } else {
+        cache.flow = { key: "", regionKey: "", value: next, pending: false };
+      }
+      return true;
+    };
     ({
       handleFlowEditPointerDown,
       handleRigPointerDown,
@@ -2968,6 +2995,7 @@
       findFlowStartHandle,
       findFlowDirectionButton,
       setFlowDirection,
+      rebuildAndPatchFlowRegion,
       findFlowLinkAnchorAtPoint,
       updateFlowLinkDragTarget,
       findFlowEditPoint,
@@ -3174,6 +3202,7 @@
       resetFlowRegionOverrides, syncProps,
       normalizeFlowLocks, drawCellX, drawCellY, getCellTopologyCached, getHiddenSet,
       planNumberRegionsUncached, getDataFlowGroupsUncached, makeCalcBudget, calcNow,
+      getRectCalcCache,
       bindEvent, bindWindowEvent, zoomAt
     };
     setupInputController({ ...inputWiringServices });

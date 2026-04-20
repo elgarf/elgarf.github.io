@@ -99,6 +99,7 @@ export const setupRegionsFlowController = (deps = {}) => {
     }
     const key = flowCalcKey(r, cx, cy, topo, regions);
     if (cache.flow && cache.flow.key === key) return cache.flow.value;
+    const staleFlow = (cache.flow && Array.isArray(cache.flow.value)) ? cache.flow.value : null;
     if (manualRegionsActive) {
       try {
         const budget = makeCalcBudget();
@@ -116,9 +117,9 @@ export const setupRegionsFlowController = (deps = {}) => {
         return [];
       }
     }
-    cache.flow = { key, regionKey, value: [], pending: true };
+    cache.flow = { key, regionKey, value: staleFlow || [], pending: true };
     scheduleFlowCalcWorker(r, key, cx, cy, topo, hs, regions);
-    return [];
+    return staleFlow || [];
   };
 
   return {

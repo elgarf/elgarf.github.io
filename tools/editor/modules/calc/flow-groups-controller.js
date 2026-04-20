@@ -35,10 +35,12 @@ export const setupFlowGroupsController = (deps = {}) => {
     default: { order: ["_rowTop", "asc", "_colLeft", "asc"], axes: { primary: "row", primaryDir: "asc", secondaryStart: "asc" } }
   });
 
-  const getDataFlowGroupsUncached = (r, cx, cy, topo, hs, regions, budget) => {
+  const getDataFlowGroupsUncached = (r, cx, cy, topo, hs, regions, budget, opts = {}) => {
     if (checkCalcTimeout(budget)) return [];
     const mode = normalizeDataFlow(r && r.dataFlow);
     const zMode = !!(r && r.dataFlowZ);
+    const onlyRidRaw = Number(opts && opts.onlyRid);
+    const onlyRid = Number.isFinite(onlyRidRaw) ? Math.max(0, Math.round(onlyRidRaw)) : null;
     if (mode === "none") return [];
     const manualRegionsActive = Array.isArray(r && r.manualClusters) && r.manualClusters.length > 0;
     let regionFlowCache = getDataFlowGroupsUncached._regionFlowCache;
@@ -244,6 +246,7 @@ export const setupFlowGroupsController = (deps = {}) => {
     const out = [];
     for (const [rid, arr] of byRegion) {
       if (checkCalcTimeout(budget)) return [];
+      if (onlyRid != null && rid !== onlyRid) continue;
       const cfgRegion = getFlowRegionConfig(r, rid);
       if (cfgRegion && cfgRegion.startPinned && cfgRegion.startCid != null) {
         const hasStartCid = arr.some(it => Math.max(0, Math.round(Number(it && it.cid) || 0)) === Math.max(0, Math.round(Number(cfgRegion.startCid) || 0)));

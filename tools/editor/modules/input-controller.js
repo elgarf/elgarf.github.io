@@ -24,6 +24,7 @@ export const setupInputController = (deps = {}) => {
     resetFlowRegionOverrides, syncProps,
     normalizeFlowLocks, drawCellX, drawCellY, getCellTopologyCached, getHiddenSet,
     planNumberRegionsUncached, getDataFlowGroupsUncached, makeCalcBudget, calcNow,
+    getRectCalcCache,
     bindEvent, bindWindowEvent
   } = deps;
 
@@ -66,7 +67,7 @@ export const setupInputController = (deps = {}) => {
     if (typeof calcNow === "function") budget.deadline = calcNow() + 5000;
     const regions = planNumberRegionsUncached(rr, cx, cy, topo, hs, budget);
     if (!regions || budget.timedOut) return null;
-    const groups = getDataFlowGroupsUncached(rr, cx, cy, topo, hs, regions, budget);
+    const groups = getDataFlowGroupsUncached(rr, cx, cy, topo, hs, regions, budget, { onlyRid: rid });
     if (!Array.isArray(groups) || budget.timedOut) return null;
     const g = groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rid);
     if (!g || !Array.isArray(g.points) || g.points.length < 2) return null;
@@ -82,6 +83,35 @@ export const setupInputController = (deps = {}) => {
         cid: Math.max(0, Math.round(Number(p && p.cid) || 0))
       }))
     };
+  };
+  const rebuildAndPatchFlowRegion = (r, rid, timeoutMs = 5000) => {
+    if (!r || typeof getRectCalcCache !== "function") return false;
+    const rg = Math.max(0, Math.round(Number(rid) || 0));
+    if (typeof drawCellX !== "function" || typeof drawCellY !== "function" || typeof getCellTopologyCached !== "function") return false;
+    if (typeof getHiddenSet !== "function" || typeof planNumberRegionsUncached !== "function" || typeof getDataFlowGroupsUncached !== "function") return false;
+    const cx = drawCellX(r), cy = drawCellY(r);
+    const topo = getCellTopologyCached(r, cx, cy);
+    const hs = getHiddenSet(r);
+    const budget = typeof makeCalcBudget === "function" ? makeCalcBudget() : { timedOut: false, deadline: 0 };
+    if (typeof calcNow === "function") budget.deadline = calcNow() + Math.max(50, Math.round(Number(timeoutMs) || 0));
+    const regions = planNumberRegionsUncached(r, cx, cy, topo, hs, budget);
+    if (!regions || budget.timedOut) return false;
+    const groups = getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget, { onlyRid: rg });
+    if (!Array.isArray(groups) || budget.timedOut) return false;
+    const group = groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg) || null;
+    const cache = getRectCalcCache(r);
+    if (!cache) return false;
+    const prev = (cache.flow && Array.isArray(cache.flow.value)) ? cache.flow.value : [];
+    const next = prev.filter(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) !== rg);
+    if (group) next.push(group);
+    next.sort((a, b) => Math.max(0, Math.round(Number(a && a.rid) || 0)) - Math.max(0, Math.round(Number(b && b.rid) || 0)));
+    if (cache.flow && typeof cache.flow === "object") {
+      cache.flow.value = next;
+      cache.flow.pending = false;
+    } else {
+      cache.flow = { key: "", regionKey: "", value: next, pending: false };
+    }
+    return true;
   };
 
   const navigationController = setupCanvasNavigationController({
@@ -129,6 +159,7 @@ export const setupInputController = (deps = {}) => {
     setFlowStart,
     setFlowLock,
     buildRebuiltFlowPreview,
+    rebuildAndPatchFlowRegion,
     finishPointerUp
   });
   const pointerOrchestrator = setupPointerOrchestratorController({

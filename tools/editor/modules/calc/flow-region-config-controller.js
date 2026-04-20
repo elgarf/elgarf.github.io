@@ -54,7 +54,7 @@ export const setupFlowRegionConfigController = (deps = {}) => {
     cfg.locks = next;
     rememberFlowRegionConfig(r, rid);
     const cache = getRectCalcCache(r);
-    if (cache) cache.flow = null;
+    if (cache && cache.flow && typeof cache.flow === "object") cache.flow.pending = true;
   };
 
   const setFlowStart = (r, rid, cid) => {
@@ -64,7 +64,7 @@ export const setupFlowRegionConfigController = (deps = {}) => {
     cfg.startPinned = true;
     rememberFlowRegionConfig(r, rid);
     const cache = getRectCalcCache(r);
-    if (cache) cache.flow = null;
+    if (cache && cache.flow && typeof cache.flow === "object") cache.flow.pending = true;
   };
 
   const setFlowDirection = (r, rid, dir, startCid) => {
@@ -78,7 +78,7 @@ export const setupFlowRegionConfigController = (deps = {}) => {
     cfg.locks = [];
     rememberFlowRegionConfig(r, rid);
     const cache = getRectCalcCache(r);
-    if (cache) cache.flow = null;
+    if (cache && cache.flow && typeof cache.flow === "object") cache.flow.pending = true;
   };
 
   const setFlowRegionMode = (r, rid, mode) => {
@@ -93,7 +93,7 @@ export const setupFlowRegionConfigController = (deps = {}) => {
     cfg.startPinned = false;
     rememberFlowRegionConfig(r, rid);
     const cache = getRectCalcCache(r);
-    if (cache) cache.flow = null;
+    if (cache && cache.flow && typeof cache.flow === "object") cache.flow.pending = true;
   };
 
   const resetFlowRegionOverrides = (r, rid) => {
@@ -106,7 +106,7 @@ export const setupFlowRegionConfigController = (deps = {}) => {
     cfg.startPinned = false;
     rememberFlowRegionConfig(r, rid);
     const cache = getRectCalcCache(r);
-    if (cache) cache.flow = null;
+    if (cache && cache.flow && typeof cache.flow === "object") cache.flow.pending = true;
   };
 
   return {
@@ -122,4 +122,3 @@ export const setupFlowRegionConfigController = (deps = {}) => {
     resetFlowRegionOverrides
   };
 };
-
