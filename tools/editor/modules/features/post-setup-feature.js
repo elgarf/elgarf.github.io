@@ -17,9 +17,9 @@ export const setupPostSetupFeature = (deps = {}) => {
     ...deps,
     getCurrentSaveLocationId: () => st.saveLocationId,
     buildPortableProject,
-    getProjectName: () => getProjectName(),
+    getProjectName,
     saveButton: el.save,
-    getSaveLocationId: () => getSaveLocationId()
+    getSaveLocationId
   });
 
   const { bindExportHandlers } = setupSpecExportFeature({

@@ -35,8 +35,8 @@ export const setupProjectSessionController = (deps = {}) => {
     cloneProjectData,
     makeEmptyProjectData,
     buildProject,
-    loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
-    onTabActivated: tab => { if (typeof onTabActivated === "function") onTabActivated(tab); },
+    loadProjectIntoActiveState,
+    onTabActivated,
     schedulePersist: (...args) => schedulePersist(...args)
   });
 
@@ -44,15 +44,15 @@ export const setupProjectSessionController = (deps = {}) => {
     el,
     lsGet,
     lsSet,
-    buildTabsBundle: () => tabsController.buildTabsBundle(),
-    buildProject: () => buildProject(),
+    buildTabsBundle: tabsController.buildTabsBundle,
+    buildProject,
     TABS_SAVE_KEY,
     AUTO_SAVE_KEY,
     PERSIST_DEBOUNCE_MS,
-    historyCommitIfChanged: () => historyCommitIfChanged()
+    historyCommitIfChanged
   });
 
-  schedulePersist = (...args) => persistence.schedulePersist(...args);
+  schedulePersist = persistence.schedulePersist;
   if (typeof schedulePersistRef === "function") schedulePersistRef(schedulePersist);
 
   return {

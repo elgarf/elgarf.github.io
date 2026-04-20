@@ -273,8 +273,8 @@ export const setupSpecExportFeature = (deps = {}) => {
 
   const buildFlowSpecText = () => buildFlowLinksSpecText({
     rects: st.rects,
-    isNoteRect: r => isNoteRect(r),
-    buildInterScreenSpecData: () => buildInterScreenSpecData(),
+    isNoteRect,
+    buildInterScreenSpecData,
     parseScreenNameGroup,
     buildRectSpecData,
     buildRectRigSpecData,

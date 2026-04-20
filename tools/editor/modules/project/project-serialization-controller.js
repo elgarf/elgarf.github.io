@@ -31,7 +31,7 @@ export const setupProjectSerializationController = (deps = {}) => {
     rectangles: st.rects.map(serializeRectForProject)
   });
 
-  const cloneProjectData = data => cloneJson(data, () => buildProject());
+  const cloneProjectData = data => cloneJson(data, buildProject);
 
   const makeEmptyProjectData = (name = "Новый проект") => ({
     version: 1,
