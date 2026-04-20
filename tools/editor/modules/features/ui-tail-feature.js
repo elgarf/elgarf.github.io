@@ -22,16 +22,16 @@ export const setupUiTailFeature = (deps = {}) => {
   setupResetActionsFeature(resetDeps || {});
   setupConvertRegionsFeature({
     ...(convertDeps || {}),
-    showMessageModal: (...args) => showMessageModal(...args)
+    showMessageModal
   });
 
   setupPostSetupFeature({
     ...(postSetupDeps || {}),
-    isMobile: () => isMobile(),
+    isMobile,
     showErrorModal,
     withUiErrorBoundary,
-    showMessageModal: (...args) => showMessageModal(...args),
-    showProjectLinkModal: (...args) => showProjectLinkModal(...args)
+    showMessageModal,
+    showProjectLinkModal
   });
 
   return {

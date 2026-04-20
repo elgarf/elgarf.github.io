@@ -98,10 +98,10 @@ export const setupModalWiringFeature = (deps = {}) => {
 
   const { showProjectLinkModal } = setupProjectLinkModalController({
     el,
-    getProjectLinkModal: () => getProjectLinkModal(),
+    getProjectLinkModal,
     getById,
-    showMessageModal: (...args) => showMessageModal(...args),
-    focusModalTextLater: (...args) => focusModalTextLater(...args)
+    showMessageModal,
+    focusModalTextLater
   });
 
   return {
