@@ -39,7 +39,18 @@ export const setupEditingToolsCore = (deps = {}) => {
       const r = st.rects[i];
       if (isRectLocked(r)) continue;
       const p = worldToRectUV(r, x, y);
-      if (p.u >= 0 && p.u <= r.width && p.v >= 0 && p.v <= r.height) return r;
+      const inRect = p.u >= 0 && p.u <= r.width && p.v >= 0 && p.v <= r.height;
+      const rigTopPad = (st.mode === "rigEdit")
+        ? Math.max(8, 0.22 * Math.max(1, Number(r && r.scale) || 256))
+        : 0;
+      const inRigTopPad = (st.mode === "rigEdit")
+        && p.u >= 0
+        && p.u <= r.width
+        && p.v >= -rigTopPad
+        && p.v < 0;
+      if (!inRect && !inRigTopPad) continue;
+      if (String(r?.type || "") !== "note" && inRect && !cellFromWorldPoint(r, x, y, true)) continue;
+      return r;
     }
     return null;
   };

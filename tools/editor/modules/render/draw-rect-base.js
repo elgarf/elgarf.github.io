@@ -184,8 +184,10 @@ export const setupDrawRectBaseController = (deps = {}) => {
       drawRectInteractions(drawCtx);
       c.restore();
       c.restore();
-      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive)
-        drawRigOutsideOverlay(c, r, cellX, cellY, topo, hs, z, !!sel);
+      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive) {
+        const forceRigOverlay = !!(options && options.forceRigOverlay);
+        drawRigOutsideOverlay(c, r, cellX, cellY, topo, hs, z, !!sel || forceRigOverlay);
+      }
     }
 
   return { drawRectBase };

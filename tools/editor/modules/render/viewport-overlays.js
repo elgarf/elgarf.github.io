@@ -202,15 +202,23 @@ export const setupViewportOverlays = (deps = {}) => {
       c.lineTo(w / 2, ly);
     }
     c.stroke();
-    const bounds = getComponentBoundarySegmentsLocalCached(r, cx, cy, topo);
-    c.strokeStyle = boundCol;
-    c.lineWidth = Math.max(1.8, 2.2 / z);
-    c.beginPath();
-    for (const s of bounds) {
-      c.moveTo(s.x1, s.y1);
-      c.lineTo(s.x2, s.y2);
+    const hasLinks = Array.isArray(r && r.cellLinks) && r.cellLinks.length > 0;
+    if (hasLinks) {
+      const bounds = getComponentBoundarySegmentsLocalCached(r, cx, cy, topo);
+      c.strokeStyle = boundCol;
+      c.lineWidth = Math.max(1.8, 2.2 / z);
+      c.beginPath();
+      for (const s of bounds) {
+        c.moveTo(s.x1, s.y1);
+        c.lineTo(s.x2, s.y2);
+      }
+      c.stroke();
+    } else {
+      // Fast path for large unlinked grids: draw only outer border, skip component-boundary pass.
+      c.strokeStyle = boundCol;
+      c.lineWidth = Math.max(1.6, 2 / z);
+      c.strokeRect(-w / 2, -h / 2, w, h);
     }
-    c.stroke();
     c.restore();
     if (st.cellHover && st.cellHover.p1 && st.cellHover.p2) {
       c.strokeStyle = st.cellHover.canToggle

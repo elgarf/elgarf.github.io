@@ -18,7 +18,7 @@ export const createRenderExportPngBlob = (deps = {}) => {
   const getExportFlowGroupsFromCache = r => {
     if (normalizeDataFlow(r && r.dataFlow) === "none") return [];
     const cache = getRectCalcCache(r);
-    if (!cache || !cache.flow || cache.flow.pending || !Array.isArray(cache.flow.value)) return [];
+    if (!cache || !cache.flow || cache.flow.pending || !Array.isArray(cache.flow.value)) return null;
     return cache.flow.value;
   };
 
@@ -62,8 +62,16 @@ export const createRenderExportPngBlob = (deps = {}) => {
         const r = st.rects[i];
         const er = { ...r, x: r.x - minX, y: r.y - minY + startY };
         const includeFlowRect = !!(includeFlow && normalizeDataFlow(r && r.dataFlow) !== "none");
-        const flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(r) : [];
-        drawRect(c, er, false, 1, { x: 0, y: 0 }, { noCachedRegions: true, includeFlow: includeFlowRect, disableLod: true, flowGroupsOverride: flowGroups, viewModeOverride: includeFlow ? "install" : "art" });
+        const flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(r) : null;
+        const drawOpts = {
+          noCachedRegions: true,
+          includeFlow: includeFlowRect,
+          disableLod: true,
+          forceRigOverlay: !!includeFlow,
+          viewModeOverride: includeFlow ? "install" : "art"
+        };
+        if (Array.isArray(flowGroups)) drawOpts.flowGroupsOverride = flowGroups;
+        drawRect(c, er, false, 1, { x: 0, y: 0 }, drawOpts);
       }
       if (includeFlow) drawInterScreenFlowLinks(c, true);
     } finally {
