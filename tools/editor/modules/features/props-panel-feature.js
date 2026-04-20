@@ -103,7 +103,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (el.splitVariantInc) uiSetDisabled(el.splitVariantInc, true);
       if (typeof deps.updateSplitVariantLabel === "function") deps.updateSplitVariantLabel(null);
       if (el.btnAutoContrast) uiSetText(el.btnAutoContrast, "Авто дополнительный: вкл");
-      uiSetValue(el.cUnit, normalizeCabinetUnit(el.cUnit && el.cUnit.value));
+      uiSetValue(el.cUnit, normalizeCabinetUnit("m"));
       uiSetValue(el.cx, "128"); uiSetValue(el.cy, "128");
       return;
     }

@@ -9,7 +9,6 @@ export const setupViewportOverlays = (deps = {}) => {
     drawCellX,
     drawCellY,
     getCellTopologyCached,
-    getComponentBoundarySegments,
     buildVisibleCabinetSummary,
     getHiddenSet,
     fontFamilyCss,
@@ -18,6 +17,64 @@ export const setupViewportOverlays = (deps = {}) => {
   } = deps;
 
   const contentBoundsCache = { key: "", value: null };
+  const cellBoundaryCache = { key: "", value: [] };
+  const cellSummaryCache = { key: "", value: null };
+
+  const getComponentBoundarySegmentsLocalCached = (r, cx, cy, topo) => {
+    const key = [
+      Math.max(0, Math.round(Number(r && r.id) || 0)),
+      Math.max(1, Math.round(Number(r && r.width) || 1)),
+      Math.max(1, Math.round(Number(r && r.height) || 1)),
+      Math.max(1, Math.round(Number(cx) || 1)),
+      Math.max(1, Math.round(Number(cy) || 1)),
+      Math.max(1, Math.round(Number(topo && topo.cols) || 1)),
+      Math.max(1, Math.round(Number(topo && topo.rows) || 1)),
+      listSignature(r && r.cellLinks)
+    ].join("|");
+    if (cellBoundaryCache.key === key && Array.isArray(cellBoundaryCache.value)) return cellBoundaryCache.value;
+    const segs = [];
+    const w = Math.max(1, Math.round(Number(r && r.width) || 1));
+    const h = Math.max(1, Math.round(Number(r && r.height) || 1));
+    const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
+    const rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
+    const comp = Array.isArray(topo && topo.comp) ? topo.comp : [];
+    const compAt = (x, y) => comp[y * cols + x];
+    for (let ky = 0; ky <= rows; ky++) {
+      let run = -1;
+      const isBoundary = x => {
+        if (ky === 0 || ky === rows) return true;
+        return compAt(x, ky - 1) !== compAt(x, ky);
+      };
+      for (let x = 0; x <= cols; x++) {
+        const on = x < cols && isBoundary(x);
+        if (on && run < 0) run = x;
+        if ((!on || x === cols) && run >= 0) {
+          const u1 = run * cx, u2 = Math.min(w, x * cx), v = Math.min(h, ky * cy);
+          segs.push({ x1: -w / 2 + u1, y1: -h / 2 + v, x2: -w / 2 + u2, y2: -h / 2 + v });
+          run = -1;
+        }
+      }
+    }
+    for (let kx = 0; kx <= cols; kx++) {
+      let run = -1;
+      const isBoundary = y => {
+        if (kx === 0 || kx === cols) return true;
+        return compAt(kx - 1, y) !== compAt(kx, y);
+      };
+      for (let y = 0; y <= rows; y++) {
+        const on = y < rows && isBoundary(y);
+        if (on && run < 0) run = y;
+        if ((!on || y === rows) && run >= 0) {
+          const v1 = run * cy, v2 = Math.min(h, y * cy), u = Math.min(w, kx * cx);
+          segs.push({ x1: -w / 2 + u, y1: -h / 2 + v1, x2: -w / 2 + u, y2: -h / 2 + v2 });
+          run = -1;
+        }
+      }
+    }
+    cellBoundaryCache.key = key;
+    cellBoundaryCache.value = segs;
+    return segs;
+  };
 
   const getContentBounds = () => {
     if (!st.rects.length) return null;
@@ -99,35 +156,62 @@ export const setupViewportOverlays = (deps = {}) => {
     const cx = drawCellX(r);
     const cy = drawCellY(r);
     const topo = getCellTopologyCached(r, cx, cy);
-    const axes = getMaskNodeAxes(r);
+    const w = Math.max(1, Number(r.width) || 1);
+    const h = Math.max(1, Number(r.height) || 1);
+    const cols = Math.max(1, Math.round(Number(topo && topo.cols) || Math.ceil(w / cx)));
+    const rows = Math.max(1, Math.round(Number(topo && topo.rows) || Math.ceil(h / cy)));
+    const centerX = (Number(r.x) || 0) + w / 2;
+    const centerY = (Number(r.y) || 0) + h / 2;
+    const ang = (Number(r.rotation) || 0) * Math.PI / 180;
     c.save();
+    c.translate(centerX, centerY);
+    c.rotate(ang);
     c.strokeStyle = gridCol;
     c.lineWidth = Math.max(1, 1.1 / z);
-    for (const x of axes.xs) {
-      const p1 = rectUVToWorld(r, x, 0);
-      const p2 = rectUVToWorld(r, x, r.height);
-      c.beginPath();
-      c.moveTo(p1.x, p1.y);
-      c.lineTo(p2.x, p2.y);
-      c.stroke();
+    const pxStepMin = 6;
+    const lineStepX = Math.max(1, Math.ceil(pxStepMin / Math.max(1e-6, cx * Math.max(0.01, z))));
+    const lineStepY = Math.max(1, Math.ceil(pxStepMin / Math.max(1e-6, cy * Math.max(0.01, z))));
+    const maxLines = 1400;
+    const capStep = Math.max(
+      1,
+      Math.ceil((Math.max(0, Math.ceil(cols / lineStepX)) + Math.max(0, Math.ceil(rows / lineStepY))) / maxLines)
+    );
+    const xStep = lineStepX * capStep;
+    const yStep = lineStepY * capStep;
+    c.beginPath();
+    for (let ix = 0; ix <= cols; ix += xStep) {
+      const x = Math.min(w, ix * cx);
+      const lx = -w / 2 + x;
+      c.moveTo(lx, -h / 2);
+      c.lineTo(lx, h / 2);
     }
-    for (const y of axes.ys) {
-      const p1 = rectUVToWorld(r, 0, y);
-      const p2 = rectUVToWorld(r, r.width, y);
-      c.beginPath();
-      c.moveTo(p1.x, p1.y);
-      c.lineTo(p2.x, p2.y);
-      c.stroke();
+    if (cols % xStep !== 0) {
+      const lx = -w / 2 + w;
+      c.moveTo(lx, -h / 2);
+      c.lineTo(lx, h / 2);
     }
-    const bounds = getComponentBoundarySegments(r, cx, cy, topo);
+    for (let iy = 0; iy <= rows; iy += yStep) {
+      const y = Math.min(h, iy * cy);
+      const ly = -h / 2 + y;
+      c.moveTo(-w / 2, ly);
+      c.lineTo(w / 2, ly);
+    }
+    if (rows % yStep !== 0) {
+      const ly = -h / 2 + h;
+      c.moveTo(-w / 2, ly);
+      c.lineTo(w / 2, ly);
+    }
+    c.stroke();
+    const bounds = getComponentBoundarySegmentsLocalCached(r, cx, cy, topo);
     c.strokeStyle = boundCol;
     c.lineWidth = Math.max(1.8, 2.2 / z);
+    c.beginPath();
     for (const s of bounds) {
-      c.beginPath();
-      c.moveTo(s.p1.x, s.p1.y);
-      c.lineTo(s.p2.x, s.p2.y);
-      c.stroke();
+      c.moveTo(s.x1, s.y1);
+      c.lineTo(s.x2, s.y2);
     }
+    c.stroke();
+    c.restore();
     if (st.cellHover && st.cellHover.p1 && st.cellHover.p2) {
       c.strokeStyle = st.cellHover.canToggle
         ? (st.cellHover.exists ? "rgba(255,205,92,.95)" : "rgba(94,220,143,.95)")
@@ -140,7 +224,23 @@ export const setupViewportOverlays = (deps = {}) => {
     }
     const hp = st.cellHoverPos;
     if (hp && Number.isFinite(Number(hp.x)) && Number.isFinite(Number(hp.y))) {
-      const summary = buildVisibleCabinetSummary(r, cx, cy, topo, getHiddenSet(r));
+      const summaryKey = [
+        Math.max(0, Math.round(Number(r && r.id) || 0)),
+        Math.max(1, Math.round(Number(r && r.width) || 1)),
+        Math.max(1, Math.round(Number(r && r.height) || 1)),
+        Math.max(1, Math.round(Number(cx) || 1)),
+        Math.max(1, Math.round(Number(cy) || 1)),
+        Math.max(1, Math.round(Number(topo && topo.cols) || 1)),
+        Math.max(1, Math.round(Number(topo && topo.rows) || 1)),
+        Math.max(1, Math.round(Number(r && r.scale) || 1)),
+        listSignature(r && r.hiddenCells),
+        listSignature(r && r.cellLinks)
+      ].join("|");
+      if (cellSummaryCache.key !== summaryKey || !cellSummaryCache.value) {
+        cellSummaryCache.key = summaryKey;
+        cellSummaryCache.value = buildVisibleCabinetSummary(r, cx, cy, topo, getHiddenSet(r));
+      }
+      const summary = cellSummaryCache.value;
       const lines = [`Кабинетов: ${Math.max(0, Math.round(Number(summary && summary.totalCount) || 0))}`];
       for (const row of (summary && summary.groups ? summary.groups : [])) lines.push(String(row || ""));
       const fs = Math.max(8, 11 / Math.max(0.45, z || 1));
@@ -172,7 +272,6 @@ export const setupViewportOverlays = (deps = {}) => {
       c.fillStyle = darkTheme ? "rgba(255,255,255,.96)" : "rgba(17,24,39,.96)";
       for (let i = 0; i < lines.length; i++) c.fillText(lines[i], bx + pad, by + pad + i * lh);
     }
-    c.restore();
   };
 
   const drawContentBounds = (c, z) => {

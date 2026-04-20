@@ -1492,14 +1492,16 @@
   <script src="./vendor/qrcode-generator/qrcode.js"></script>
   <script type="module">
     import { createProjectCodec } from "./editor/modules/project-codec.js";
-    import { createToolFsm } from "./editor/modules/tool-fsm.js";
+    import { createToolFsm, createModePredicates } from "./editor/modules/tool-fsm.js";
     import { createRectPropSchema } from "./editor/modules/props-schema.js";
     import { touchProgressState, setCacheWithPrune } from "./editor/modules/cache-utils.js";
     import { isWorkerBootMessage, buildWorkerMessage, collectSetValues } from "./editor/modules/worker-runtime.js";
     import { createEditorServices } from "./editor/modules/editor-services.js";
     import { safeDefine } from "./editor/modules/utils/safe-define.js";
-    import { autoContrast, hexRgb, hslToRgb, pickByContrast, rgbHex, rgbToHsl, contrastRatio, shadeHex } from "./editor/modules/utils/color-utils.js";
-    import { distToSegment, overlapArea, rads, rectAABB, rectCenter, rectUVToWorld, worldToRectUV } from "./editor/modules/utils/geometry.js";
+    import { autoContrast, hexRgb, hslToRgb, pickByContrast, rgbHex, rgbToHsl, contrastRatio, shadeHex, randomColor, rectTextTheme, bwTextForRgb } from "./editor/modules/utils/color-utils.js";
+    import { distToSegment, overlapArea, rads, rectAABB, rectCenter, rectUVToWorld, worldToRectUV, maskCellKey, pointInPoly, getOriginFromRects, createCellFromWorldPoint, hiddenCellBoxes, computeFreeRects, createMaskNodeAxesGetter } from "./editor/modules/utils/geometry.js";
+    import { toInt, toPosInt, toTrimmed, evalExpr, toRoundedInt, clampInt, toPositiveInt, parseAreaM2PxInput } from "./editor/modules/utils/number-utils.js";
+    import { fontFamilyCss, escXml } from "./editor/modules/utils/text-utils.js";
     import { withNameSuffixBeforeGroup, parseScreenNameGroup } from "./editor/modules/utils/name-group.js";
     import { lsGet, lsSet, cloneJson, jsonEquals } from "./editor/modules/utils/storage-json.js";
     import { createRectStore } from "./editor/modules/rect-store.js";
@@ -1536,15 +1538,18 @@
     import { setupRigCore } from "./editor/modules/rig-core.js";
     import { setupRigInteractionController } from "./editor/modules/rig/interaction.js";
     import { setupRigRenderController } from "./editor/modules/rig/render.js";
-    import { setupFlowLinkController } from "./editor/modules/flow-link-controller.js";
-    import { drawFlowStartMarker, drawFlowEndMarker } from "./editor/modules/flow/draw-helpers.js";
-    import { setupFlowAnchorResolver } from "./editor/modules/flow/anchor-resolver.js";
+    import { setupFlowLinkFeature } from "./editor/modules/features/flow-link-feature.js";
+    import * as FlowDrawHelpers from "./editor/modules/flow/draw-helpers.js";
     import { setupInterScreenLinksRender } from "./editor/modules/flow/inter-screen-links-render.js";
+    import { setupFlowEditHitTestController } from "./editor/modules/flow/flow-edit-hit-test-controller.js";
+    import { setupFlowEditOverlayRender } from "./editor/modules/flow/flow-edit-overlay-render.js";
     import { setupNoteRender } from "./editor/modules/render/note-render.js";
     import { setupDrawRectStagesController } from "./editor/modules/render/draw-rect-stages.js";
     import { setupDrawRectBaseController } from "./editor/modules/render/draw-rect-base.js";
     import { setupCellLinkUtilsController } from "./editor/modules/render/cell-link-utils.js";
     import { setupTextLayoutController } from "./editor/modules/render/text-layout-controller.js";
+    import { setupCabinetSummaryUtils } from "./editor/modules/render/cabinet-summary-utils.js";
+    import { setupRectLayerCacheController } from "./editor/modules/render/rect-layer-cache-controller.js";
     import { setupRenderRuntimeFeature } from "./editor/modules/features/render-runtime-feature.js";
     import { setupViewportMetricsController } from "./editor/modules/render/viewport-metrics.js";
     import { setupViewportOverlays } from "./editor/modules/render/viewport-overlays.js";
@@ -1557,14 +1562,22 @@
     import { setupPropsPanelFeature } from "./editor/modules/features/props-panel-feature.js";
     import { setupTargetActionsFeature } from "./editor/modules/features/target-actions-feature.js";
     import { setupPropsInputBindingsFeature } from "./editor/modules/features/props-input-bindings-feature.js";
-    import { setupResetActionsFeature } from "./editor/modules/features/reset-actions-feature.js";
-    import { setupModalWiringFeature } from "./editor/modules/features/modal-wiring-feature.js";
-    import { setupConvertRegionsFeature } from "./editor/modules/features/convert-regions-feature.js";
-    import { setupMobileUiFeature } from "./editor/modules/features/mobile-ui-feature.js";
+    import { setupUiTailFeature } from "./editor/modules/features/ui-tail-feature.js";
+    import { setupClusterEditController } from "./editor/modules/features/cluster-edit-controller.js";
     import { setupEditingToolsCore, setupEditingToolsInput } from "./editor/modules/features/editing-tools-controller.js";
     import { buildCalcWorkerScript } from "./editor/modules/calc/worker-script.js";
     import { setupCalcWorkerOrchestrator } from "./editor/modules/calc/worker-orchestrator.js";
     import { setupRegionsFlowController } from "./editor/modules/calc/regions-flow-controller.js";
+    import { setupFlowPathUtils } from "./editor/modules/calc/flow-path-utils.js";
+    import { setupTopologyUtils } from "./editor/modules/calc/topology-utils.js";
+    import { setupRectCacheCore } from "./editor/modules/calc/rect-cache-core.js";
+    import { setupFlowLockSyncController } from "./editor/modules/calc/flow-lock-sync-controller.js";
+    import { setupRectCachePersistenceController } from "./editor/modules/calc/rect-cache-persistence-controller.js";
+    import { setupFlowRegionConfigController } from "./editor/modules/calc/flow-region-config-controller.js";
+    import { setupFlowRoutingController } from "./editor/modules/calc/flow-routing-controller.js";
+    import { setupFlowGroupsController } from "./editor/modules/calc/flow-groups-controller.js";
+    import { setupRegionsPlannerController } from "./editor/modules/calc/regions-planner-controller.js";
+    import { setupFlowAnchorPointsController } from "./editor/modules/flow/flow-anchor-points-controller.js";
     import {
       rectAABBMaskedKey as buildRectAABBMaskedKey,
       topoCalcKey as buildTopoCalcKey,
@@ -1669,111 +1682,25 @@
     const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", lockAll: false, maskPath: [], maskHover: null, cellHover: null, cellHoverPos: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
     const rectStore = createRectStore(() => st.rects);
     const getRectById = id => rectStore.getById(id);
-    const flowDrawProgress = new Map();
-    const flowGeomCache = new Map();
-    const flowDrawRefKey = new WeakMap();
-    let flowDrawRefSeq = 1, flowDrawRaf = 0, flowDrawRenderEpoch = 0;
-    let flowPointIndexSrc = null, flowPointIndexMap = null;
-    const requestFlowDrawRender = () => {
-      if (flowDrawRaf) return;
-      if (typeof requestAnimationFrame === "function") {
-        flowDrawRaf = requestAnimationFrame(() => { flowDrawRaf = 0; render(); });
-        return;
-      }
-      flowDrawRaf = setTimeout(() => { flowDrawRaf = 0; render(); }, 16);
-    };
-    const touchFlowDrawProgress = (key, total) => {
-      const now = flowDrawRenderEpoch;
-      return touchProgressState(flowDrawProgress, key, total, now, 64, 8);
-    };
-    const flowDrawKeyForGroups = groups => {
-      if (!groups || typeof groups !== "object") return "flow-empty";
-      let key = flowDrawRefKey.get(groups);
-      if (!key) { key = `flow-${flowDrawRefSeq++}`; flowDrawRefKey.set(groups, key); }
-      return key;
-    };
-    const getFlowDrawGeometry = (groups, w, h, skipCache = false) => {
-      const key = `v2|${w}|${h}|${flowDrawKeyForGroups(groups)}`;
-      const now = flowDrawRenderEpoch;
-      if (!skipCache) {
-        let rec = flowGeomCache.get(key);
-        if (rec) { rec.lastSeen = now; return rec.geom; }
-      }
-      const dotR = 16, arrow = 14;
-      const out = { key, totalSegments: 0, groups: [] };
-      const list = Array.isArray(groups) ? groups : [];
-      for (const g of list) {
-        const ptsRaw = Array.isArray(g && g.points) ? g.points : [];
-        const pts = ptsRaw.map(p => ({
-          x: -w / 2 + (+p.u || 0),
-          y: -h / 2 + (+p.v || 0),
-          u: +p.u || 0,
-          v: +p.v || 0,
-          cid: Math.max(0, Math.round(Number(p && p.cid) || 0)),
-          spanCols: Math.max(1, Math.round(Number(p && p.spanCols) || 1)),
-          spanRows: Math.max(1, Math.round(Number(p && p.spanRows) || 1)),
-          bw: Math.max(1, Number(p && p.bw) || 0),
-          bh: Math.max(1, Number(p && p.bh) || 0)
-        }));
-        if (!pts.length) {
-          out.groups.push({ label: String(g && g.label || ""), rgb: Array.isArray(g && g.rgb) ? g.rgb : [255, 0, 0], pts: [], segments: [], start: null, end: null, endAngle: 0, lastEndIndex: 0 });
-          continue;
-        }
-        let startMarker = { x: pts[0].x, y: pts[0].y };
-        let endMarker = { x: pts[pts.length - 1].x, y: pts[pts.length - 1].y };
-        let endAngle = 0;
-        if (pts.length > 1) {
-          const pLast = pts[pts.length - 1], pPrev = pts[Math.max(0, pts.length - 2)], dx = (pLast.u - pPrev.u), dy = (pLast.v - pPrev.v);
-          if (Math.abs(dx) + Math.abs(dy) > 1e-6) endAngle = Math.atan2(dy, dx);
-        }
-        const pFirst = pts[0], pLast0 = pts[pts.length - 1];
-        const sameCab = (pFirst.cid === pLast0.cid) && Math.hypot(pFirst.x - pLast0.x, pFirst.y - pLast0.y) < 1e-6;
-        if (sameCab) {
-          const boxW = Math.max(8, Number(pFirst.bw) || 0), boxH = Math.max(8, Number(pFirst.bh) || 0);
-          const markerOffset = side => {
-            const ls = Math.max(8, Number(side) || 0);
-            return Math.max(6, Math.min(36, ls * 0.25));
-          };
-          if (boxW >= boxH) {
-            const off = markerOffset(boxW);
-            startMarker = { x: pFirst.x - off, y: pFirst.y };
-            endMarker = { x: pFirst.x + off, y: pFirst.y };
-            if (pts.length <= 1) endAngle = Math.PI / 2;
-          } else {
-            const off = markerOffset(boxH);
-            startMarker = { x: pFirst.x, y: pFirst.y - off };
-            endMarker = { x: pFirst.x, y: pFirst.y + off };
-            if (pts.length <= 1) endAngle = 0;
-          }
-        }
-        const segments = [];
-        let firstSegment = true;
-        for (let i = 1; i < pts.length; i++) {
-          const p0 = pts[i - 1], p1 = pts[i], dx = p1.x - p0.x, dy = p1.y - p0.y, len = Math.hypot(dx, dy);
-          if (len < 1) continue;
-          const ux = dx / len, uy = dy / len, startOffset = firstSegment ? (dotR + 2) : 0, lx1 = p0.x + ux * startOffset, ly1 = p0.y + uy * startOffset;
-          const nx = -uy, ny = ux, mx = (lx1 + p1.x) / 2, my = (ly1 + p1.y) / 2, bx = mx - ux * arrow * 0.75, by = my - uy * arrow * 0.75, tx = mx + ux * arrow * 0.95, ty = my + uy * arrow * 0.95, s = arrow * 0.5;
-          segments.push({ x1: lx1, y1: ly1, x2: p1.x, y2: p1.y, endIndex: i, arrow: { tx, ty, bx, by, nx, ny, s } });
-          firstSegment = false;
-        }
-        out.totalSegments += segments.length;
-        out.groups.push({
-          label: String(g && g.label || ""),
-          rgb: Array.isArray(g && g.rgb) ? g.rgb : [255, 0, 0],
-          pts,
-          start: startMarker,
-          end: endMarker,
-          endAngle,
-          segments,
-          lastEndIndex: segments.length ? segments[segments.length - 1].endIndex : 0
-        });
-      }
-      if (!skipCache) {
-        let rec = { geom: out, lastSeen: now };
-        setCacheWithPrune(flowGeomCache, key, rec, now, 96, 8, v => (v && v.lastSeen));
-      }
-      return out;
-    };
+    let flowDrawRenderEpoch = 0;
+    let resetFlowPointIndexCache = () => { };
+    let flowDrawKeyForGroups = _groups => "flow-empty";
+    let drawDataFlowOnRect = (_c, _groups, _w, _h, _z, _opts) => { };
+    if (FlowDrawHelpers && typeof FlowDrawHelpers.setupFlowDrawController === "function") {
+      ({
+        flowDrawKeyForGroups,
+        drawDataFlowOnRect
+      } = FlowDrawHelpers.setupFlowDrawController({
+        st,
+        FLOW_DRAW_BATCH_THRESHOLD,
+        FLOW_DRAW_BATCH_STEP,
+        touchProgressState,
+        setCacheWithPrune,
+        fontFamilyCss: value => fontFamilyCss(value),
+        getFlowDrawRenderEpoch: () => flowDrawRenderEpoch,
+        requestRenderNow: () => render()
+      }));
+    }
     const clampTextSize = v => Math.max(6, Math.min(128, Math.round(v)));
     const getRectTextSizePx = r => { const lv = Number(r && r.textSize); return Number.isFinite(lv) && lv > 0 ? clampTextSize(lv) : clampTextSize(st.textSize || 12); };
     const projectMetaController = setupProjectMetaController({
@@ -1821,13 +1748,7 @@
     const openNoteEditor = noteEditorController.openNoteEditor;
     const updateNoteEditorOverlay = noteEditorController.updateNoteEditorOverlay;
     const zc = viewportMetricsController.zc;
-    const toInt = (v, fallback = 0) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? Math.round(n) : Math.round(Number(fallback) || 0);
-    };
-    const toPosInt = (v, min = 0) => Math.max(Math.round(Number(min) || 0), toInt(v, min));
-    const toTrimmed = v => String(v ?? "").trim();
-    const getOrigin = () => { if (!st.rects.length) return { x: 0, y: 0 }; let x = 1e9, y = 1e9; for (const r of st.rects) { x = Math.min(x, r.x); y = Math.min(y, r.y) } return { x, y } };
+    const getOrigin = () => getOriginFromRects(st.rects);
     const hiddenCache = new WeakMap();
     const getHiddenSet = r => { if (!r) return new Set(); const rec = hiddenCache.get(r); if (!rec || rec.src !== r.hiddenCells) { const next = { src: r.hiddenCells, set: new Set(Array.isArray(r.hiddenCells) ? r.hiddenCells : []) }; hiddenCache.set(r, next); return next.set } return rec.set };
     const setHiddenSet = r => { const src = [...getHiddenSet(r)]; r.hiddenCells = src; hiddenCache.set(r, { src: r.hiddenCells, set: new Set(src) }); invalidateRectCache(r, "topology"); };
@@ -1900,542 +1821,14 @@
       try { delete r._flowLockSigToCfg; } catch (_e) { r._flowLockSigToCfg = {}; }
       try { delete r._flowLockCidToSeed; } catch (_e) { r._flowLockCidToSeed = {}; }
     };
-    const cellFromWorldPoint = (r, wx, wy, skipHidden = true) => {
-      if (!r) return null;
-      const cx = drawCellX(r), cy = drawCellY(r), p = worldToRectUV(r, wx, wy);
-      if (p.u < 0 || p.u > r.width || p.v < 0 || p.v > r.height) return null;
-      const cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy));
-      const col = Math.max(0, Math.min(cols - 1, Math.floor(p.u / Math.max(1, cx)))), row = Math.max(0, Math.min(rows - 1, Math.floor(p.v / Math.max(1, cy))));
-      if (skipHidden && getHiddenSet(r).has(maskCellKey(col, row))) return null;
-      return { col, row, cx, cy, cols, rows };
-    };
-    const isClusterEditMode = () => st.mode === "clusterEdit";
-    const isRigEditMode = () => st.mode === "rigEdit";
-    const maskCellKey = (ix, iy) => `${ix},${iy}`;
-    const pointInPoly = (x, y, poly) => { let inside = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y; const inter = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-9) + xi); if (inter) inside = !inside } return inside };
-    const isMaskMode = () => st.mode === "maskEdit";
-    const isCellEditMode = () => st.mode === "cellEdit";
-    const isNoteMode = () => st.mode === "note";
-    const drawCellX = r => Math.max(32, Math.max(1, Math.round(r.cellX || 128)));
-    const drawCellY = r => Math.max(32, Math.max(1, Math.round(r.cellY || 128)));
-    const getMaskNodeAxes = r => { const cx = drawCellX(r), cy = drawCellY(r), xs = [], ys = []; for (let x = 0; x <= r.width; x += cx)xs.push(x); if (xs[xs.length - 1] !== r.width) xs.push(r.width); for (let y = 0; y <= r.height; y += cy)ys.push(y); if (ys[ys.length - 1] !== r.height) ys.push(r.height); return { xs, ys } };
-    const computeRectAABBMasked = r => { const hs = getHiddenSet(r); if (!hs.size) return rectAABB(r); const cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); let has = false, minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (let iy = 0; iy < rows; iy++) { for (let ix = 0; ix < cols; ix++) { if (hs.has(maskCellKey(ix, iy))) continue; const u = ix * cx, v = iy * cy, cw = Math.min(cx, r.width - u), ch = Math.min(cy, r.height - v), p1 = rectUVToWorld(r, u, v), p2 = rectUVToWorld(r, u + cw, v), p3 = rectUVToWorld(r, u + cw, v + ch), p4 = rectUVToWorld(r, u, v + ch); minX = Math.min(minX, p1.x, p2.x, p3.x, p4.x); minY = Math.min(minY, p1.y, p2.y, p3.y, p4.y); maxX = Math.max(maxX, p1.x, p2.x, p3.x, p4.x); maxY = Math.max(maxY, p1.y, p2.y, p3.y, p4.y); has = true } } return has ? { minX, minY, maxX, maxY } : rectAABB(r) };
-    const rectAABBMaskedKey = r => buildRectAABBMaskedKey(r, drawCellX, drawCellY, listSignature);
-    const rectAABBMasked = r => {
-      const cache = getRectCalcCache(r), key = rectAABBMaskedKey(r);
-      if (cache.aabb && cache.aabb.key === key) return cache.aabb.value;
-      const value = computeRectAABBMasked(r);
-      cache.aabb = { key, value };
-      return value;
-    };
-    const hiddenCellBoxes = (r, cx, cy, hs) => { if (!hs || !hs.size) return []; const arr = []; for (const key of hs) { const p = String(key).split(","); if (p.length !== 2) continue; const ix = +p[0], iy = +p[1]; if (!(ix >= 0 && iy >= 0)) continue; const x = ix * cx, y = iy * cy; if (x >= r.width || y >= r.height) continue; arr.push({ x: r.x + x, y: r.y + y, w: Math.min(cx, r.width - x), h: Math.min(cy, r.height - y) }) } return arr };
-    const computeFreeRects = (r, cx, cy, hs) => {
-      const cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy));
-      const heights = new Array(cols).fill(0), out = [], seen = new Set();
-      const mkRect = (l, rt, top, btm) => {
-        const x0 = l * cx, y0 = top * cy, x1 = Math.min(r.width, (rt + 1) * cx), y1 = Math.min(r.height, (btm + 1) * cy);
-        return { x: r.x + x0, y: r.y + y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0) };
-      };
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) { heights[col] = hs.has(maskCellKey(col, row)) ? 0 : heights[col] + 1 }
-        for (let right = 0; right < cols; right++) {
-          if (!heights[right]) continue;
-          let minH = 1e9;
-          for (let left = right; left >= 0; left--) {
-            if (!heights[left]) break;
-            minH = Math.min(minH, heights[left]);
-            const top = row - minH + 1, rect = mkRect(left, right, top, row), k = `${Math.round(rect.x)}:${Math.round(rect.y)}:${Math.round(rect.w)}:${Math.round(rect.h)}`;
-            if (rect.w <= 0 || rect.h <= 0 || seen.has(k)) continue;
-            seen.add(k); out.push(rect);
-          }
-        }
-      }
-      if (!out.length) return [{ x: r.x, y: r.y, w: r.width, h: r.height }];
-      out.sort((a, b) => (b.w * b.h) - (a.w * a.h));
-      return out.slice(0, 120);
-    };
-    const parseLinkKey = k => { const p = String(k || "").split("-"); if (p.length !== 2) return null; const a = +p[0], b = +p[1]; if (!(a >= 0 && b >= 0 && a !== b)) return null; return a < b ? { a, b } : { a: b, b: a } };
-    const mkLinkKey = (a, b) => a < b ? `${a}-${b}` : `${b}-${a}`;
-    function getCellTopology(r, cx, cy) {
-      const cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)), count = cols * rows, linksRaw = Array.isArray(r.cellLinks) ? r.cellLinks : [], links = new Set();
-      for (const raw of linksRaw) { const p = parseLinkKey(raw); if (!p) continue; if (p.a >= count || p.b >= count) continue; const ax = p.a % cols, ay = Math.floor(p.a / cols), bx = p.b % cols, by = Math.floor(p.b / cols); if (Math.abs(ax - bx) + Math.abs(ay - by) !== 1) continue; links.add(mkLinkKey(p.a, p.b)) }
-      if (!Array.isArray(r.cellLinks) || r.cellLinks.length !== links.size || r.cellLinks.some(k => !links.has(k))) { r.cellLinks = [...links] }
-      const comp = new Array(count).fill(-1), seed = []; let ci = 0;
-      const neigh = i => { const x = i % cols, y = Math.floor(i / cols), out = []; if (x > 0) out.push(i - 1); if (x < cols - 1) out.push(i + 1); if (y > 0) out.push(i - cols); if (y < rows - 1) out.push(i + cols); return out };
-      for (let i = 0; i < count; i++) { if (comp[i] !== -1) continue; const stack = [i]; comp[i] = ci; let bestX = i % cols, bestY = Math.floor(i / cols); while (stack.length) { const v = stack.pop(), vx = v % cols, vy = Math.floor(v / cols); if (vy < bestY || (vy === bestY && vx < bestX)) { bestX = vx; bestY = vy } for (const n of neigh(v)) { if (comp[n] !== -1) continue; if (!links.has(mkLinkKey(v, n))) continue; comp[n] = ci; stack.push(n) } } seed[ci] = { col: bestX, row: bestY }; ci++ }
-      const adj = Array.from({ length: ci }, () => new Set());
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          const i = y * cols + x, ci0 = comp[i];
-          if (x + 1 < cols) { const j = i + 1, cj = comp[j]; if (ci0 !== cj) { adj[ci0].add(cj); adj[cj].add(ci0) } }
-          if (y + 1 < rows) { const j = i + cols, cj = comp[j]; if (ci0 !== cj) { adj[ci0].add(cj); adj[cj].add(ci0) } }
-        }
-      }
-      const color = new Array(ci).fill(-1);
-      for (let c0 = 0; c0 < ci; c0++) {
-        if (color[c0] !== -1) continue;
-        color[c0] = 0;
-        const q = [c0];
-        while (q.length) {
-          const v = q.shift();
-          for (const n of adj[v]) {
-            if (color[n] === -1) { color[n] = 1 - color[v]; q.push(n) }
-          }
-        }
-      }
-      return { cols, rows, count, links, comp, seed, color };
-    }
-    const topoCalcKey = (r, cx, cy) => buildTopoCalcKey(r, cx, cy, listSignature);
-    const sortNums = (arr, dir) => [...arr].sort((a, b) => dir === "asc" ? a - b : b - a);
-    const buildSnakeOrder = (items, primaryKey, primaryDir, secondaryKey, secondaryStartDir) => {
-      const primaryVals = sortNums([...new Set(items.map(it => it[primaryKey]))], primaryDir);
-      const out = []; let dir = secondaryStartDir;
-      for (const pv of primaryVals) {
-        const band = items.filter(it => it[primaryKey] === pv).sort((a, b) => {
-          const delta = dir === "asc" ? (a[secondaryKey] - b[secondaryKey]) : (b[secondaryKey] - a[secondaryKey]);
-          return delta || ((a.cid | 0) - (b.cid | 0));
-        });
-        out.push(...band);
-        dir = dir === "asc" ? "desc" : "asc";
-      }
-      return out;
-    };
-    const buildZOrder = (items, primaryKey, primaryDir, secondaryKey, secondaryDir) => {
-      const primaryVals = sortNums([...new Set(items.map(it => it[primaryKey]))], primaryDir);
-      const out = [];
-      for (const pv of primaryVals) {
-        const band = items.filter(it => it[primaryKey] === pv).sort((a, b) => {
-          const delta = secondaryDir === "asc" ? (a[secondaryKey] - b[secondaryKey]) : (b[secondaryKey] - a[secondaryKey]);
-          return delta || ((a.cid | 0) - (b.cid | 0));
-        });
-        out.push(...band);
-      }
-      return out;
-    };
-    const flowBoxGap = (a, b) => {
-      const dx = Math.max(0, Math.max((a.minCol - b.maxCol - 1), (b.minCol - a.maxCol - 1)));
-      const dy = Math.max(0, Math.max((a.minRow - b.maxRow - 1), (b.minRow - a.maxRow - 1)));
-      const ovX = Math.max(0, Math.min(a.maxCol, b.maxCol) - Math.max(a.minCol, b.minCol) + 1);
-      const ovY = Math.max(0, Math.min(a.maxRow, b.maxRow) - Math.max(a.minRow, b.minRow) + 1);
-      return { dx, dy, dist: dx + dy, ovX, ovY };
-    };
-    const ptX = p => (p && Number.isFinite(p.x) ? p.x : (p && Number.isFinite(p.u) ? p.u : 0));
-    const ptY = p => (p && Number.isFinite(p.y) ? p.y : (p && Number.isFinite(p.v) ? p.v : 0));
-    const segIntersects = (a, b, c, d) => {
-      const eps = 1e-9;
-      const cross = (p, q, r) => (ptX(q) - ptX(p)) * (ptY(r) - ptY(p)) - (ptY(q) - ptY(p)) * (ptX(r) - ptX(p));
-      const onSeg = (p, q, r) => Math.min(ptX(p), ptX(q)) - eps <= ptX(r) && ptX(r) <= Math.max(ptX(p), ptX(q)) + eps && Math.min(ptY(p), ptY(q)) - eps <= ptY(r) && ptY(r) <= Math.max(ptY(p), ptY(q)) + eps;
-      const o1 = cross(a, b, c), o2 = cross(a, b, d), o3 = cross(c, d, a), o4 = cross(c, d, b);
-      if (Math.abs(o1) <= eps && onSeg(a, b, c)) return true;
-      if (Math.abs(o2) <= eps && onSeg(a, b, d)) return true;
-      if (Math.abs(o3) <= eps && onSeg(c, d, a)) return true;
-      if (Math.abs(o4) <= eps && onSeg(c, d, b)) return true;
-      return (o1 > 0) !== (o2 > 0) && (o3 > 0) !== (o4 > 0);
-    };
-    const wouldSelfCross = (path, next) => {
-      if (!Array.isArray(path) || path.length < 2) return false;
-      const a = path[path.length - 1], b = next;
-      for (let i = 1; i < path.length - 1; i++) {
-        const c = path[i - 1], d = path[i];
-        if (segIntersects(a, b, c, d)) return true;
-      }
-      return false;
-    };
-    const flowCandidateOrder = (path, rem, prevBase, allowCross) => {
-      const prev = path[path.length - 1];
-      const prev2 = path.length > 1 ? path[path.length - 2] : null;
-      const prevDx = prev2 ? ((+prev.u || 0) - (+prev2.u || 0)) : 0, prevDy = prev2 ? ((+prev.v || 0) - (+prev2.v || 0)) : 0, prevLen = Math.hypot(prevDx, prevDy);
-      return rem.map((it, i) => {
-        const g = flowBoxGap(prev, it), adj = (g.dist === 0 ? 1 : 0), base = (it.baseIdx != null ? it.baseIdx : i), seqPenalty = Math.abs(base - (prevBase + 1));
-        const center = flowDist(prev, it);
-        const edge = g.dist;
-        const align = (g.ovX + g.ovY);
-        const crosses = wouldSelfCross(path, it);
-        const dx = (+it.u || 0) - (+prev.u || 0), dy = (+it.v || 0) - (+prev.v || 0), len = Math.hypot(dx, dy);
-        const absDx = Math.abs(dx), absDy = Math.abs(dy), diagPart = Math.min(absDx, absDy), diagLen = Math.max(0, len - Math.abs(absDx - absDy));
-        const diagonalPenalty = (diagPart > 1e-6) ? (diagPart * 11.5 + diagLen * 2.2) : 0;
-        let backPenalty = 0;
-        if (prevLen > 1e-6 && len > 1e-6) {
-          const dot = (prevDx * dx + prevDy * dy) / (prevLen * len);
-          if (dot < -0.35) backPenalty += Math.abs(dot) * 2200;
-          else if (dot < 0) backPenalty += Math.abs(dot) * 900;
-        }
-        const crossPenalty = crosses ? (allowCross ? 100000 : 1e12) : 0;
-        const score = crossPenalty + backPenalty + diagonalPenalty + edge * 1000 + center + seqPenalty * 2 - adj * 220 - align * 10;
-        return { i, score, crosses };
-      }).sort((a, b) => a.score - b.score);
-    };
-    const flowSearchOrder = (path, rem, prevBase, allowCross, state) => {
-      if (state) {
-        state.nodes = (state.nodes | 0) + 1;
-        if (state.nodes > state.limit) {
-          state.aborted = true;
-          return null;
-        }
-      }
-      if (!rem.length) return path;
-      const order = flowCandidateOrder(path, rem, prevBase, allowCross);
-      for (const c of order) {
-        if (state && state.aborted) return null;
-        if (!allowCross && c.crosses) continue;
-        const pick = rem[c.i];
-        const nextPath = path.concat([pick]);
-        const nextRem = rem.slice(0, c.i).concat(rem.slice(c.i + 1));
-        const nextBase = pick.baseIdx != null ? pick.baseIdx : prevBase + 1;
-        const solved = flowSearchOrder(nextPath, nextRem, nextBase, allowCross, state);
-        if (solved) return solved;
-      }
-      return null;
-    };
-    const flowDist = (a, b) => {
-      const dx = (+a.u || 0) - (+b.u || 0), dy = (+a.v || 0) - (+b.v || 0);
-      return Math.hypot(dx, dy);
-    };
-    const flowPathLength = arr => {
-      if (!Array.isArray(arr) || arr.length < 2) return 0;
-      let sum = 0;
-      for (let i = 1; i < arr.length; i++)sum += flowDist(arr[i - 1], arr[i]);
-      return sum;
-    };
-    const pathSelfCrosses = arr => {
-      if (!Array.isArray(arr) || arr.length < 4) return false;
-      const path = [arr[0]];
-      for (let i = 1; i < arr.length; i++) {
-        if (wouldSelfCross(path, arr[i])) return true;
-        path.push(arr[i]);
-      }
-      return false;
-    };
-    const flowCrossCount = arr => {
-      if (!Array.isArray(arr) || arr.length < 4) return 0;
-      let c = 0;
-      for (let i = 1; i < arr.length; i++) {
-        const a = arr[i - 1], b = arr[i];
-        for (let j = 1; j < i - 1; j++) {
-          const p = arr[j - 1], q = arr[j];
-          if (segIntersects(a, b, p, q)) c++;
-        }
-      }
-      return c;
-    };
-    const flowPathCost = arr => {
-      const base = flowPathLength(arr) + flowCrossCount(arr) * 1e9;
-      if (!Array.isArray(arr) || arr.length < 2) return base;
-      let diagonalPenalty = 0;
-      for (let i = 1; i < arr.length; i++) {
-        const a = arr[i - 1], b = arr[i], dx = Math.abs((+b.u || 0) - (+a.u || 0)), dy = Math.abs((+b.v || 0) - (+a.v || 0)), len = Math.hypot(dx, dy), diagPart = Math.min(dx, dy), diagLen = Math.max(0, len - Math.abs(dx - dy));
-        if (diagPart > 1e-6) diagonalPenalty += diagPart * 15 + diagLen * 3;
-      }
-      return base + diagonalPenalty;
-    };
-    const optimizeFlowPathShortest = arr => {
-      if (!Array.isArray(arr) || arr.length < 4) return arr || [];
-      let best = arr.slice(), bestCost = flowPathCost(best), changed = true, guard = 0;
-      while (changed && guard < 8) {
-        guard++; changed = false;
-        for (let i = 1; i < best.length - 2; i++) {
-          for (let j = i + 1; j < best.length - 1; j++) {
-            const cand = best.slice(0, i).concat(best.slice(i, j + 1).reverse(), best.slice(j + 1));
-            const cc = flowPathCost(cand);
-            if (cc + 1e-6 < bestCost) { best = cand; bestCost = cc; changed = true; }
-          }
-        }
-      }
-      return best;
-    };
-    const refineFlowOrder = (ordered) => {
-      if (!Array.isArray(ordered) || ordered.length <= 2) return ordered || [];
-      if (ordered.length > FLOW_REFINE_MAX_POINTS) return ordered;
-      const head = ordered[0], rem = ordered.slice(1), base = head.baseIdx || 0;
-      const strictState = { nodes: 0, limit: FLOW_SEARCH_NODE_LIMIT_STRICT, aborted: false };
-      const strict = flowSearchOrder([head], rem, base, false, strictState);
-      if (strict) return strict;
-      if (strictState.aborted) return ordered;
-      const relaxedState = { nodes: 0, limit: FLOW_SEARCH_NODE_LIMIT_RELAXED, aborted: false };
-      const relaxed = flowSearchOrder([head], rem, base, true, relaxedState);
-      return relaxed || ordered;
-    };
-    const buildSingleRegionPlan = (r, cx, cy, topo, hs) => {
-      const cols = Math.max(1, topo && topo.cols || 1), rows = Math.max(1, topo && topo.rows || 1);
-      const reg = { id: 0, label: "A", gx: 0, gy: 0, c0: 0, c1: cols, r0: 0, r1: rows, w: r.width, h: r.height };
-      const byId = new Map(); byId.set(0, reg);
-      const cellToRegion = new Array(rows * cols).fill(0);
-      if (hs && hs.size) {
-        for (let iy = 0; iy < rows; iy++) {
-          for (let ix = 0; ix < cols; ix++) {
-            if (hs.has(maskCellKey(ix, iy))) cellToRegion[iy * cols + ix] = -1;
-          }
-        }
-      }
-      return {
-        nx: 1, ny: 1,
-        colToGroup: new Array(cols).fill(0),
-        rowToGroup: new Array(rows).fill(0),
-        regionsById: byId,
-        xCutsPx: [0, r.width], yCutsPx: [0, r.height],
-        cellToRegion,
-        regions: [reg]
-      };
-    };
-    const getRectCalcCache = r => {
-      if (!r || typeof r !== "object") return { regions: null, flow: null };
-      if (!r._calcCache || typeof r._calcCache !== "object") {
-        makeNonEnumerableCalcCache(r, { regions: null, flow: null, topo: null, compRender: null, maskRender: null, boundarySegs: null, fillLayer: null, decorLayer: null, flowPassiveLayer: null, aabb: null });
-      } else if (Object.prototype.propertyIsEnumerable.call(r, "_calcCache")) {
-        const cur = r._calcCache;
-        try { delete r._calcCache; } catch (_e) { }
-        makeNonEnumerableCalcCache(r, cur);
-      }
-      if (!r._calcCache.topo) r._calcCache.topo = null;
-      if (!r._calcCache.regions) r._calcCache.regions = null;
-      if (!r._calcCache.flow) r._calcCache.flow = null;
-      if (!r._calcCache.compRender) r._calcCache.compRender = null;
-      if (!r._calcCache.maskRender) r._calcCache.maskRender = null;
-      if (!r._calcCache.boundarySegs) r._calcCache.boundarySegs = null;
-      if (!r._calcCache.fillLayer) r._calcCache.fillLayer = null;
-      if (!r._calcCache.decorLayer) r._calcCache.decorLayer = null;
-      if (!r._calcCache.flowPassiveLayer) r._calcCache.flowPassiveLayer = null;
-      if (!r._calcCache.aabb) r._calcCache.aabb = null;
-      return r._calcCache;
-    };
-    const invalidateRectCache = (r, kind = "all") => {
-      const c = getRectCalcCache(r);
-      if (kind === "all") {
-        c.aabb = null; c.topo = null; c.compRender = null; c.maskRender = null; c.boundarySegs = null; c.fillLayer = null; c.decorLayer = null; c.flowPassiveLayer = null; c.regions = null; c.flow = null;
-        return;
-      }
-      if (kind === "appearance") { c.fillLayer = null; c.decorLayer = null; return; }
-      if (kind === "flow") { c.flow = null; c.flowPassiveLayer = null; return; }
-      if (kind === "regions") { c.regions = null; c.flow = null; c.flowPassiveLayer = null; return; }
-      if (kind === "topology") { c.topo = null; c.compRender = null; c.maskRender = null; c.boundarySegs = null; c.fillLayer = null; c.decorLayer = null; c.regions = null; c.flow = null; c.flowPassiveLayer = null; c.aabb = null; return; }
-    };
-    const getCellTopologyCached = (r, cx, cy) => {
-      const cache = getRectCalcCache(r);
-      const key = topoCalcKey(r, cx, cy);
-      if (cache.topo && cache.topo.key === key) return cache.topo.value;
-      const value = getCellTopology(r, cx, cy);
-      cache.topo = { key, value };
-      cache.compRender = null;
-      cache.maskRender = null;
-      cache.boundarySegs = null;
-      cache.fillLayer = null;
-      cache.decorLayer = null;
-      cache.flowPassiveLayer = null;
-      return value;
-    };
-    const getRectRuntime = (r, opts = null) => {
-      const o = (opts && typeof opts === "object") ? opts : {};
-      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r);
-      const out = { cx, cy, topo, hs, regions: null, groups: null };
-      if (o.withRegions || o.withGroups) out.regions = planNumberRegions(r, cx, cy, topo, hs, true);
-      if (o.withGroups) out.groups = getDataFlowGroups(r, cx, cy, topo, hs, out.regions);
-      return out;
-    };
-    const getRectComponentRenderDataCached = (r, cx, cy, topo) => {
-      const cache = getRectCalcCache(r);
-      const key = [r && r.width || 0, r && r.height || 0, cx || 0, cy || 0, topoCalcKey(r, cx, cy)].join("|");
-      if (cache.compRender && cache.compRender.key === key && Array.isArray(cache.compRender.value)) return cache.compRender.value;
-      const w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1));
-      const byId = new Map();
-      for (let y = 0; y < h; y += cy) {
-        for (let x = 0; x < w; x += cx) {
-          const ix = Math.floor(x / cx), iy = Math.floor(y / cy), idx = iy * topo.cols + ix, compId = topo.comp[idx], seed = topo.seed[compId] || { col: ix, row: iy }, cw = Math.min(cx, w - x), ch = Math.min(cy, h - y), rx = -w / 2 + x, ry = -h / 2 + y;
-          let it = byId.get(compId);
-          if (!it) {
-            const cc = (topo.color && topo.color[compId] !== -1) ? topo.color[compId] : ((seed.col + seed.row) % 2);
-            it = { cid: compId, cc, minX: rx, minY: ry, maxX: rx + cw, maxY: ry + ch, minCol: ix, minRow: iy, cells: [] };
-            byId.set(compId, it);
-          } else {
-            it.minX = Math.min(it.minX, rx); it.minY = Math.min(it.minY, ry); it.maxX = Math.max(it.maxX, rx + cw); it.maxY = Math.max(it.maxY, ry + ch);
-            it.minCol = Math.min(it.minCol, ix); it.minRow = Math.min(it.minRow, iy);
-          }
-          it.cells.push({ x: rx, y: ry, w: cw, h: ch });
-        }
-      }
-      const value = [...byId.values()];
-      cache.compRender = { key, value };
-      return value;
-    };
-    const getMaskRenderDataCached = (r, cx, cy, hs, topo) => {
-      const cache = getRectCalcCache(r), key = [r && r.width || 0, r && r.height || 0, cx || 0, cy || 0, listSignature(r && r.hiddenCells)].join("|");
-      if (cache.maskRender && cache.maskRender.key === key && cache.maskRender.value) return cache.maskRender.value;
-      const w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1)), hasMask = !!(hs && hs.size);
-      if (!hasMask) {
-        const value = { hasMask: false, hasVisible: true, hiddenRects: null, visibleCompSet: null };
-        cache.maskRender = { key, value };
-        return value;
-      }
-      const hiddenRects = [], visibleCompSet = new Set();
-      let visibleCount = 0;
-      for (let y = 0, iy = 0; y < h; y += cy, iy++) {
-        for (let x = 0, ix = 0; x < w; x += cx, ix++) {
-          const cw = Math.min(cx, w - x), ch = Math.min(cy, h - y);
-          if (hs.has(maskCellKey(ix, iy))) {
-            hiddenRects.push({ x: -w / 2 + x, y: -h / 2 + y, w: cw, h: ch });
-            continue;
-          }
-          visibleCount++;
-          if (topo && Array.isArray(topo.comp)) {
-            const idx = iy * topo.cols + ix, cid = topo.comp[idx];
-            if (Number.isFinite(cid)) visibleCompSet.add(cid | 0);
-          }
-        }
-      }
-      const value = { hasMask, hasVisible: visibleCount > 0, hiddenRects, visibleCompSet };
-      cache.maskRender = { key, value };
-      return value;
-    };
-    const getVisibleBoundarySegmentsCached = (r, cx, cy, hs) => {
-      const cache = getRectCalcCache(r), key = [r && r.width || 0, r && r.height || 0, cx || 0, cy || 0, listSignature(r && r.hiddenCells)].join("|");
-      if (cache.boundarySegs && cache.boundarySegs.key === key && Array.isArray(cache.boundarySegs.value)) return cache.boundarySegs.value;
-      const value = getVisibleBoundarySegmentsLocal(Math.max(1, Math.round(Number(r && r.width) || 1)), Math.max(1, Math.round(Number(r && r.height) || 1)), cx, cy, hs);
-      cache.boundarySegs = { key, value };
-      return value;
-    };
-    const createLayerCanvas = (w, h) => {
-      const ww = Math.max(1, Math.round(w)), hh = Math.max(1, Math.round(h));
-      if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(ww, hh);
-      const cv = document.createElement("canvas");
-      cv.width = ww; cv.height = hh;
-      return cv;
-    };
-    const getRectFillLayerCached = (r, cx, cy, topo, maskRender, lowDetail) => {
-      const cache = getRectCalcCache(r), w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1));
-      const key = [w, h, cx || 0, cy || 0, topoCalcKey(r, cx, cy), listSignature(r && r.hiddenCells), String(r && r.colorA || ""), String(r && r.colorB || ""), lowDetail ? "1" : "0"].join("|");
-      if (cache.fillLayer && cache.fillLayer.key === key && cache.fillLayer.canvas) return cache.fillLayer.canvas;
-      const layer = createLayerCanvas(w, h), lc = layer.getContext("2d");
-      if (!lc) return null;
-      if (lowDetail) {
-        lc.fillStyle = r.colorA;
-        lc.fillRect(0, 0, w, h);
-        lc.fillStyle = r.colorB;
-        lc.beginPath();
-        lc.moveTo(0, 0);
-        lc.lineTo(w, 0);
-        lc.lineTo(0, h);
-        lc.closePath();
-        lc.fill();
-      } else {
-        const comps = getRectComponentRenderDataCached(r, cx, cy, topo), calcAltColor = base => { const rgb = hexRgb(base), lum = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000; return shadeHex(base, lum > 140 ? -0.25 : 0.25); }, altA = calcAltColor(r.colorA), altB = calcAltColor(r.colorB);
-        const compColorClass = new Map(comps.map(it => [it.cid | 0, it.cc | 0]));
-        const sameColorNear = new Set(), pairSeen = new Set();
-        const markPair = (a, b) => {
-          if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return;
-          const lo = Math.min(a, b), hi = Math.max(a, b), keyPair = `${lo}:${hi}`;
-          if (pairSeen.has(keyPair)) return;
-          pairSeen.add(keyPair);
-          // For each same-color neighboring pair mirror only one cabinet.
-          sameColorNear.add(hi);
-        };
-        if (topo && Array.isArray(topo.comp) && Number.isFinite(topo.cols) && Number.isFinite(topo.rows)) {
-          const cols = Math.max(1, Math.round(Number(topo.cols) || 1)), rows = Math.max(1, Math.round(Number(topo.rows) || 1));
-          for (let y = 0; y < rows; y++) {
-            for (let x = 0; x < cols; x++) {
-              const idx = y * cols + x, cid = topo.comp[idx];
-              if (!Number.isFinite(cid)) continue;
-              const a = cid | 0;
-              if (maskRender && maskRender.visibleCompSet && !maskRender.visibleCompSet.has(a)) continue;
-              const ccA = compColorClass.get(a);
-              if (!Number.isFinite(ccA)) continue;
-              if (x + 1 < cols) {
-                const rid = topo.comp[idx + 1];
-                if (Number.isFinite(rid)) {
-                  const b = rid | 0, ccB = compColorClass.get(b);
-                  if (a !== b && (!maskRender || !maskRender.visibleCompSet || maskRender.visibleCompSet.has(b)) && Number.isFinite(ccB) && ccA === ccB) markPair(a, b);
-                }
-              }
-              if (y + 1 < rows) {
-                const did = topo.comp[idx + cols];
-                if (Number.isFinite(did)) {
-                  const b = did | 0, ccB = compColorClass.get(b);
-                  if (a !== b && (!maskRender || !maskRender.visibleCompSet || maskRender.visibleCompSet.has(b)) && Number.isFinite(ccB) && ccA === ccB) markPair(a, b);
-                }
-              }
-            }
-          }
-        }
-        for (const it of comps) {
-          if (maskRender && maskRender.visibleCompSet && !maskRender.visibleCompSet.has(it.cid)) continue;
-          const base = (it.cc === 0) ? r.colorA : r.colorB, alt = (it.cc === 0) ? altA : altB;
-          lc.save();
-          lc.beginPath();
-          for (const cl of it.cells) lc.rect(cl.x + w / 2, cl.y + h / 2, cl.w, cl.h);
-          lc.clip();
-          const bw = it.maxX - it.minX, bh = it.maxY - it.minY, ox = it.minX + w / 2, oy = it.minY + h / 2;
-          lc.fillStyle = base; lc.fillRect(ox, oy, bw, bh);
-          lc.fillStyle = alt;
-          const mirrorHoriz = sameColorNear.has(it.cid | 0);
-          lc.beginPath();
-          if (mirrorHoriz) {
-            lc.moveTo(ox + bw, oy);
-            lc.lineTo(ox, oy);
-            lc.lineTo(ox + bw, oy + bh);
-          } else {
-            lc.moveTo(ox, oy);
-            lc.lineTo(ox + bw, oy);
-            lc.lineTo(ox, oy + bh);
-          }
-          lc.closePath();
-          lc.fill();
-          lc.restore();
-        }
-      }
-      if (maskRender && maskRender.hasMask && Array.isArray(maskRender.hiddenRects) && maskRender.hiddenRects.length) {
-        lc.save();
-        lc.globalCompositeOperation = "destination-out";
-        lc.globalAlpha = 1;
-        lc.fillStyle = "#000";
-        lc.beginPath();
-        for (const rc of maskRender.hiddenRects) lc.rect(rc.x + w / 2, rc.y + h / 2, rc.w, rc.h);
-        lc.fill();
-        lc.restore();
-      }
-      cache.fillLayer = { key, canvas: layer };
-      return layer;
-    };
-    const getRectDecorLayerCached = (r, maskRender, z) => {
-      const cache = getRectCalcCache(r), w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1)), zq = (Math.round((Number(z) || 1) * 100) / 100) || 1;
-      const key = [w, h, listSignature(r && r.hiddenCells), zq].join("|");
-      if (cache.decorLayer && cache.decorLayer.key === key && cache.decorLayer.canvas) return cache.decorLayer.canvas;
-      const layer = createLayerCanvas(w, h), lc = layer.getContext("2d");
-      if (!lc) return null;
-      lc.strokeStyle = "rgba(255,255,255,.55)";
-      lc.lineWidth = 2.4 / Math.max(0.01, zq);
-      lc.beginPath();
-      lc.moveTo(0, 0); lc.lineTo(w, h); lc.moveTo(w, 0); lc.lineTo(0, h);
-      lc.stroke();
-      lc.strokeStyle = "rgba(255,255,255,.75)";
-      lc.lineWidth = 2.4 / Math.max(0.01, zq);
-      lc.beginPath();
-      lc.arc(w / 2, h / 2, Math.max(0, Math.min(w, h) / 2 - (2 / Math.max(0.01, zq))), 0, Math.PI * 2);
-      lc.stroke();
-      if (maskRender && maskRender.hasMask && Array.isArray(maskRender.hiddenRects) && maskRender.hiddenRects.length) {
-        lc.save();
-        lc.globalCompositeOperation = "destination-out";
-        lc.globalAlpha = 1;
-        lc.fillStyle = "#000";
-        lc.beginPath();
-        for (const rc of maskRender.hiddenRects) lc.rect(rc.x + w / 2, rc.y + h / 2, rc.w, rc.h);
-        lc.fill();
-        lc.restore();
-      }
-      cache.decorLayer = { key, canvas: layer };
-      return layer;
-    };
-    const getRectFlowPassiveLayerCached = (r, w, h, z, groups, activeRid) => {
-      const cache = getRectCalcCache(r), zq = (Math.round((Number(z) || 1) * 100) / 100) || 1, flowKey = flowDrawKeyForGroups(groups), key = [w, h, zq, flowKey, Math.max(0, Math.round(Number(activeRid) || 0))].join("|");
-      if (cache.flowPassiveLayer && cache.flowPassiveLayer.key === key && cache.flowPassiveLayer.canvas) return cache.flowPassiveLayer.canvas;
-      const passive = (Array.isArray(groups) ? groups : []).filter(g => Math.round(Number(g && g.rid) || 0) !== Math.round(Number(activeRid) || 0));
-      if (!passive.length) { cache.flowPassiveLayer = { key, canvas: null }; return null; }
-      const layer = createLayerCanvas(w, h), lc = layer.getContext("2d");
-      if (!lc) return null;
-      lc.save();
-      lc.translate(w / 2, h / 2);
-      drawDataFlowOnRect(lc, passive, w, h, z, { noBatch: true });
-      lc.restore();
-      cache.flowPassiveLayer = { key, canvas: layer };
-      return layer;
-    };
+    let cellFromWorldPoint = (_r, _wx, _wy, _skipHidden = true) => null;
+    const {
+      isMaskMode,
+      isCellEditMode,
+      isClusterEditMode,
+      isRigEditMode,
+      isNoteMode
+    } = createModePredicates(st);
     const arrSignatureCache = new WeakMap();
     const listSignature = v => {
       if (!Array.isArray(v) || !v.length) return "";
@@ -2445,6 +1838,95 @@
       arrSignatureCache.set(v, { len: v.length, first: v[0], last: v[v.length - 1], sig });
       return sig;
     };
+    const drawCellX = r => Math.max(32, Math.max(1, Math.round(r.cellX || 128)));
+    const drawCellY = r => Math.max(32, Math.max(1, Math.round(r.cellY || 128)));
+    cellFromWorldPoint = createCellFromWorldPoint({
+      drawCellX: r => drawCellX(r),
+      drawCellY: r => drawCellY(r),
+      getHiddenSet,
+      worldToRectUV
+    });
+    const getMaskNodeAxes = createMaskNodeAxesGetter(r => drawCellX(r), r => drawCellY(r));
+    const computeRectAABBMasked = r => { const hs = getHiddenSet(r); if (!hs.size) return rectAABB(r); const cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); let has = false, minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (let iy = 0; iy < rows; iy++) { for (let ix = 0; ix < cols; ix++) { if (hs.has(maskCellKey(ix, iy))) continue; const u = ix * cx, v = iy * cy, cw = Math.min(cx, r.width - u), ch = Math.min(cy, r.height - v), p1 = rectUVToWorld(r, u, v), p2 = rectUVToWorld(r, u + cw, v), p3 = rectUVToWorld(r, u + cw, v + ch), p4 = rectUVToWorld(r, u, v + ch); minX = Math.min(minX, p1.x, p2.x, p3.x, p4.x); minY = Math.min(minY, p1.y, p2.y, p3.y, p4.y); maxX = Math.max(maxX, p1.x, p2.x, p3.x, p4.x); maxY = Math.max(maxY, p1.y, p2.y, p3.y, p4.y); has = true } } return has ? { minX, minY, maxX, maxY } : rectAABB(r) };
+    const rectAABBMaskedKey = r => buildRectAABBMaskedKey(r, drawCellX, drawCellY, listSignature);
+    const rectAABBMasked = r => {
+      const cache = getRectCalcCache(r), key = rectAABBMaskedKey(r);
+      if (cache.aabb && cache.aabb.key === key) return cache.aabb.value;
+      const value = computeRectAABBMasked(r);
+      cache.aabb = { key, value };
+      return value;
+    };
+    const parseLinkKey = k => { const p = String(k || "").split("-"); if (p.length !== 2) return null; const a = +p[0], b = +p[1]; if (!(a >= 0 && b >= 0 && a !== b)) return null; return a < b ? { a, b } : { a: b, b: a } };
+    const mkLinkKey = (a, b) => a < b ? `${a}-${b}` : `${b}-${a}`;
+    const {
+      getCellTopology,
+      topoCalcKey,
+      buildSingleRegionPlan
+    } = setupTopologyUtils({
+      parseLinkKey,
+      mkLinkKey,
+      buildTopoCalcKey,
+      listSignature,
+      maskCellKey
+    });
+    const {
+      sortNums,
+      buildSnakeOrder,
+      buildZOrder,
+      flowBoxGap,
+      ptX,
+      ptY,
+      segIntersects,
+      wouldSelfCross,
+      flowCandidateOrder,
+      flowSearchOrder,
+      flowDist,
+      flowPathLength,
+      pathSelfCrosses,
+      flowCrossCount,
+      flowPathCost,
+      optimizeFlowPathShortest,
+      refineFlowOrder
+    } = setupFlowPathUtils({
+      FLOW_REFINE_MAX_POINTS,
+      FLOW_SEARCH_NODE_LIMIT_STRICT,
+      FLOW_SEARCH_NODE_LIMIT_RELAXED
+    });
+    const {
+      getRectCalcCache,
+      invalidateRectCache,
+      getCellTopologyCached
+    } = setupRectCacheCore({
+      makeNonEnumerableCalcCache: (...args) => makeNonEnumerableCalcCache(...args),
+      topoCalcKey,
+      getCellTopology
+    });
+    const getRectRuntime = (r, opts = null) => {
+      const o = (opts && typeof opts === "object") ? opts : {};
+      const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r);
+      const out = { cx, cy, topo, hs, regions: null, groups: null };
+      if (o.withRegions || o.withGroups) out.regions = planNumberRegions(r, cx, cy, topo, hs, true);
+      if (o.withGroups) out.groups = getDataFlowGroups(r, cx, cy, topo, hs, out.regions);
+      return out;
+    };
+    const {
+      getRectComponentRenderDataCached,
+      getMaskRenderDataCached,
+      getVisibleBoundarySegmentsCached,
+      getRectFillLayerCached,
+      getRectDecorLayerCached,
+      getRectFlowPassiveLayerCached
+    } = setupRectLayerCacheController({
+      getRectCalcCache,
+      topoCalcKey,
+      listSignature,
+      maskCellKey,
+      getVisibleBoundarySegmentsLocal: (...args) => getVisibleBoundarySegmentsLocal(...args),
+      hexRgb,
+      shadeHex,
+      flowDrawKeyForGroups,
+      drawDataFlowOnRect: (...args) => drawDataFlowOnRect(...args)
+    });
     const regionCalcKey = (r, cx, cy, topo) => buildRegionCalcKey(r, cx, cy, topo, {
       listSignature,
       manualClustersSignature
@@ -2464,946 +1946,97 @@
       }
       return parts.join("|");
     };
-    const cloneFlowRegionConfig = cfg => {
-      const c = cfg && typeof cfg === "object" ? cfg : {};
-      const locks = Array.isArray(c.locks) ? c.locks : [];
-      return {
-        locks: locks.map(it => ({ index: Math.max(0, Math.round(Number(it && it.index) || 0)), cid: Math.max(0, Math.round(Number(it && it.cid) || 0)) })).sort((a, b) => a.index - b.index),
-        startCid: (c.startCid != null && Number.isFinite(Number(c.startCid))) ? Math.max(0, Math.round(Number(c.startCid) || 0)) : null,
-        startDir: FLOW_DIR_SET.has(String(c.startDir || "").toLowerCase()) ? String(c.startDir || "").toLowerCase() : "",
-        mode: (DATA_FLOW_MODES.has(String(c.mode || "")) && String(c.mode || "") !== "none") ? String(c.mode || "") : "",
-        startPinned: !!c.startPinned
-      };
-    };
-    const buildRegionSignatureMap = (regions, topo) => {
-      const out = new Map();
-      if (!regions || !topo) return out;
-      const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1)), rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
-      const byRid = new Map();
-      const cellToRegion = Array.isArray(regions.cellToRegion) ? regions.cellToRegion : [];
-      if (cellToRegion.length >= cols * rows) {
-        for (let iy = 0; iy < rows; iy++) for (let ix = 0; ix < cols; ix++) {
-          const ridRaw = Number(cellToRegion[iy * cols + ix]);
-          if (!Number.isFinite(ridRaw) || ridRaw < 0) continue;
-          const rid = Math.max(0, Math.round(ridRaw || 0));
-          let s = byRid.get(rid);
-          if (!s) { s = { minX: ix, minY: iy, maxX: ix, maxY: iy, count: 0, hash: 2166136261 >>> 0 }; byRid.set(rid, s); }
-          s.count++;
-          if (ix < s.minX) s.minX = ix; if (iy < s.minY) s.minY = iy; if (ix > s.maxX) s.maxX = ix; if (iy > s.maxY) s.maxY = iy;
-          const v = ((((ix + 1) * 73856093) ^ ((iy + 1) * 19349663)) >>> 0);
-          s.hash ^= v; s.hash = Math.imul(s.hash, 16777619) >>> 0;
-        }
-      } else {
-        const regs = Array.isArray(regions.regions) ? regions.regions : [];
-        for (const rg of regs) {
-          const rid = Math.max(0, Math.round(Number(rg && rg.id) || 0)), c0 = Math.max(0, Math.round(Number(rg && rg.c0) || 0)), c1 = Math.max(c0 + 1, Math.round(Number(rg && rg.c1) || 0)), r0 = Math.max(0, Math.round(Number(rg && rg.r0) || 0)), r1 = Math.max(r0 + 1, Math.round(Number(rg && rg.r1) || 0));
-          byRid.set(rid, { minX: c0, minY: r0, maxX: c1 - 1, maxY: r1 - 1, count: Math.max(1, (c1 - c0) * (r1 - r0)), hash: (((c0 + 1) * 73856093) ^ ((r0 + 1) * 19349663) ^ ((c1 + 1) * 83492791) ^ ((r1 + 1) * 2654435761)) >>> 0 });
-        }
-      }
-      for (const [rid, s] of byRid.entries()) out.set(rid, `${s.count}|${s.minX},${s.minY},${s.maxX},${s.maxY}|${(s.hash >>> 0).toString(16)}`);
-      return out;
-    };
-    const buildFlowLockSignatureSnapshot = r => {
-      try {
-        if (!r || typeof r !== "object") return { ridToSig: {}, cidToSeed: {} };
-        const locks = normalizeFlowLocks(r.flowLocks);
-        if (!Object.keys(locks).length) return { ridToSig: {}, cidToSeed: {} };
-        const rt = getRectRuntime(r, { withRegions: true }), topo = rt.topo, regions = rt.regions;
-        const sigByRid = buildRegionSignatureMap(regions, topo);
-        const ridToSig = {};
-        for (const key of Object.keys(locks)) {
-          const rid = Math.max(0, Math.round(Number(key) || 0));
-          const sig = String(sigByRid.get(rid) || "");
-          if (!sig) continue;
-          ridToSig[String(rid)] = sig;
-        }
-        const cidToSeed = {};
-        const seeds = Array.isArray(topo && topo.seed) ? topo.seed : [];
-        for (let cid = 0; cid < seeds.length; cid++) {
-          const s = seeds[cid];
-          if (!s) continue;
-          const col = Math.max(0, Math.round(Number(s.col) || 0));
-          const row = Math.max(0, Math.round(Number(s.row) || 0));
-          cidToSeed[String(Math.max(0, Math.round(Number(cid) || 0)))] = `${col},${row}`;
-        }
-        return { ridToSig, cidToSeed };
-      } catch (_e) {
-        return { ridToSig: {}, cidToSeed: {} };
-      }
-    };
-    const syncFlowLocksWithRegions = (r, regions, topo) => {
-      if (!r || typeof r !== "object" || !regions || !topo) return;
-      const currentSigByRid = buildRegionSignatureMap(regions, topo);
-      if (!currentSigByRid.size) return;
-      const buildCidSeedMap = tp => {
-        const out = {};
-        const seeds = Array.isArray(tp && tp.seed) ? tp.seed : [];
-        for (let cid = 0; cid < seeds.length; cid++) {
-          const s = seeds[cid];
-          if (!s) continue;
-          const col = Math.max(0, Math.round(Number(s.col) || 0));
-          const row = Math.max(0, Math.round(Number(s.row) || 0));
-          out[String(Math.max(0, Math.round(Number(cid) || 0)))] = `${col},${row}`;
-        }
-        return out;
-      };
-      const prevCidToSeed = (r._flowLockCidToSeed && typeof r._flowLockCidToSeed === "object") ? r._flowLockCidToSeed : {};
-      const nextCidToSeed = buildCidSeedMap(topo);
-      const remapCidToTopo = cidRaw => {
-        if (cidRaw == null || !Number.isFinite(Number(cidRaw))) return null;
-        const cid = Math.max(0, Math.round(Number(cidRaw) || 0));
-        const seed = String(prevCidToSeed[String(cid)] || "");
-        if (!seed) return cid;
-        const p = seed.split(",");
-        if (p.length !== 2) return cid;
-        const col = Math.max(0, Math.round(Number(p[0]) || 0));
-        const row = Math.max(0, Math.round(Number(p[1]) || 0));
-        const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
-        const rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
-        if (col < 0 || col >= cols || row < 0 || row >= rows) return cid;
-        const idx = row * cols + col;
-        const comp = Array.isArray(topo && topo.comp) ? topo.comp : null;
-        if (!comp || idx < 0 || idx >= comp.length) return cid;
-        return Math.max(0, Math.round(Number(comp[idx]) || 0));
-      };
-      const remapFlowCfgToTopo = cfg => {
-        const base = cloneFlowRegionConfig(cfg);
-        if (base.startCid != null) base.startCid = remapCidToTopo(base.startCid);
-        const seenIdx = new Set();
-        const remappedLocks = [];
-        for (const it of (Array.isArray(base.locks) ? base.locks : [])) {
-          const idx = Math.max(0, Math.round(Number(it && it.index) || 0));
-          if (seenIdx.has(idx)) continue;
-          seenIdx.add(idx);
-          remappedLocks.push({ index: idx, cid: remapCidToTopo(it && it.cid) });
-        }
-        base.locks = remappedLocks.sort((a, b) => a.index - b.index);
-        return base;
-      };
-      const norm = normalizeFlowLocks(r.flowLocks);
-      const prevRidToSig = (r._flowLockRidToSig && typeof r._flowLockRidToSig === "object") ? r._flowLockRidToSig : {};
-      const prevSigToCfgSrc = (r._flowLockSigToCfg && typeof r._flowLockSigToCfg === "object") ? r._flowLockSigToCfg : {};
-      const prevSigToCfg = {};
-      for (const [sig, cfg] of Object.entries(prevSigToCfgSrc)) prevSigToCfg[String(sig)] = remapFlowCfgToTopo(cfg);
-      for (const [rk, cfg] of Object.entries(norm)) {
-        const sig = String(prevRidToSig[rk] || "");
-        if (!sig) continue;
-        if (!prevSigToCfg[sig]) prevSigToCfg[sig] = remapFlowCfgToTopo(cfg);
-      }
-      let changed = false;
-      const nextNorm = {};
-      const nextRidToSig = {};
-      const nextSigToCfg = { ...prevSigToCfg };
-      for (const [rid, sig] of currentSigByRid.entries()) {
-        const key = String(Math.max(0, Math.round(Number(rid) || 0)));
-        const existing = norm[key];
-        const existingSig = String(prevRidToSig[key] || "");
-        let cfg = null;
-        if (existing && existingSig && existingSig === sig) cfg = remapFlowCfgToTopo(existing);
-        else if (prevSigToCfg[sig]) cfg = cloneFlowRegionConfig(prevSigToCfg[sig]);
-        else if (existing && !existingSig) cfg = remapFlowCfgToTopo(existing);
-        if (cfg) nextNorm[key] = cfg;
-        nextRidToSig[key] = sig;
-        if (cfg) nextSigToCfg[sig] = cloneFlowRegionConfig(cfg);
-      }
-      const oldKeys = Object.keys(norm).sort(), newKeys = Object.keys(nextNorm).sort();
-      if (oldKeys.length !== newKeys.length || oldKeys.some((k, i) => k !== newKeys[i])) changed = true;
-      if (!changed) {
-        for (const k of newKeys) {
-          const a = JSON.stringify(cloneFlowRegionConfig(norm[k]));
-          const b = JSON.stringify(cloneFlowRegionConfig(nextNorm[k]));
-          if (a !== b) { changed = true; break; }
-        }
-      }
-      if (changed) r.flowLocks = nextNorm;
-      else r.flowLocks = norm;
-      try { r._flowLockRidToSig = nextRidToSig; } catch (_e) { }
-      try { r._flowLockSigToCfg = nextSigToCfg; } catch (_e) { }
-      try { r._flowLockCidToSeed = nextCidToSeed; } catch (_e) { }
-    };
+    const {
+      cloneFlowRegionConfig,
+      buildFlowLockSignatureSnapshot,
+      syncFlowLocksWithRegions
+    } = setupFlowLockSyncController({
+      normalizeFlowLocks,
+      FLOW_DIR_SET,
+      DATA_FLOW_MODES,
+      getRectRuntime: (...args) => getRectRuntime(...args)
+    });
     const makeNonEnumerableCalcCache = (r, value) => {
       safeDefine(r, "_calcCache", value, false);
     };
-    const buildPersistedRectCache = r => {
-      const cache = r && r._calcCache;
-      if (!cache || typeof cache !== "object") return null;
-      const out = { version: PROJECT_CACHE_VERSION }, topoEntry = cache.topo, regEntry = cache.regions, flowEntry = cache.flow;
-      const hasMultipleRegions = regs => {
-        const list = Array.isArray(regs) ? regs : [];
-        if (list.length > 1) return true;
-        const ids = new Set();
-        for (const g of list) ids.add(Math.max(0, Math.round(Number(g && g.id) || 0)));
-        return ids.size > 1;
-      };
-      const hasMultipleFlows = groups => {
-        const list = Array.isArray(groups) ? groups : [];
-        if (list.length > 1) return true;
-        const ids = new Set();
-        for (const g of list) ids.add(Math.max(0, Math.round(Number(g && g.rid) || 0)));
-        return ids.size > 1;
-      };
-      if (topoEntry && typeof topoEntry === "object" && topoEntry.key && topoEntry.value) {
-        const t = topoEntry.value, links = t && t.links;
-        if (t && Array.isArray(t.comp) && Array.isArray(t.seed) && Array.isArray(t.color)) {
-          out.topology = {
-            key: String(topoEntry.key),
-            cols: Math.max(1, Math.round(Number(t.cols) || 1)),
-            rows: Math.max(1, Math.round(Number(t.rows) || 1)),
-            count: Math.max(1, Math.round(Number(t.count) || 1)),
-            comp: [...t.comp],
-            seed: t.seed.map(s => ({ col: Math.max(0, Math.round(Number(s && s.col) || 0)), row: Math.max(0, Math.round(Number(s && s.row) || 0)) })),
-            color: [...t.color],
-            links: Array.isArray(links) ? [...links] : (links && typeof links.forEach === "function" ? [...links] : [])
-          };
-        }
-      }
-      if (regEntry && typeof regEntry === "object" && regEntry.key && regEntry.value && !regEntry.value._timedOut && !regEntry.pending) {
-        const v = regEntry.value, regs = Array.isArray(v.regions) ? v.regions : [...(v.regionsById && typeof v.regionsById.values === "function" ? v.regionsById.values() : [])];
-        if (Array.isArray(v.colToGroup) && Array.isArray(v.rowToGroup) && Array.isArray(v.cellToRegion) && regs.length && hasMultipleRegions(regs)) {
-          out.regions = {
-            key: String(regEntry.key),
-            nx: Math.max(1, Math.round(Number(v.nx) || 1)),
-            ny: Math.max(1, Math.round(Number(v.ny) || 1)),
-            colToGroup: [...v.colToGroup],
-            rowToGroup: [...v.rowToGroup],
-            xCutsPx: Array.isArray(v.xCutsPx) ? [...v.xCutsPx] : [0, Math.max(1, Math.round(Number(r && r.width) || 1))],
-            yCutsPx: Array.isArray(v.yCutsPx) ? [...v.yCutsPx] : [0, Math.max(1, Math.round(Number(r && r.height) || 1))],
-            cellToRegion: [...v.cellToRegion],
-            list: regs.map(g => ({ id: Math.max(0, Math.round(Number(g && g.id) || 0)), label: String(g && g.label || "A"), gx: Math.max(0, Math.round(Number(g && g.gx) || 0)), gy: Math.max(0, Math.round(Number(g && g.gy) || 0)), c0: Math.max(0, Math.round(Number(g && g.c0) || 0)), c1: Math.max(0, Math.round(Number(g && g.c1) || 0)), r0: Math.max(0, Math.round(Number(g && g.r0) || 0)), r1: Math.max(0, Math.round(Number(g && g.r1) || 0)), w: Math.max(0, Number(g && g.w) || 0), h: Math.max(0, Number(g && g.h) || 0) }))
-          };
-        }
-      }
-      if (flowEntry && typeof flowEntry === "object" && flowEntry.key && flowEntry.regionKey && flowEntry.value && !flowEntry.pending) {
-        const gs = Array.isArray(flowEntry.value) ? flowEntry.value : [];
-        if (gs.length && hasMultipleFlows(gs)) {
-          out.flow = {
-            key: String(flowEntry.key),
-            regionKey: String(flowEntry.regionKey || ""),
-            list: gs.map(g => ({
-              rid: Math.max(0, Math.round(Number(g && g.rid) || 0)),
-              label: String(g && g.label || ""),
-              rgb: Array.isArray(g && g.rgb) ? [Math.max(0, Math.min(255, Math.round(Number(g.rgb[0]) || 0))), Math.max(0, Math.min(255, Math.round(Number(g.rgb[1]) || 0))), Math.max(0, Math.min(255, Math.round(Number(g.rgb[2]) || 0)))] : [255, 0, 0],
-              zFallback: !!(g && g.zFallback),
-              points: (Array.isArray(g && g.points) ? g.points : []).map(p => ({
-                u: Number(p && p.u) || 0,
-                v: Number(p && p.v) || 0,
-                cid: Math.max(0, Math.round(Number(p && p.cid) || 0))
-              }))
-            }))
-          };
-        }
-      }
-      if (!out.topology && !out.regions && !out.flow) return null;
-      return out;
-    };
-    const restorePersistedRectCache = (r, raw) => {
-      if (!r || !raw || typeof raw !== "object" || Math.round(Number(raw.version) || 0) !== PROJECT_CACHE_VERSION) return;
-      const cache = getRectCalcCache(r);
-      const hasMultipleRegions = regs => {
-        const list = Array.isArray(regs) ? regs : [];
-        if (list.length > 1) return true;
-        const ids = new Set();
-        for (const g of list) ids.add(Math.max(0, Math.round(Number(g && g.id) || 0)));
-        return ids.size > 1;
-      };
-      const hasMultipleFlows = groups => {
-        const list = Array.isArray(groups) ? groups : [];
-        if (list.length > 1) return true;
-        const ids = new Set();
-        for (const g of list) ids.add(Math.max(0, Math.round(Number(g && g.rid) || 0)));
-        return ids.size > 1;
-      };
-      if (raw.topology && typeof raw.topology === "object") {
-        const t = raw.topology;
-        if (t.key && Array.isArray(t.comp) && Array.isArray(t.seed) && Array.isArray(t.color)) {
-          const value = { cols: Math.max(1, Math.round(Number(t.cols) || 1)), rows: Math.max(1, Math.round(Number(t.rows) || 1)), count: Math.max(1, Math.round(Number(t.count) || 1)), links: new Set(Array.isArray(t.links) ? t.links.map(String) : []), comp: [...t.comp], seed: t.seed.map(s => ({ col: Math.max(0, Math.round(Number(s && s.col) || 0)), row: Math.max(0, Math.round(Number(s && s.row) || 0)) })), color: [...t.color] };
-          cache.topo = { key: String(t.key), value };
-        }
-      }
-      if (raw.regions && typeof raw.regions === "object") {
-        const g = raw.regions;
-        if (g.key && Array.isArray(g.colToGroup) && Array.isArray(g.rowToGroup) && Array.isArray(g.cellToRegion) && Array.isArray(g.list) && g.list.length) {
-          const list = g.list.map(it => ({ id: Math.max(0, Math.round(Number(it && it.id) || 0)), label: String(it && it.label || toLetters(Math.max(0, Math.round(Number(it && it.id) || 0)))), gx: Math.max(0, Math.round(Number(it && it.gx) || 0)), gy: Math.max(0, Math.round(Number(it && it.gy) || 0)), c0: Math.max(0, Math.round(Number(it && it.c0) || 0)), c1: Math.max(0, Math.round(Number(it && it.c1) || 0)), r0: Math.max(0, Math.round(Number(it && it.r0) || 0)), r1: Math.max(0, Math.round(Number(it && it.r1) || 0)), w: Math.max(0, Number(it && it.w) || 0), h: Math.max(0, Number(it && it.h) || 0) }));
-          if (hasMultipleRegions(list)) {
-            const byId = new Map(); for (const it of list) byId.set(it.id, it);
-            const value = { nx: Math.max(1, Math.round(Number(g.nx) || 1)), ny: Math.max(1, Math.round(Number(g.ny) || 1)), colToGroup: [...g.colToGroup], rowToGroup: [...g.rowToGroup], regionsById: byId, xCutsPx: Array.isArray(g.xCutsPx) ? [...g.xCutsPx] : [0, Math.max(1, Math.round(Number(r.width) || 1))], yCutsPx: Array.isArray(g.yCutsPx) ? [...g.yCutsPx] : [0, Math.max(1, Math.round(Number(r.height) || 1))], cellToRegion: [...g.cellToRegion], regions: list };
-            try { Object.defineProperty(value, "_calcKey", { value: String(g.key), writable: true, configurable: true }); }
-            catch (_e) { value._calcKey = String(g.key); }
-            cache.regions = { key: String(g.key), value };
-          }
-        }
-      }
-      if (raw.flow && typeof raw.flow === "object") {
-        const g = raw.flow;
-        if (g.key && g.regionKey != null && Array.isArray(g.list) && g.list.length) {
-          const list = g.list.map(it => ({
-            rid: Math.max(0, Math.round(Number(it && it.rid) || 0)),
-            label: String(it && it.label || ""),
-            rgb: Array.isArray(it && it.rgb) ? [Math.max(0, Math.min(255, Math.round(Number(it.rgb[0]) || 0))), Math.max(0, Math.min(255, Math.round(Number(it.rgb[1]) || 0))), Math.max(0, Math.min(255, Math.round(Number(it.rgb[2]) || 0)))] : [255, 0, 0],
-            zFallback: !!(it && it.zFallback),
-            points: (Array.isArray(it && it.points) ? it.points : []).map(p => ({ u: Number(p && p.u) || 0, v: Number(p && p.v) || 0, cid: Math.max(0, Math.round(Number(p && p.cid) || 0)) }))
-          }));
-          if (hasMultipleFlows(list)) cache.flow = { key: String(g.key), regionKey: String(g.regionKey || ""), value: list, pending: false };
-        }
-      }
-    };
-    const getFlowRegionConfig = (r, rid) => {
-      if (!r || typeof r !== "object") return { locks: [], startCid: null, startDir: "", mode: "", startPinned: false };
-      if (!r.flowLocks || typeof r.flowLocks !== "object") r.flowLocks = {};
-      const key = String(Math.max(0, Math.round(Number(rid) || 0)));
-      const norm = normalizeFlowLocks(r.flowLocks), cfg = norm[key] && typeof norm[key] === "object" ? norm[key] : { locks: [], startCid: null, startDir: "", mode: "", startPinned: false };
-      r.flowLocks = norm;
-      r.flowLocks[key] = cfg;
-      return cfg;
-    };
-    const rememberFlowRegionConfig = (r, rid) => {
-      if (!r || typeof r !== "object") return;
-      const key = String(Math.max(0, Math.round(Number(rid) || 0)));
-      const cfg = r.flowLocks && r.flowLocks[key];
-      if (!cfg) return;
-      const ridToSig = (r._flowLockRidToSig && typeof r._flowLockRidToSig === "object") ? r._flowLockRidToSig : {};
-      const sig = String(ridToSig[key] || "");
-      if (!sig) return;
-      const bySig = (r._flowLockSigToCfg && typeof r._flowLockSigToCfg === "object") ? r._flowLockSigToCfg : {};
-      bySig[sig] = cloneFlowRegionConfig(cfg);
-      try { r._flowLockSigToCfg = bySig; } catch (_e) { }
-    };
-    const getFlowLocksRegion = (r, rid) => {
-      return getFlowRegionConfig(r, rid).locks;
-    };
-    const getFlowStartRoutingRegion = (r, rid) => {
-      const cfg = getFlowRegionConfig(r, rid);
-      return { startCid: cfg.startCid, startDir: cfg.startDir || "", startPinned: !!cfg.startPinned };
-    };
-    const getFlowModeRegion = (r, rid, globalMode) => {
-      const cfg = getFlowRegionConfig(r, rid), m = normalizeDataFlow(cfg.mode || "");
-      return m !== "none" ? m : normalizeDataFlow(globalMode);
-    };
-    const setFlowLock = (r, rid, index, cid) => {
-      if (!r || typeof r !== "object") return;
-      const idx = Math.max(0, Math.round(Number(index) || 0)), cc = Math.max(0, Math.round(Number(cid) || 0));
-      const cfg = getFlowRegionConfig(r, rid), arr = Array.isArray(cfg.locks) ? cfg.locks : [];
-      const next = arr.filter(it => Math.max(0, Math.round(Number(it && it.index) || 0)) !== idx);
-      next.push({ index: idx, cid: cc });
-      next.sort((a, b) => a.index - b.index);
-      cfg.locks = next;
-      rememberFlowRegionConfig(r, rid);
-      const cache = getRectCalcCache(r);
-      if (cache) cache.flow = null;
-    };
-    const setFlowStart = (r, rid, cid) => {
-      if (!r || typeof r !== "object") return;
-      const cfg = getFlowRegionConfig(r, rid), cc = Math.max(0, Math.round(Number(cid) || 0));
-      cfg.startCid = cc;
-      cfg.startPinned = true;
-      rememberFlowRegionConfig(r, rid);
-      const cache = getRectCalcCache(r);
-      if (cache) cache.flow = null;
-    };
-    const setFlowDirection = (r, rid, dir, startCid) => {
-      if (!r || typeof r !== "object") return;
-      const d = String(dir || "").toLowerCase();
-      if (!FLOW_DIR_SET.has(d)) return;
-      const cfg = getFlowRegionConfig(r, rid);
-      cfg.startDir = d;
-      if (Number.isFinite(Number(startCid))) cfg.startCid = Math.max(0, Math.round(Number(startCid) || 0));
-      cfg.startPinned = true;
-      cfg.locks = [];
-      rememberFlowRegionConfig(r, rid);
-      const cache = getRectCalcCache(r);
-      if (cache) cache.flow = null;
-    };
-    const resolveFlowModeFromStartAndDir = (points, routing, fallbackMode) => {
-      const modeFallback = normalizeDataFlow(fallbackMode);
-      const pts = Array.isArray(points) ? points : [];
-      if (!pts.length) return modeFallback;
-      const cfg = (routing && typeof routing === "object") ? routing : {};
-      const dir = String(cfg.startDir || "").toLowerCase();
-      if (!FLOW_DIR_SET.has(dir)) return modeFallback;
-      const startCid = (cfg && cfg.startPinned && Number.isFinite(Number(cfg.startCid))) ? Math.max(0, Math.round(Number(cfg.startCid) || 0)) : null;
-      let sp = pts[0];
-      if (startCid != null) {
-        const found = pts.find(it => Math.max(0, Math.round(Number(it && it.cid) || 0)) === startCid);
-        if (found) sp = found;
-      }
-      let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
-      for (const p of pts) {
-        const u = +p.u || 0, v = +p.v || 0;
-        if (u < minU) minU = u; if (u > maxU) maxU = u;
-        if (v < minV) minV = v; if (v > maxV) maxV = v;
-      }
-      if (!(Number.isFinite(minU) && Number.isFinite(maxU) && Number.isFinite(minV) && Number.isFinite(maxV))) return modeFallback;
-      const su = +sp.u || 0, sv = +sp.v || 0, midU = (minU + maxU) / 2, midV = (minV + maxV) / 2;
-      const dTop = Math.abs(sv - minV), dBottom = Math.abs(maxV - sv), dLeft = Math.abs(su - minU), dRight = Math.abs(maxU - su);
-      const side = (dTop <= dBottom && dTop <= dLeft && dTop <= dRight) ? "top" : (dBottom <= dLeft && dBottom <= dRight) ? "bottom" : (dLeft <= dRight) ? "left" : "right";
-      const leftHalf = su <= midU, topHalf = sv <= midV;
-      if (side === "bottom") {
-        if (dir === "right") return "h_bl_lr";
-        if (dir === "left") return "h_br_rl";
-        if (dir === "up") return leftHalf ? "v_lb_bu" : "v_rb_bu";
-        if (dir === "down") return leftHalf ? "v_lt_td" : "v_rt_td";
-      } else if (side === "top") {
-        if (dir === "right") return "h_tl_lr";
-        if (dir === "left") return "h_tr_rl";
-        if (dir === "down") return leftHalf ? "v_lt_td" : "v_rt_td";
-        if (dir === "up") return leftHalf ? "v_lb_bu" : "v_rb_bu";
-      } else if (side === "left") {
-        if (dir === "down") return "v_lt_td";
-        if (dir === "up") return "v_lb_bu";
-        if (dir === "right") return topHalf ? "h_tl_lr" : "h_bl_lr";
-        if (dir === "left") return topHalf ? "h_tr_rl" : "h_br_rl";
-      } else {
-        if (dir === "down") return "v_rt_td";
-        if (dir === "up") return "v_rb_bu";
-        if (dir === "left") return topHalf ? "h_tr_rl" : "h_br_rl";
-        if (dir === "right") return topHalf ? "h_tl_lr" : "h_bl_lr";
-      }
-      return modeFallback;
-    };
-    const setFlowRegionMode = (r, rid, mode) => {
-      if (!r || typeof r !== "object") return;
-      const m = normalizeDataFlow(mode);
-      const cfg = getFlowRegionConfig(r, rid);
-      if (m === "none") { cfg.mode = ""; cfg.locks = []; cfg.startCid = null; cfg.startDir = ""; cfg.startPinned = false; }
-      else cfg.mode = m;
-      cfg.locks = [];
-      cfg.startCid = null;
-      cfg.startDir = "";
-      cfg.startPinned = false;
-      rememberFlowRegionConfig(r, rid);
-      const cache = getRectCalcCache(r);
-      if (cache) cache.flow = null;
-    };
-    const resetFlowRegionOverrides = (r, rid) => {
-      if (!r || typeof r !== "object") return;
-      const cfg = getFlowRegionConfig(r, rid);
-      cfg.locks = [];
-      cfg.startCid = null;
-      cfg.startDir = "";
-      cfg.mode = "";
-      cfg.startPinned = false;
-      rememberFlowRegionConfig(r, rid);
-      const cache = getRectCalcCache(r);
-      if (cache) cache.flow = null;
-    };
-    const applyFlowStartRouting = (ordered, routing, budget) => {
-      if (!Array.isArray(ordered) || ordered.length < 2) return ordered;
-      const cfg = (routing && typeof routing === "object") ? routing : {};
-      let cur = ordered.slice();
-      const startCid = (cfg && cfg.startPinned && Number.isFinite(Number(cfg.startCid))) ? Math.max(0, Math.round(Number(cfg.startCid) || 0)) : null;
-      let startPos = 0;
-      if (startCid != null) {
-        const pos = cur.findIndex(it => Math.max(0, Math.round(Number(it && it.cid) || 0)) === startCid);
-        if (pos >= 0) startPos = pos;
-      }
-      const dir = String(cfg.startDir || "").toLowerCase();
-      const n = cur.length;
-      const forward = cur.slice(startPos).concat(cur.slice(0, startPos));
-      const backward = cur.slice(0, startPos + 1).reverse().concat(cur.slice(startPos + 1).reverse());
-      if (!FLOW_DIR_SET.has(dir) || n < 3) return forward;
-      const dirVec = dir === "right" ? [1, 0] : dir === "left" ? [-1, 0] : dir === "down" ? [0, 1] : [0, -1];
-      const scoreRoute = route => {
-        if (!Array.isArray(route) || route.length < 2) return Number.POSITIVE_INFINITY;
-        const s = route[0], nx = route[1], dx = (+nx.u || 0) - (+s.u || 0), dy = (+nx.v || 0) - (+s.v || 0), len = Math.hypot(dx, dy);
-        const dot = len > 1e-6 ? (dx * dirVec[0] + dy * dirVec[1]) / len : -1;
-        const wrongDirPenalty = dot < 0 ? 200000 : (dot < 0.25 ? 50000 : 0);
-        const crossPenalty = pathSelfCrosses(route) ? 1e9 : 0;
-        return crossPenalty + wrongDirPenalty + flowPathLength(route);
-      };
-      if (checkCalcTimeout(budget)) return forward;
-      const sf = scoreRoute(forward), sb = scoreRoute(backward);
-      return sb + 1e-6 < sf ? backward : forward;
-    };
-    const applyFlowLocksToOrdered = (ordered, locks, budget) => {
-      if (!Array.isArray(ordered) || ordered.length < 2 || !Array.isArray(locks) || !locks.length) return ordered;
-      let cur = ordered.slice();
-      const pickNext = (path, rem) => {
-        const prev = path[path.length - 1], prev2 = path.length > 1 ? path[path.length - 2] : null, prevDx = prev2 ? ((+prev.u || 0) - (+prev2.u || 0)) : 0, prevDy = prev2 ? ((+prev.v || 0) - (+prev2.v || 0)) : 0, prevLen = Math.hypot(prevDx, prevDy);
-        let bestIdx = 0, bestScore = Infinity, bestBase = Infinity;
-        for (let i = 0; i < rem.length; i++) {
-          const cand = rem[i], d = flowDist(prev, cand), bb = (cand && cand.baseIdx != null) ? cand.baseIdx : i, cross = wouldSelfCross(path, cand), crossPenalty = cross ? 1e9 : 0;
-          const dx = (+cand.u || 0) - (+prev.u || 0), dy = (+cand.v || 0) - (+prev.v || 0), len = Math.hypot(dx, dy);
-          let backPenalty = 0;
-          if (prevLen > 1e-6 && len > 1e-6) {
-            const dot = (prevDx * dx + prevDy * dy) / (prevLen * len);
-            if (dot < -0.35) backPenalty += Math.abs(dot) * 2400;
-            else if (dot < 0) backPenalty += Math.abs(dot) * 1000;
-          }
-          const score = crossPenalty + backPenalty + d;
-          if (score < bestScore - 1e-6 || (Math.abs(score - bestScore) <= 1e-6 && bb < bestBase)) { bestIdx = i; bestScore = score; bestBase = bb; }
-        }
-        return bestIdx;
-      };
-      for (const lock of locks) {
-        if (checkCalcTimeout(budget)) return cur;
-        const idx = Math.max(0, Math.round(Number(lock && lock.index) || 0));
-        if (idx >= cur.length) continue;
-        const targetCid = Math.max(0, Math.round(Number(lock && lock.cid) || 0));
-        const pos = cur.findIndex(it => Math.max(0, Math.round(Number(it && it.cid) || 0)) === targetCid);
-        if (pos < idx) continue;
-        const prefix = cur.slice(0, idx), prefixSet = new Set(prefix.map(it => Math.max(0, Math.round(Number(it && it.cid) || 0))));
-        if (prefixSet.has(targetCid)) continue;
-        const fixed = cur[pos];
-        const rem = cur.filter((it, i) => i !== pos && !prefixSet.has(Math.max(0, Math.round(Number(it && it.cid) || 0))));
-        const tail = []; let path = prefix.concat([fixed]);
-        while (rem.length) {
-          if (checkCalcTimeout(budget)) break;
-          const nx = pickNext(path, rem), it = rem.splice(nx, 1)[0];
-          tail.push(it); path.push(it);
-        }
-        cur = prefix.concat([fixed], tail);
-      }
-      return cur;
-    };
-    const getDataFlowGroupsUncached = (r, cx, cy, topo, hs, regions, budget) => {
-      if (checkCalcTimeout(budget)) return [];
-      const mode = normalizeDataFlow(r && r.dataFlow);
-      const zMode = !!(r && r.dataFlowZ);
-      if (mode === "none") return [];
-      const manualRegionsActive = Array.isArray(r && r.manualClusters) && r.manualClusters.length > 0;
-      let regionFlowCache = getDataFlowGroupsUncached._regionFlowCache;
-      if (!(regionFlowCache instanceof Map)) {
-        regionFlowCache = new Map();
-        try { Object.defineProperty(getDataFlowGroupsUncached, "_regionFlowCache", { value: regionFlowCache, writable: true, configurable: true }); }
-        catch (_e) { getDataFlowGroupsUncached._regionFlowCache = regionFlowCache; }
-      }
-      const regionGeomKey = arr => {
-        const list = (Array.isArray(arr) ? arr : []).map(it => `${Math.max(0, Math.round(Number(it && it.cid) || 0))}:${Math.max(0, Math.round(Number(it && it.col) || 0))},${Math.max(0, Math.round(Number(it && it.row) || 0))}`).sort();
-        return `${list.length}|${list.join(";")}`;
-      };
-      const putRegionFlowCache = (key, value) => {
-        if (!key || !value) return;
-        regionFlowCache.set(key, value);
-        const LIMIT = 4096;
-        if (regionFlowCache.size > LIMIT) {
-          const drop = regionFlowCache.size - LIMIT;
-          let i = 0;
-          for (const k of regionFlowCache.keys()) {
-            regionFlowCache.delete(k);
-            i++;
-            if (i >= drop) break;
-          }
-        }
-      };
-      const getCachedCidSet = cached => {
-        if (!cached || typeof cached !== "object") return null;
-        if (cached.cidSet instanceof Set) return cached.cidSet;
-        const pts = Array.isArray(cached.points) ? cached.points : [];
-        const set = new Set();
-        for (const p of pts) set.add(Math.max(0, Math.round(Number(p && p.cid) || 0)));
-        try { cached.cidSet = set; } catch (_e) { }
-        return set;
-      };
-      const rebuildOrderedFromCached = (arr, cached) => {
-        if (!Array.isArray(arr) || !arr.length || !cached || !Array.isArray(cached.points)) return null;
-        const byCid = new Map(arr.map(it => [Math.max(0, Math.round(Number(it && it.cid) || 0)), it]));
-        const used = new Set(), rebuilt = [];
-        for (const p of cached.points) {
-          const cid = Math.max(0, Math.round(Number(p && p.cid) || 0));
-          if (used.has(cid)) continue;
-          const src = byCid.get(cid);
-          if (!src) continue;
-          rebuilt.push({ ...src, baseIdx: rebuilt.length });
-          used.add(cid);
-        }
-        if (rebuilt.length !== arr.length) return null;
-        return rebuilt;
-      };
-      const regionOfCell = (ix, iy) => {
-        if (regions && Array.isArray(regions.cellToRegion)) {
-          const rid = regions.cellToRegion[iy * topo.cols + ix];
-          if (Number.isFinite(rid)) return rid >= 0 ? Math.max(0, Math.round(Number(rid) || 0)) : -1;
-        }
-        if (regions && regions.regionsById && typeof regions.regionsById.values === "function") {
-          for (const rg of regions.regionsById.values()) {
-            if (!rg) continue;
-            const c0 = Math.max(0, Math.round(Number(rg.c0) || 0)), c1 = Math.max(c0 + 1, Math.round(Number(rg.c1) || 0));
-            const r0 = Math.max(0, Math.round(Number(rg.r0) || 0)), r1 = Math.max(r0 + 1, Math.round(Number(rg.r1) || 0));
-            if (ix >= c0 && ix < c1 && iy >= r0 && iy < r1) return Math.max(0, Math.round(Number(rg.id) || 0));
-          }
-        }
-        return -1;
-      };
-      const stat = new Map();
-      const manualStatKey = (rid, cid) => `${rid}|${cid}`;
-      for (let iy = 0; iy < topo.rows; iy++) {
-        if (checkCalcTimeout(budget)) return [];
-        for (let ix = 0; ix < topo.cols; ix++) {
-          if (checkCalcTimeout(budget)) return [];
-          if (hs && hs.has(maskCellKey(ix, iy))) continue;
-          const ridCell = regionOfCell(ix, iy);
-          if (ridCell < 0) continue;
-          const idx = iy * topo.cols + ix, cid = topo.comp[idx], cw = Math.min(cx, r.width - ix * cx), ch = Math.min(cy, r.height - iy * cy), u = ix * cx + cw / 2, v = iy * cy + ch / 2, seed = topo.seed[cid] || { col: ix, row: iy };
-          const key = manualRegionsActive ? manualStatKey(ridCell, cid) : String(cid);
-          let s = stat.get(key);
-          if (!s) { s = { cid, rid: ridCell, col: seed.col, row: seed.row, sumU: 0, sumV: 0, count: 0, minCol: ix, maxCol: ix, minRow: iy, maxRow: iy, ridCounts: {} }; stat.set(key, s) }
-          s.sumU += u; s.sumV += v; s.count++;
-          if (ix < s.minCol) s.minCol = ix; if (ix > s.maxCol) s.maxCol = ix; if (iy < s.minRow) s.minRow = iy; if (iy > s.maxRow) s.maxRow = iy;
-          if (!manualRegionsActive) {
-            const k = String(ridCell);
-            s.ridCounts[k] = (s.ridCounts[k] | 0) + 1;
-          } else {
-            s.rid = ridCell;
-          }
-        }
-      }
-      const list = [...stat.values()].filter(s => s.count > 0).map(s => {
-        const u = s.sumU / s.count, v = s.sumV / s.count;
-        const rowBand = Math.max(0, Math.min(topo.rows - 1, Math.round(Number(s.minRow) || 0)));
-        const colBand = Math.max(0, Math.min(topo.cols - 1, Math.round(Number(s.minCol) || 0)));
-        let rid = Math.max(0, Math.round(Number(s.rid) || 0));
-        if (!manualRegionsActive) {
-          rid = -1;
-          let best = 0;
-          for (const [rk, rv] of Object.entries(s.ridCounts || {})) {
-            const c = rv | 0, id = Math.max(0, Math.round(Number(rk) || 0));
-            if (c > best) { best = c; rid = id; }
-          }
-        }
-        return { cid: s.cid, col: colBand, row: rowBand, u, v, minCol: s.minCol, maxCol: s.maxCol, minRow: s.minRow, maxRow: s.maxRow, rid };
-      });
-      if (!list.length) return [];
-      const orderByMode = (arr, m, useZ = zMode) => {
-        const src = (Array.isArray(arr) ? arr : []).map(it => ({
-          ...it,
-          _rowTop: Math.max(0, Math.round(Number(it && it.minRow) || Number(it && it.row) || 0)),
-          _rowBottom: Math.max(0, Math.round(Number(it && it.maxRow) || Number(it && it.row) || 0)),
-          _colLeft: Math.max(0, Math.round(Number(it && it.minCol) || Number(it && it.col) || 0)),
-          _colRight: Math.max(0, Math.round(Number(it && it.maxCol) || Number(it && it.col) || 0))
-        }));
-        switch (m) {
-          case "h_bl_lr": return useZ ? buildZOrder(src, "_rowBottom", "desc", "_colLeft", "asc") : buildSnakeOrder(src, "_rowBottom", "desc", "_colLeft", "asc");
-          case "h_tl_lr": return useZ ? buildZOrder(src, "_rowTop", "asc", "_colLeft", "asc") : buildSnakeOrder(src, "_rowTop", "asc", "_colLeft", "asc");
-          case "h_br_rl": return useZ ? buildZOrder(src, "_rowBottom", "desc", "_colRight", "desc") : buildSnakeOrder(src, "_rowBottom", "desc", "_colRight", "desc");
-          case "h_tr_rl": return useZ ? buildZOrder(src, "_rowTop", "asc", "_colRight", "desc") : buildSnakeOrder(src, "_rowTop", "asc", "_colRight", "desc");
-          case "v_lb_bu": return useZ ? buildZOrder(src, "_colLeft", "asc", "_rowBottom", "desc") : buildSnakeOrder(src, "_colLeft", "asc", "_rowBottom", "desc");
-          case "v_rb_bu": return useZ ? buildZOrder(src, "_colRight", "desc", "_rowBottom", "desc") : buildSnakeOrder(src, "_colRight", "desc", "_rowBottom", "desc");
-          case "v_lt_td": return useZ ? buildZOrder(src, "_colLeft", "asc", "_rowTop", "asc") : buildSnakeOrder(src, "_colLeft", "asc", "_rowTop", "asc");
-          case "v_rt_td": return useZ ? buildZOrder(src, "_colRight", "desc", "_rowTop", "asc") : buildSnakeOrder(src, "_colRight", "desc", "_rowTop", "asc");
-          default: return buildSnakeOrder(src, "_rowTop", "asc", "_colLeft", "asc");
-        }
-      };
-      const modeAxes = (m) => {
-        switch (String(m || "")) {
-          case "h_bl_lr": return { primary: "row", primaryDir: "desc", secondaryStart: "asc" };
-          case "h_tl_lr": return { primary: "row", primaryDir: "asc", secondaryStart: "asc" };
-          case "h_br_rl": return { primary: "row", primaryDir: "desc", secondaryStart: "desc" };
-          case "h_tr_rl": return { primary: "row", primaryDir: "asc", secondaryStart: "desc" };
-          case "v_lb_bu": return { primary: "col", primaryDir: "asc", secondaryStart: "desc" };
-          case "v_rb_bu": return { primary: "col", primaryDir: "desc", secondaryStart: "desc" };
-          case "v_lt_td": return { primary: "col", primaryDir: "asc", secondaryStart: "asc" };
-          case "v_rt_td": return { primary: "col", primaryDir: "desc", secondaryStart: "asc" };
-          default: return { primary: "row", primaryDir: "asc", secondaryStart: "asc" };
-        }
-      };
-      const buildManualRegionOrdered = (arr, rid, m, useZ) => {
-        const items = Array.isArray(arr) ? arr : [];
-        if (!items.length) return items;
-        const byCid = new Map(items.map(it => [Math.max(0, Math.round(Number(it && it.cid) || 0)), it]));
-        const cfg = modeAxes(m), cellsByPrimary = new Map();
-        for (let iy = 0; iy < topo.rows; iy++) {
-          for (let ix = 0; ix < topo.cols; ix++) {
-            if (hs && hs.has(maskCellKey(ix, iy))) continue;
-            const rr = regionOfCell(ix, iy);
-            if (rr !== rid) continue;
-            const cid = Math.max(0, Math.round(Number(topo.comp[iy * topo.cols + ix]) || 0));
-            if (!byCid.has(cid)) continue;
-            const primary = (cfg.primary === "row") ? iy : ix, secondary = (cfg.primary === "row") ? ix : iy, third = (cfg.primary === "row") ? iy : ix;
-            const key = String(primary), bucket = cellsByPrimary.get(key) || [];
-            bucket.push({ primary, secondary, third, cid });
-            cellsByPrimary.set(key, bucket);
-          }
-        }
-        const primaryVals = [...cellsByPrimary.values()].map(v => v[0].primary).sort((a, b) => cfg.primaryDir === "asc" ? a - b : b - a);
-        const cidOrder = [], seen = new Set();
-        let dir = cfg.secondaryStart;
-        for (const pv of primaryVals) {
-          const key = String(pv), band = (cellsByPrimary.get(key) || []).slice().sort((a, b) => {
-            const d = dir === "asc" ? (a.secondary - b.secondary) : (b.secondary - a.secondary);
-            return d || (a.third - b.third) || ((a.cid | 0) - (b.cid | 0));
-          });
-          for (const c of band) {
-            if (seen.has(c.cid)) continue;
-            seen.add(c.cid);
-            cidOrder.push(c.cid);
-          }
-          if (!useZ) dir = (dir === "asc") ? "desc" : "asc";
-        }
-        const ordered = [];
-        for (const cid of cidOrder) {
-          const it = byCid.get(cid);
-          if (it) ordered.push(it);
-        }
-        if (ordered.length !== items.length) {
-          for (const it of items) {
-            const cid = Math.max(0, Math.round(Number(it && it.cid) || 0));
-            if (seen.has(cid)) continue;
-            ordered.push(it);
-          }
-        }
-        return ordered;
-      };
-      const orientEndpointsByMode = (arr, m, routing) => {
-        const src = Array.isArray(arr) ? arr : [];
-        return src;
-      };
-      const alignEndpointByMode = (arr, m, routing) => {
-        const src = Array.isArray(arr) ? arr : [];
-        return src;
-      };
-      const groupOf = it => {
-        if (Number.isFinite(Number(it && it.rid)) && Number(it.rid) >= 0) return Math.max(0, Math.round(Number(it.rid) || 0));
-        if (regions && Array.isArray(regions.cellToRegion)) {
-          const idx = it.row * topo.cols + it.col;
-          const rid = regions.cellToRegion[idx];
-          if (rid >= 0) return rid;
-          return -1;
-        }
-        if (regions && regions.regionsById && typeof regions.regionsById.values === "function") {
-          for (const rg of regions.regionsById.values()) {
-            if (!rg) continue;
-            const c0 = Math.max(0, Math.round(Number(rg.c0) || 0)), c1 = Math.max(c0 + 1, Math.round(Number(rg.c1) || 0));
-            const r0 = Math.max(0, Math.round(Number(rg.r0) || 0)), r1 = Math.max(r0 + 1, Math.round(Number(rg.r1) || 0));
-            if (it.col >= c0 && it.col < c1 && it.row >= r0 && it.row < r1) return Math.max(0, Math.round(Number(rg.id) || 0));
-          }
-        }
-        if (regions && Array.isArray(regions.colToGroup)) {
-          const gx = regions.colToGroup[Math.max(0, Math.min(regions.colToGroup.length - 1, it.col))];
-          if (Number.isFinite(gx)) return Math.max(0, Math.round(Number(gx) || 0));
-        }
-        if (regions && Array.isArray(regions.rowToGroup)) {
-          const gy = regions.rowToGroup[Math.max(0, Math.min(regions.rowToGroup.length - 1, it.row))];
-          if (Number.isFinite(gy)) return Math.max(0, Math.round(Number(gy) || 0));
-        }
-        return -1;
-      };
-      const byRegion = new Map();
-      for (const it of list) {
-        if (checkCalcTimeout(budget)) return [];
-        const rid = groupOf(it);
-        if (!(Number.isFinite(rid) && rid >= 0)) continue;
-        const arr = byRegion.get(rid) || [];
-        arr.push(it); byRegion.set(rid, arr);
-      }
-      const out = [];
-      for (const [rid, arr] of byRegion) {
-        if (checkCalcTimeout(budget)) return [];
-        const cfgRegion = getFlowRegionConfig(r, rid);
-        if (cfgRegion && cfgRegion.startPinned && cfgRegion.startCid != null) {
-          const hasStartCid = arr.some(it => Math.max(0, Math.round(Number(it && it.cid) || 0)) === Math.max(0, Math.round(Number(cfgRegion.startCid) || 0)));
-          if (!hasStartCid) { cfgRegion.startCid = null; cfgRegion.startPinned = false; cfgRegion.startDir = ""; }
-        }
-        const routing = getFlowStartRoutingRegion(r, rid);
-        const localMode = resolveFlowModeFromStartAndDir(arr, routing, getFlowModeRegion(r, rid, mode));
-        const regionLocks = getFlowLocksRegion(r, rid);
-        let baseOrderedRaw = orderByMode(arr, localMode, zMode);
-        if (manualRegionsActive) baseOrderedRaw = buildManualRegionOrdered(arr, rid, localMode, zMode);
-        const baseAligned = alignEndpointByMode(baseOrderedRaw, localMode, routing);
-        const baseOrdered = baseAligned.map((it, idx) => ({ ...it, baseIdx: idx }));
-        const manualRoute = (routing && (((routing.startPinned && routing.startCid != null) || FLOW_DIR_SET.has(String(routing.startDir || "").toLowerCase()))));
-        const hasLocks = Array.isArray(regionLocks) && regionLocks.length > 0;
-        const canUseRegionCache = !manualRegionsActive && !manualRoute && !hasLocks;
-        const cachePrefix = `v2|${localMode}|${zMode ? 1 : 0}|`;
-        const cacheKey = canUseRegionCache ? `${cachePrefix}${regionGeomKey(arr)}` : "";
-        let zFallbackUsed = false;
-        let ordered = baseOrdered, fromCache = false;
-        if (canUseRegionCache && cacheKey) {
-          const cached = regionFlowCache.get(cacheKey);
-          if (cached && Array.isArray(cached.points) && cached.points.length) {
-            const rebuilt = rebuildOrderedFromCached(arr, cached);
-            if (rebuilt && !pathSelfCrosses(rebuilt)) {
-              ordered = rebuilt;
-              zFallbackUsed = !!cached.zFallback;
-              fromCache = true;
-            }
-          }
-        }
-        if (canUseRegionCache && !fromCache) {
-          const curCids = arr.map(it => Math.max(0, Math.round(Number(it && it.cid) || 0)));
-          const curSet = new Set(curCids);
-          let best = null;
-          for (const [k, cached] of regionFlowCache) {
-            if (typeof k !== "string" || !k.startsWith(cachePrefix)) continue;
-            if (!cached || !Array.isArray(cached.points) || cached.points.length < arr.length) continue;
-            const set = getCachedCidSet(cached);
-            if (!set || set.size < curSet.size) continue;
-            let ok = true;
-            for (const cid of curSet) { if (!set.has(cid)) { ok = false; break; } }
-            if (!ok) continue;
-            const extra = set.size - curSet.size;
-            if (!best || extra < best.extra) best = { cached, extra };
-            if (extra === 0) break;
-          }
-          if (best && best.cached) {
-            const rebuilt = rebuildOrderedFromCached(arr, best.cached);
-            if (rebuilt && !pathSelfCrosses(rebuilt)) {
-              ordered = rebuilt;
-              zFallbackUsed = !!best.cached.zFallback;
-              fromCache = true;
-            }
-          }
-        }
-        if (!fromCache) {
-          if (!manualRoute && !hasLocks) {
-            ordered = baseOrdered;
-          } else if (!manualRoute) {
-            ordered = (zMode ? baseOrdered : refineFlowOrder(baseOrdered));
-            if (!zMode && ordered.length <= FLOW_OPTIMIZE_MAX_POINTS) ordered = optimizeFlowPathShortest(ordered);
-            if (pathSelfCrosses(ordered)) {
-              const altUseZ = !zMode;
-              const altBase = orderByMode(arr, localMode, altUseZ).map((it, idx) => ({ ...it, baseIdx: idx }));
-              let altOrdered = altUseZ ? altBase : refineFlowOrder(altBase);
-              if (!altUseZ && altOrdered.length <= FLOW_OPTIMIZE_MAX_POINTS) altOrdered = optimizeFlowPathShortest(altOrdered);
-              if (!pathSelfCrosses(altOrdered)) { ordered = altOrdered; zFallbackUsed = !!altUseZ; }
-              else if (flowPathCost(altOrdered) + 1e-6 < flowPathCost(ordered)) { ordered = altOrdered; zFallbackUsed = !!altUseZ; }
-            } else if (!zMode) {
-              const baseCost = flowPathCost(baseOrdered), optCost = flowPathCost(ordered);
-              if (baseCost + 1e-6 < optCost) ordered = baseOrdered;
-            }
-          }
-          ordered = applyFlowStartRouting(ordered, routing, budget);
-          ordered = applyFlowLocksToOrdered(ordered, regionLocks, budget);
-          if (pathSelfCrosses(ordered)) {
-            const head = ordered[0], rest = ordered.slice(1), base = (head && head.baseIdx != null) ? head.baseIdx : 0, strictState = { nodes: 0, limit: FLOW_SEARCH_NODE_LIMIT_STRICT, aborted: false };
-            const strict = flowSearchOrder([head], rest, base, false, strictState);
-            if (strict && !pathSelfCrosses(strict)) {
-              const relocked = applyFlowLocksToOrdered(strict, regionLocks, budget);
-              if (!pathSelfCrosses(relocked)) ordered = relocked;
-            }
-            else {
-              const opt = optimizeFlowPathShortest(ordered);
-              if (!pathSelfCrosses(opt)) {
-                const relocked = applyFlowLocksToOrdered(opt, regionLocks, budget);
-                if (!pathSelfCrosses(relocked)) ordered = relocked;
-              }
-            }
-          }
-          ordered = orientEndpointsByMode(ordered, localMode, routing);
-          if (canUseRegionCache && cacheKey) {
-            if (!pathSelfCrosses(ordered)) {
-              const points = ordered.map(v => ({ cid: Math.max(0, Math.round(Number(v && v.cid) || 0)) }));
-              const cidSet = new Set(points.map(p => p.cid));
-              putRegionFlowCache(cacheKey, { zFallback: !!zFallbackUsed, points, cidSet });
-            }
-          }
-        }
-        const rgb = REGION_ZONE_COLORS[((rid % REGION_ZONE_COLORS.length) + REGION_ZONE_COLORS.length) % REGION_ZONE_COLORS.length];
-        const label = (regions && regions.regionsById && regions.regionsById.get(rid) && regions.regionsById.get(rid).label) || toLetters(rid);
-        const orderedPoints = ordered.map(v => ({
-          u: v.u,
-          v: v.v,
-          cid: v.cid,
-          spanCols: Math.max(1, (Math.max(0, Math.round(Number(v && v.maxCol) || Number(v && v.col) || 0)) - Math.max(0, Math.round(Number(v && v.minCol) || Number(v && v.col) || 0)) + 1)),
-          spanRows: Math.max(1, (Math.max(0, Math.round(Number(v && v.maxRow) || Number(v && v.row) || 0)) - Math.max(0, Math.round(Number(v && v.minRow) || Number(v && v.row) || 0)) + 1)),
-          bw: Math.max(cx, (Math.max(0, Math.round(Number(v && v.maxCol) || Number(v && v.col) || 0)) - Math.max(0, Math.round(Number(v && v.minCol) || Number(v && v.col) || 0)) + 1) * cx),
-          bh: Math.max(cy, (Math.max(0, Math.round(Number(v && v.maxRow) || Number(v && v.row) || 0)) - Math.max(0, Math.round(Number(v && v.minRow) || Number(v && v.row) || 0)) + 1) * cy)
-        }));
-        const debugInfo = {
-          rid,
-          label,
-          localMode,
-          manualRegionsActive: !!manualRegionsActive,
-          manualRoute: !!manualRoute,
-          hasLocks: !!hasLocks,
-          lockCount: Array.isArray(regionLocks) ? regionLocks.length : 0,
-          fromCache: !!fromCache,
-          zFallback: !!zFallbackUsed,
-          startPinned: !!(routing && routing.startPinned),
-          startCid: (routing && Number.isFinite(Number(routing.startCid))) ? Math.max(0, Math.round(Number(routing.startCid) || 0)) : null,
-          startDir: String(routing && routing.startDir || ""),
-          points: orderedPoints.length,
-          selfCross: !!pathSelfCrosses(ordered)
-        };
-        out.push({ rid, label, rgb, zFallback: !!zFallbackUsed, points: orderedPoints, _dbg: debugInfo });
-      }
-      out.sort((a, b) => a.rid - b.rid);
-      return out;
-    };
-    const getSplitFlowMarkerOffset = (longSide, singleCabRegion = false) => {
-      const ls = Math.max(8, Number(longSide) || 0);
-      return Math.max(6, Math.min(36, ls * 0.25));
-    };
-    const getSplitFlowMarkerWorldPositions = (r, pts) => {
-      const list = Array.isArray(pts) ? pts : [];
-      if (!r || list.length < 1) return null;
-      const s = list[0], e = list[list.length - 1];
-      const su = +s.u || 0, sv = +s.v || 0, eu = +e.u || 0, ev = +e.v || 0;
-      const scid = Math.max(0, Math.round(Number(s && s.cid) || 0)), ecid = Math.max(0, Math.round(Number(e && e.cid) || 0));
-      if (scid !== ecid) return null;
-      if (Math.hypot(su - eu, sv - ev) > 1e-6) return null;
-      const bw = Math.max(8, Number((s && s.bw) || (e && e.bw) || 0));
-      const bh = Math.max(8, Number((s && s.bh) || (e && e.bh) || 0));
-      if (!(bw > 0 && bh > 0)) return null;
-      const singleCabRegion = (Math.max(1, Math.round(Number(s && s.spanCols) || 1)) === 1) && (Math.max(1, Math.round(Number(s && s.spanRows) || 1)) === 1);
-      let su2 = su, sv2 = sv, eu2 = eu, ev2 = ev;
-      if (bw >= bh) {
-        const off = getSplitFlowMarkerOffset(bw, singleCabRegion);
-        su2 = su - off; eu2 = eu + off;
-      } else {
-        const off = getSplitFlowMarkerOffset(bh, singleCabRegion);
-        sv2 = sv - off; ev2 = ev + off;
-      }
-      const sw = rectUVToWorld(r, su2, sv2), ew = rectUVToWorld(r, eu2, ev2);
-      return { start: { x: sw.x, y: sw.y }, end: { x: ew.x, y: ew.y } };
-    };
-    const collectFlowLinkAnchors = (r, groups) => {
-      if (!r || !Array.isArray(groups)) return;
-      const seen = new Set();
-      for (const g of groups) {
-        const rid = Math.max(0, Math.round(Number(g && g.rid) || 0)), pts = Array.isArray(g && g.points) ? g.points : [];
-        if (!pts.length) continue;
-        const split = getSplitFlowMarkerWorldPositions(r, pts);
-        const s0 = pts[0], su = +s0.u || 0, sv = +s0.v || 0, scid = Math.max(0, Math.round(Number(s0 && s0.cid) || 0)), sw0 = rectUVToWorld(r, su, sv), sw = split && split.start ? split.start : sw0, sk = `${rid}:${scid}:start`;
-        if (!seen.has(sk)) {
-          seen.add(sk);
-          st.flowLinkAnchors.push({ rectId: r.id, rid, cid: scid, kind: "start", x: sw.x, y: sw.y });
-        }
-        const e0 = pts[pts.length - 1], eu = +e0.u || 0, ev = +e0.v || 0, ecid = Math.max(0, Math.round(Number(e0 && e0.cid) || 0)), ew0 = rectUVToWorld(r, eu, ev), ew = split && split.end ? split.end : ew0, ek = `${rid}:${ecid}:end`;
-        if (!seen.has(ek)) {
-          seen.add(ek);
-          st.flowLinkAnchors.push({ rectId: r.id, rid, cid: ecid, kind: "end", x: ew.x, y: ew.y });
-        }
-      }
-    };
-    const collectFlowEditPoints = (r, groups) => {
-      if (!r || !Array.isArray(groups)) return;
-      for (const g of groups) {
-        const rid = Math.max(0, Math.round(Number(g && g.rid) || 0)), pts = Array.isArray(g && g.points) ? g.points : [];
-        if (pts.length) {
-          const p0 = pts[0];
-          const singleCabRegion = (pts.length === 1) && (Math.max(1, Math.round(Number(p0 && p0.spanCols) || 1)) === 1) && (Math.max(1, Math.round(Number(p0 && p0.spanRows) || 1)) === 1);
-          if (singleCabRegion) continue;
-        }
-        const split = getSplitFlowMarkerWorldPositions(r, pts);
-        if (pts.length) {
-          const s0 = pts[0], su = +s0.u || 0, sv = +s0.v || 0, scid = Math.max(0, Math.round(Number(s0 && s0.cid) || 0)), sw0 = rectUVToWorld(r, su, sv), sw = split && split.start ? split.start : sw0;
-          st.flowStartHandles.push({ rectId: r.id, rid, cid: scid, u: su, v: sv, x: sw.x, y: sw.y, zFallback: !!(g && g.zFallback) });
-          const cfg = getFlowStartRoutingRegion(r, rid);
-          const dir = String(cfg && cfg.startDir || "").toLowerCase();
-          const dirDefs = [{ dir: "left", du: -28, dv: 0, label: "◀" }, { dir: "right", du: 28, dv: 0, label: "▶" }, { dir: "up", du: 0, dv: -28, label: "▲" }, { dir: "down", du: 0, dv: 28, label: "▼" }];
-          for (const d of dirDefs) {
-            const wp = rectUVToWorld(r, su + d.du, sv + d.dv);
-            st.flowDirButtons.push({ rectId: r.id, rid, cid: scid, dir: d.dir, label: d.label, u: su + d.du, v: sv + d.dv, x: wp.x, y: wp.y, active: (FLOW_DIR_SET.has(dir) && dir === d.dir) });
-          }
-        }
-        for (let i = 0; i < pts.length; i++) {
-          const p = pts[i], u = +p.u || 0, v = +p.v || 0, cid = Math.max(0, Math.round(Number(p && p.cid) || 0));
-          const wp0 = rectUVToWorld(r, u, v);
-          const wp = (split && i === 0 && split.start) ? split.start : ((split && i === pts.length - 1 && split.end) ? split.end : wp0);
-          st.flowEditPoints.push({ rectId: r.id, rid, index: i, cid, u, v, x: wp.x, y: wp.y });
-        }
-      }
-    };
-    const flowAnchorKey = a => `${Math.max(1, Math.round(Number(a && a.rectId) || 0))}:${Math.max(0, Math.round(Number(a && a.rid) || 0))}:${Math.max(0, Math.round(Number(a && a.cid) || 0))}:${String(a && a.kind || "").toLowerCase() === "end" ? "end" : "start"}`;
-    const { findFlowAnchorByEndpoint } = setupFlowAnchorResolver({
-      st,
-      flowAnchorKey,
-      getFlowDrawRenderEpoch: () => flowDrawRenderEpoch,
-      getRectRuntime: (r, opts) => getRectRuntime(r, opts),
-      getSplitFlowMarkerWorldPositions: (r, pts) => getSplitFlowMarkerWorldPositions(r, pts),
-      rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v)
+    const {
+      buildPersistedRectCache,
+      restorePersistedRectCache
+    } = setupRectCachePersistenceController({
+      PROJECT_CACHE_VERSION,
+      getRectCalcCache: r => getRectCalcCache(r),
+      toLetters: (...args) => toLetters(...args)
     });
     const {
+      getFlowRegionConfig,
+      rememberFlowRegionConfig,
+      getFlowLocksRegion,
+      getFlowStartRoutingRegion,
+      getFlowModeRegion,
+      setFlowLock,
+      setFlowStart,
+      setFlowDirection,
+      setFlowRegionMode,
+      resetFlowRegionOverrides
+    } = setupFlowRegionConfigController({
+      normalizeFlowLocks,
+      normalizeDataFlow,
+      FLOW_DIR_SET,
+      getRectCalcCache: r => getRectCalcCache(r),
+      cloneFlowRegionConfig
+    });
+    const {
+      resolveFlowModeFromStartAndDir,
+      applyFlowStartRouting,
+      applyFlowLocksToOrdered
+    } = setupFlowRoutingController({
+      FLOW_DIR_SET,
+      normalizeDataFlow,
+      flowDist,
+      wouldSelfCross,
+      pathSelfCrosses,
+      flowPathLength,
+      checkCalcTimeout: budget => checkCalcTimeout(budget)
+    });
+    const {
+      getDataFlowGroupsUncached
+    } = setupFlowGroupsController({
+      normalizeDataFlow,
+      maskCellKey,
+      buildZOrder,
+      buildSnakeOrder,
+      getFlowRegionConfig,
+      getFlowStartRoutingRegion,
+      resolveFlowModeFromStartAndDir,
+      getFlowModeRegion,
+      getFlowLocksRegion,
+      FLOW_DIR_SET,
+      pathSelfCrosses,
+      refineFlowOrder,
+      FLOW_OPTIMIZE_MAX_POINTS,
+      optimizeFlowPathShortest,
+      flowPathCost,
+      applyFlowStartRouting,
+      applyFlowLocksToOrdered,
+      FLOW_SEARCH_NODE_LIMIT_STRICT,
+      flowSearchOrder,
+      toLetters: (...args) => toLetters(...args),
+      REGION_ZONE_COLORS,
+      checkCalcTimeout: budget => checkCalcTimeout(budget)
+    });
+    const {
+      getSplitFlowMarkerWorldPositions,
+      collectFlowLinkAnchors,
+      collectFlowEditPoints
+    } = setupFlowAnchorPointsController({
+      st,
+      rectUVToWorld,
+      getFlowStartRoutingRegion,
+      FLOW_DIR_SET
+    });
+    const {
+      flowAnchorKey,
+      findFlowAnchorByEndpoint,
       pruneFlowLinks,
       canLinkFlowAnchors,
       toggleFlowLinkBetween,
@@ -3411,16 +2044,18 @@
       findFlowLinkAtPoint,
       findFlowLinkAnchorAtPoint,
       updateFlowLinkDragTarget
-    } = setupFlowLinkController({
+    } = setupFlowLinkFeature({
       st,
       normalizeFlowLinks,
-      flowAnchorKey,
       getRectRuntime: (r, opts) => getRectRuntime(r, opts),
       drawCellX: r => drawCellX(r),
       drawCellY: r => drawCellY(r),
       getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
       rectAABBMasked: r => rectAABBMasked(r),
-      AREA_LIMIT_EPS
+      AREA_LIMIT_EPS,
+      getFlowDrawRenderEpoch: () => flowDrawRenderEpoch,
+      getSplitFlowMarkerWorldPositions: (r, pts) => getSplitFlowMarkerWorldPositions(r, pts),
+      rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v)
     });
     const { drawInterScreenFlowLinks } = setupInterScreenLinksRender({
       st,
@@ -3431,412 +2066,45 @@
       flowAnchorKey,
       findFlowAnchorByEndpoint: ep => findFlowAnchorByEndpoint(ep)
     });
-    const findFlowStartHandle = (wx, wy, rid = null) => {
-      const pts = Array.isArray(st.flowStartHandles) ? st.flowStartHandles : [], maxDist = Math.min(20, Math.max(11, 18 / Math.max(0.2, st.zoom || 1)));
-      let best = null, bestD = Infinity;
-      for (const p of pts) {
-        if (rid != null && p.rid !== rid) continue;
-        const d = Math.hypot((+p.x || 0) - wx, (+p.y || 0) - wy);
-        if (d < bestD) { bestD = d; best = p; }
-      }
-      if (best && bestD <= maxDist) return best;
-      return null;
-    };
-    const findFlowDirectionButton = (wx, wy, rid = null) => {
-      const pts = Array.isArray(st.flowDirButtons) ? st.flowDirButtons : [], maxDist = Math.max(11, 18 / Math.max(0.2, st.zoom || 1));
-      let best = null, bestD = Infinity;
-      for (const p of pts) {
-        if (rid != null && p.rid !== rid) continue;
-        const d = Math.hypot((+p.x || 0) - wx, (+p.y || 0) - wy);
-        if (d < bestD) { bestD = d; best = p; }
-      }
-      if (best && bestD <= maxDist) return best;
-      return null;
-    };
-    const ensureFlowPointIndex = () => {
-      const pts = Array.isArray(st.flowEditPoints) ? st.flowEditPoints : [];
-      if (flowPointIndexSrc === pts && flowPointIndexMap) return;
-      flowPointIndexSrc = pts;
-      const map = new Map();
-      for (const p of pts) {
-        const gx = Math.floor((+p.x || 0) / FLOW_POINT_INDEX_CELL), gy = Math.floor((+p.y || 0) / FLOW_POINT_INDEX_CELL), k = `${gx},${gy}`;
-        const arr = map.get(k) || [];
-        arr.push(p);
-        map.set(k, arr);
-      }
-      flowPointIndexMap = map;
-    };
-    const findFlowEditPointIndexed = (wx, wy, maxDist, rid, minIndex) => {
-      ensureFlowPointIndex();
-      if (!flowPointIndexMap) return null;
-      const cs = FLOW_POINT_INDEX_CELL, gx = Math.floor(wx / cs), gy = Math.floor(wy / cs), reach = Math.max(1, Math.ceil(maxDist / cs));
-      let best = null, bestD = Infinity;
-      for (let dy = -reach; dy <= reach; dy++) {
-        for (let dx = -reach; dx <= reach; dx++) {
-          const arr = flowPointIndexMap.get(`${gx + dx},${gy + dy}`);
-          if (!arr || !arr.length) continue;
-          for (const p of arr) {
-            if (rid != null && p.rid !== rid) continue;
-            if (p.index < minIndex) continue;
-            const d = Math.hypot((+p.x || 0) - wx, (+p.y || 0) - wy);
-            if (d < bestD) { bestD = d; best = p; }
-          }
-        }
-      }
-      if (best && bestD <= maxDist) return best;
-      return null;
-    };
-    const findFlowEditPoint = (wx, wy, rid = null, minIndex = 0) => {
-      const pts = Array.isArray(st.flowEditPoints) ? st.flowEditPoints : [], maxDist = Math.max(10, 18 / Math.max(0.2, st.zoom || 1));
-      const fast = findFlowEditPointIndexed(wx, wy, maxDist, rid, minIndex);
-      if (fast) return fast;
-      let best = null, bestD = Infinity;
-      for (const p of pts) {
-        if (rid != null && p.rid !== rid) continue;
-        if (p.index < minIndex) continue;
-        const d = Math.hypot((+p.x || 0) - wx, (+p.y || 0) - wy);
-        if (d < bestD) { bestD = d; best = p; }
-      }
-      if (best && bestD <= maxDist) return best;
-      return null;
-    };
-    const drawFlowEditOverlay = (c, w, h) => {
-      if (st.mode !== "flowEdit") return;
-      const points = Array.isArray(st.flowEditPoints) ? st.flowEditPoints : [];
-      const starts = Array.isArray(st.flowStartHandles) ? st.flowStartHandles : [];
-      const dirs = Array.isArray(st.flowDirButtons) ? st.flowDirButtons : [];
-      if (!points.length) return;
-      const drawDirGlyph = (x, y, dir) => {
-        const d = String(dir || "").toLowerCase();
-        const ux = d === "left" ? -1 : d === "right" ? 1 : 0;
-        const uy = d === "up" ? -1 : d === "down" ? 1 : 0;
-        if (!ux && !uy) return;
-        const nx = -uy, ny = ux;
-        // tip=+4, base=-2 -> centroid exactly at 0 along direction axis.
-        const tip = 4;
-        const back = 2;
-        const wing = 3;
-        const tipX = x + ux * tip, tipY = y + uy * tip;
-        const bcx = x - ux * back, bcy = y - uy * back;
-        c.lineJoin = "round";
-        c.fillStyle = "#fff";
-        c.beginPath();
-        c.moveTo(tipX, tipY);
-        c.lineTo(bcx + nx * wing, bcy + ny * wing);
-        c.lineTo(bcx - nx * wing, bcy - ny * wing);
-        c.closePath();
-        c.fill();
-      };
-      c.save();
-      for (const b of dirs) {
-        const x = -w / 2 + (+b.u || 0), y = -h / 2 + (+b.v || 0), hover = !!(st.flowDirHover && st.flowDirHover.rid === b.rid && st.flowDirHover.dir === b.dir), on = !!b.active;
-        c.fillStyle = on ? "rgba(25,135,84,.98)" : "rgba(33,37,41,.75)";
-        if (hover) c.fillStyle = on ? "rgba(38,166,99,.98)" : "rgba(73,80,87,.92)";
-        c.strokeStyle = on ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.72)";
-        c.lineWidth = 1.1;
-        c.beginPath(); c.arc(x, y, 8.2, 0, Math.PI * 2); c.fill(); c.stroke();
-        drawDirGlyph(x, y, b.dir);
-      }
-      for (const p of starts) {
-        const x = -w / 2 + (+p.u || 0), y = -h / 2 + (+p.v || 0), hover = !!(!st.flowDrag && st.flowHover && st.flowHover.kind === "start" && st.flowHover.rid === p.rid), selected = (Number(st.flowRegionRid) === Number(p.rid));
-        c.fillStyle = selected ? "rgba(255,153,0,.98)" : (hover ? "rgba(255,193,7,.98)" : "rgba(255,235,59,.95)");
-        c.strokeStyle = "rgba(0,0,0,.8)";
-        c.lineWidth = 2;
-        c.beginPath(); c.arc(x, y, 14.4, 0, Math.PI * 2); c.fill(); c.stroke();
-        if (p.zFallback) {
-          c.fillStyle = "rgba(25,135,84,.98)";
-          c.strokeStyle = "rgba(255,255,255,.95)";
-          c.lineWidth = 1;
-          c.beginPath(); c.arc(x + 15, y - 15, 6.8, 0, Math.PI * 2); c.fill(); c.stroke();
-          c.fillStyle = "#fff";
-          c.font = `700 9px ${fontFamilyCss(st.fontFamily)}`;
-          c.textAlign = "center"; c.textBaseline = "middle";
-          c.fillText("Z", x + 15, y - 15.2);
-        }
-      }
-      for (const p of points) {
-        const x = -w / 2 + (+p.u || 0), y = -h / 2 + (+p.v || 0), active = !!(st.flowDrag && st.flowDrag.rid === p.rid && st.flowDrag.currentIndex === p.index && p.index >= st.flowDrag.fromIndex);
-        const hover = !!(!st.flowDrag && st.flowHover && st.flowHover.rid === p.rid && st.flowHover.index === p.index);
-        c.fillStyle = active ? "rgba(255,209,102,.95)" : "rgba(255,255,255,.9)";
-        c.strokeStyle = active ? "rgba(255,145,0,.98)" : "rgba(0,0,0,.72)";
-        if (hover) { c.fillStyle = "rgba(173,216,255,.95)"; c.strokeStyle = "rgba(51,125,255,.95)" }
-        c.lineWidth = 1.2;
-        c.beginPath(); c.arc(x, y, 5.4, 0, Math.PI * 2); c.fill(); c.stroke();
-      }
-      c.restore();
-    };
-    const collectClusterHandles = (r, clusters, cx, cy) => {
-      st.clusterHandles = [];
-      if (!r || !Array.isArray(clusters) || !clusters.length) return;
-      const canExpandDir = (z, dir) => {
-        const cand = { ...z };
-        if (dir === "left") cand.c0--;
-        else if (dir === "right") cand.c1++;
-        else if (dir === "up") cand.r0--;
-        else if (dir === "down") cand.r1++;
-        else return false;
-        return clusterCanPlace(r, cand, z.id);
-      };
-      const canShrinkDir = (z, dir) => {
-        return !!findShrinkCandidate(r, z, dir);
-      };
-      for (const z of clusters) {
-        const c0 = Math.max(0, Math.round(Number(z && z.c0) || 0)), c1 = Math.max(c0 + 1, Math.round(Number(z && z.c1) || 0));
-        const r0 = Math.max(0, Math.round(Number(z && z.r0) || 0)), r1 = Math.max(r0 + 1, Math.round(Number(z && z.r1) || 0));
-        const u0 = c0 * cx, u1 = Math.min(r.width, c1 * cx), v0 = r0 * cy, v1 = Math.min(r.height, r1 * cy), uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, outOff = 18, inOff = 12;
-        const pts = [
-          { action: "expand", dir: "left", label: "◀", u: u0 - outOff, v: vc },
-          { action: "expand", dir: "right", label: "▶", u: u1 + outOff, v: vc },
-          { action: "expand", dir: "up", label: "▲", u: uc, v: v0 - outOff },
-          { action: "expand", dir: "down", label: "▼", u: uc, v: v1 + outOff },
-          { action: "shrink", dir: "left", label: "▶", u: u0 + inOff, v: vc },
-          { action: "shrink", dir: "right", label: "◀", u: u1 - inOff, v: vc },
-          { action: "shrink", dir: "up", label: "▼", u: uc, v: v0 + inOff },
-          { action: "shrink", dir: "down", label: "▲", u: uc, v: v1 - inOff }
-        ];
-        for (const p of pts) {
-          if (p.action === "expand" && !canExpandDir(z, p.dir)) continue;
-          if (p.action === "shrink" && !canShrinkDir(z, p.dir)) continue;
-          const wp = rectUVToWorld(r, p.u, p.v);
-          st.clusterHandles.push({ id: Math.max(1, Math.round(Number(z.id) || 1)), action: p.action, dir: p.dir, label: p.label, u: p.u, v: p.v, x: wp.x, y: wp.y });
-        }
-      }
-    };
-    const findClusterHandle = (wx, wy) => {
-      const pts = Array.isArray(st.clusterHandles) ? st.clusterHandles : [], maxDist = Math.max(10, 18 / Math.max(0.2, st.zoom || 1));
-      let best = null, bestD = Infinity;
-      for (const p of pts) {
-        const d = Math.hypot((+p.x || 0) - wx, (+p.y || 0) - wy);
-        if (d < bestD) { bestD = d; best = p; }
-      }
-      if (best && bestD <= maxDist) return best;
-      return null;
-    };
-    const findClusterStartMarker = (r, wx, wy) => {
-      if (!r) return null;
-      const clusters = getManualClusters(r), cx = drawCellX(r), cy = drawCellY(r), maxDist = Math.max(10, 20 / Math.max(0.2, st.zoom || 1));
-      let best = null, bestD = Infinity;
-      for (const z of clusters) {
-        const sx = Math.max(0, Math.round(Number(z && z.sx) || 0)), sy = Math.max(0, Math.round(Number(z && z.sy) || 0));
-        const su = sx * cx + Math.min(cx, Math.max(1, r.width - sx * cx)) / 2, sv = sy * cy + Math.min(cy, Math.max(1, r.height - sy * cy)) / 2, wp = rectUVToWorld(r, su, sv);
-        const d = Math.hypot((+wp.x || 0) - wx, (+wp.y || 0) - wy);
-        if (d < bestD) { bestD = d; best = { id: Math.max(1, Math.round(Number(z.id) || 1)), x: wp.x, y: wp.y }; }
-      }
-      if (best && bestD <= maxDist) return best;
-      return null;
-    };
-    const findActiveClusterBorder = (r, wx, wy) => {
-      if (!r) return null;
-      const aid = Math.max(1, Math.round(Number(st.clusterActiveId) || 0));
-      if (!aid) return null;
-      const z = findManualClusterById(r, aid);
-      if (!z) return null;
-      const cx = drawCellX(r), cy = drawCellY(r), tol = Math.max(8, 14 / Math.max(0.2, st.zoom || 1)), p = worldToRectUV(r, wx, wy);
-      const u0 = z.c0 * cx, u1 = z.c1 * cx, v0 = z.r0 * cy, v1 = z.r1 * cy, inV = (p.v >= v0 - tol && p.v <= v1 + tol), inU = (p.u >= u0 - tol && p.u <= u1 + tol);
-      const cand = [];
-      if (inV) cand.push({ dir: "left", d: Math.abs(p.u - u0), id: aid });
-      if (inV) cand.push({ dir: "right", d: Math.abs(p.u - u1), id: aid });
-      if (inU) cand.push({ dir: "up", d: Math.abs(p.v - v0), id: aid });
-      if (inU) cand.push({ dir: "down", d: Math.abs(p.v - v1), id: aid });
-      cand.sort((a, b) => a.d - b.d);
-      if (cand.length && cand[0].d <= tol) return cand[0];
-      return null;
-    };
-    const updateClusterEditCursor = () => {
-      if (!cv) return;
-      if (!isClusterEditMode()) { cv.style.cursor = ""; return; }
-      const h = st.clusterHandleHover;
-      if (h) {
-        const dir = String(h.dir || "");
-        cv.style.cursor = (dir === "left" || dir === "right") ? "ew-resize" : "ns-resize";
-        return;
-      }
-      const b = st.clusterBorderHover;
-      if (b) {
-        const dir = String(b.dir || "");
-        cv.style.cursor = (dir === "left" || dir === "right") ? "ew-resize" : "ns-resize";
-        return;
-      }
-      if (st.clusterStartHover) { cv.style.cursor = "pointer"; return; }
-      cv.style.cursor = "";
-    };
-    const drawClusterEditOverlay = (c, r, w, h, cx, cy) => {
-      if (!isClusterEditMode()) return;
-      const clusters = getManualClusters(r);
-      const aid = Number(st.clusterActiveId);
-      c.save();
-      if (st.clusterCellHover && Math.round(Number(st.clusterCellHover.rectId) || 0) === Math.round(Number(r.id) || 0)) {
-        const hc = Math.max(0, Math.round(Number(st.clusterCellHover.col) || 0)), hr = Math.max(0, Math.round(Number(st.clusterCellHover.row) || 0));
-        const hx = -w / 2 + hc * cx, hy = -h / 2 + hr * cy, hw = Math.min(cx, Math.max(1, r.width - hc * cx)), hh = Math.min(cy, Math.max(1, r.height - hr * cy));
-        c.fillStyle = "rgba(255,255,255,.16)";
-        c.strokeStyle = "rgba(255,255,255,.65)";
-        c.lineWidth = 1.2;
-        c.fillRect(hx, hy, hw, hh);
-        c.strokeRect(hx, hy, hw, hh);
-      }
-      if (!clusters.length) {
-        st.clusterHandles = [];
-        c.restore();
-        return;
-      }
-      for (const z of clusters) {
-        const x = -w / 2 + z.c0 * cx, y = -h / 2 + z.r0 * cy, ww = Math.max(1, (z.c1 - z.c0) * cx), hh = Math.max(1, (z.r1 - z.r0) * cy), isActive = (Number.isFinite(aid) && Math.round(aid) === Math.round(Number(z.id) || 0));
-        c.strokeStyle = isActive ? "rgba(255,193,7,.98)" : "rgba(13,202,240,.9)";
-        c.fillStyle = isActive ? "rgba(255,193,7,.13)" : "rgba(13,202,240,.08)";
-        c.lineWidth = isActive ? 2.2 : 1.4;
-        c.fillRect(x, y, ww, hh);
-        c.strokeRect(x, y, ww, hh);
-        const sx = Math.max(0, Math.round(Number(z.sx) || 0)), sy = Math.max(0, Math.round(Number(z.sy) || 0));
-        const su = sx * cx + Math.min(cx, Math.max(1, r.width - sx * cx)) / 2, sv = sy * cy + Math.min(cy, Math.max(1, r.height - sy * cy)) / 2, spx = -w / 2 + su, spy = -h / 2 + sv;
-        const regionLabelSize = 50.4, regionLabelHalf = regionLabelSize / 2;
-        c.fillStyle = "#fff";
-        c.strokeStyle = isActive ? "rgba(255,153,0,.98)" : "rgba(0,0,0,.78)";
-        c.lineWidth = isActive ? 2.4 : 2;
-        c.fillRect(spx - regionLabelHalf, spy - regionLabelHalf, regionLabelSize, regionLabelSize);
-        c.strokeRect(spx - regionLabelHalf, spy - regionLabelHalf, regionLabelSize, regionLabelSize);
-        c.fillStyle = "#000";
-        c.font = `700 30px ${fontFamilyCss(st.fontFamily)}`;
-        c.textAlign = "center"; c.textBaseline = "middle";
-        c.fillText(String(toLetters(Math.max(0, Math.round(Number(z.id) || 1) - 1))), spx, spy + 0.6);
-      }
-      const activeClusters = clusters.filter(z => Math.round(Number(z.id) || 0) === Math.round(Number(st.clusterActiveId) || 0));
-      if (activeClusters.length) {
-        collectClusterHandles(r, activeClusters, cx, cy);
-        for (const hnd of st.clusterHandles) {
-          const x = -w / 2 + (+hnd.u || 0), y = -h / 2 + (+hnd.v || 0), hover = !!(st.clusterHandleHover && Math.round(Number(st.clusterHandleHover.id) || 0) === Math.round(Number(hnd.id) || 0) && st.clusterHandleHover.dir === hnd.dir && String(st.clusterHandleHover.action || "expand") === String(hnd.action || "expand"));
-          const isShrink = String(hnd.action || "expand") === "shrink";
-          c.fillStyle = hover ? (isShrink ? "rgba(220,53,69,.96)" : "rgba(25,135,84,.96)") : (isShrink ? "rgba(108,17,30,.82)" : "rgba(33,37,41,.78)");
-          c.strokeStyle = "rgba(255,255,255,.8)";
-          c.lineWidth = 1.1;
-          c.beginPath(); c.arc(x, y, 8, 0, Math.PI * 2); c.fill(); c.stroke();
-          c.fillStyle = "#fff";
-          c.font = `700 9px ${fontFamilyCss(st.fontFamily)}`;
-          c.textAlign = "center"; c.textBaseline = "middle";
-          c.fillText(String(hnd.label || ""), x, y + 0.2);
-        }
-      } else {
-        st.clusterHandles = [];
-      }
-      c.restore();
-    };
-    const drawDataFlowOnRect = (c, groups, w, h, z, opts) => {
-      const noBatch = !!(opts && opts.noBatch);
-      if (!Array.isArray(groups) || !groups.length) return;
-      const geom = getFlowDrawGeometry(groups, w, h, st.mode === "flowEdit"), totalSegments = Math.max(0, geom.totalSegments | 0), hasPoints = geom.groups.some(g => Array.isArray(g.pts) && g.pts.length);
-      if (!hasPoints) return;
-      const flowOutline = "rgba(8,12,18,.92)";
-      if (totalSegments <= 0) {
-        c.save();
-        c.lineCap = "round";
-        c.lineJoin = "round";
-        const dotR = 16;
-        c.font = `700 12px ${fontFamilyCss(st.fontFamily)}`;
-        c.textAlign = "center"; c.textBaseline = "middle";
-        for (const g of geom.groups) {
-          if (!g.start) continue;
-          const rgb = Array.isArray(g && g.rgb) ? g.rgb : [255, 0, 0], stroke = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},.96)`;
-          const sx = g.start.x, sy = g.start.y;
-          drawFlowStartMarker(c, sx, sy, String(g && g.label || ""), stroke, flowOutline, dotR);
-          if (g.end && (Math.hypot((g.end.x || 0) - sx, (g.end.y || 0) - sy) > 0.5)) {
-            drawFlowEndMarker(c, g.end.x || 0, g.end.y || 0, Number(g.endAngle) || 0, stroke, flowOutline, 7.2, 26);
-          }
-        }
-        c.restore();
-        return;
-      }
-      const batchEnabled = !noBatch && totalSegments > FLOW_DRAW_BATCH_THRESHOLD;
-      const drawKey = flowDrawKeyForGroups(groups);
-      const state = touchFlowDrawProgress(drawKey, totalSegments);
-      const targetSegments = batchEnabled ? Math.min(totalSegments, (state.drawn | 0) + FLOW_DRAW_BATCH_STEP) : totalSegments;
-      c.save();
-      c.lineCap = "round";
-      c.lineJoin = "round";
-      const arrow = 14, dotR = 16, nodeR = 6;
-      c.font = `700 12px ${fontFamilyCss(st.fontFamily)}`;
-      c.textAlign = "center"; c.textBaseline = "middle";
-      let drawnSegments = 0, pending = false;
-      for (const g of geom.groups) {
-        if (drawnSegments >= targetSegments) pending = true;
-        const pts = Array.isArray(g.pts) ? g.pts : [];
-        if (!pts.length || !g.start) continue;
-        const rgb = Array.isArray(g.rgb) ? g.rgb : [255, 0, 0], stroke = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},.96)`, fill = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},.98)`;
-        let drewGroup = false, lastDrawnPointIndex = 0;
-        const sx = g.start.x, sy = g.start.y;
-        c.strokeStyle = stroke; c.fillStyle = fill;
-        drawFlowStartMarker(c, sx, sy, String(g.label || ""), stroke, flowOutline, dotR);
-        c.fillStyle = fill; c.lineWidth = 4.4;
-        drewGroup = true;
-        c.strokeStyle = stroke; c.fillStyle = fill; c.beginPath();
-        let hasLine = false;
-        const arrows = [];
-        const left = Math.max(0, targetSegments - drawnSegments), take = Math.max(0, Math.min(g.segments.length, left));
-        for (let i = 0; i < take; i++) {
-          const seg = g.segments[i];
-          c.moveTo(seg.x1, seg.y1); c.lineTo(seg.x2, seg.y2); hasLine = true;
-          arrows.push(seg.arrow);
-          lastDrawnPointIndex = seg.endIndex;
-        }
-        drawnSegments += take;
-        if (take < g.segments.length) pending = true;
-        if (hasLine) {
-          c.strokeStyle = flowOutline;
-          c.lineWidth = 6.8;
-          c.stroke();
-          c.strokeStyle = stroke;
-          c.lineWidth = 4.4;
-          c.stroke();
-        }
-        if (arrows.length) {
-          c.beginPath();
-          for (const a of arrows) {
-            c.moveTo(a.tx, a.ty);
-            c.lineTo(a.bx + a.nx * (a.s * 1.22), a.by + a.ny * (a.s * 1.22));
-            c.lineTo(a.bx - a.nx * (a.s * 1.22), a.by - a.ny * (a.s * 1.22));
-            c.closePath();
-          }
-          c.fillStyle = flowOutline;
-          c.fill();
-          c.beginPath();
-          for (const a of arrows) {
-            c.moveTo(a.tx, a.ty);
-            c.lineTo(a.bx + a.nx * a.s, a.by + a.ny * a.s);
-            c.lineTo(a.bx - a.nx * a.s, a.by - a.ny * a.s);
-            c.closePath();
-          }
-          c.fillStyle = fill;
-          c.fill();
-          c.strokeStyle = flowOutline;
-          c.lineWidth = 1.2;
-          c.stroke();
-        }
-        if (drewGroup && lastDrawnPointIndex > 1) {
-          c.beginPath();
-          const nodeEnd = Math.min(lastDrawnPointIndex, pts.length - 1);
-          for (let i = 1; i < nodeEnd; i++) {
-            const p = pts[i], px = p.x, py = p.y;
-            c.moveTo(px + nodeR, py);
-            c.arc(px, py, nodeR, 0, Math.PI * 2);
-          }
-          c.fill();
-          c.strokeStyle = flowOutline;
-          c.lineWidth = 1.1;
-          c.stroke();
-        }
-        if (drewGroup && g.segments.length && lastDrawnPointIndex === g.lastEndIndex && !pending) {
-          const e = pts[lastDrawnPointIndex], pPrev = pts[Math.max(0, lastDrawnPointIndex - 1)];
-          const ex = (g.end && Number.isFinite(Number(g.end.x))) ? g.end.x : e.x, ey = (g.end && Number.isFinite(Number(g.end.y))) ? g.end.y : e.y, endW = 7.2, endH = 26;
-          const dx = (e.u - pPrev.u), dy = (e.v - pPrev.v), aBase = Math.abs(dx) + Math.abs(dy) > 1e-6 ? Math.atan2(dy, dx) : 0, a = Number.isFinite(Number(g.endAngle)) ? Number(g.endAngle) : aBase;
-          drawFlowEndMarker(c, ex, ey, a, stroke, flowOutline, endW, endH);
-        }
-      }
-      c.restore();
-      state.drawn = Math.max(state.drawn | 0, drawnSegments);
-      if (batchEnabled && state.drawn < totalSegments) {
-        requestFlowDrawRender();
-      } else if (state.drawn >= totalSegments) {
-        state.drawn = totalSegments;
-      }
-    };
+    let findFlowStartHandle = (_wx, _wy, _rid = null) => null;
+    let findFlowDirectionButton = (_wx, _wy, _rid = null) => null;
+    let findFlowEditPoint = (_wx, _wy, _rid = null, _minIndex = 0) => null;
+    ({
+      findFlowStartHandle,
+      findFlowDirectionButton,
+      findFlowEditPoint,
+      resetFlowPointIndexCache
+    } = setupFlowEditHitTestController({
+      st,
+      FLOW_POINT_INDEX_CELL
+    }));
+    const { drawFlowEditOverlay } = setupFlowEditOverlayRender({
+      st,
+      fontFamilyCss: value => fontFamilyCss(value)
+    });
+    const {
+      collectClusterHandles,
+      findClusterHandle,
+      findClusterStartMarker,
+      findActiveClusterBorder,
+      updateClusterEditCursor,
+      drawClusterEditOverlay
+    } = setupClusterEditController({
+      st,
+      cv,
+      clusterCanPlace,
+      findShrinkCandidate,
+      rectUVToWorld,
+      getManualClusters,
+      drawCellX,
+      drawCellY,
+      worldToRectUV,
+      findManualClusterById,
+      isClusterEditMode,
+      fontFamilyCss: value => fontFamilyCss(value),
+      toLetters: value => toLetters(value)
+    });
+    
     const {
       getCellLinkCandidateAtPoint,
       getComponentBoundarySegments,
@@ -3860,56 +2128,13 @@
     });
     const mRound = v => Math.round(v * 10000) / 10000;
     const mFmt = v => { const n = mRound(v); return Number.isInteger(n) ? `${n.toFixed(0)}` : `${n}` };
-    const fillPercent = (wm, hm, areaM2Px) => { const area = Math.max(0, (+wm || 0) * (+hm || 0)), base = Math.max(1, +areaM2Px || 65536); return (100 * (base * area)) / 655360 };
-    const buildVisibleCabinetSummary = (r, cx, cy, topo, hs) => {
-      if (!r || !topo) return { areaM2: 0, totalCount: 0, groupItems: [], groups: [] };
-      const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
-      const rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
-      const comp = Array.isArray(topo && topo.comp) ? topo.comp : [];
-      if (!comp.length) return { areaM2: 0, totalCount: 0, groupItems: [], groups: [] };
-      const colPref = [0], rowPref = [0];
-      for (let x = 0; x < cols; x++) colPref.push(colPref[x] + Math.min(cx, Math.max(0, r.width - x * cx)));
-      for (let y = 0; y < rows; y++) rowPref.push(rowPref[y] + Math.min(cy, Math.max(0, r.height - y * cy)));
-      const stats = new Map();
-      let visibleAreaPx = 0;
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          if (hs && hs.has(maskCellKey(x, y))) continue;
-          const idx = y * cols + x;
-          const cid = Math.max(0, Math.round(Number(comp[idx]) || 0));
-          const cw = Math.min(cx, Math.max(0, r.width - x * cx));
-          const ch = Math.min(cy, Math.max(0, r.height - y * cy));
-          if (!(cw > 0 && ch > 0)) continue;
-          visibleAreaPx += cw * ch;
-          let s = stats.get(cid);
-          if (!s) { s = { c0: x, c1: x + 1, r0: y, r1: y + 1 }; stats.set(cid, s); }
-          else {
-            if (x < s.c0) s.c0 = x;
-            if (x + 1 > s.c1) s.c1 = x + 1;
-            if (y < s.r0) s.r0 = y;
-            if (y + 1 > s.r1) s.r1 = y + 1;
-          }
-        }
-      }
-      const bySize = new Map();
-      const scalePx = Math.max(1, Number(r && r.scale) || 256);
-      for (const s of stats.values()) {
-        const wPx = Math.max(0, colPref[s.c1] - colPref[s.c0]);
-        const hPx = Math.max(0, rowPref[s.r1] - rowPref[s.r0]);
-        if (!(wPx > 0 && hPx > 0)) continue;
-        const wm = wPx / scalePx;
-        const hm = hPx / scalePx;
-        const wk = mFmt(wm), hk = mFmt(hm);
-        const key = `${wk}x${hk}`;
-        const rec = bySize.get(key) || { w: wm, h: hm, count: 0, wk, hk };
-        rec.count += 1;
-        bySize.set(key, rec);
-      }
-      const groupItems = [...bySize.values()].sort((a, b) => (b.w * b.h) - (a.w * a.h) || b.w - a.w || b.h - a.h);
-      const groups = groupItems.map(it => `${it.wk}x${it.hk}м - ${it.count} шт.`);
-      const totalCount = groupItems.reduce((acc, it) => acc + Math.max(0, Math.round(Number(it && it.count) || 0)), 0);
-      return { areaM2: visibleAreaPx / (scalePx * scalePx), totalCount, groupItems, groups };
-    };
+    const {
+      fillPercent,
+      buildVisibleCabinetSummary
+    } = setupCabinetSummaryUtils({
+      maskCellKey,
+      mFmt
+    });
     const pctFmt = v => { const n = Number.isFinite(+v) ? +v : 0; const t = Math.trunc(n * 100) / 100; return t.toFixed(2) };
     const calcNow = () => ((typeof performance !== "undefined" && performance && typeof performance.now === "function") ? performance.now() : Date.now());
     const calcMetrics = { regions: { calls: 0, totalMs: 0, maxMs: 0, lastMs: 0, slow: 0, timeouts: 0 }, flow: { calls: 0, totalMs: 0, maxMs: 0, lastMs: 0, slow: 0, timeouts: 0 } };
@@ -3934,675 +2159,39 @@
     };
     try { if (typeof window !== "undefined") window.ledMaskCalcMetrics = calcMetrics; } catch (_e) { }
     const toLetters = i => { let n = Math.max(0, Math.floor(i)) + 1, s = ""; while (n > 0) { n--; s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) } return s };
-    const splitIndicesBySize = (sizes, groups) => {
-      const n = sizes.length, g = Math.max(1, Math.min(groups, n)); if (g === 1) return [0, n];
-      const pref = [0]; for (let i = 0; i < n; i++)pref.push(pref[i] + sizes[i]); const total = pref[n], cuts = [0]; let prev = 0;
-      for (let k = 1; k < g; k++) {
-        const target = (total * k) / g, minIdx = prev + 1, maxIdx = n - (g - k); let best = minIdx, bestDiff = 1e18;
-        for (let idx = minIdx; idx <= maxIdx; idx++) { const diff = Math.abs(pref[idx] - target); if (diff < bestDiff) { bestDiff = diff; best = idx } }
-        cuts.push(best); prev = best;
-      }
-      cuts.push(n); return cuts;
-    };
-    const planNumberRegionsUncached = (r, cx, cy, topo, hs, budget) => {
-      const startedAt = calcNow();
-      const makeSingle = (timedOut = false) => {
-        r._splitVariantCount = 1;
-        if (r && Math.round(Number(r.splitVariant) || 0) !== 0) r.splitVariant = 0;
-        const out = buildSingleRegionPlan(r, cx, cy, topo, hs);
-        out.variantCount = 1;
-        if (timedOut) {
-          safeDefine(out, "_timedOut", true);
-        }
-        return out;
-      };
-      if (checkCalcTimeout(budget)) return makeSingle(true);
-      const cols = Math.max(1, topo && topo.cols || 1), rows = Math.max(1, topo && topo.rows || 1), hset = hs || new Set();
-      const cellW = []; for (let x = 0; x < r.width; x += cx)cellW.push(Math.min(cx, r.width - x));
-      const cellH = []; for (let y = 0; y < r.height; y += cy)cellH.push(Math.min(cy, r.height - y));
-      const prefSum = a => { const p = [0]; for (let i = 0; i < a.length; i++)p.push(p[i] + a[i]); return p };
-      const colPref = prefSum(cellW), rowPref = prefSum(cellH);
-      const visible = Array.from({ length: rows }, (_, iy) => Array.from({ length: cols }, (_, ix) => !hset.has(maskCellKey(ix, iy))));
-      let c0 = cols, c1 = -1, r0 = rows, r1 = -1;
-      for (let y = 0; y < rows; y++)for (let x = 0; x < cols; x++) {
-        if (!visible[y][x]) continue;
-        if (x < c0) c0 = x; if (x + 1 > c1) c1 = x + 1; if (y < r0) r0 = y; if (y + 1 > r1) r1 = y + 1;
-      }
-      if (c1 < 0) return makeSingle(false);
-      const areaRect = (ac0, ac1, ar0, ar1) => (colPref[ac1] - colPref[ac0]) * (rowPref[ar1] - rowPref[ar0]);
-      const maxAreaPx = (Math.max(1, r.scale || 256) * Math.max(1, r.scale || 256) * 655360) / Math.max(1, r.areaM2Px || 65536);
-      const visibleAreaPx = Math.max(1, areaRect(c0, c1, r0, r1));
-      const optimalCount = Math.max(1, Math.ceil(visibleAreaPx / Math.max(1, maxAreaPx)));
-      const maxAllowedCount = optimalCount + 2;
-      const normalizeManual = raw => {
-        if (!Array.isArray(raw)) return [];
-        const out = [];
-        for (const it of raw) {
-          if (!it || typeof it !== "object") continue;
-          const sx = Math.max(0, Math.round(Number(it.sx) || 0)), sy = Math.max(0, Math.round(Number(it.sy) || 0));
-          const mc0 = Math.max(0, Math.round(Number(it.c0) || 0)), mc1 = Math.max(mc0 + 1, Math.round(Number(it.c1) || 0));
-          const mr0 = Math.max(0, Math.round(Number(it.r0) || 0)), mr1 = Math.max(mr0 + 1, Math.round(Number(it.r1) || 0));
-          const mid = Math.max(1, Math.round(Number(it.id) || out.length + 1));
-          out.push({ id: mid, sx, sy, c0: mc0, c1: mc1, r0: mr0, r1: mr1 });
-        }
-        return out;
-      };
-      const buildPlanFromRects = rects => {
-        const assigned = new Array(rows * cols).fill(-1), regs = [];
-        const addRect = (z) => {
-          let tc0 = cols, tc1 = -1, tr0 = rows, tr1 = -1, count = 0;
-          for (let y = z.r0; y < z.r1; y++)for (let x = z.c0; x < z.c1; x++) {
-            if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
-            if (!visible[y][x]) continue;
-            const idx = y * cols + x;
-            if (assigned[idx] >= 0) continue;
-            assigned[idx] = regs.length;
-            if (x < tc0) tc0 = x; if (x + 1 > tc1) tc1 = x + 1; if (y < tr0) tr0 = y; if (y + 1 > tr1) tr1 = y + 1;
-            count++;
-          }
-          if (count <= 0) return false;
-          regs.push({ c0: tc0, c1: tc1, r0: tr0, r1: tr1 });
-          return true;
-        };
-        const manual = Array.isArray(rects) ? rects : [];
-        for (const z of manual) {
-          const nz = { c0: Math.max(0, Math.min(cols - 1, Math.round(Number(z && z.c0) || 0))), c1: Math.max(1, Math.min(cols, Math.round(Number(z && z.c1) || 0))), r0: Math.max(0, Math.min(rows - 1, Math.round(Number(z && z.r0) || 0))), r1: Math.max(1, Math.min(rows, Math.round(Number(z && z.r1) || 0))) }; if (nz.c1 <= nz.c0 || nz.r1 <= nz.r0) continue;
-          if (areaRect(nz.c0, nz.c1, nz.r0, nz.r1) > maxAreaPx + AREA_LIMIT_EPS) continue;
-          addRect(nz);
-        }
-        if (!regs.length) return null;
-        regs.sort((a, b) => (a.r0 - b.r0) || (a.c0 - b.c0) || (a.r1 - b.r1) || (a.c1 - b.c1));
-        const finalRegions = regs.map((z, idx) => ({ id: idx, label: toLetters(idx), gx: idx, gy: 0, c0: z.c0, c1: z.c1, r0: z.r0, r1: z.r1, w: colPref[z.c1] - colPref[z.c0], h: rowPref[z.r1] - rowPref[z.r0] }));
-        const byId = new Map(); for (const rg of finalRegions) byId.set(rg.id, rg);
-        const cellToRegion = new Array(rows * cols).fill(-1);
-        for (const rg of finalRegions) {
-          for (let y = rg.r0; y < rg.r1; y++)for (let x = rg.c0; x < rg.c1; x++)if (visible[y][x]) cellToRegion[y * cols + x] = rg.id;
-        }
-        return { nx: finalRegions.length, ny: 1, colToGroup: [], rowToGroup: [], regionsById: byId, xCutsPx: [0, r.width], yCutsPx: [0, r.height], cellToRegion, regions: finalRegions, variantCount: 1 };
-      };
-      const manualRects = normalizeManual(r && r.manualClusters);
-      if (manualRects.length) {
-        const manualPlan = buildPlanFromRects(manualRects);
-        if (manualPlan) {
-          r._splitVariantCount = 1;
-          if (r && Math.round(Number(r.splitVariant) || 0) !== 0) r.splitVariant = 0;
-          safeDefine(manualPlan, "_profile", { variantCount: 1, optimalCount, maxAllowedCount, totalMs: Math.max(0, calcNow() - startedAt), manual: true });
-          return manualPlan;
-        }
-      }
-      const splitStrategies = [];
-      const splitRots = [0, 90, -90];
-      for (let seed = 0; seed < 3; seed++) {
-        for (const rot of splitRots) {
-          splitStrategies.push({ kind: "vertical", seed, rot });
-          splitStrategies.push({ kind: "horizontal", seed, rot });
-          splitStrategies.push({ kind: "block", seed, rot });
-        }
-      }
-      const variants = [], seen = new Set();
-      const topoComp = Array.isArray(topo && topo.comp) ? topo.comp : null;
-      const compRegionMap = new Map();
-      const variantRespectsMergedCells = regs => {
-        if (!topoComp || !topoComp.length) return true;
-        compRegionMap.clear();
-        for (let y = r0; y < r1; y++)for (let x = c0; x < c1; x++) {
-          if (!visible[y][x]) continue;
-          const cellIdx = y * cols + x, compId = topoComp[cellIdx];
-          if (compId === undefined || compId === null) continue;
-          let rid = -1;
-          for (let i = 0; i < regs.length; i++) {
-            const z = regs[i];
-            if (x >= z.c0 && x < z.c1 && y >= z.r0 && y < z.r1) { rid = i; break; }
-          }
-          if (rid < 0) continue;
-          const prev = compRegionMap.get(compId);
-          if (prev === undefined) compRegionMap.set(compId, rid);
-          else if (prev !== rid) return false;
-        }
-        return true;
-      };
-      const rectHasVisible = (ac0, ac1, ar0, ar1) => {
-        for (let y = ar0; y < ar1; y++)for (let x = ac0; x < ac1; x++)if (visible[y][x]) return true;
-        return false;
-      };
-      const trimVisibleRects = regs => {
-        const out = [];
-        for (const z of regs) {
-          let tc0 = cols, tc1 = -1, tr0 = rows, tr1 = -1;
-          for (let y = z.r0; y < z.r1; y++)for (let x = z.c0; x < z.c1; x++) {
-            if (!visible[y][x]) continue;
-            if (x < tc0) tc0 = x; if (x + 1 > tc1) tc1 = x + 1; if (y < tr0) tr0 = y; if (y + 1 > tr1) tr1 = y + 1;
-          }
-          if (tc1 < 0) continue;
-          out.push({ c0: tc0, c1: tc1, r0: tr0, r1: tr1 });
-        }
-        return out;
-      };
-      const coversAllVisible = regs => {
-        for (let y = r0; y < r1; y++)for (let x = c0; x < c1; x++) {
-          if (!visible[y][x]) continue;
-          let ok = false;
-          for (const z of regs) { if (x >= z.c0 && x < z.c1 && y >= z.r0 && y < z.r1) { ok = true; break; } }
-          if (!ok) return false;
-        }
-        return true;
-      };
-      const addVariant = regs => {
-        if (!Array.isArray(regs) || !regs.length) return;
-        if (checkCalcTimeout(budget)) return;
-        const pruned = trimVisibleRects(regs);
-        if (!pruned.length) return;
-        for (const z of pruned) {
-          if (areaRect(z.c0, z.c1, z.r0, z.r1) > maxAreaPx + AREA_LIMIT_EPS) return;
-        }
-        if (!coversAllVisible(pruned)) return;
-        if (!variantRespectsMergedCells(pruned)) return;
-        const sig = pruned.map(z => `${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
-        if (seen.has(sig)) return;
-        seen.add(sig);
-        variants.push(pruned);
-      };
-      const regionArea = z => areaRect(z.c0, z.c1, z.r0, z.r1);
-      const variantBad = regs => {
-        let bad = 0;
-        for (const z of regs) bad += Math.abs(maxAreaPx - regionArea(z));
-        return bad;
-      };
-      const variantShape = regs => {
-        let s = 0;
-        for (const z of regs) {
-          const w = Math.max(1e-6, colPref[z.c1] - colPref[z.c0]), h = Math.max(1e-6, rowPref[z.r1] - rowPref[z.r0]);
-          s += (Math.max(w, h) / Math.min(w, h)) - 1;
-        }
-        return s;
-      };
-      const canSplitByComp = (z, dir, cut) => {
-        if (!topoComp || !topoComp.length) return true;
-        if (dir === "v") {
-          if (cut <= z.c0 || cut >= z.c1) return false;
-          for (let y = z.r0; y < z.r1; y++) {
-            if (!visible[y][cut - 1] || !visible[y][cut]) continue;
-            const a = topoComp[y * cols + (cut - 1)], b = topoComp[y * cols + cut];
-            if (a === b) return false;
-          }
-          return true;
-        }
-        if (cut <= z.r0 || cut >= z.r1) return false;
-        for (let x = z.c0; x < z.c1; x++) {
-          if (!visible[cut - 1][x] || !visible[cut][x]) continue;
-          const a = topoComp[(cut - 1) * cols + x], b = topoComp[cut * cols + x];
-          if (a === b) return false;
-        }
-        return true;
-      };
-      const resolvePreferredDirs = (z, strategy) => {
-        const kind = (strategy && strategy.kind) || "block";
-        const rot = ((strategy && strategy.rot) | 0);
-        let pref = "v", alt = "h";
-        if (kind === "horizontal") { pref = "h"; alt = "v"; }
-        else if (kind === "block") {
-          let ww = colPref[z.c1] - colPref[z.c0], hh = rowPref[z.r1] - rowPref[z.r0];
-          if (rot === 90 || rot === -90) { const t = ww; ww = hh; hh = t; }
-          if (ww < hh) { pref = "h"; alt = "v"; }
-        }
-        if (rot === 90 || rot === -90) { const t = pref; pref = alt; alt = t; }
-        return { pref, alt, rot };
-      };
-      const listCuts = (z, dir, strategy) => {
-        const cuts = [];
-        const total = regionArea(z);
-        const target = Math.min(maxAreaPx, Math.max(1, total / 2));
-        const rot = ((strategy && strategy.rot) | 0);
-        if (dir === "v") {
-          for (let cut = z.c0 + 1; cut < z.c1; cut++) {
-            if (!canSplitByComp(z, "v", cut)) continue;
-            if (!rectHasVisible(z.c0, cut, z.r0, z.r1)) continue;
-            if (!rectHasVisible(cut, z.c1, z.r0, z.r1)) continue;
-            const a1 = areaRect(z.c0, cut, z.r0, z.r1), a2 = areaRect(cut, z.c1, z.r0, z.r1);
-            const balance = Math.abs(a1 - a2);
-            const targetFit = Math.abs(a1 - target) + Math.abs(a2 - target);
-            const centerBias = Math.abs(((z.c0 + z.c1) / 2) - cut) * 0.05 * cx * cy;
-            let seam = 0;
-            for (let y = z.r0; y < z.r1; y++)if (visible[y][cut - 1] && visible[y][cut]) seam++;
-            const seamPenalty = seam * cx * cy * 4;
-            const sideBias = (rot === 90 ? ((cut - z.c0) * 0.02 * cx * cy) : (rot === -90 ? ((z.c1 - cut) * 0.02 * cx * cy) : 0));
-            const score = balance * 0.45 + targetFit * 0.35 + seamPenalty + centerBias + sideBias;
-            cuts.push({ cut, score });
-          }
-        } else {
-          for (let cut = z.r0 + 1; cut < z.r1; cut++) {
-            if (!canSplitByComp(z, "h", cut)) continue;
-            if (!rectHasVisible(z.c0, z.c1, z.r0, cut)) continue;
-            if (!rectHasVisible(z.c0, z.c1, cut, z.r1)) continue;
-            const a1 = areaRect(z.c0, z.c1, z.r0, cut), a2 = areaRect(z.c0, z.c1, cut, z.r1);
-            const balance = Math.abs(a1 - a2);
-            const targetFit = Math.abs(a1 - target) + Math.abs(a2 - target);
-            const centerBias = Math.abs(((z.r0 + z.r1) / 2) - cut) * 0.05 * cx * cy;
-            let seam = 0;
-            for (let x = z.c0; x < z.c1; x++)if (visible[cut - 1][x] && visible[cut][x]) seam++;
-            const seamPenalty = seam * cx * cy * 4;
-            const sideBias = (rot === 90 ? ((cut - z.r0) * 0.02 * cx * cy) : (rot === -90 ? ((z.r1 - cut) * 0.02 * cx * cy) : 0));
-            const score = balance * 0.45 + targetFit * 0.35 + seamPenalty + centerBias + sideBias;
-            cuts.push({ cut, score });
-          }
-        }
-        cuts.sort((a, b) => a.score - b.score);
-        return cuts.map(it => it.cut);
-      };
-      const tryMergeRects = (a, b) => {
-        if (!a || !b) return null;
-        const touch = (a.c1 === b.c0) || (b.c1 === a.c0) || (a.r1 === b.r0) || (b.r1 === a.r0);
-        if (!touch) return null;
-        const overlapW = Math.min(a.c1, b.c1) - Math.max(a.c0, b.c0);
-        const overlapH = Math.min(a.r1, b.r1) - Math.max(a.r0, b.r0);
-        if (overlapW > 0 && overlapH > 0) return null;
-        const u = { c0: Math.min(a.c0, b.c0), c1: Math.max(a.c1, b.c1), r0: Math.min(a.r0, b.r0), r1: Math.max(a.r1, b.r1) };
-        const uArea = regionArea(u);
-        if (uArea <= maxAreaPx + AREA_LIMIT_EPS) return u;
-        return null;
-      };
-      const rectsOverlap = (a, b) => {
-        const ow = Math.min(a.c1, b.c1) - Math.max(a.c0, b.c0);
-        const oh = Math.min(a.r1, b.r1) - Math.max(a.r0, b.r0);
-        return ow > 0 && oh > 0;
-      };
-      const mergeWouldConflict = (regs, i, j, u) => {
-        for (let k = 0; k < regs.length; k++) {
-          if (k === i || k === j) continue;
-          if (rectsOverlap(u, regs[k])) return true;
-        }
-        return false;
-      };
-      const mergeNeighborRects = regs => {
-        const out = Array.isArray(regs) ? regs.map(z => ({ c0: z.c0, c1: z.c1, r0: z.r0, r1: z.r1 })) : [];
-        let changed = true, safe = 0;
-        while (changed && safe < 1024) {
-          safe++;
-          changed = false;
-          let best = null;
-          for (let i = 0; i < out.length; i++) {
-            for (let j = i + 1; j < out.length; j++) {
-              const a = out[i], b = out[j], u = tryMergeRects(a, b);
-              if (!u) continue;
-              if (mergeWouldConflict(out, i, j, u)) continue;
-              const before = Math.abs(maxAreaPx - regionArea(a)) + Math.abs(maxAreaPx - regionArea(b));
-              const after = Math.abs(maxAreaPx - regionArea(u));
-              const improve = before - after;
-              const score = (-improve * 1e9) + after;
-              if (!best || score < best.score) best = { i, j, u, score };
-            }
-          }
-          if (best) {
-            out.splice(best.j, 1);
-            out.splice(best.i, 1, best.u);
-            changed = true;
-          }
-        }
-        return out;
-      };
-      const estPartsForRect = z => Math.max(1, Math.ceil(regionArea(z) / Math.max(1, maxAreaPx)));
-      const makeRng = seed0 => {
-        let s = (Math.floor(seed0) || 1) >>> 0;
-        if (!s) s = 1;
-        return () => {
-          s = (1664525 * s + 1013904223) >>> 0;
-          return s / 4294967296;
-        };
-      };
-      const splitRectBy = (z, dir, cut) => {
-        if (dir === "v") {
-          return [
-            { c0: z.c0, c1: cut, r0: z.r0, r1: z.r1 },
-            { c0: cut, c1: z.c1, r0: z.r0, r1: z.r1 }
-          ];
-        }
-        return [
-          { c0: z.c0, c1: z.c1, r0: z.r0, r1: cut },
-          { c0: z.c0, c1: z.c1, r0: cut, r1: z.r1 }
-        ];
-      };
-      const pickSplitForRect = (regs, rectIndex, strategy, iter, partsEstimate, targetParts) => {
-        const seed = Math.max(0, Math.round(Number(strategy && strategy.seed) || 0));
-        const z = regs[rectIndex];
-        const prefAlt = resolvePreferredDirs(z, strategy), pref = prefAlt.pref, alt = prefAlt.alt;
-        const evalDir = (dir, rankBase) => {
-          const cuts = listCuts(z, dir, strategy);
-          if (!cuts.length) return null;
-          const topN = Math.min(8, cuts.length);
-          const shift = (seed + iter) % topN;
-          let best = null;
-          const currentParts = estPartsForRect(z);
-          for (let k = 0; k < topN; k++) {
-            const idx = (k + shift) % topN, cut = cuts[idx], ab = splitRectBy(z, dir, cut), a = ab[0], b = ab[1];
-            if (!rectHasVisible(a.c0, a.c1, a.r0, a.r1) || !rectHasVisible(b.c0, b.c1, b.r0, b.r1)) continue;
-            const aArea = regionArea(a), bArea = regionArea(b);
-            const aParts = Math.max(1, Math.ceil(aArea / Math.max(1, maxAreaPx))), bParts = Math.max(1, Math.ceil(bArea / Math.max(1, maxAreaPx)));
-            const estParts = partsEstimate - currentParts + aParts + bParts;
-            const nextCount = regs.length + 1;
-            const overflow = Math.max(0, aArea - maxAreaPx) + Math.max(0, bArea - maxAreaPx);
-            const balance = Math.abs(aArea - bArea);
-            const deltaCount = Math.abs(nextCount - targetParts);
-            const deltaParts = Math.abs(estParts - targetParts);
-            const score = deltaCount * 1e12 + deltaParts * 1e10 + estParts * 1e8 + overflow * 1e6 + balance + rankBase * 1e4 + k * 10;
-            if (!best || score < best.score) best = { dir, cut, left: a, right: b, score };
-          }
-          return best;
-        };
-        const p = evalDir(pref, 0), a = evalDir(alt, 1);
-        if (p && a) return p.score <= a.score ? p : a;
-        return p || a || null;
-      };
-      const bestSplitForRect = (regs, rectIndex, strategy, iter, targetParts) => {
-        const z = regs[rectIndex], prefAlt = resolvePreferredDirs(z, strategy), pref = prefAlt.pref, alt = prefAlt.alt;
-        const evalDir = (dir, rankBase) => {
-          const cuts = listCuts(z, dir, strategy);
-          if (!cuts.length) return null;
-          const topN = Math.min(12, cuts.length);
-          let best = null;
-          for (let k = 0; k < topN; k++) {
-            const cut = cuts[k], ab = splitRectBy(z, dir, cut), a = ab[0], b = ab[1];
-            const next = [...regs.slice(0, rectIndex), a, b, ...regs.slice(rectIndex + 1)];
-            const score = Math.abs(next.length - targetParts) * 1e15 + variantBad(next) * 1e3 + k * 10 + rankBase;
-            if (!best || score < best.score) best = { dir, cut, left: a, right: b, score };
-          }
-          return best;
-        };
-        const p = evalDir(pref, 0), a = evalDir(alt, 1);
-        if (p && a) return p.score <= a.score ? p : a;
-        return p || a || null;
-      };
-      const bestMergeForRegs = (regs, targetParts) => {
-        let best = null;
-        for (let i = 0; i < regs.length; i++) {
-          for (let j = i + 1; j < regs.length; j++) {
-            const u = tryMergeRects(regs[i], regs[j]);
-            if (!u) continue;
-            if (mergeWouldConflict(regs, i, j, u)) continue;
-            const next = [...regs];
-            next.splice(j, 1);
-            next.splice(i, 1, u);
-            const score = Math.abs(next.length - targetParts) * 1e15 + variantBad(next) * 1e3;
-            if (!best || score < best.score) best = { i, j, u, score };
-          }
-        }
-        return best;
-      };
-      const refineVariantToTarget = (input, strategy, targetParts) => {
-        let regs = Array.isArray(input) ? input.map(z => ({ c0: z.c0, c1: z.c1, r0: z.r0, r1: z.r1 })) : [];
-        let safe = 0;
-        while (safe < 256) {
-          safe++;
-          if (checkCalcTimeout(budget)) break;
-          if (regs.length === targetParts) break;
-          if (regs.length < targetParts) {
-            let best = null, bestIdx = -1;
-            for (let i = 0; i < regs.length; i++) {
-              const z = regs[i];
-              if (regionArea(z) <= AREA_LIMIT_EPS) continue;
-              const split = bestSplitForRect(regs, i, strategy, safe + i, targetParts);
-              if (!split) continue;
-              if (!best || split.score < best.score) { best = split; bestIdx = i; }
-            }
-            if (bestIdx < 0 || !best) break;
-            regs.splice(bestIdx, 1, best.left, best.right);
-          } else {
-            const m = bestMergeForRegs(regs, targetParts);
-            if (!m) break;
-            regs.splice(m.j, 1);
-            regs.splice(m.i, 1, m.u);
-          }
-        }
-        return mergeNeighborRects(regs);
-      };
-      const regsSignature = regs => regs.map(z => `${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
-      const regsScore = (regs, targetParts) => Math.abs((regs && regs.length || 0) - targetParts) * 1e15 + variantBad(regs) * 1e3 + variantShape(regs);
-      const beamImproveVariant = (input, strategy, targetParts) => {
-        const kind = (strategy && strategy.kind) || "block";
-        const canUseBeam = (cols * rows) <= 320 && targetParts <= 12;
-        if (!canUseBeam) return input;
-        const makeOrientOrder = z => {
-          const prefAlt = resolvePreferredDirs(z, strategy), pref = prefAlt.pref, alt = prefAlt.alt;
-          return [pref, alt];
-        };
-        const mkState = regs => ({ regs, score: regsScore(regs, targetParts) });
-        let beam = [mkState(Array.isArray(input) ? input.map(z => ({ c0: z.c0, c1: z.c1, r0: z.r0, r1: z.r1 })) : [])];
-        let best = beam[0];
-        const seen = new Set([regsSignature(best.regs)]);
-        const WIDTH = 24, EXPAND = 8, STEPS = 18;
-        for (let step = 0; step < STEPS; step++) {
-          if (checkCalcTimeout(budget)) break;
-          beam.sort((a, b) => a.score - b.score);
-          beam = beam.slice(0, WIDTH);
-          if (beam[0] && beam[0].score < best.score) best = beam[0];
-          const nextStates = [];
-          const expandList = beam.slice(0, EXPAND);
-          for (const st0 of expandList) {
-            if (checkCalcTimeout(budget)) break;
-            const regs = st0.regs;
-            if (!Array.isArray(regs) || !regs.length) continue;
-            if (regs.length < targetParts) {
-              const splitRects = [...regs.keys()].sort((ia, ib) => regionArea(regs[ib]) - regionArea(regs[ia])).slice(0, 6);
-              for (const i of splitRects) {
-                const z = regs[i];
-                const dirs = makeOrientOrder(z);
-                for (const dir of dirs) {
-                  const cuts = listCuts(z, dir, strategy).slice(0, 4);
-                  for (const cut of cuts) {
-                    const ab = splitRectBy(z, dir, cut), a = ab[0], b = ab[1];
-                    if (!rectHasVisible(a.c0, a.c1, a.r0, a.r1) || !rectHasVisible(b.c0, b.c1, b.r0, b.r1)) continue;
-                    const nr = [...regs.slice(0, i), a, b, ...regs.slice(i + 1)];
-                    const merged = mergeNeighborRects(nr);
-                    const sig = regsSignature(merged);
-                    if (seen.has(sig)) continue;
-                    seen.add(sig);
-                    nextStates.push(mkState(merged));
-                  }
-                }
-              }
-            } else if (regs.length > targetParts) {
-              const pairs = [];
-              for (let i = 0; i < regs.length; i++)for (let j = i + 1; j < regs.length; j++) {
-                const u = tryMergeRects(regs[i], regs[j]);
-                if (!u) continue;
-                if (mergeWouldConflict(regs, i, j, u)) continue;
-                const nr = [...regs];
-                nr.splice(j, 1);
-                nr.splice(i, 1, u);
-                pairs.push(nr);
-              }
-              pairs.sort((a, b) => regsScore(a, targetParts) - regsScore(b, targetParts));
-              for (const nr0 of pairs.slice(0, 16)) {
-                const nr = mergeNeighborRects(nr0), sig = regsSignature(nr);
-                if (seen.has(sig)) continue;
-                seen.add(sig);
-                nextStates.push(mkState(nr));
-              }
-            } else {
-              const splitRects = [...regs.keys()].sort((ia, ib) => regionArea(regs[ib]) - regionArea(regs[ia])).slice(0, 2);
-              for (const i of splitRects) {
-                const z = regs[i], dirs = makeOrientOrder(z);
-                for (const dir of dirs) {
-                  const cut = listCuts(z, dir, strategy)[0];
-                  if (cut == null) continue;
-                  const ab = splitRectBy(z, dir, cut), a = ab[0], b = ab[1];
-                  const tmp = [...regs.slice(0, i), a, b, ...regs.slice(i + 1)];
-                  const merged = bestMergeForRegs(tmp, targetParts);
-                  if (!merged) continue;
-                  const nr = [...tmp];
-                  nr.splice(merged.j, 1);
-                  nr.splice(merged.i, 1, merged.u);
-                  const fin = mergeNeighborRects(nr), sig = regsSignature(fin);
-                  if (seen.has(sig)) continue;
-                  seen.add(sig);
-                  nextStates.push(mkState(fin));
-                }
-              }
-            }
-          }
-          if (!nextStates.length) break;
-          beam = nextStates;
-        }
-        return best && Array.isArray(best.regs) ? best.regs : input;
-      };
-      const buildVariantByStrategy = strategy => {
-        const kind = (strategy && strategy.kind) || "block";
-        const seed = Math.max(0, Math.round(Number(strategy && strategy.seed) || 0));
-        const rot = ((strategy && strategy.rot) | 0);
-        const regs = [{ c0, c1, r0, r1 }];
-        if (kind === "block") {
-          const base = regs[0];
-          const wCells = Math.max(1, base.c1 - base.c0), hCells = Math.max(1, base.r1 - base.r0);
-          if (wCells >= 3 && hCells >= 3) {
-            const rng = makeRng(((r && r.id) || 0) * 2654435761 + (seed + 1) * 1013904223 + wCells * 73856093 + hCells * 19349663);
-            let sx = base.c0 + 1 + Math.floor(rng() * (wCells - 1));
-            let sy = base.r0 + 1 + Math.floor(rng() * (hCells - 1));
-            if (rot === 90) { sx = base.c0 + 1 + Math.floor(rng() * (wCells - 1)); sy = base.r1 - 1 - Math.floor(rng() * (hCells - 1)); }
-            else if (rot === -90) { sx = base.c1 - 1 - Math.floor(rng() * (wCells - 1)); sy = base.r0 + 1 + Math.floor(rng() * (hCells - 1)); }
-            const canV = canSplitByComp(base, "v", sx) && rectHasVisible(base.c0, sx, base.r0, base.r1) && rectHasVisible(sx, base.c1, base.r0, base.r1);
-            const canH = canSplitByComp(base, "h", sy) && rectHasVisible(base.c0, base.c1, base.r0, sy) && rectHasVisible(base.c0, base.c1, sy, base.r1);
-            if (canV || canH) {
-              regs.length = 0;
-              if (canV && canH) {
-                const chunks = [
-                  { c0: base.c0, c1: sx, r0: base.r0, r1: sy },
-                  { c0: sx, c1: base.c1, r0: base.r0, r1: sy },
-                  { c0: base.c0, c1: sx, r0: sy, r1: base.r1 },
-                  { c0: sx, c1: base.c1, r0: sy, r1: base.r1 }
-                ];
-                for (const z of chunks) if (rectHasVisible(z.c0, z.c1, z.r0, z.r1)) regs.push(z);
-              } else if (canV) {
-                regs.push({ c0: base.c0, c1: sx, r0: base.r0, r1: base.r1 }, { c0: sx, c1: base.c1, r0: base.r0, r1: base.r1 });
-              } else {
-                regs.push({ c0: base.c0, c1: base.c1, r0: base.r0, r1: sy }, { c0: base.c0, c1: base.c1, r0: sy, r1: base.r1 });
-              }
-            }
-          }
-        }
-        let safe = 0;
-        while (safe < 4096) {
-          safe++;
-          if (checkCalcTimeout(budget)) return null;
-          let partsEstimate = 0;
-          for (const z of regs) partsEstimate += estPartsForRect(z);
-          let bestGlobal = null, bestIdx = -1;
-          for (let i = 0; i < regs.length; i++) {
-            const z = regs[i], a = regionArea(z), over = a - maxAreaPx;
-            if (over <= AREA_LIMIT_EPS) continue;
-            const pick = pickSplitForRect(regs, i, strategy, safe + i, partsEstimate, optimalCount);
-            if (!pick) continue;
-            if (!bestGlobal || pick.score < bestGlobal.score) { bestGlobal = pick; bestIdx = i; }
-          }
-          if (bestIdx < 0 || !bestGlobal) break;
-          regs.splice(bestIdx, 1, bestGlobal.left, bestGlobal.right);
-        }
-        return mergeNeighborRects(regs);
-      };
-      addVariant([{ c0, c1, r0, r1 }]);
-      for (const strategy of splitStrategies) {
-        if (checkCalcTimeout(budget)) return makeSingle(true);
-        const regs = buildVariantByStrategy(strategy);
-        if (!regs) return makeSingle(true);
-        addVariant(regs);
-        const tuned = refineVariantToTarget(regs, strategy, optimalCount);
-        addVariant(tuned);
-        const tunedBeam = beamImproveVariant(tuned, strategy, optimalCount);
-        addVariant(tunedBeam);
-        const tunedPlus = refineVariantToTarget(regs, strategy, Math.min(maxAllowedCount, optimalCount + 1));
-        addVariant(tunedPlus);
-      }
-      if (!variants.length) return makeSingle(false);
-      const compactVariant = regs => {
-        let cur = trimVisibleRects(Array.isArray(regs) ? regs : []);
-        let safe = 0;
-        while (safe < 64) {
-          safe++;
-          const sig0 = cur.map(z => `${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
-          const merged = mergeNeighborRects(cur);
-          const next = trimVisibleRects(merged);
-          const sig1 = next.map(z => `${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
-          cur = next;
-          if (sig0 === sig1) break;
-        }
-        if (!cur.length) return null;
-        for (const z of cur) if (areaRect(z.c0, z.c1, z.r0, z.r1) > maxAreaPx + AREA_LIMIT_EPS) return null;
-        if (!coversAllVisible(cur)) return null;
-        if (!variantRespectsMergedCells(cur)) return null;
-        return cur;
-      };
-      const compacted = [], compSeen = new Set();
-      for (const v of variants) {
-        const c = compactVariant(v);
-        if (!c) continue;
-        const sig = c.map(z => `${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
-        if (compSeen.has(sig)) continue;
-        compSeen.add(sig);
-        compacted.push(c);
-      }
-      if (compacted.length) {
-        variants.length = 0;
-        for (const v of compacted) variants.push(v);
-      }
-      if (!variants.length) return makeSingle(false);
-      const shapeScore = variantShape;
-      const sizeEntropyScore = regs => {
-        if (!Array.isArray(regs) || regs.length <= 1) return 0;
-        const areas = regs.map(z => Math.max(1e-6, areaRect(z.c0, z.c1, z.r0, z.r1)));
-        const mean = areas.reduce((a, b) => a + b, 0) / areas.length;
-        let sumSq = 0;
-        for (const a of areas) { const d = a - mean; sumSq += d * d; }
-        const std = Math.sqrt(sumSq / areas.length);
-        return std / Math.max(1e-6, mean);
-      };
-      const regularityScore = regs => {
-        if (!Array.isArray(regs) || !regs.length) return 1e9;
-        const ws = regs.map(z => Math.max(1e-6, colPref[z.c1] - colPref[z.c0]));
-        const hs = regs.map(z => Math.max(1e-6, rowPref[z.r1] - rowPref[z.r0]));
-        const wMean = ws.reduce((a, b) => a + b, 0) / ws.length, hMean = hs.reduce((a, b) => a + b, 0) / hs.length;
-        let wVar = 0, hVar = 0;
-        for (const w of ws) { const d = w - wMean; wVar += d * d; }
-        for (const h of hs) { const d = h - hMean; hVar += d * d; }
-        const wCv = Math.sqrt(wVar / ws.length) / Math.max(1e-6, wMean);
-        const hCv = Math.sqrt(hVar / hs.length) / Math.max(1e-6, hMean);
-        const sameRows = regs.every(z => z.r0 === regs[0].r0 && z.r1 === regs[0].r1);
-        const sameCols = regs.every(z => z.c0 === regs[0].c0 && z.c1 === regs[0].c1);
-        const stripePenalty = (sameRows || sameCols) ? 0 : 1;
-        return stripePenalty * 10 + Math.min(wCv, hCv) * 5 + Math.max(wCv, hCv);
-      };
-      const cmpRank = (a, b) =>
-        (a.delta - b.delta) ||
-        (a.regularity - b.regularity) ||
-        (a.entropy - b.entropy) ||
-        (a.bad - b.bad) ||
-        (a.shape - b.shape) ||
-        (a.count - b.count);
-      const ranked = variants.map(v => {
-        const count = v.length, delta = Math.abs(count - optimalCount), shape = shapeScore(v), entropy = sizeEntropyScore(v), regularity = regularityScore(v), bad = v.reduce((acc, z) => acc + Math.abs(maxAreaPx - areaRect(z.c0, z.c1, z.r0, z.r1)), 0);
-        return { v, count, delta, regularity, entropy, shape, bad };
-      }).sort(cmpRank);
-      const rankedWithinLimit = ranked.filter(it => it.count <= maxAllowedCount);
-      const notAboveOptimal = rankedWithinLimit.filter(it => it.count <= optimalCount);
-      const sourceList = (notAboveOptimal.length ? notAboveOptimal : rankedWithinLimit);
-      const ordered = sourceList.slice(0, SPLIT_VARIANT_MAX);
-      if (!ordered.length) return makeSingle(false);
-      const variantCount = Math.max(1, ordered.length);
-      r._splitVariantCount = variantCount;
-      const variantIndex = Math.max(0, Math.min(variantCount - 1, Math.round(Number(r && r.splitVariant) || 0)));
-      if (r && Math.round(Number(r.splitVariant) || 0) !== variantIndex) r.splitVariant = variantIndex;
-      const finalRegions = (ordered[variantIndex] ? ordered[variantIndex].v : ordered[0].v).map((z, idx) => ({ id: idx, label: toLetters(idx), gx: idx, gy: 0, c0: z.c0, c1: z.c1, r0: z.r0, r1: z.r1, w: colPref[z.c1] - colPref[z.c0], h: rowPref[z.r1] - rowPref[z.r0] }));
-      const byId = new Map(); for (const rg of finalRegions) byId.set(rg.id, rg);
-      const colToGroup = new Array(cols).fill(-1), rowToGroup = new Array(rows).fill(-1), cellToRegion = new Array(rows * cols).fill(-1);
-      for (const rg of finalRegions) {
-        for (let x = rg.c0; x < rg.c1; x++)if (colToGroup[x] === -1) colToGroup[x] = rg.id;
-        for (let y = rg.r0; y < rg.r1; y++)if (rowToGroup[y] === -1) rowToGroup[y] = rg.id;
-        for (let y = rg.r0; y < rg.r1; y++)for (let x = rg.c0; x < rg.c1; x++)if (visible[y][x]) cellToRegion[y * cols + x] = rg.id;
-      }
-      for (let i = 0; i < cols; i++)if (colToGroup[i] === -1) colToGroup[i] = 0;
-      for (let i = 0; i < rows; i++)if (rowToGroup[i] === -1) rowToGroup[i] = 0;
-      const out = { nx: finalRegions.length, ny: 1, colToGroup, rowToGroup, regionsById: byId, xCutsPx: [0, r.width], yCutsPx: [0, r.height], cellToRegion, regions: finalRegions, variantCount };
-      const profile = { variantCount, optimalCount, maxAllowedCount, totalMs: Math.max(0, calcNow() - startedAt) };
-      safeDefine(out, "_profile", profile);
-      return out;
-    };
+    const {
+      splitIndicesBySize,
+      planNumberRegionsUncached
+    } = setupRegionsPlannerController({
+      calcNow,
+      CALC_TIMEOUT_MS,
+      checkCalcTimeout: budget => checkCalcTimeout(budget),
+      buildSingleRegionPlan: (r, cx, cy, topo, hs) => buildSingleRegionPlan(r, cx, cy, topo, hs),
+      safeDefine,
+      maskCellKey,
+      AREA_LIMIT_EPS,
+      SPLIT_VARIANT_MAX,
+      normalizeDataFlow,
+      buildZOrder,
+      buildSnakeOrder,
+      getFlowRegionConfig,
+      getFlowStartRoutingRegion,
+      resolveFlowModeFromStartAndDir,
+      getFlowModeRegion,
+      getFlowLocksRegion,
+      FLOW_DIR_SET,
+      pathSelfCrosses,
+      refineFlowOrder,
+      FLOW_OPTIMIZE_MAX_POINTS,
+      optimizeFlowPathShortest,
+      flowPathCost,
+      applyFlowStartRouting,
+      applyFlowLocksToOrdered,
+      FLOW_SEARCH_NODE_LIMIT_STRICT,
+      flowSearchOrder,
+      toLetters: (...args) => toLetters(...args),
+      REGION_ZONE_COLORS
+    });
     const calcWorkerScript = buildCalcWorkerScript({
       constants: {
         FLOW_WORKER_TIMEOUT_MS,
@@ -4903,6 +2492,7 @@
       makeEmptyProjectData: name => makeEmptyProjectData(name),
       buildProject: () => buildProject(),
       loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
+      onTabActivated: () => { if (typeof syncProps === "function") syncProps(); },
       schedulePersistRef: fn => { schedulePersist = fn; },
       lsSet,
       TABS_SAVE_KEY,
@@ -4925,61 +2515,6 @@
     }));
     const loadProjectIntoActiveState = data => {
       applyProjectData(data || makeEmptyProjectData("Новый проект"), { syncTabSnapshot: false, renderTabs: false });
-    };
-    const evalExpr = (input, fallback) => { const s = String(input ?? "").trim(); if (!s) return fallback; const n = Number(s.replace(",", ".")); if (Number.isFinite(n)) return n; const normalized = s.replace(/,/g, ".").replace(/\s+/g, ""); if (!/^[0-9+\-*/().]+$/.test(normalized)) return fallback; try { const v = Function(`"use strict";return (${normalized});`)(); return Number.isFinite(v) ? v : fallback } catch (_e) { return fallback } };
-    const toRoundedInt = (v, fallback = 0) => {
-      const n = Number(v);
-      if (!Number.isFinite(n)) return Math.round(Number(fallback) || 0);
-      return Math.round(n);
-    };
-    const clampInt = (v, min, max, fallback = min) => Math.max(min, Math.min(max, toRoundedInt(v, fallback)));
-    const toPositiveInt = (v, fallback = 1) => Math.max(1, toRoundedInt(v, fallback));
-    const parseAreaM2PxInput = (input, fallback) => {
-      const s = String(input ?? "").trim();
-      if (!s) return Math.max(1, Math.round(Number(fallback) || 65536));
-      const m = s.match(/^\s*(\d+(?:[.,]\d+)?)\s*[xх×*]\s*(\d+(?:[.,]\d+)?)\s*$/i);
-      if (m) {
-        const a = Number(String(m[1]).replace(",", "."));
-        const b = Number(String(m[2]).replace(",", "."));
-        const p = a * b;
-        if (Number.isFinite(p) && p > 0) return Math.max(1, Math.round(p));
-      }
-      return Math.max(1, Math.round(evalExpr(s, fallback)));
-    };
-    const randomColor = () => {
-      const h = Math.random() * 360, s = 1, v = 0.5, c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
-      let r1 = 0, g1 = 0, b1 = 0;
-      if (h < 60) { r1 = c; g1 = x; b1 = 0 }
-      else if (h < 120) { r1 = x; g1 = c; b1 = 0 }
-      else if (h < 180) { r1 = 0; g1 = c; b1 = x }
-      else if (h < 240) { r1 = 0; g1 = x; b1 = c }
-      else if (h < 300) { r1 = x; g1 = 0; b1 = c }
-      else { r1 = c; g1 = 0; b1 = x }
-      const toHex = n => Math.round((n + m) * 255).toString(16).padStart(2, "0");
-      return `#${toHex(r1)}${toHex(g1)}${toHex(b1)}`;
-    };
-    const rectTextTheme = r => {
-      const a = hexRgb((r && r.colorA) || "#2fcaaf"), b = hexRgb((r && r.colorB) || autoContrast((r && r.colorA) || "#2fcaaf"));
-      const lumA = (a.r * 299 + a.g * 587 + a.b * 114) / 1000, lumB = (b.r * 299 + b.g * 587 + b.b * 114) / 1000, lum = (lumA + lumB) / 2;
-      if (lum >= 145) {
-        return { text: "rgba(0,0,0,.92)", textStrong: "rgba(0,0,0,.97)", bg: "rgba(255,255,255,.70)", bgStrong: "rgba(255,255,255,.76)" };
-      }
-      return { text: "rgba(255,255,255,.95)", textStrong: "rgba(255,255,255,.97)", bg: "rgba(11,17,24,.60)", bgStrong: "rgba(11,17,24,.65)" };
-    };
-    const bwTextForRgb = (r, g, b) => {
-      const toLin = v => { const c = Math.max(0, Math.min(255, +v || 0)) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4) };
-      const L = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
-      const cBlack = (L + 0.05) / 0.05, cWhite = 1.05 / (L + 0.05);
-      return cBlack >= cWhite ? "#000" : "#fff";
-    };
-    const escXml = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-    const fontFamilyCss = (value) => {
-      const parts = String(value || "Roboto, Segoe UI, Arial").split(",").map(s => s.trim()).filter(Boolean);
-      if (!parts.length) return "\"Segoe UI\", Arial";
-      return parts.map(p => {
-        if ((p.startsWith("\"") && p.endsWith("\"")) || (p.startsWith("'") && p.endsWith("'"))) return p;
-        return /\s/.test(p) ? `"${p.replace(/"/g, "\\\"")}"` : p;
-      }).join(", ");
     };
     const ensureFontReady = async () => {
       if (st.fontReady) return;
@@ -5352,7 +2887,6 @@
       drawCellX: r => drawCellX(r),
       drawCellY: r => drawCellY(r),
       getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
-      getComponentBoundarySegments: (r, cx, cy, topo) => getComponentBoundarySegments(r, cx, cy, topo),
       buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
       getHiddenSet: r => getHiddenSet(r),
       fontFamilyCss,
@@ -5396,8 +2930,7 @@
       el,
       onBeforeRenderFrame: () => {
         flowDrawRenderEpoch++;
-        flowPointIndexSrc = null;
-        flowPointIndexMap = null;
+        resetFlowPointIndexCache();
       },
       bindWindowEvent,
       bindEvent,
@@ -5698,182 +3231,166 @@
       parseAreaM2PxInput: (input, fallback) => parseAreaM2PxInput(input, fallback),
       persistProjectAndRender: () => persistProjectAndRender()
     });
-    const bindProxyClick = (source, target) => bindClick(source, () => { if (target) target.click(); });
-    setupToolbarActionsController({
-      el,
-      st,
-      bindClick: (...args) => bindClick(...args),
-      bindEvent: (...args) => bindEvent(...args),
-      setViewMode: (mode, persist) => setViewMode(mode, persist),
-      isInstallViewMode: () => isInstallViewMode(),
-      activateToolOrSelect: mode => activateToolOrSelect(mode),
-      setLockAll: (next, persist) => setLockAll(next, persist),
-      newProject: () => newProject(),
-      dupSel: () => dupSel(),
-      dupMirrorSel: () => dupMirrorSel(),
-      delSel: () => delSel(),
-      getViewMetrics: () => getViewMetrics(),
-      zoomAt: (x, y, next) => zoomAt(x, y, next),
-      render: () => render(),
-      fit: () => fit(),
-      getActionTargets: () => getActionTargets(),
-      applyToTargets: (fn, opts) => applyToTargets(fn, opts),
-      autoContrast,
-      invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
-      randomColor: () => randomColor(),
-      undoHistory: () => undoHistory(),
-      redoHistory: () => redoHistory(),
-      commitProjectChange: opts => commitProjectChange(opts)
-    });
     const {
-      isMobile,
-      updateMobileDock
-    } = setupMobileUiFeature({
-      windowRef: window,
-      el,
-      setupMobileGestures,
-      bindEvent: (...args) => bindEvent(...args)
-    });
-    const {
-      showMessageModal,
-      showErrorModal,
-      withUiErrorBoundary,
+      bindProxyClick,
+      updateMobileDock,
       openHelpModal,
       closeHelpModal,
-      focusModalTextLater,
-      showProjectLinkModal
-    } = setupModalWiringFeature({
-      windowRef: window,
-      getById: id => $(id),
-      el,
-      focusAndSelect,
-      lsSet,
-      HELP_SEEN_KEY,
-      setupBootstrapModalFactory,
-      setupModalHelpers,
-      setupProjectLinkModalController
-    });
-    setupResetActionsFeature({
-      el,
-      st,
-      bindClick: (...args) => bindClick(...args),
-      applyToTargetsAndRender: (visitor, opts, after) => applyToTargetsAndRender(visitor, opts, after),
-      hiddenCache,
-      invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
-      clearFlowLockMemory: r => clearFlowLockMemory(r),
-      getRectCalcCache: r => getRectCalcCache(r),
-      clearRectRegionsAndFlow: r => clearRectRegionsAndFlow(r)
-    });
-    setupConvertRegionsFeature({
-      el,
-      st,
-      bindClick: (...args) => bindClick(...args),
-      cur: () => cur(),
-      isRectLocked: r => isRectLocked(r),
-      isNoteRect: r => isNoteRect(r),
-      drawCellX,
-      drawCellY,
-      getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
-      getHiddenSet: r => getHiddenSet(r),
-      planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
-      showMessageModal: (...args) => showMessageModal(...args),
-      maskCellKey,
-      mk: (x, y, w, h) => mk(x, y, w, h),
-      withNameSuffixBeforeGroup,
-      autoContrast,
-      hiddenCache,
-      metricFromPx: r => metricFromPx(r),
-      setSelection: (ids, activeId) => setSelection(ids, activeId),
-      resetTransientState: full => resetTransientState(full),
-      syncProps: () => syncProps(),
-      listRects: () => listRects(),
-      render: () => render(),
-      schedulePersist: kind => schedulePersist(kind)
-    });
-    setupInstallBannerController({
-      el,
-      bindClick: (...args) => bindClick(...args),
-      bindWindowEvent: (...args) => bindWindowEvent(...args),
-      isMobile: () => isMobile(),
-      lsGet,
-      lsSet,
-      INSTALL_HINT_KEY
-    });
-    const { saveBlobWithSystemDialog } = setupProjectActionsFeature({
-      windowRef: window,
-      documentRef: document,
-      navigatorRef: navigator,
-      locationRef: location,
-      promptFn: prompt,
-      showErrorModal,
-      setGlobalSaveLocationId,
-      getGlobalSaveLocationId,
-      getCurrentSaveLocationId: () => st.saveLocationId,
-
-      el,
-      bindClick,
-      withUiErrorBoundary,
-      extractProjectFromPngBytes,
-      PNG_PROJECT_META_KEY,
-      showMessageModal,
-      loadProjectIntoActiveState,
-      syncActiveTabSnapshot,
-      renderProjectTabs,
-      schedulePersist,
-
-      bindEvent,
-      eventClosest,
-      showProjectLinkModal,
-      encodeProjectToQueryValue,
-      buildPortableProject,
-      saveProjectToServer,
-      getProjectName: () => st.projectName,
-      PROJECT_QUERY_PARAM,
-      PROJECT_ID_PARAM,
-
-      saveButton: el.save,
-      buildProject,
-      projectFileBase,
-      getSaveLocationId: () => st.saveLocationId
-    });
-    const { bindExportHandlers } = setupSpecExportFeature({
-      st,
-      el,
-      bindClick,
-      isNoteRect,
-      getRectRigData,
-      drawCellX,
-      drawCellY,
-      getCellTopologyCached,
-      getHiddenSet,
-      buildRigLayout,
-      resolveRigFrameSeam,
-      RIG_DEFAULT_LOAD_KG,
-      parseScreenNameGroup,
-      flowAnchorKey,
-      normalizeFlowLinks,
-      normalizeDataFlow,
-      rectUVToWorld,
-      planNumberRegions,
-      getDataFlowGroups,
-      maskCellKey,
-      ensureFontReady,
-      rectAABBMasked,
-      drawRect,
-      drawInterScreenFlowLinks,
-      getRectCalcCache,
-      embedProjectIntoPngBlob,
-      buildProject,
-      PNG_PROJECT_META_KEY,
-      projectFileBase,
-      setGlobalSaveLocationId,
-      getGlobalSaveLocationId,
-      saveStatus,
-      saveBlobWithSystemDialog,
       showMessageModal
+    } = setupUiTailFeature({
+      toolbarDeps: {
+        el,
+        st,
+        bindClick: (...args) => bindClick(...args),
+        bindEvent: (...args) => bindEvent(...args),
+        setViewMode: (mode, persist) => setViewMode(mode, persist),
+        isInstallViewMode: () => isInstallViewMode(),
+        activateToolOrSelect: mode => activateToolOrSelect(mode),
+        setLockAll: (next, persist) => setLockAll(next, persist),
+        newProject: () => newProject(),
+        dupSel: () => dupSel(),
+        dupMirrorSel: () => dupMirrorSel(),
+        delSel: () => delSel(),
+        getViewMetrics: () => getViewMetrics(),
+        zoomAt: (x, y, next) => zoomAt(x, y, next),
+        render: () => render(),
+        fit: () => fit(),
+        getActionTargets: () => getActionTargets(),
+        applyToTargets: (fn, opts) => applyToTargets(fn, opts),
+        autoContrast,
+        invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
+        randomColor: () => randomColor(),
+        undoHistory: () => undoHistory(),
+        redoHistory: () => redoHistory(),
+        commitProjectChange: opts => commitProjectChange(opts),
+        setupToolbarActionsController
+      },
+      mobileDeps: {
+        windowRef: window,
+        el,
+        setupMobileGestures,
+        bindEvent: (...args) => bindEvent(...args)
+      },
+      modalDeps: {
+        windowRef: window,
+        getById: id => $(id),
+        el,
+        focusAndSelect,
+        lsSet,
+        HELP_SEEN_KEY,
+        setupBootstrapModalFactory,
+        setupModalHelpers,
+        setupProjectLinkModalController
+      },
+      resetDeps: {
+        el,
+        st,
+        bindClick: (...args) => bindClick(...args),
+        applyToTargetsAndRender: (visitor, opts, after) => applyToTargetsAndRender(visitor, opts, after),
+        hiddenCache,
+        invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
+        clearFlowLockMemory: r => clearFlowLockMemory(r),
+        getRectCalcCache: r => getRectCalcCache(r),
+        clearRectRegionsAndFlow: r => clearRectRegionsAndFlow(r)
+      },
+      convertDeps: {
+        el,
+        st,
+        bindClick: (...args) => bindClick(...args),
+        cur: () => cur(),
+        isRectLocked: r => isRectLocked(r),
+        isNoteRect: r => isNoteRect(r),
+        drawCellX,
+        drawCellY,
+        getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+        getHiddenSet: r => getHiddenSet(r),
+        planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
+        maskCellKey,
+        mk: (x, y, w, h) => mk(x, y, w, h),
+        withNameSuffixBeforeGroup,
+        autoContrast,
+        hiddenCache,
+        metricFromPx: r => metricFromPx(r),
+        setSelection: (ids, activeId) => setSelection(ids, activeId),
+        resetTransientState: full => resetTransientState(full),
+        syncProps: () => syncProps(),
+        listRects: () => listRects(),
+        render: () => render(),
+        schedulePersist: kind => schedulePersist(kind)
+      },
+      postSetupDeps: {
+        windowRef: window,
+        documentRef: document,
+        navigatorRef: navigator,
+        locationRef: location,
+        promptFn: prompt,
+        st,
+        el,
+        bindClick: (...args) => bindClick(...args),
+        bindEvent: (...args) => bindEvent(...args),
+        bindWindowEvent: (...args) => bindWindowEvent(...args),
+        eventClosest: (...args) => eventClosest(...args),
+        lsGet,
+        lsSet,
+        INSTALL_HINT_KEY,
+        setGlobalSaveLocationId,
+        getGlobalSaveLocationId,
+        extractProjectFromPngBytes,
+        PNG_PROJECT_META_KEY,
+        loadProjectIntoActiveState: (...args) => loadProjectIntoActiveState(...args),
+        syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
+        renderProjectTabs: () => renderProjectTabs(),
+        schedulePersist: kind => schedulePersist(kind),
+        encodeProjectToQueryValue,
+        buildPortableProject: () => buildPortableProject(),
+        saveProjectToServer,
+        getProjectName: () => st.projectName,
+        PROJECT_QUERY_PARAM,
+        PROJECT_ID_PARAM,
+        buildProject: () => buildProject(),
+        projectFileBase: () => projectFileBase(),
+        getSaveLocationId: () => st.saveLocationId,
+        setupInstallBannerController,
+        setupProjectActionsFeature,
+        setupSpecExportFeature,
+        specExportDeps: {
+          st,
+          el,
+          bindClick: (...args) => bindClick(...args),
+          isNoteRect,
+          getRectRigData,
+          drawCellX,
+          drawCellY,
+          getCellTopologyCached,
+          getHiddenSet,
+          buildRigLayout,
+          resolveRigFrameSeam,
+          RIG_DEFAULT_LOAD_KG,
+          parseScreenNameGroup,
+          flowAnchorKey,
+          normalizeFlowLinks,
+          normalizeDataFlow,
+          rectUVToWorld,
+          planNumberRegions,
+          getDataFlowGroups,
+          maskCellKey,
+          ensureFontReady: () => ensureFontReady(),
+          rectAABBMasked,
+          drawRect: (...args) => drawRect(...args),
+          drawInterScreenFlowLinks: (...args) => drawInterScreenFlowLinks(...args),
+          getRectCalcCache,
+          embedProjectIntoPngBlob,
+          buildProject: () => buildProject(),
+          PNG_PROJECT_META_KEY,
+          projectFileBase: () => projectFileBase(),
+          setGlobalSaveLocationId,
+          getGlobalSaveLocationId,
+          saveStatus,
+          showMessageModal: (...args) => showMessageModal(...args)
+        }
+      }
     });
-    bindExportHandlers();
-    setupAppBootstrapFeature({
+    const appBootstrapDeps = {
       createEditorServices,
       st,
       el,
@@ -5943,11 +3460,17 @@
       encodeProjectToQueryValue,
       decodeProjectFromQueryValue,
       buildPortableProject
-    });
+    };
+    setupAppBootstrapFeature(appBootstrapDeps);
   </script>
 </body>
 
 </html>
+
+
+
+
+
 
 
 

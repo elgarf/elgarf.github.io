@@ -13,6 +13,7 @@ export const setupProjectSessionController = (deps = {}) => {
     makeEmptyProjectData,
     buildProject,
     loadProjectIntoActiveState,
+    onTabActivated,
     schedulePersistRef,
     lsSet,
     TABS_SAVE_KEY,
@@ -34,6 +35,7 @@ export const setupProjectSessionController = (deps = {}) => {
     makeEmptyProjectData,
     buildProject,
     loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
+    onTabActivated: tab => { if (typeof onTabActivated === "function") onTabActivated(tab); },
     schedulePersist: (...args) => schedulePersist(...args)
   });
 

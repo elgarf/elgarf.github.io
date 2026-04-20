@@ -2,7 +2,8 @@ export const setupTabsController = (deps = {}) => {
   const {
     st, el, wrap, bindEvent, eventClosest, render,
     cloneProjectData, makeEmptyProjectData, buildProject,
-    loadProjectIntoActiveState, schedulePersist
+    loadProjectIntoActiveState, schedulePersist,
+    onTabActivated
   } = deps;
 
   let tabSwitchTimer = 0;
@@ -57,6 +58,7 @@ export const setupTabsController = (deps = {}) => {
     runTabSwitchTransition(() => {
       st.activeTabId = tabId;
       loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
+      if (typeof onTabActivated === "function") onTabActivated(next);
       renderProjectTabs();
     });
   };
@@ -68,6 +70,7 @@ export const setupTabsController = (deps = {}) => {
     st.tabs.push(tab);
     st.activeTabId = tab.id;
     loadProjectIntoActiveState(d);
+    if (typeof onTabActivated === "function") onTabActivated(tab);
     renderProjectTabs();
     schedulePersist("all");
   };
@@ -82,6 +85,7 @@ export const setupTabsController = (deps = {}) => {
     runTabSwitchTransition(() => {
       st.activeTabId = next.id;
       loadProjectIntoActiveState(next.data || makeEmptyProjectData(next.title || "Новый проект"));
+      if (typeof onTabActivated === "function") onTabActivated(next);
       renderProjectTabs();
     });
     schedulePersist("tabs");

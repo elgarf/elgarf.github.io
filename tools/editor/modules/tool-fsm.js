@@ -1,5 +1,13 @@
 export const TOOL_MODE_LIST = Object.freeze(["select", "draw", "note", "maskEdit", "cellEdit", "flowEdit", "clusterEdit", "rigEdit"]);
 
+export const createModePredicates = st => ({
+  isMaskMode: () => st.mode === "maskEdit",
+  isCellEditMode: () => st.mode === "cellEdit",
+  isClusterEditMode: () => st.mode === "clusterEdit",
+  isRigEditMode: () => st.mode === "rigEdit",
+  isNoteMode: () => st.mode === "note"
+});
+
 export const createToolFsm = (opts = {}) => {
   const isInstallOnlyToolMode = typeof opts.isInstallOnlyToolMode === "function" ? opts.isInstallOnlyToolMode : (() => false);
   const isInstallViewMode = typeof opts.isInstallViewMode === "function" ? opts.isInstallViewMode : (() => true);
@@ -35,4 +43,3 @@ export const createToolFsm = (opts = {}) => {
     nextOnToolClick
   });
 };
-

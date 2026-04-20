@@ -82,7 +82,10 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   bindEvents([el.rectTextSize], "input", () => {
     const r = cur();
     if (!r) return;
-    r.textSize = Math.max(0, Math.min(128, Math.round(evalExpr(el.rectTextSize.value, r.textSize || 0))));
+    const count = applyToTargets(t => {
+      t.textSize = Math.max(0, Math.min(128, Math.round(evalExpr(el.rectTextSize.value, t.textSize || 0))));
+    }, { listRects: false, persist: false, render: false });
+    if (!count) return;
     updateRectTextSizeLabel(r);
     if (!rectTextInputRaf) {
       rectTextInputRaf = requestAnimationFrame(() => {

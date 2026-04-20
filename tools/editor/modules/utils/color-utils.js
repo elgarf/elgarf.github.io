@@ -106,3 +106,30 @@ export const autoContrast = h => {
   const lum = (r * 299 + g * 587 + b * 114) / 1000;
   return shadeHex(base, lum > 127.5 ? -0.5 : 0.5);
 };
+
+export const randomColor = () => {
+  const h = Math.random() * 360, s = 1, v = 0.5, c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
+  let r1 = 0, g1 = 0, b1 = 0;
+  if (h < 60) { r1 = c; g1 = x; b1 = 0; }
+  else if (h < 120) { r1 = x; g1 = c; b1 = 0; }
+  else if (h < 180) { r1 = 0; g1 = c; b1 = x; }
+  else if (h < 240) { r1 = 0; g1 = x; b1 = c; }
+  else if (h < 300) { r1 = x; g1 = 0; b1 = c; }
+  else { r1 = c; g1 = 0; b1 = x; }
+  const toHex = n => Math.round((n + m) * 255).toString(16).padStart(2, "0");
+  return `#${toHex(r1)}${toHex(g1)}${toHex(b1)}`;
+};
+
+export const rectTextTheme = r => {
+  const a = hexRgb((r && r.colorA) || "#2fcaaf"), b = hexRgb((r && r.colorB) || autoContrast((r && r.colorA) || "#2fcaaf"));
+  const lumA = (a.r * 299 + a.g * 587 + a.b * 114) / 1000, lumB = (b.r * 299 + b.g * 587 + b.b * 114) / 1000, lum = (lumA + lumB) / 2;
+  if (lum >= 145) return { text: "rgba(0,0,0,.92)", textStrong: "rgba(0,0,0,.97)", bg: "rgba(255,255,255,.70)", bgStrong: "rgba(255,255,255,.76)" };
+  return { text: "rgba(255,255,255,.95)", textStrong: "rgba(255,255,255,.97)", bg: "rgba(11,17,24,.60)", bgStrong: "rgba(11,17,24,.65)" };
+};
+
+export const bwTextForRgb = (r, g, b) => {
+  const toLin = v => { const c = Math.max(0, Math.min(255, +v || 0)) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+  const cBlack = (L + 0.05) / 0.05, cWhite = 1.05 / (L + 0.05);
+  return cBlack >= cWhite ? "#000" : "#fff";
+};
