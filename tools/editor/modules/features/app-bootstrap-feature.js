@@ -4,7 +4,6 @@ import { setupUiBinders } from "../ui-binders.js";
 
 export const setupAppBootstrapFeature = (deps = {}) => {
   const {
-    createEditorServices,
     st,
     el,
     themeMedia,
@@ -156,7 +155,7 @@ export const setupAppBootstrapFeature = (deps = {}) => {
     ensureFontReady,
     render
   };
-  const editorServices = createEditorServices(bootstrapUiServices || {});
+  const editorServices = bootstrapUiServices;
   setupUiBinders(editorServices);
 
   setupKeyboardController({
@@ -167,7 +166,7 @@ export const setupAppBootstrapFeature = (deps = {}) => {
     bindWindowEvent: editorServices.bindWindowEvent
   });
 
-  const appInitServices = createEditorServices(bootstrapAppInitDeps || {});
+  const appInitServices = bootstrapAppInitDeps;
   const { initializeAppUi, initProjectState } = setupAppInitController(appInitServices);
   initializeAppUi();
   initProjectState();

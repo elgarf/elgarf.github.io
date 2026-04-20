@@ -23,6 +23,17 @@ export const setupFlowGroupsController = (deps = {}) => {
     REGION_ZONE_COLORS,
     checkCalcTimeout
   } = deps;
+  const FLOW_MODE_CFG = Object.freeze({
+    h_bl_lr: { order: ["_rowBottom", "desc", "_colLeft", "asc"], axes: { primary: "row", primaryDir: "desc", secondaryStart: "asc" } },
+    h_tl_lr: { order: ["_rowTop", "asc", "_colLeft", "asc"], axes: { primary: "row", primaryDir: "asc", secondaryStart: "asc" } },
+    h_br_rl: { order: ["_rowBottom", "desc", "_colRight", "desc"], axes: { primary: "row", primaryDir: "desc", secondaryStart: "desc" } },
+    h_tr_rl: { order: ["_rowTop", "asc", "_colRight", "desc"], axes: { primary: "row", primaryDir: "asc", secondaryStart: "desc" } },
+    v_lb_bu: { order: ["_colLeft", "asc", "_rowBottom", "desc"], axes: { primary: "col", primaryDir: "asc", secondaryStart: "desc" } },
+    v_rb_bu: { order: ["_colRight", "desc", "_rowBottom", "desc"], axes: { primary: "col", primaryDir: "desc", secondaryStart: "desc" } },
+    v_lt_td: { order: ["_colLeft", "asc", "_rowTop", "asc"], axes: { primary: "col", primaryDir: "asc", secondaryStart: "asc" } },
+    v_rt_td: { order: ["_colRight", "desc", "_rowTop", "asc"], axes: { primary: "col", primaryDir: "desc", secondaryStart: "asc" } },
+    default: { order: ["_rowTop", "asc", "_colLeft", "asc"], axes: { primary: "row", primaryDir: "asc", secondaryStart: "asc" } }
+  });
 
   const getDataFlowGroupsUncached = (r, cx, cy, topo, hs, regions, budget) => {
     if (checkCalcTimeout(budget)) return [];
@@ -140,30 +151,12 @@ export const setupFlowGroupsController = (deps = {}) => {
         _colLeft: Math.max(0, Math.round(Number(it && it.minCol) || Number(it && it.col) || 0)),
         _colRight: Math.max(0, Math.round(Number(it && it.maxCol) || Number(it && it.col) || 0))
       }));
-      switch (m) {
-        case "h_bl_lr": return useZ ? buildZOrder(src, "_rowBottom", "desc", "_colLeft", "asc") : buildSnakeOrder(src, "_rowBottom", "desc", "_colLeft", "asc");
-        case "h_tl_lr": return useZ ? buildZOrder(src, "_rowTop", "asc", "_colLeft", "asc") : buildSnakeOrder(src, "_rowTop", "asc", "_colLeft", "asc");
-        case "h_br_rl": return useZ ? buildZOrder(src, "_rowBottom", "desc", "_colRight", "desc") : buildSnakeOrder(src, "_rowBottom", "desc", "_colRight", "desc");
-        case "h_tr_rl": return useZ ? buildZOrder(src, "_rowTop", "asc", "_colRight", "desc") : buildSnakeOrder(src, "_rowTop", "asc", "_colRight", "desc");
-        case "v_lb_bu": return useZ ? buildZOrder(src, "_colLeft", "asc", "_rowBottom", "desc") : buildSnakeOrder(src, "_colLeft", "asc", "_rowBottom", "desc");
-        case "v_rb_bu": return useZ ? buildZOrder(src, "_colRight", "desc", "_rowBottom", "desc") : buildSnakeOrder(src, "_colRight", "desc", "_rowBottom", "desc");
-        case "v_lt_td": return useZ ? buildZOrder(src, "_colLeft", "asc", "_rowTop", "asc") : buildSnakeOrder(src, "_colLeft", "asc", "_rowTop", "asc");
-        case "v_rt_td": return useZ ? buildZOrder(src, "_colRight", "desc", "_rowTop", "asc") : buildSnakeOrder(src, "_colRight", "desc", "_rowTop", "asc");
-        default: return buildSnakeOrder(src, "_rowTop", "asc", "_colLeft", "asc");
-      }
+      const cfg = FLOW_MODE_CFG[String(m || "")] || FLOW_MODE_CFG.default;
+      const [a, ad, b, bd] = cfg.order;
+      return useZ ? buildZOrder(src, a, ad, b, bd) : buildSnakeOrder(src, a, ad, b, bd);
     };
     const modeAxes = m => {
-      switch (String(m || "")) {
-        case "h_bl_lr": return { primary: "row", primaryDir: "desc", secondaryStart: "asc" };
-        case "h_tl_lr": return { primary: "row", primaryDir: "asc", secondaryStart: "asc" };
-        case "h_br_rl": return { primary: "row", primaryDir: "desc", secondaryStart: "desc" };
-        case "h_tr_rl": return { primary: "row", primaryDir: "asc", secondaryStart: "desc" };
-        case "v_lb_bu": return { primary: "col", primaryDir: "asc", secondaryStart: "desc" };
-        case "v_rb_bu": return { primary: "col", primaryDir: "desc", secondaryStart: "desc" };
-        case "v_lt_td": return { primary: "col", primaryDir: "asc", secondaryStart: "asc" };
-        case "v_rt_td": return { primary: "col", primaryDir: "desc", secondaryStart: "asc" };
-        default: return { primary: "row", primaryDir: "asc", secondaryStart: "asc" };
-      }
+      return (FLOW_MODE_CFG[String(m || "")] || FLOW_MODE_CFG.default).axes;
     };
     const buildManualRegionOrdered = (arr, rid, m, useZ) => {
       const items = Array.isArray(arr) ? arr : [];
@@ -386,4 +379,3 @@ export const setupFlowGroupsController = (deps = {}) => {
     getDataFlowGroupsUncached
   };
 };
-

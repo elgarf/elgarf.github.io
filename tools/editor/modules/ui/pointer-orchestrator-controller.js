@@ -91,22 +91,23 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
 
   const handleFlowEditPointerMove = p => flowController.handleFlowEditPointerMove(p);
+  const getHoveredRect = p => {
+    const h = hit(p.x, p.y);
+    selectHoveredRectSmart(h);
+    return h || cur();
+  };
   const handleCanvasPointerMove = (p, opts = null) => {
     const o = (opts && typeof opts === "object") ? opts : {};
     if (navigationController.handlePanPointerMove(p, o)) return true;
     if (navigationController.handleSelectionBoxPointerMove(p)) return true;
     if (isMaskMode()) {
-      const h = hit(p.x, p.y);
-      selectHoveredRectSmart(h);
-      const r = h || cur();
+      const r = getHoveredRect(p);
       st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null;
       render();
       return true;
     }
     if (isCellEditMode()) {
-      const h = hit(p.x, p.y);
-      selectHoveredRectSmart(h);
-      const r = h || cur();
+      const r = getHoveredRect(p);
       st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null;
       st.cellHoverPos = r ? { x: p.x, y: p.y } : null;
       render();
@@ -114,9 +115,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     }
     if (isRigEditMode()) {
       if (handleRigPointerMove) return !!handleRigPointerMove(p);
-      const h = hit(p.x, p.y);
-      selectHoveredRectSmart(h);
-      const r = h || cur();
+      const r = getHoveredRect(p);
       st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null;
       render();
       return true;

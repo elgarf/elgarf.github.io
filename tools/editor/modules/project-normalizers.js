@@ -1,5 +1,17 @@
 import { DATA_FLOW_MODES, FLOW_DIR_SET, RIG_DEFAULT_LOAD_KG } from "./constants.js";
 
+const normalizeNumericKeyedMap = (raw, normalizeValue) => {
+  const src = (raw && typeof raw === "object") ? raw : {};
+  const out = {};
+  for (const [k, v] of Object.entries(src)) {
+    const key = String(Math.max(0, Math.round(Number(k) || 0)));
+    const val = normalizeValue(v);
+    if (val == null) continue;
+    out[key] = val;
+  }
+  return out;
+};
+
 export const normalizeSaveLocationId = v => {
   const raw = String(v || "").trim();
   const clean = raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
@@ -160,44 +172,34 @@ export const normalizeFlowLocks = raw => {
 };
 
 export const normalizeFlowLockRidToSigMap = raw => {
-  const src = (raw && typeof raw === "object") ? raw : {};
-  const out = {};
-  for (const [k, v] of Object.entries(src)) {
-    const rid = Math.max(0, Math.round(Number(k) || 0));
+  return normalizeNumericKeyedMap(raw, v => {
     const sig = String(v || "").trim();
-    if (!sig) continue;
-    out[String(rid)] = sig;
-  }
-  return out;
+    return sig || null;
+  });
 };
 
 export const normalizeFlowLockCidToSeedMap = raw => {
-  const src = (raw && typeof raw === "object") ? raw : {};
-  const out = {};
-  for (const [k, v] of Object.entries(src)) {
-    const cid = Math.max(0, Math.round(Number(k) || 0));
+  return normalizeNumericKeyedMap(raw, v => {
     const s = String(v || "").trim();
-    if (!/^\d+,\d+$/.test(s)) continue;
-    out[String(cid)] = s;
-  }
-  return out;
+    return /^\d+,\d+$/.test(s) ? s : null;
+  });
 };
 
 export const normalizeFlowLinks = raw => {
   const out = [];
   const seen = new Set();
   const list = Array.isArray(raw) ? raw : [];
+  const mkEnd = e => ({
+    rectId: Math.max(1, Math.round(Number(e && e.rectId) || 0)),
+    rid: Math.max(0, Math.round(Number(e && e.rid) || 0)),
+    cid: Math.max(0, Math.round(Number(e && e.cid) || 0)),
+    kind: String(e && e.kind || "").toLowerCase() === "end" ? "end" : "start"
+  });
   for (const it of list) {
     if (!it || typeof it !== "object") continue;
     const from = it.from && typeof it.from === "object" ? it.from : null;
     const to = it.to && typeof it.to === "object" ? it.to : null;
     if (!from || !to) continue;
-    const mkEnd = e => ({
-      rectId: Math.max(1, Math.round(Number(e.rectId) || 0)),
-      rid: Math.max(0, Math.round(Number(e.rid) || 0)),
-      cid: Math.max(0, Math.round(Number(e.cid) || 0)),
-      kind: String(e.kind || "").toLowerCase() === "end" ? "end" : "start"
-    });
     const a = mkEnd(from);
     const b = mkEnd(to);
     if (!a.rectId || !b.rectId) continue;
@@ -211,6 +213,6 @@ export const normalizeFlowLinks = raw => {
   return out;
 };
 
-export const normalizeThemeMode = v => v === "light" || v === "dark" || v === "auto" ? v : "auto";
-export const normalizeViewMode = v => String(v || "") === "install" ? "install" : "art";
+export const normalizeThemeMode = v => ({ light: 1, dark: 1, auto: 1 }[v] ? v : "auto");
+export const normalizeViewMode = v => (String(v || "") === "install" ? "install" : "art");
 export const normalizeCabinetUnit = v => (v === "m" ? "m" : "px");

@@ -1496,7 +1496,6 @@
     import { createRectPropSchema } from "./editor/modules/props-schema.js";
     import { touchProgressState, setCacheWithPrune } from "./editor/modules/cache-utils.js";
     import { isWorkerBootMessage, buildWorkerMessage, collectSetValues } from "./editor/modules/worker-runtime.js";
-    import { createEditorServices } from "./editor/modules/editor-services.js";
     import { safeDefine } from "./editor/modules/utils/safe-define.js";
     import { autoContrast, hexRgb, hslToRgb, pickByContrast, rgbHex, rgbToHsl, contrastRatio, shadeHex, randomColor, rectTextTheme, bwTextForRgb } from "./editor/modules/utils/color-utils.js";
     import { distToSegment, overlapArea, rads, rectAABB, rectCenter, rectUVToWorld, worldToRectUV, maskCellKey, pointInPoly, getOriginFromRects, createCellFromWorldPoint, hiddenCellBoxes, computeFreeRects, createMaskNodeAxesGetter } from "./editor/modules/utils/geometry.js";
@@ -3378,7 +3377,6 @@
       }
     });
     const appBootstrapDeps = {
-      createEditorServices,
       st,
       el,
       themeMedia,

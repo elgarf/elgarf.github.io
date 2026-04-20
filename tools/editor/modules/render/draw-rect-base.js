@@ -16,6 +16,26 @@ export const setupDrawRectBaseController = (deps = {}) => {
     const wantsFlowForNumbers = !!(showNumbers && flowEnabledByMode && !flowInteractivePause);
     return { flowEditingThisRect, wantsFlowDraw, wantsFlowForNumbers };
   };
+  const buildRectOverlayLines = (r, opts = {}) => {
+    const {
+      installView = false,
+      mFmt,
+      pctFmt,
+      wm = 0,
+      hm = 0,
+      pct = 0,
+      installExtra = { areaM2: 0, groups: [] },
+      rx = 0,
+      ry = 0
+    } = opts;
+    const installCabText = Array.isArray(installExtra.groups) && installExtra.groups.length ? installExtra.groups.join("\n") : "—";
+    const lsRaw = installView
+      ? [r.name, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`, `${mFmt(installExtra.areaM2)} м²`, installCabText]
+      : [r.name, `(${rx}; ${ry}) px`, `${Math.round(r.width)} x ${Math.round(r.height)} px`, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`];
+    return lsRaw
+      .flatMap(line => String(line == null ? "" : line).replace(/\r/g, "").split("\n"))
+      .filter(line => line.length > 0);
+  };
 
   function drawRectBase(c, r, sel, z, origin, opts) {
       if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
@@ -132,9 +152,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
           if (!skeleton && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
             const rx = Math.round(r.x - origin.x), ry = Math.round(r.y - origin.y), baseFs = getRectTextSizePx(r), wm = (r.widthM != null ? r.widthM : r.width / Math.max(1, r.scale || 256)), hm = (r.heightM != null ? r.heightM : r.height / Math.max(1, r.scale || 256)), pct = fillPercent(wm, hm, r.areaM2Px);
             const installExtra = installView ? buildVisibleCabinetSummary(r, cellX, cellY, topo, hs) : { areaM2: 0, groups: [] };
-            const installCabText = installExtra.groups.length ? installExtra.groups.join("\n") : "—";
-            const lsRaw = installView ? [r.name, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`, `${mFmt(installExtra.areaM2)} м²`, installCabText] : [r.name, `(${rx}; ${ry}) px`, `${Math.round(w)} x ${Math.round(h)} px`, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`];
-            const ls = lsRaw.flatMap(line => String(line == null ? "" : line).replace(/\r/g, "").split("\n")).filter(line => line.length > 0);
+            const ls = buildRectOverlayLines(r, { installView, mFmt, pctFmt, wm, hm, pct, installExtra, rx, ry });
             const maxW = Math.max(20, w - 6), localRect = { x: -w / 2, y: -h / 2, width: w, height: h };
             const layoutKey = ["canvas", w, h, cellX, cellY, listSignature(r.hiddenCells), baseFs, maxW, st.fontFamily, ls.join("|")].join("|");
             const layout = getRectTextLayoutCached(r, layoutKey, () => {

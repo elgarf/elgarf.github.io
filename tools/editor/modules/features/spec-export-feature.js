@@ -1,5 +1,5 @@
 import { setupExportPackageController } from "../export-package-controller.js";
-import { buildFlowLinksSpecText } from "../spec/build-flow-links-section.js";
+import { buildFlowLinksSpecText, fmtOne, fmtMeters, addCountToMap } from "../spec/build-flow-links-section.js";
 
 export const setupSpecExportFeature = (deps = {}) => {
   const {
@@ -38,19 +38,6 @@ export const setupSpecExportFeature = (deps = {}) => {
     saveBlobWithSystemDialog,
     showMessageModal
   } = deps;
-
-  const fmtOne = v => {
-    const n = Math.round((Number(v) || 0) * 10) / 10;
-    return Number.isInteger(n) ? `${n.toFixed(0)}` : n.toFixed(1);
-  };
-  const fmtMeters = v => {
-    const n = Math.round((Number(v) || 0) * 1000) / 1000;
-    return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "");
-  };
-  const addCountToMap = (map, key, count = 1) => {
-    if (key == null || !Number.isFinite(Number(key))) return;
-    map.set(key, (map.get(key) || 0) + count);
-  };
 
   const buildRectRigSpecData = r => {
     const rig = getRectRigData(r) || {};

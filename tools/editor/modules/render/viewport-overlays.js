@@ -20,9 +20,10 @@ export const setupViewportOverlays = (deps = {}) => {
   const cellBoundaryCache = { key: "", value: [] };
   const cellSummaryCache = { key: "", value: null };
   const cellOverlayPathCache = { key: "", gridPath: null, borderPath: null };
+  const keyOf = (...parts) => parts.join("|");
 
   const getComponentBoundarySegmentsLocalCached = (r, cx, cy, topo) => {
-    const key = [
+    const key = keyOf(
       Math.max(0, Math.round(Number(r && r.id) || 0)),
       Math.max(1, Math.round(Number(r && r.width) || 1)),
       Math.max(1, Math.round(Number(r && r.height) || 1)),
@@ -31,7 +32,7 @@ export const setupViewportOverlays = (deps = {}) => {
       Math.max(1, Math.round(Number(topo && topo.cols) || 1)),
       Math.max(1, Math.round(Number(topo && topo.rows) || 1)),
       listSignature(r && r.cellLinks)
-    ].join("|");
+    );
     if (cellBoundaryCache.key === key && Array.isArray(cellBoundaryCache.value)) return cellBoundaryCache.value;
     const segs = [];
     const w = Math.max(1, Math.round(Number(r && r.width) || 1));
@@ -169,7 +170,7 @@ export const setupViewportOverlays = (deps = {}) => {
     c.rotate(ang);
     const hasLinks = Array.isArray(r && r.cellLinks) && r.cellLinks.length > 0;
     const zQuant = Math.max(1, Math.round((Number(z) || 1) * 100) / 100);
-    const pathKey = [
+    const pathKey = keyOf(
       Math.max(0, Math.round(Number(r && r.id) || 0)),
       Math.max(1, Math.round(Number(w) || 1)),
       Math.max(1, Math.round(Number(h) || 1)),
@@ -179,7 +180,7 @@ export const setupViewportOverlays = (deps = {}) => {
       Math.max(1, Math.round(Number(rows) || 1)),
       zQuant,
       listSignature(r && r.cellLinks)
-    ].join("|");
+    );
     if (cellOverlayPathCache.key !== pathKey || !cellOverlayPathCache.gridPath || !cellOverlayPathCache.borderPath) {
       const pxStepMin = 6;
       const lineStepX = Math.max(1, Math.ceil(pxStepMin / Math.max(1e-6, cx * Math.max(0.01, z))));
@@ -254,7 +255,7 @@ export const setupViewportOverlays = (deps = {}) => {
     }
     const hp = st.cellHoverPos;
     if (hp && Number.isFinite(Number(hp.x)) && Number.isFinite(Number(hp.y))) {
-      const summaryKey = [
+      const summaryKey = keyOf(
         Math.max(0, Math.round(Number(r && r.id) || 0)),
         Math.max(1, Math.round(Number(r && r.width) || 1)),
         Math.max(1, Math.round(Number(r && r.height) || 1)),
@@ -265,7 +266,7 @@ export const setupViewportOverlays = (deps = {}) => {
         Math.max(1, Math.round(Number(r && r.scale) || 1)),
         listSignature(r && r.hiddenCells),
         listSignature(r && r.cellLinks)
-      ].join("|");
+      );
       if (cellSummaryCache.key !== summaryKey || !cellSummaryCache.value) {
         cellSummaryCache.key = summaryKey;
         cellSummaryCache.value = buildVisibleCabinetSummary(r, cx, cy, topo, getHiddenSet(r));

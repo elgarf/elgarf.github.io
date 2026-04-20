@@ -43,18 +43,15 @@ export const setupPersistenceController = (deps = {}) => {
   const persistNow = () => {
     try {
       if (persistTabsDirty) { lsSet(TABS_SAVE_KEY, JSON.stringify(buildTabsBundle())); persistTabsDirty = false; }
-      if (persistProjectDirty) {
-        const nextProject = buildProject();
-        if (canOverwriteAutosaveWithProject(nextProject)) {
-          lsSet(AUTO_SAVE_KEY, JSON.stringify(nextProject));
-          saveStatus.saved();
-        } else {
-          saveStatus.error("Защита автосейва: пустой проект не записан");
-        }
-        persistProjectDirty = false;
-      } else {
-        saveStatus.saved();
+      if (!persistProjectDirty) { saveStatus.saved(); return; }
+      const nextProject = buildProject();
+      persistProjectDirty = false;
+      if (!canOverwriteAutosaveWithProject(nextProject)) {
+        saveStatus.error("Защита автосейва: пустой проект не записан");
+        return;
       }
+      lsSet(AUTO_SAVE_KEY, JSON.stringify(nextProject));
+      saveStatus.saved();
     } catch (_e) {
       saveStatus.error();
     }

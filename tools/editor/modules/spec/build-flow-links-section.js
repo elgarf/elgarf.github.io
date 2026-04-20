@@ -1,4 +1,4 @@
-const fmtAreaM2 = v => {
+export const fmtAreaM2 = v => {
   const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
   return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "");
 };
@@ -17,11 +17,15 @@ const mapToNamedCountList = map =>
     .filter(([, count]) => (Number(count) || 0) > 0)
     .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ru"))
     .map(([name, count]) => `${name} – ${count} шт.`);
-const defaultFmtMeters = v => {
+export const fmtMeters = v => {
   const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
   return Number.isInteger(n) ? n.toFixed(0) : String(n).replace(/\.?0+$/, "");
 };
-const mapToRigSizeList = (map, fmtMeters = defaultFmtMeters) =>
+export const fmtOne = v => {
+  const n = Math.round((Number(v) || 0) * 10) / 10;
+  return Number.isInteger(n) ? `${n.toFixed(0)}` : n.toFixed(1);
+};
+const mapToRigSizeList = map =>
   [...map.entries()]
     .filter(([, count]) => (Number(count) || 0) > 0)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
@@ -38,7 +42,7 @@ const pushSpecCountLine = (out, label, count, suffix = "шт.") => {
   const n = Math.max(0, Math.round(Number(count) || 0));
   if (n > 0) out.push(`- ${label}: ${n} ${suffix}`);
 };
-const addCountToMap = (map, key, count = 1) => {
+export const addCountToMap = (map, key, count = 1) => {
   if (key == null || !Number.isFinite(Number(key))) return;
   map.set(key, (map.get(key) || 0) + count);
 };

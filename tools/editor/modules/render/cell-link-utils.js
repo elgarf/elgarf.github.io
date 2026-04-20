@@ -10,6 +10,7 @@ export const setupCellLinkUtilsController = (deps = {}) => {
     maskCellKey
   } = deps;
   const toggleSegCache = { key: "", value: [] };
+  const keyOf = (...parts) => parts.join("|");
 
   const componentsAreRectangles = topo => {
     const stat = new Map();
@@ -93,7 +94,7 @@ export const setupCellLinkUtilsController = (deps = {}) => {
 
   const getCellLinkCandidateAtPoint = (r, wx, wy) => {
     const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy);
-    const segKey = [
+    const segKey = keyOf(
       Math.max(0, Math.round(Number(r && r.id) || 0)),
       Math.round(Number(r && r.x) || 0),
       Math.round(Number(r && r.y) || 0),
@@ -107,7 +108,7 @@ export const setupCellLinkUtilsController = (deps = {}) => {
       Math.max(0, Math.round(Number(topo && topo.count) || 0)),
       Math.max(0, Math.round(Number(topo && topo.links && topo.links.size) || 0)),
       Array.isArray(r && r.cellLinks) ? r.cellLinks.join(";") : ""
-    ].join("|");
+    );
     if (toggleSegCache.key !== segKey || !Array.isArray(toggleSegCache.value)) {
       toggleSegCache.key = segKey;
       toggleSegCache.value = getCellToggleSegments(r, cx, cy, topo);
