@@ -5,7 +5,6 @@ export const setupToolbarActionsController = (deps = {}) => {
     bindClick,
     bindEvent,
     setViewMode,
-    isInstallViewMode,
     activateToolOrSelect,
     setLockAll,
     newProject,
@@ -29,13 +28,19 @@ export const setupToolbarActionsController = (deps = {}) => {
   const bindClicks = entries => {
     for (const [btn, fn] of entries) bindClick(btn, fn);
   };
+  const nextMobileViewMode = () => {
+    const mode = String(st && st.viewMode || "art");
+    if (mode === "art") return "install";
+    if (mode === "install") return "spec";
+    return "art";
+  };
 
   bindClicks([
     [el.viewModeArt, () => setViewMode("art", true)],
     [el.viewModeInstall, () => setViewMode("install", true)],
     [el.viewModeSpec, () => setViewMode("spec", true)],
-    [el.mViewModeToggle, () => setViewMode(isInstallViewMode() ? "art" : "install", true)],
-    [el.mViewModeSpec, () => setViewMode("spec", true)],
+    [el.mViewModeToggle, () => setViewMode(nextMobileViewMode(), true)],
+    [el.specModeClose, () => setViewMode("art", true)],
     [el.toolSelect, () => activateToolOrSelect("select")],
     [el.toolDraw, () => activateToolOrSelect("draw")],
     [el.toolNote, () => activateToolOrSelect("note")],

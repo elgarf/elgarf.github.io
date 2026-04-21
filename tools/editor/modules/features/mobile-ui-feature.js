@@ -2,7 +2,9 @@ export const setupMobileUiFeature = (deps = {}) => {
   const {
     windowRef,
     el,
-    bindEvent
+    bindEvent,
+    st,
+    normalizeViewMode = v => v
   } = deps;
 
   const isMobile = () => windowRef.matchMedia("(max-width:900px)").matches;
@@ -27,7 +29,7 @@ export const setupMobileUiFeature = (deps = {}) => {
 
   const updateMobileDock = () => {
     if (!el.mobileDock) return;
-    const show = isMobile();
+    const show = isMobile() && normalizeViewMode(st && st.viewMode) !== "spec";
     el.mobileDock.classList.toggle("force-visible", show);
     el.mobileDock.classList.toggle("force-hidden", !show);
   };

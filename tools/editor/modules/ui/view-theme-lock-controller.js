@@ -6,7 +6,6 @@ export const setupViewThemeLockController = (deps = {}) => {
     el,
     normalizeThemeMode,
     normalizeViewMode,
-    syncModeToggleButton,
     syncLockButtons,
     updateInstallToolAvailability,
     onViewModeUiUpdated,
@@ -30,6 +29,8 @@ export const setupViewThemeLockController = (deps = {}) => {
     const mode = normalizeViewMode(st.viewMode);
     const isInstall = mode === "install";
     const isSpec = mode === "spec";
+    const isArt = mode === "art";
+    const isMobile = !!(windowRef.matchMedia && windowRef.matchMedia("(max-width:900px)").matches);
     if (el.viewModeArt) {
       el.viewModeArt.classList.remove("btn-secondary");
       el.viewModeArt.classList.toggle("btn-primary", mode === "art");
@@ -49,13 +50,26 @@ export const setupViewThemeLockController = (deps = {}) => {
       el.viewModeSpec.setAttribute("aria-pressed", isSpec ? "true" : "false");
     }
     if (el.mViewModeToggle) {
-      syncModeToggleButton(el.mViewModeToggle, isInstall, "Режим: Для монтажников", "Режим: Для художников");
+      const icon = el.mViewModeToggle.querySelector("i");
+      const specOn = isMobile && isSpec;
+      el.mViewModeToggle.classList.remove("btn-secondary");
+      el.mViewModeToggle.classList.toggle("btn-primary", !!specOn);
+      el.mViewModeToggle.classList.toggle("btn-outline-secondary", !specOn);
+      el.mViewModeToggle.classList.toggle("mode-art", isArt);
+      el.mViewModeToggle.classList.toggle("mode-install", isInstall);
+      el.mViewModeToggle.classList.toggle("mode-spec", isSpec);
+      el.mViewModeToggle.setAttribute("aria-pressed", specOn ? "true" : "false");
+      const modeTitle = isSpec ? "Спецификация" : (isInstall ? "Для монтажников" : "Для художников");
+      el.mViewModeToggle.title = `Режим: ${modeTitle}`;
+      el.mViewModeToggle.setAttribute("aria-label", `Режим: ${modeTitle}. Нажмите для переключения`);
+      if (icon) {
+        icon.className = `fa-solid ${isSpec ? "fa-file-lines" : (isInstall ? "fa-screwdriver-wrench" : "fa-palette")}`;
+      }
     }
-    if (el.mViewModeSpec) {
-      el.mViewModeSpec.classList.remove("btn-secondary");
-      el.mViewModeSpec.classList.toggle("btn-primary", isSpec);
-      el.mViewModeSpec.classList.toggle("btn-outline-secondary", !isSpec);
-      el.mViewModeSpec.setAttribute("aria-pressed", isSpec ? "true" : "false");
+    if (el.mobileDock) {
+      const showDock = isMobile && !isSpec;
+      el.mobileDock.classList.toggle("force-visible", showDock);
+      el.mobileDock.classList.toggle("force-hidden", !showDock);
     }
     if (typeof updateInstallToolAvailability === "function") updateInstallToolAvailability();
     if (typeof onViewModeUiUpdated === "function") onViewModeUiUpdated();

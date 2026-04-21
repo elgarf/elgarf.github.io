@@ -345,56 +345,13 @@
       z-index: 1070
     }
     .m-view-toggle {
-      position: relative;
-      overflow: hidden;
-      padding: 0;
       min-width: 40px;
       width: 40px;
       height: 40px;
-      border-radius: 10px
-    }
-    .m-view-toggle .half {
-      position: absolute;
-      inset: 0;
-      display: flex;
+      border-radius: 10px;
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      color: var(--bs-secondary-color);
-      background: transparent;
-      transition: background-color .18s ease, color .18s ease
-    }
-    .m-view-toggle .half-art {
-      clip-path: polygon(0 0, 100% 0, 0 100%);
-      justify-content: flex-start;
-      align-items: flex-start;
-      padding: 7px 0 0 7px
-    }
-    .m-view-toggle .half-install {
-      clip-path: polygon(100% 0, 100% 100%, 0 100%);
-      justify-content: flex-end;
-      align-items: flex-end;
-      padding: 0 7px 7px 0
-    }
-    .m-view-toggle::after {
-      content: "";
-      position: absolute;
-      left: -5px;
-      top: 50%;
-      width: calc(100% + 10px);
-      height: 1.2px;
-      background: var(--bs-border-color);
-      transform: rotate(-45deg);
-      transform-origin: center;
-      pointer-events: none
-    }
-    .m-view-toggle.mode-art .half-art {
-      background: var(--bs-primary);
-      color: #fff
-    }
-    .m-view-toggle.mode-install .half-install {
-      background: var(--bs-primary);
-      color: #fff
+      justify-content: center
     }
 
     .install-banner {
@@ -642,11 +599,25 @@
       background: var(--spec-bg);
       backdrop-filter: blur(2px);
     }
+    .spec-mode-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 8px;
+      z-index: 26;
+      align-items: center;
+      justify-content: center;
+      display: none;
+    }
 
     .spec-mode-scroll {
       display: grid;
       gap: 8px;
       max-width: 1100px;
+      padding-top: 40px;
       margin: 0 auto;
     }
 
@@ -831,12 +802,32 @@
     .spec-mode-manual-edit .EasyMDEContainer {
       border: 1px solid var(--spec-header-border);
       background: var(--spec-editor-bg);
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
     }
     .spec-mode-manual-edit .editor-toolbar {
       border-left: 0;
       border-right: 0;
       border-top: 0;
       background: var(--spec-toolbar-bg);
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    .spec-mode-manual-edit .editor-toolbar button,
+    .spec-mode-manual-edit .editor-toolbar a {
+      float: none !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: top;
+    }
+    .spec-mode-manual-edit .editor-toolbar i.separator {
+      display: inline-block;
+      float: none !important;
+      vertical-align: top;
     }
     .spec-mode-manual-edit .editor-toolbar button {
       color: var(--bs-body-color) !important;
@@ -870,9 +861,35 @@
     .spec-mode-manual-edit .editor-preview-side {
       background: var(--spec-editor-bg);
       color: var(--spec-text);
+      min-width: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
     }
     .spec-mode-manual-edit .CodeMirror-cursor {
       border-left-color: var(--spec-caret) !important;
+    }
+    @media (max-width:900px) {
+      .spec-mode-manual-edit {
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+      }
+      .spec-mode-manual-edit .EasyMDEContainer,
+      .spec-mode-manual-edit .CodeMirror,
+      .spec-mode-manual-edit .CodeMirror-scroll {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .spec-mode-manual-edit .editor-toolbar {
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+    @media (min-width:901px) {
+      .spec-mode-panel {
+        z-index: 1120;
+      }
     }
     .note-editor-overlay {
       position: absolute;
@@ -1479,6 +1496,8 @@
       <div id="canvasWrap" class="canvas-wrap" data-mode="select">
         <canvas id="editorCanvas"></canvas>
         <div id="specModePanel" class="spec-mode-panel d-none">
+          <button id="specModeClose" type="button" class="btn btn-sm btn-outline-secondary spec-mode-close mobile-only"
+            title="Закрыть спецификацию" aria-label="Закрыть спецификацию"><i class="fa-solid fa-xmark"></i></button>
           <div class="spec-mode-scroll">
             <div id="specAutoBlocks"></div>
           </div>
@@ -1544,7 +1563,7 @@
         <div class="field"><label for="propAreaM2">Количество пикселей в 1м² экрана</label>
             <div class="input-group input-group-sm"><input id="propAreaM2" type="text" spellcheck="false"
                 value="256×256"><button id="propAreaM2Toggle" type="button"
-                class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"
+                class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"
                 aria-expanded="false"><span class="visually-hidden">Выбрать пресет</span></button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><button class="dropdown-item" type="button" data-area-m2-preset="168×168">168×168</button></li>
@@ -1781,11 +1800,8 @@
       aria-label="Заблокировать всё" aria-pressed="false"><i class="fa-solid fa-unlock"></i></button>
     <button id="mViewModeToggle" class="icon-btn btn btn-outline-secondary m-view-toggle mode-art"
       title="Режим: Для художников" aria-label="Переключить режим отображения" aria-pressed="false">
-      <span class="half half-art" aria-hidden="true"><i class="fa-solid fa-palette"></i></span>
-      <span class="half half-install" aria-hidden="true"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+      <i class="fa-solid fa-palette" aria-hidden="true"></i>
     </button>
-    <button id="mViewModeSpec" class="icon-btn btn btn-outline-secondary" title="Спецификация"
-      aria-label="Спецификация" aria-pressed="false"><i class="fa-solid fa-file-lines"></i></button>
   </div>
   <script src="./vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="./vendor/qrcode-generator/qrcode.js"></script>
@@ -1909,7 +1925,7 @@
         "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkLoading", "projectLinkText", "projectLinkCopyBtn",
         "sidePanel", "sideClose", "multiEditBadge",
         "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
-        "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle", "mViewModeSpec",
+        "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle",
         "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
         "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
         "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
@@ -1918,7 +1934,7 @@
         "propCellX", "propCellY", "propCellUnit", "propDataFlow", "propDataFlowZ", "propNumberCells",
         "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
         "propSplitVariantLabel", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "btnConvertRegionsToScreens", "rectList"
-        , "specModePanel", "specAutoBlocks"
+        , "specModePanel", "specAutoBlocks", "specModeClose"
       ]),
       toolbar: $("toolbarMain"),
       overflowToggle: $("toolbarOverflowToggle"),
@@ -3612,7 +3628,9 @@
       mobileDeps: {
         windowRef: window,
         el,
-        bindEvent: (...args) => bindEvent(...args)
+        bindEvent: (...args) => bindEvent(...args),
+        st,
+        normalizeViewMode
       },
       modalDeps: {
         windowRef: window,

@@ -101,7 +101,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
         const on = isRectLocked(r);
         const ic = on ? "fa-solid fa-lock" : "fa-solid fa-lock-open";
         if (node._lock.innerHTML !== `<i class="${ic}"></i>`) node._lock.innerHTML = `<i class="${ic}"></i>`;
-        node._lock.classList.toggle("btn-secondary", on);
+        node._lock.classList.toggle("btn-primary", on);
         node._lock.classList.toggle("btn-outline-secondary", !on);
         node._lock.title = on ? "Разблокировать экран" : "Заблокировать экран";
         node._lock.setAttribute("aria-label", node._lock.title);
