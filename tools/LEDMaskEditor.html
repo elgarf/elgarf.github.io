@@ -561,6 +561,7 @@
     .canvas-wrap {
       position: absolute;
       inset: 0;
+      z-index: 1;
       background: var(--bs-body-bg);
       min-height: 0;
       min-width: 0;
@@ -594,7 +595,8 @@
       position: absolute;
       inset: 0;
       z-index: 25;
-      overflow: auto;
+      overflow-y: auto;
+      overflow-x: hidden;
       padding: 12px;
       background: var(--spec-bg);
       backdrop-filter: blur(2px);
@@ -616,6 +618,8 @@
     .spec-mode-scroll {
       display: grid;
       gap: 8px;
+      width: 100%;
+      min-width: 0;
       max-width: 1100px;
       padding-top: 40px;
       margin: 0 auto;
@@ -795,6 +799,17 @@
       min-height: 160px !important;
       max-height: 160px !important;
       overflow: auto !important;
+      overflow-x: auto !important;
+      overflow-y: auto !important;
+    }
+    .spec-mode-manual-edit .CodeMirror-wrap .CodeMirror-scroll {
+      overflow-x: auto !important;
+    }
+    .spec-mode-manual-edit .CodeMirror pre {
+      white-space: pre-wrap !important;
+      word-break: normal !important;
+      overflow-wrap: normal !important;
+      word-wrap: normal !important;
     }
     .spec-mode-manual-edit textarea {
       caret-color: var(--spec-caret);
@@ -887,6 +902,9 @@
       }
     }
     @media (min-width:901px) {
+      .canvas-wrap[data-view-mode="spec"] {
+        z-index: 1120;
+      }
       .spec-mode-panel {
         z-index: 1120;
       }

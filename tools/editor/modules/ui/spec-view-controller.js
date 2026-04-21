@@ -245,6 +245,7 @@ export const setupSpecViewController = (deps = {}) => {
           status: false,
           autoDownloadFontAwesome: false,
           forceSync: true,
+          lineWrapping: true,
           sideBySideFullscreen: false,
           toolbar: [
             "bold", "italic", "heading", "|",
