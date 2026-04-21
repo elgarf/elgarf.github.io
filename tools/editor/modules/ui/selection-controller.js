@@ -5,6 +5,7 @@ export const setupSelectionController = (deps = {}) => {
     isRectLocked,
     rectAABB,
     rectAABBMasked,
+    rectIntersectsSelectionBoxVisible,
     refreshPropsListRender
   } = deps;
 
@@ -122,8 +123,11 @@ export const setupSelectionController = (deps = {}) => {
       refreshPropsListRender();
       return true;
     }
+    const intersects = typeof rectIntersectsSelectionBoxVisible === "function"
+      ? rectIntersectsSelectionBoxVisible
+      : ((r, boxBounds) => rectIntersectsBox(rectAABBMasked(r), boxBounds));
     const ids = st.rects
-      .filter(r => !isRectLocked(r) && rectIntersectsBox(rectAABBMasked(r), b))
+      .filter(r => !isRectLocked(r) && intersects(r, b))
       .map(r => r.id);
     if (box.append) {
       normSelSet();
