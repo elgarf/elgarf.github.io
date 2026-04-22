@@ -123,6 +123,11 @@ export const setupRenderRuntimeController = (deps = {}) => {
       }
       ctx.restore();
     };
+    if (st.dg.refs && Array.isArray(st.dg.refs)) {
+      for (const r of st.dg.refs) drawDim(r, "#ffd77a", 0);
+      drawDim(st.dg, "#71d7ff", 18);
+      return;
+    }
     if (st.dg.ref) drawDim(st.dg.ref, "#ffd77a", 0);
     drawDim(st.dg, "#71d7ff", 18);
   };
