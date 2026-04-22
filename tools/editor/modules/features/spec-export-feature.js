@@ -274,14 +274,17 @@ export const setupSpecExportFeature = (deps = {}) => {
     return { cabinetBySize, cableByLen, visibleAreaM2 };
   };
 
-  const buildFlowSpecText = () => buildFlowLinksSpecText({
+  const buildFlowSpecText = (options = {}) => buildFlowLinksSpecText({
     rects: st.rects,
     isNoteRect,
     buildInterScreenSpecData,
     parseScreenNameGroup,
     buildRectSpecData,
     buildRectRigSpecData,
-    fmtMeters
+    fmtMeters,
+    specCustomSections: st.specCustomSections,
+    specCustomText: st.specCustomText,
+    includeManual: !!(options && options.includeManual)
   });
 
   const { exportPackage } = setupExportPackageController({
@@ -301,7 +304,7 @@ export const setupSpecExportFeature = (deps = {}) => {
     getGlobalSaveLocationId,
     saveStatus,
     saveBlobWithSystemDialog,
-    buildFlowSpecText,
+    buildFlowSpecText: () => buildFlowSpecText({ includeManual: true }),
     showMessageModal
   });
 

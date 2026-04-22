@@ -289,7 +289,6 @@ export const setupSpecViewController = (deps = {}) => {
       const hasManual = !!custom.trim();
       const manual = isEditableSection(s)
         ? (`<div class="spec-mode-manual">`
-          + `<div class="spec-mode-manual-title">Ручное дополнение (Markdown)</div>`
           + `<div class="spec-mode-manual-edit">`
           + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${escapeHtml(s.key)}" placeholder="- Доп. пункт 1&#10;- Доп. пункт 2">${escapeHtml(custom)}</textarea>`
           + `</div>`
@@ -320,7 +319,6 @@ export const setupSpecViewController = (deps = {}) => {
       `<section class="spec-mode-block spec-mode-parent ${globalHasManual ? "has-manual" : ""}" data-section-key="${GLOBAL_SPEC_KEY}">`
       + `<header>Общее дополнение</header>`
       + `<div class="spec-mode-manual">`
-      + `<div class="spec-mode-manual-title">Ручное дополнение (Markdown)</div>`
       + `<div class="spec-mode-manual-edit">`
       + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${GLOBAL_SPEC_KEY}" placeholder="- Общие замечания">${escapeHtml(globalText)}</textarea>`
       + `</div>`
