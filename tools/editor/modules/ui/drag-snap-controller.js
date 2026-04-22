@@ -75,7 +75,7 @@ export const setupDragSnapController = (deps = {}) => {
       if (bb.maxY > maxY) maxY = bb.maxY;
     }
     if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) { minX = minY = maxX = maxY = 0; }
-    st.drag = { id: target.id, sx: p.x, sy: p.y, items, groupBb: { minX, minY, maxX, maxY }, selectedIds: new Set(items.map(it => it.id)) };
+    st.drag = { id: target.id, sx: p.x, sy: p.y, moved: false, items, groupBb: { minX, minY, maxX, maxY }, selectedIds: new Set(items.map(it => it.id)) };
   };
 
   const snapGroup = (nx, ny, drag, off) => {
@@ -132,6 +132,16 @@ export const setupDragSnapController = (deps = {}) => {
 
   const moveRectDrag = (p, disableSnap) => {
     if (!st.drag || !Array.isArray(st.drag.items) || !st.drag.items.length) return;
+    const DRAG_START_THRESHOLD_PX = 8;
+    const thresholdWorld = DRAG_START_THRESHOLD_PX / Math.max(0.2, Number(st.zoom) || 1);
+    const movedDist = Math.hypot((+p.x || 0) - (+st.drag.sx || 0), (+p.y || 0) - (+st.drag.sy || 0));
+    if (!st.drag.moved && movedDist < thresholdWorld) {
+      st.g.x = null;
+      st.g.y = null;
+      st.dg = null;
+      return;
+    }
+    st.drag.moved = true;
     const anchor = st.drag.items.find(it => it.id === st.drag.id) || st.drag.items[0];
     if (!anchor) return;
     const nx = anchor.rx + (p.x - st.drag.sx), ny = anchor.ry + (p.y - st.drag.sy), sn = (st.drag.items.length > 1) ? snapGroup(nx, ny, st.drag, disableSnap) : snap(nx, ny, anchor.id, anchor.w, anchor.h, disableSnap), dx = sn.x - anchor.rx, dy = sn.y - anchor.ry;

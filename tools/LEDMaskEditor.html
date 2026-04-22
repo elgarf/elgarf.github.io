@@ -2863,7 +2863,10 @@
       makeEmptyProjectData: name => makeEmptyProjectData(name),
       buildProject: () => buildProject(),
       loadProjectIntoActiveState: data => loadProjectIntoActiveState(data),
-      onTabActivated: () => { if (typeof syncProps === "function") syncProps(); },
+      onTabActivated: () => {
+        if (typeof syncProps === "function") syncProps();
+        if (typeof listRects === "function") listRects();
+      },
       schedulePersistRef: fn => { schedulePersist = fn; },
       lsSet,
       TABS_SAVE_KEY,

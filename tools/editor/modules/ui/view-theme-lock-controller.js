@@ -82,6 +82,10 @@ export const setupViewThemeLockController = (deps = {}) => {
 
   const setLockAll = (next, persist = true) => {
     st.lockAll = !!next;
+    st.sel = null;
+    if (!(st.selSet instanceof Set)) st.selSet = new Set();
+    else st.selSet.clear();
+    st.selMultiBase = null;
     updateLockAllUi();
     if (typeof commitProjectChange === "function") {
       commitProjectChange({ syncProps: true, persist, persistKind: "project", render: true });

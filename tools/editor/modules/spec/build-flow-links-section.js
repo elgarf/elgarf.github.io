@@ -101,7 +101,7 @@ const buildScreenSpecSection = (deps = {}) => {
   const hM = fmtMeters((+r.height || 0) / Math.max(1, +r.scale || 256));
   const out = [
     `###### ${name} (${Math.round(r.width)}x${Math.round(r.height)} px / ${wM} x ${hM} м)`,
-    `- Группа: ${group}`
+    `* Группа: ${group}`
   ];
   pushSpecListLine(out, "Кабинеты", cabinetList);
   pushSpecListLine(out, "Коммутация", cableList);
@@ -129,7 +129,7 @@ const buildSummarySection = (deps = {}) => {
   const frameBracketCount = rec.frameCount + rec.bottomRowFrameCount;
   const lines = [
     `###### Группа: ${group}`,
-    `- Площадь экранов: ${fmtAreaM2(rec.visibleAreaM2)} м²`
+    `* Площадь экранов: ${fmtAreaM2(rec.visibleAreaM2)} м²`
   ];
   pushSpecListLine(lines, "Кабинеты", cab);
   pushSpecListLine(lines, "Коммутация", cbl);
