@@ -277,15 +277,9 @@ export const setupFlowDrawController = (deps = {}) => {
         c.stroke();
       }
       if (arrows.length) {
-        c.beginPath();
-        for (const a of arrows) {
-          c.moveTo(a.tx, a.ty);
-          c.lineTo(a.bx + a.nx * (a.s * 1.22), a.by + a.ny * (a.s * 1.22));
-          c.lineTo(a.bx - a.nx * (a.s * 1.22), a.by - a.ny * (a.s * 1.22));
-          c.closePath();
-        }
-        c.fillStyle = flowOutline;
-        c.fill();
+        c.save();
+        c.lineJoin = "round";
+        c.lineCap = "round";
         c.beginPath();
         for (const a of arrows) {
           c.moveTo(a.tx, a.ty);
@@ -293,11 +287,12 @@ export const setupFlowDrawController = (deps = {}) => {
           c.lineTo(a.bx - a.nx * a.s, a.by - a.ny * a.s);
           c.closePath();
         }
+        c.strokeStyle = flowOutline;
+        c.lineWidth = 2.2;
+        c.stroke();
         c.fillStyle = fill;
         c.fill();
-        c.strokeStyle = flowOutline;
-        c.lineWidth = 1.2;
-        c.stroke();
+        c.restore();
       }
       if (drewGroup && lastDrawnPointIndex > 1) {
         c.beginPath();

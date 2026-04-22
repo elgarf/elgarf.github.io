@@ -25,20 +25,22 @@ export const setupRenderRuntimeController = (deps = {}) => {
     ctx.save();
     ctx.strokeStyle = "rgba(147,177,207,.09)";
     ctx.lineWidth = 1;
+    const vPath = new Path2D();
     for (let x = sx; x <= ex; x += step) {
       const px = w2s(x, 0).x;
-      ctx.beginPath();
-      ctx.moveTo(Math.round(px) + .5, 0);
-      ctx.lineTo(Math.round(px) + .5, cv.clientHeight);
-      ctx.stroke();
+      const xp = Math.round(px) + .5;
+      vPath.moveTo(xp, 0);
+      vPath.lineTo(xp, cv.clientHeight);
     }
+    ctx.stroke(vPath);
+    const hPath = new Path2D();
     for (let y = sy; y <= ey; y += step) {
       const py = w2s(0, y).y;
-      ctx.beginPath();
-      ctx.moveTo(0, Math.round(py) + .5);
-      ctx.lineTo(cv.clientWidth, Math.round(py) + .5);
-      ctx.stroke();
+      const yp = Math.round(py) + .5;
+      hPath.moveTo(0, yp);
+      hPath.lineTo(cv.clientWidth, yp);
     }
+    ctx.stroke(hPath);
     ctx.restore();
   };
 

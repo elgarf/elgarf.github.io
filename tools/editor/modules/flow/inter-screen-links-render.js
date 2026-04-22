@@ -49,6 +49,14 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     if (!force && normalizeViewMode(st.viewMode) !== "install" && st.mode !== "flowEdit") return;
     const links = normalizeFlowLinks(st.flowLinks);
     st.flowLinkSegments = [];
+    const strokeOutlinedPath = (path, outlineColor, outlineWidth, color, width) => {
+      c.strokeStyle = outlineColor;
+      c.lineWidth = outlineWidth;
+      c.stroke(path);
+      c.strokeStyle = color;
+      c.lineWidth = width;
+      c.stroke(path);
+    };
     const hoverSegKey = st.flowLinkHover && st.flowLinkHover.key ? String(st.flowLinkHover.key) : "";
     const linkDrag = st.mode === "flowEdit" ? st.flowLinkDrag : null;
     const dragTargetKey = (linkDrag && linkDrag.target) ? flowAnchorKey(linkDrag.target) : "";
@@ -74,18 +82,16 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       }
       c.save();
       const baseW = Math.max(1.2, 2.2 / Math.max(0.2, st.zoom || 1));
-      c.strokeStyle = "rgba(12,16,22,.92)";
-      c.lineWidth = baseW + Math.max(1.2, 1.8 / Math.max(0.25, st.zoom || 1));
-      c.beginPath();
-      c.moveTo(a.x, a.y);
-      for (const p of pts) c.lineTo(p.x, p.y);
-      c.stroke();
-      c.strokeStyle = strokeColor;
-      c.lineWidth = baseW;
-      c.beginPath();
-      c.moveTo(a.x, a.y);
-      for (const p of pts) c.lineTo(p.x, p.y);
-      c.stroke();
+      const path = new Path2D();
+      path.moveTo(a.x, a.y);
+      for (const p of pts) path.lineTo(p.x, p.y);
+      strokeOutlinedPath(
+        path,
+        "rgba(12,16,22,.92)",
+        baseW + Math.max(1.2, 1.8 / Math.max(0.25, st.zoom || 1)),
+        strokeColor,
+        baseW
+      );
       c.restore();
       const t0 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.48);
       const t1 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.52);
@@ -104,18 +110,16 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const previewColor = linkDrag.canLink ? "rgba(255,193,7,.98)" : "rgba(255,99,99,.98)";
       const previewW = Math.max(1.4, 2.4 / Math.max(0.2, st.zoom || 1));
       c.setLineDash([7 / Math.max(0.2, st.zoom || 1), 5 / Math.max(0.2, st.zoom || 1)]);
-      c.strokeStyle = "rgba(12,16,22,.92)";
-      c.lineWidth = previewW + Math.max(1.2, 1.8 / Math.max(0.25, st.zoom || 1));
-      c.beginPath();
-      c.moveTo(a.x, a.y);
-      c.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y);
-      c.stroke();
-      c.strokeStyle = previewColor;
-      c.lineWidth = previewW;
-      c.beginPath();
-      c.moveTo(a.x, a.y);
-      c.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y);
-      c.stroke();
+      const previewPath = new Path2D();
+      previewPath.moveTo(a.x, a.y);
+      previewPath.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y);
+      strokeOutlinedPath(
+        previewPath,
+        "rgba(12,16,22,.92)",
+        previewW + Math.max(1.2, 1.8 / Math.max(0.25, st.zoom || 1)),
+        previewColor,
+        previewW
+      );
       c.setLineDash([]);
       c.restore();
       const t0 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.48);

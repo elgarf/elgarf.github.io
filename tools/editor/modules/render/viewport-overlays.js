@@ -20,6 +20,7 @@ export const setupViewportOverlays = (deps = {}) => {
   const cellBoundaryCache = { key: "", value: [] };
   const cellSummaryCache = { key: "", value: null };
   const cellOverlayPathCache = { key: "", gridPath: null, borderPath: null };
+  const maskNodesPathCache = { key: "", dot: 0, path: null };
   const keyOf = (...parts) => parts.join("|");
 
   const getComponentBoundarySegmentsLocalCached = (r, cx, cy, topo) => {
@@ -110,13 +111,43 @@ export const setupViewportOverlays = (deps = {}) => {
     const hoverCol = darkTheme ? "rgba(255,255,255,.9)" : "rgba(0,0,0,.85)";
     const axes = getMaskNodeAxes(r);
     const dot = Math.max(1.8, 2.6 / z);
-    for (const gy of axes.ys) {
-      for (const gx of axes.xs) {
-        const p = rectUVToWorld(r, gx, gy);
-        c.fillStyle = nodeCol;
-        c.beginPath();
-        c.arc(p.x, p.y, dot, 0, Math.PI * 2);
-        c.fill();
+    const zq = Math.max(1, Math.round((Number(z) || 1) * 100) / 100);
+    const nodeKey = keyOf(
+      Math.max(0, Math.round(Number(r && r.id) || 0)),
+      Math.round(Number(r && r.x) || 0),
+      Math.round(Number(r && r.y) || 0),
+      Math.max(1, Math.round(Number(r && r.width) || 1)),
+      Math.max(1, Math.round(Number(r && r.height) || 1)),
+      Math.round(Number(r && r.rotation) || 0),
+      Math.max(1, Math.round(Number(drawCellX(r)) || 1)),
+      Math.max(1, Math.round(Number(drawCellY(r)) || 1)),
+      zq
+    );
+    if (typeof Path2D !== "undefined") {
+      if (maskNodesPathCache.key !== nodeKey || !maskNodesPathCache.path || Math.abs((maskNodesPathCache.dot || 0) - dot) > 1e-6) {
+        const p = new Path2D();
+        for (const gy of axes.ys) {
+          for (const gx of axes.xs) {
+            const wp = rectUVToWorld(r, gx, gy);
+            p.moveTo(wp.x + dot, wp.y);
+            p.arc(wp.x, wp.y, dot, 0, Math.PI * 2);
+          }
+        }
+        maskNodesPathCache.key = nodeKey;
+        maskNodesPathCache.dot = dot;
+        maskNodesPathCache.path = p;
+      }
+      c.fillStyle = nodeCol;
+      c.fill(maskNodesPathCache.path);
+    } else {
+      for (const gy of axes.ys) {
+        for (const gx of axes.xs) {
+          const p = rectUVToWorld(r, gx, gy);
+          c.fillStyle = nodeCol;
+          c.beginPath();
+          c.arc(p.x, p.y, dot, 0, Math.PI * 2);
+          c.fill();
+        }
       }
     }
     if (st.maskPath.length) {
