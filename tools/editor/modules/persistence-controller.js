@@ -1,3 +1,5 @@
+import { createDebounced } from "./utils/debounce.js";
+
 export const setupPersistenceController = (deps = {}) => {
   const {
     el, lsSet, lsGet, buildTabsBundle, buildProject,
@@ -5,11 +7,23 @@ export const setupPersistenceController = (deps = {}) => {
     historyCommitIfChanged
   } = deps;
 
-  let persistTimer = null;
   let persistTabsDirty = false;
   let persistProjectDirty = false;
   let lastTabsJson = "";
   let lastProjectJson = "";
+  const markDirty = kind => {
+    if (kind === "tabs" || kind === "all") persistTabsDirty = true;
+    if (kind === "project" || kind === "all") {
+      persistProjectDirty = true;
+      persistTabsDirty = true;
+    }
+  };
+  const saveJsonIfChanged = (key, nextObj, prevJson) => {
+    const nextJson = JSON.stringify(nextObj);
+    if (nextJson === prevJson) return prevJson;
+    lsSet(key, nextJson);
+    return nextJson;
+  };
 
   const formatTimeHHMMSS = d => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
   const setSaveIndicator = (text, tone = "secondary") => {
@@ -45,11 +59,7 @@ export const setupPersistenceController = (deps = {}) => {
   const persistNow = () => {
     try {
       if (persistTabsDirty) {
-        const tabsJson = JSON.stringify(buildTabsBundle());
-        if (tabsJson !== lastTabsJson) {
-          lsSet(TABS_SAVE_KEY, tabsJson);
-          lastTabsJson = tabsJson;
-        }
+        lastTabsJson = saveJsonIfChanged(TABS_SAVE_KEY, buildTabsBundle(), lastTabsJson);
         persistTabsDirty = false;
       }
       if (!persistProjectDirty) { saveStatus.saved(); return; }
@@ -59,29 +69,21 @@ export const setupPersistenceController = (deps = {}) => {
         saveStatus.error("Защита автосейва: пустой проект не записан");
         return;
       }
-      const projectJson = JSON.stringify(nextProject);
-      if (projectJson !== lastProjectJson) {
-        lsSet(AUTO_SAVE_KEY, projectJson);
-        lastProjectJson = projectJson;
-      }
+      lastProjectJson = saveJsonIfChanged(AUTO_SAVE_KEY, nextProject, lastProjectJson);
       saveStatus.saved();
     } catch (_e) {
       saveStatus.error();
     }
   };
+  const persistDebounced = createDebounced(() => {
+    persistNow();
+  }, PERSIST_DEBOUNCE_MS);
+
   const schedulePersist = (kind = "project") => {
-    if (kind === "tabs" || kind === "all") persistTabsDirty = true;
-    if (kind === "project" || kind === "all") {
-      persistProjectDirty = true;
-      persistTabsDirty = true;
-      if (typeof historyCommitIfChanged === "function") historyCommitIfChanged();
-    }
+    markDirty(kind);
+    if ((kind === "project" || kind === "all") && typeof historyCommitIfChanged === "function") historyCommitIfChanged();
     saveStatus.saving();
-    if (persistTimer) clearTimeout(persistTimer);
-    persistTimer = setTimeout(() => {
-      persistTimer = null;
-      persistNow();
-    }, PERSIST_DEBOUNCE_MS);
+    persistDebounced.schedule();
   };
 
   return { setSaveIndicator, saveStatus, persistNow, schedulePersist };

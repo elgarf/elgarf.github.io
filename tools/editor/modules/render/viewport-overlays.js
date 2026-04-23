@@ -21,24 +21,53 @@ export const setupViewportOverlays = (deps = {}) => {
   const cellOverlayPathCache = { key: "", gridPath: null, borderPath: null };
   const maskNodesPathCache = { key: "", dot: 0, path: null };
   const keyOf = (...parts) => parts.join("|");
+  const toIntMin = (v, min = 0) => Math.max(min, Math.round(Number(v) || 0));
+  const toPosInt = v => toIntMin(v, 1);
+  const darkThemeOn = () => (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark";
+  const appendGridLines = (path, count, step, extent, cx, cy, vertical = true) => {
+    for (let i = 0; i <= count; i += step) {
+      if (vertical) {
+        const x = Math.min(extent.w, i * cx);
+        const lx = -extent.w / 2 + x;
+        path.moveTo(lx, -extent.h / 2);
+        path.lineTo(lx, extent.h / 2);
+      } else {
+        const y = Math.min(extent.h, i * cy);
+        const ly = -extent.h / 2 + y;
+        path.moveTo(-extent.w / 2, ly);
+        path.lineTo(extent.w / 2, ly);
+      }
+    }
+    if (count % step !== 0) {
+      if (vertical) {
+        const lx = -extent.w / 2 + extent.w;
+        path.moveTo(lx, -extent.h / 2);
+        path.lineTo(lx, extent.h / 2);
+      } else {
+        const ly = -extent.h / 2 + extent.h;
+        path.moveTo(-extent.w / 2, ly);
+        path.lineTo(extent.w / 2, ly);
+      }
+    }
+  };
 
   const getComponentBoundarySegmentsLocalCached = (r, cx, cy, topo) => {
     const key = keyOf(
-      Math.max(0, Math.round(Number(r && r.id) || 0)),
-      Math.max(1, Math.round(Number(r && r.width) || 1)),
-      Math.max(1, Math.round(Number(r && r.height) || 1)),
-      Math.max(1, Math.round(Number(cx) || 1)),
-      Math.max(1, Math.round(Number(cy) || 1)),
-      Math.max(1, Math.round(Number(topo && topo.cols) || 1)),
-      Math.max(1, Math.round(Number(topo && topo.rows) || 1)),
+      toIntMin(r && r.id, 0),
+      toPosInt(r && r.width),
+      toPosInt(r && r.height),
+      toPosInt(cx),
+      toPosInt(cy),
+      toPosInt(topo && topo.cols),
+      toPosInt(topo && topo.rows),
       listSignature(r && r.cellLinks)
     );
     if (cellBoundaryCache.key === key && Array.isArray(cellBoundaryCache.value)) return cellBoundaryCache.value;
     const segs = [];
-    const w = Math.max(1, Math.round(Number(r && r.width) || 1));
-    const h = Math.max(1, Math.round(Number(r && r.height) || 1));
-    const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
-    const rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
+    const w = toPosInt(r && r.width);
+    const h = toPosInt(r && r.height);
+    const cols = toPosInt(topo && topo.cols);
+    const rows = toPosInt(topo && topo.rows);
     const comp = Array.isArray(topo && topo.comp) ? topo.comp : [];
     const compAt = (x, y) => comp[y * cols + x];
     for (let ky = 0; ky <= rows; ky++) {
@@ -98,21 +127,21 @@ export const setupViewportOverlays = (deps = {}) => {
     if (!isMaskMode()) return;
     const r = cur();
     if (!r) return;
-    const darkTheme = (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark";
+    const darkTheme = darkThemeOn();
     const nodeCol = darkTheme ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.34)";
     const hoverCol = darkTheme ? "rgba(255,255,255,.9)" : "rgba(0,0,0,.85)";
     const axes = getMaskNodeAxes(r);
     const dot = Math.max(1.8, 2.6 / z);
     const zq = Math.max(1, Math.round((Number(z) || 1) * 100) / 100);
     const nodeKey = keyOf(
-      Math.max(0, Math.round(Number(r && r.id) || 0)),
-      Math.round(Number(r && r.x) || 0),
-      Math.round(Number(r && r.y) || 0),
-      Math.max(1, Math.round(Number(r && r.width) || 1)),
-      Math.max(1, Math.round(Number(r && r.height) || 1)),
-      Math.round(Number(r && r.rotation) || 0),
-      Math.max(1, Math.round(Number(drawCellX(r)) || 1)),
-      Math.max(1, Math.round(Number(drawCellY(r)) || 1)),
+      toIntMin(r && r.id, 0),
+      toIntMin(r && r.x, 0),
+      toIntMin(r && r.y, 0),
+      toPosInt(r && r.width),
+      toPosInt(r && r.height),
+      toIntMin(r && r.rotation, 0),
+      toPosInt(drawCellX(r)),
+      toPosInt(drawCellY(r)),
       zq
     );
     if (typeof Path2D !== "undefined") {
@@ -175,7 +204,7 @@ export const setupViewportOverlays = (deps = {}) => {
     if (!isCellEditMode()) return;
     const r = cur();
     if (!r) return;
-    const darkTheme = (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark";
+    const darkTheme = darkThemeOn();
     const gridCol = darkTheme ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.28)";
     const boundCol = darkTheme ? "rgba(255,255,255,.9)" : "rgba(0,0,0,.78)";
     const cx = drawCellX(r);
@@ -194,13 +223,13 @@ export const setupViewportOverlays = (deps = {}) => {
     const hasLinks = Array.isArray(r && r.cellLinks) && r.cellLinks.length > 0;
     const zQuant = Math.max(1, Math.round((Number(z) || 1) * 100) / 100);
     const pathKey = keyOf(
-      Math.max(0, Math.round(Number(r && r.id) || 0)),
-      Math.max(1, Math.round(Number(w) || 1)),
-      Math.max(1, Math.round(Number(h) || 1)),
-      Math.max(1, Math.round(Number(cx) || 1)),
-      Math.max(1, Math.round(Number(cy) || 1)),
-      Math.max(1, Math.round(Number(cols) || 1)),
-      Math.max(1, Math.round(Number(rows) || 1)),
+      toIntMin(r && r.id, 0),
+      toPosInt(w),
+      toPosInt(h),
+      toPosInt(cx),
+      toPosInt(cy),
+      toPosInt(cols),
+      toPosInt(rows),
       zQuant,
       listSignature(r && r.cellLinks)
     );
@@ -216,28 +245,9 @@ export const setupViewportOverlays = (deps = {}) => {
       const xStep = lineStepX * capStep;
       const yStep = lineStepY * capStep;
       const gridPath = new Path2D();
-      for (let ix = 0; ix <= cols; ix += xStep) {
-        const x = Math.min(w, ix * cx);
-        const lx = -w / 2 + x;
-        gridPath.moveTo(lx, -h / 2);
-        gridPath.lineTo(lx, h / 2);
-      }
-      if (cols % xStep !== 0) {
-        const lx = -w / 2 + w;
-        gridPath.moveTo(lx, -h / 2);
-        gridPath.lineTo(lx, h / 2);
-      }
-      for (let iy = 0; iy <= rows; iy += yStep) {
-        const y = Math.min(h, iy * cy);
-        const ly = -h / 2 + y;
-        gridPath.moveTo(-w / 2, ly);
-        gridPath.lineTo(w / 2, ly);
-      }
-      if (rows % yStep !== 0) {
-        const ly = -h / 2 + h;
-        gridPath.moveTo(-w / 2, ly);
-        gridPath.lineTo(w / 2, ly);
-      }
+      const extent = { w, h };
+      appendGridLines(gridPath, cols, xStep, extent, cx, cy, true);
+      appendGridLines(gridPath, rows, yStep, extent, cx, cy, false);
       const borderPath = new Path2D();
       if (hasLinks) {
         const bounds = getComponentBoundarySegmentsLocalCached(r, cx, cy, topo);
@@ -279,14 +289,14 @@ export const setupViewportOverlays = (deps = {}) => {
     const hp = st.cellHoverPos;
     if (hp && Number.isFinite(Number(hp.x)) && Number.isFinite(Number(hp.y))) {
       const summaryKey = keyOf(
-        Math.max(0, Math.round(Number(r && r.id) || 0)),
-        Math.max(1, Math.round(Number(r && r.width) || 1)),
-        Math.max(1, Math.round(Number(r && r.height) || 1)),
-        Math.max(1, Math.round(Number(cx) || 1)),
-        Math.max(1, Math.round(Number(cy) || 1)),
-        Math.max(1, Math.round(Number(topo && topo.cols) || 1)),
-        Math.max(1, Math.round(Number(topo && topo.rows) || 1)),
-        Math.max(1, Math.round(Number(r && r.scale) || 1)),
+        toIntMin(r && r.id, 0),
+        toPosInt(r && r.width),
+        toPosInt(r && r.height),
+        toPosInt(cx),
+        toPosInt(cy),
+        toPosInt(topo && topo.cols),
+        toPosInt(topo && topo.rows),
+        toPosInt(r && r.scale),
         listSignature(r && r.hiddenCells),
         listSignature(r && r.cellLinks)
       );
@@ -332,7 +342,7 @@ export const setupViewportOverlays = (deps = {}) => {
     const b = getContentBounds();
     if (!b) return;
     const { minX, minY, w, h } = b;
-    const darkTheme = (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark";
+    const darkTheme = darkThemeOn();
     const stroke = darkTheme ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.55)";
     const labelBg = darkTheme ? "rgba(15,19,24,.85)" : "rgba(255,255,255,.88)";
     const labelFg = darkTheme ? "rgba(255,255,255,.92)" : "rgba(17,24,39,.95)";

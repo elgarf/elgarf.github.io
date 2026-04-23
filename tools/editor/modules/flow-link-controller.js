@@ -13,18 +13,88 @@ export const setupFlowLinkController = (deps = {}) => {
   if (st && typeof st.debugFlowLink === "undefined") st.debugFlowLink = false;
 
   const flowLinkCheckDebugState = new Map();
+  const toIntMin = (v, min) => Math.max(min, Math.round(Number(v) || 0));
+  const toRectId = v => toIntMin(v, 1);
+  const toRid = v => toIntMin(v, 0);
+  const toCid = v => toIntMin(v, 0);
+  const posNum = (v, fallback = 1) => Math.max(1, Number(v) || fallback);
+  const round3 = v => Math.round((Number(v) || 0) * 1000) / 1000;
+  const sortNumAsc = (a, b) => a - b;
+  const sortStrAsc = (a, b) => String(a).localeCompare(String(b));
+  const toSortedNumbers = values => [...(values || [])].sort(sortNumAsc);
+  const toSortedStrings = values => [...(values || [])].sort(sortStrAsc);
+  const addAdjEdge = (adj, u, v) => {
+    const arr = adj.get(u) || [];
+    arr.push(v);
+    adj.set(u, arr);
+  };
+  const hasDirectedPath = (adj, from, to) => {
+    if (from === to) return true;
+    const q = [from];
+    const seen = new Set([from]);
+    while (q.length) {
+      const u = q.shift();
+      if (u === to) return true;
+      const next = adj.get(u) || [];
+      for (const v of next) {
+        if (seen.has(v)) continue;
+        seen.add(v);
+        q.push(v);
+      }
+    }
+    return false;
+  };
+  const collectUndirectedComponent = (adj, start) => {
+    const seen = new Set([start]);
+    const q = [start];
+    while (q.length) {
+      const u = q.shift();
+      const next = adj.get(u) || [];
+      for (const v of next) {
+        if (seen.has(v)) continue;
+        seen.add(v);
+        q.push(v);
+      }
+    }
+    return seen;
+  };
+  const debugChainRegionIds = rectRidMap => [...rectRidMap.entries()]
+    .map(([rectId, set]) => ({ rectId, regions: toSortedNumbers(set) }))
+    .sort((a, b) => a.rectId - b.rectId);
+  const debugNormalizedRects = rects => (rects || []).map(it => ({
+    id: it.id,
+    rectId: it.rectId,
+    rid: it.rid,
+    source: it.source,
+    w: round3(it.w),
+    h: round3(it.h)
+  }));
+  const endpointDebug = ep => ep ? {
+    rectId: toRectId(ep.rectId),
+    rid: toRid(ep.rid),
+    cid: toCid(ep.cid),
+    kind: String(ep.kind || "")
+  } : null;
+  const flowLinkPairKey = (from, to) => `${flowAnchorKey(from)}>${flowAnchorKey(to)}`;
+  const flowLinkKey = ln => flowLinkPairKey(ln && ln.from, ln && ln.to);
+  const regionNodeKey = (rectId, rid) => `${toRectId(rectId)}:${toRid(rid)}`;
+  const parseRegionNodeKey = key => {
+    const p = String(key || "").split(":");
+    return { rectId: toRectId(p[0]), rid: toRid(p[1]) };
+  };
+  const endpointNodeKey = ep => regionNodeKey(ep && ep.rectId, ep && ep.rid);
 
   const logCanLinkFlowAnchorsDebug = (a, b, ok, reason, extra = {}) => {
     if (!st || !st.debugFlowLink) return;
     try {
-      const fromId = Math.max(1, Math.round(Number(a && a.rectId) || 0));
-      const toId = Math.max(1, Math.round(Number(b && b.rectId) || 0));
+      const fromId = toRectId(a && a.rectId);
+      const toId = toRectId(b && b.rectId);
       const key = `${fromId}>${toId}`;
       const payload = {
         ok: !!ok,
         reason: String(reason || ""),
-        from: a ? { rectId: fromId, rid: Math.max(0, Math.round(Number(a.rid) || 0)), cid: Math.max(0, Math.round(Number(a.cid) || 0)), kind: String(a.kind || "") } : null,
-        to: b ? { rectId: toId, rid: Math.max(0, Math.round(Number(b.rid) || 0)), cid: Math.max(0, Math.round(Number(b.cid) || 0)), kind: String(b.kind || "") } : null,
+        from: endpointDebug(a),
+        to: endpointDebug(b),
         ...extra
       };
       const sig = JSON.stringify(payload);
@@ -52,9 +122,9 @@ export const setupFlowLinkController = (deps = {}) => {
     if (!a || !b) { logCanLinkFlowAnchorsDebug(a, b, false, "missing_anchor"); return false; }
     if (a.rectId === b.rectId) { logCanLinkFlowAnchorsDebug(a, b, false, "same_rect"); return false; }
     if (a.kind !== "end" || b.kind !== "start") { logCanLinkFlowAnchorsDebug(a, b, false, "invalid_kinds"); return false; }
-    const byId = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [Math.max(1, Math.round(Number(r && r.id) || 0)), r]));
-    const ra = byId.get(Math.max(1, Math.round(Number(a.rectId) || 0)));
-    const rb = byId.get(Math.max(1, Math.round(Number(b.rectId) || 0)));
+    const byId = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [toRectId(r && r.id), r]));
+    const ra = byId.get(toRectId(a.rectId));
+    const rb = byId.get(toRectId(b.rectId));
     if (!ra || !rb) { logCanLinkFlowAnchorsDebug(a, b, false, "rect_not_found"); return false; }
     const linksRaw = normalizeFlowLinks(st.flowLinks);
     const groupsByRectId = new Map();
@@ -72,38 +142,52 @@ export const setupFlowLinkController = (deps = {}) => {
     const isEndpointLive = ep => {
       const key = flowAnchorKey(ep);
       if (endpointLiveCache.has(key)) return endpointLiveCache.get(key);
-      const rectId = Math.max(1, Math.round(Number(ep && ep.rectId) || 0));
-      const rid = Math.max(0, Math.round(Number(ep && ep.rid) || 0));
-      const cid = Math.max(0, Math.round(Number(ep && ep.cid) || 0));
+      const rectId = toRectId(ep && ep.rectId);
+      const rid = toRid(ep && ep.rid);
+      const cid = toCid(ep && ep.cid);
       const kind = String(ep && ep.kind || "").toLowerCase() === "end" ? "end" : "start";
       const groups = getRectGroups(rectId);
-      const g = Array.isArray(groups) ? groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rid) : null;
+      const g = Array.isArray(groups) ? groups.find(it => toRid(it && it.rid) === rid) : null;
       const pts = Array.isArray(g && g.points) ? g.points : [];
       if (!pts.length) { endpointLiveCache.set(key, false); return false; }
       const p = kind === "end" ? pts[pts.length - 1] : pts[0];
-      const ok = Math.max(0, Math.round(Number(p && p.cid) || 0)) === cid;
+      const ok = toCid(p && p.cid) === cid;
       endpointLiveCache.set(key, ok);
       return ok;
     };
     const links = linksRaw.filter(ln => isEndpointLive(ln && ln.from) && isEndpointLive(ln && ln.to));
-    const fromRectId = Math.max(1, Math.round(Number(a.rectId) || 0));
-    const toRectId = Math.max(1, Math.round(Number(b.rectId) || 0));
+    const linkMeta = links.map(ln => {
+      const from = ln && ln.from;
+      const to = ln && ln.to;
+      return {
+        from,
+        to,
+        fromAnchor: flowAnchorKey(from),
+        toAnchor: flowAnchorKey(to),
+        fromRectId: toRectId(from && from.rectId),
+        toRectId: toRectId(to && to.rectId),
+        fromNode: endpointNodeKey(from),
+        toNode: endpointNodeKey(to)
+      };
+    });
+    const fromRectId = toRectId(a.rectId);
+    const targetRectId = toRectId(b.rectId);
     const fromAnchorKey = flowAnchorKey(a);
     const toAnchorKey = flowAnchorKey(b);
-    for (const ln of links) {
-      const lkFrom = flowAnchorKey(ln && ln.from);
-      const lkTo = flowAnchorKey(ln && ln.to);
+    for (const ln of linkMeta) {
+      const lkFrom = ln.fromAnchor;
+      const lkTo = ln.toAnchor;
       if (lkTo === toAnchorKey && lkFrom !== fromAnchorKey) {
         logCanLinkFlowAnchorsDebug(a, b, false, "start_already_linked", {
-          existingFrom: ln && ln.from ? { rectId: ln.from.rectId, rid: ln.from.rid, cid: ln.from.cid, kind: ln.from.kind } : null,
-          existingTo: ln && ln.to ? { rectId: ln.to.rectId, rid: ln.to.rid, cid: ln.to.cid, kind: ln.to.kind } : null
+          existingFrom: endpointDebug(ln.from),
+          existingTo: endpointDebug(ln.to)
         });
         return false;
       }
       if (lkFrom === fromAnchorKey && lkTo !== toAnchorKey) {
         logCanLinkFlowAnchorsDebug(a, b, false, "end_already_linked", {
-          existingFrom: ln && ln.from ? { rectId: ln.from.rectId, rid: ln.from.rid, cid: ln.from.cid, kind: ln.from.kind } : null,
-          existingTo: ln && ln.to ? { rectId: ln.to.rectId, rid: ln.to.rid, cid: ln.to.cid, kind: ln.to.kind } : null
+          existingFrom: endpointDebug(ln.from),
+          existingTo: endpointDebug(ln.to)
         });
         return false;
       }
@@ -111,65 +195,32 @@ export const setupFlowLinkController = (deps = {}) => {
     const edgeSet = new Set();
     const outAdj = new Map();
     const undirAdj = new Map();
-    const addDir = (u, v) => {
-      const arr = outAdj.get(u) || [];
-      arr.push(v);
-      outAdj.set(u, arr);
-    };
-    const addUndir = (u, v) => {
-      const ua = undirAdj.get(u) || [];
-      ua.push(v);
-      undirAdj.set(u, ua);
-      const va = undirAdj.get(v) || [];
-      va.push(u);
-      undirAdj.set(v, va);
-    };
-    for (const ln of links) {
-      const u = Math.max(1, Math.round(Number(ln && ln.from && ln.from.rectId) || 0));
-      const v = Math.max(1, Math.round(Number(ln && ln.to && ln.to.rectId) || 0));
+    for (const ln of linkMeta) {
+      const u = ln.fromRectId;
+      const v = ln.toRectId;
       if (!u || !v) continue;
       const k = `${u}>${v}`;
       if (edgeSet.has(k)) continue;
       edgeSet.add(k);
-      addDir(u, v);
-      addUndir(u, v);
+      addAdjEdge(outAdj, u, v);
+      addAdjEdge(undirAdj, u, v);
+      addAdjEdge(undirAdj, v, u);
     }
-    if (!edgeSet.has(`${fromRectId}>${toRectId}`)) {
-      addDir(fromRectId, toRectId);
-      addUndir(fromRectId, toRectId);
+    if (!edgeSet.has(`${fromRectId}>${targetRectId}`)) {
+      addAdjEdge(outAdj, fromRectId, targetRectId);
+      addAdjEdge(undirAdj, fromRectId, targetRectId);
+      addAdjEdge(undirAdj, targetRectId, fromRectId);
     }
-    const wouldMakeCycle = () => {
-      if (fromRectId === toRectId) return true;
-      const q = [toRectId];
-      const seen = new Set([toRectId]);
-      while (q.length) {
-        const u = q.shift();
-        if (u === fromRectId) return true;
-        const next = outAdj.get(u) || [];
-        for (const v of next) {
-          if (seen.has(v)) continue;
-          seen.add(v);
-          q.push(v);
-        }
-      }
-      return false;
-    };
-    const cycle = wouldMakeCycle();
-    if (cycle) { logCanLinkFlowAnchorsDebug(a, b, false, "cycle_detected", { fromRectId, toRectId }); return false; }
-    const regionNodeKey = (rectId, rid) => `${Math.max(1, Math.round(Number(rectId) || 0))}:${Math.max(0, Math.round(Number(rid) || 0))}`;
-    const parseRegionNodeKey = key => {
-      const p = String(key || "").split(":");
-      return { rectId: Math.max(1, Math.round(Number(p[0]) || 0)), rid: Math.max(0, Math.round(Number(p[1]) || 0)) };
-    };
-    const endpointNodeKey = ep => regionNodeKey(ep && ep.rectId, ep && ep.rid);
+    const cycle = hasDirectedPath(outAdj, targetRectId, fromRectId);
+    if (cycle) { logCanLinkFlowAnchorsDebug(a, b, false, "cycle_detected", { fromRectId, toRectId: targetRectId }); return false; }
     const nodeMetaMap = new Map();
     const rememberNodeMeta = ep => {
       if (!ep) return;
       const key = endpointNodeKey(ep);
-      const rectId = Math.max(1, Math.round(Number(ep.rectId) || 0));
-      const rid = Math.max(0, Math.round(Number(ep.rid) || 0));
+      const rectId = toRectId(ep.rectId);
+      const rid = toRid(ep.rid);
       const cidRaw = Number(ep.cid);
-      const cid = Number.isFinite(cidRaw) ? Math.max(0, Math.round(cidRaw)) : null;
+      const cid = Number.isFinite(cidRaw) ? toCid(cidRaw) : null;
       const prev = nodeMetaMap.get(key);
       if (!prev) {
         nodeMetaMap.set(key, { rectId, rid, cid });
@@ -177,9 +228,9 @@ export const setupFlowLinkController = (deps = {}) => {
       }
       if (prev.cid == null && cid != null) prev.cid = cid;
     };
-    for (const ln of links) {
-      rememberNodeMeta(ln && ln.from);
-      rememberNodeMeta(ln && ln.to);
+    for (const ln of linkMeta) {
+      rememberNodeMeta(ln.from);
+      rememberNodeMeta(ln.to);
     }
     rememberNodeMeta(a);
     rememberNodeMeta(b);
@@ -193,26 +244,16 @@ export const setupFlowLinkController = (deps = {}) => {
       a2.push(k1);
       regionAdj.set(k2, a2);
     };
-    for (const ln of links) addRegionEdge(endpointNodeKey(ln && ln.from), endpointNodeKey(ln && ln.to));
+    for (const ln of linkMeta) addRegionEdge(ln.fromNode, ln.toNode);
     const fromNode = endpointNodeKey(a);
     const toNode = endpointNodeKey(b);
     addRegionEdge(fromNode, toNode);
-    const chainNodeSet = new Set([fromNode]);
-    const queue = [fromNode];
-    while (queue.length) {
-      const curNode = queue.shift();
-      const next = regionAdj.get(curNode) || [];
-      for (const v of next) {
-        if (chainNodeSet.has(v)) continue;
-        chainNodeSet.add(v);
-        queue.push(v);
-      }
-    }
+    const chainNodeSet = collectUndirectedComponent(regionAdj, fromNode);
     if (!chainNodeSet.has(toNode)) { logCanLinkFlowAnchorsDebug(a, b, false, "region_chain_disconnected", { fromNode, toNode }); return false; }
     const chainEdges = [];
-    for (const ln of links) {
-      const fk = endpointNodeKey(ln && ln.from);
-      const tk = endpointNodeKey(ln && ln.to);
+    for (const ln of linkMeta) {
+      const fk = ln.fromNode;
+      const tk = ln.toNode;
       if (!chainNodeSet.has(fk) || !chainNodeSet.has(tk)) continue;
       chainEdges.push({ from: fk, to: tk });
     }
@@ -227,68 +268,75 @@ export const setupFlowLinkController = (deps = {}) => {
       chainIds.add(m.rectId);
     }
     const regionBBoxCache = new Map();
+    const makeBounds = () => ({ minU: Infinity, minV: Infinity, maxU: -Infinity, maxV: -Infinity });
+    const expandBounds = (bounds, minU, minV, maxU, maxV) => {
+      bounds.minU = Math.min(bounds.minU, minU);
+      bounds.minV = Math.min(bounds.minV, minV);
+      bounds.maxU = Math.max(bounds.maxU, maxU);
+      bounds.maxV = Math.max(bounds.maxV, maxV);
+    };
+    const boundsToLocalBox = bounds => {
+      const { minU, minV, maxU, maxV } = bounds || {};
+      const valid = Number.isFinite(minU) && Number.isFinite(minV) && Number.isFinite(maxU) && Number.isFinite(maxV) && maxU > minU && maxV > minV;
+      if (!valid) return null;
+      return { minU, minV, maxU, maxV, w: Math.max(1, maxU - minU), h: Math.max(1, maxV - minV) };
+    };
+    const rectLocalBoxFromAabb = rr => {
+      const rb = rectAABBMasked(rr);
+      const w = Math.max(1, rb.maxX - rb.minX);
+      const h = Math.max(1, rb.maxY - rb.minY);
+      return { minU: 0, minV: 0, maxU: w, maxV: h, w, h };
+    };
     const getRegionBBoxLocalPx = (rr, rid) => {
-      const rectId = Math.max(1, Math.round(Number(rr && rr.id) || 0));
-      const rg = Math.max(0, Math.round(Number(rid) || 0));
+      const rectId = toRectId(rr && rr.id);
+      const rg = toRid(rid);
       const key = `${rectId}:${rg}`;
       if (regionBBoxCache.has(key)) return regionBBoxCache.get(key);
       const cx = drawCellX(rr);
       const cy = drawCellY(rr);
       const rt = getRectRuntime(rr, { withGroups: true });
       const groups = rt.groups;
-      const g = (Array.isArray(groups) ? groups : []).find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg);
+      const g = (Array.isArray(groups) ? groups : []).find(it => toRid(it && it.rid) === rg);
       if (!g || !Array.isArray(g.points) || !g.points.length) { regionBBoxCache.set(key, null); return null; }
-      let minU = Infinity;
-      let minV = Infinity;
-      let maxU = -Infinity;
-      let maxV = -Infinity;
+      const bounds = makeBounds();
       for (const p of g.points) {
         const u = +p.u || 0;
         const v = +p.v || 0;
-        const bw = Math.max(1, Number(p && p.bw) || cx);
-        const bh = Math.max(1, Number(p && p.bh) || cy);
-        minU = Math.min(minU, u - bw / 2);
-        maxU = Math.max(maxU, u + bw / 2);
-        minV = Math.min(minV, v - bh / 2);
-        maxV = Math.max(maxV, v + bh / 2);
+        const bw = posNum(p && p.bw, cx);
+        const bh = posNum(p && p.bh, cy);
+        expandBounds(bounds, u - bw / 2, v - bh / 2, u + bw / 2, v + bh / 2);
       }
-      if (!(Number.isFinite(minU) && Number.isFinite(minV) && Number.isFinite(maxU) && Number.isFinite(maxV) && maxU > minU && maxV > minV)) { regionBBoxCache.set(key, null); return null; }
-      const out = { minU, minV, maxU, maxV, w: Math.max(1, maxU - minU), h: Math.max(1, maxV - minV) };
+      const out = boundsToLocalBox(bounds);
+      if (!out) { regionBBoxCache.set(key, null); return null; }
       regionBBoxCache.set(key, out);
       return out;
     };
     const compBBoxCache = new Map();
     const getCompBBoxLocalPx = (rr, cid) => {
-      const rectId = Math.max(1, Math.round(Number(rr && rr.id) || 0));
-      const compId = Math.max(0, Math.round(Number(cid) || 0));
+      const rectId = toRectId(rr && rr.id);
+      const compId = toCid(cid);
       const key = `${rectId}:${compId}`;
       if (compBBoxCache.has(key)) return compBBoxCache.get(key);
       const cx = drawCellX(rr);
       const cy = drawCellY(rr);
       const topo = getCellTopologyCached(rr, cx, cy);
-      const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
-      const rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
-      let minU = Infinity;
-      let minV = Infinity;
-      let maxU = -Infinity;
-      let maxV = -Infinity;
+      const cols = toIntMin(topo && topo.cols, 1);
+      const rows = toIntMin(topo && topo.rows, 1);
+      const bounds = makeBounds();
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
           const idx = y * cols + x;
-          const c = Math.max(0, Math.round(Number(topo && Array.isArray(topo.comp) ? topo.comp[idx] : 0) || 0));
+          const c = toCid(topo && Array.isArray(topo.comp) ? topo.comp[idx] : 0);
           if (c !== compId) continue;
           const u1 = x * cx;
           const v1 = y * cy;
           const u2 = Math.min(rr.width, (x + 1) * cx);
           const v2 = Math.min(rr.height, (y + 1) * cy);
-          minU = Math.min(minU, u1);
-          minV = Math.min(minV, v1);
-          maxU = Math.max(maxU, u2);
-          maxV = Math.max(maxV, v2);
+          expandBounds(bounds, u1, v1, u2, v2);
         }
       }
-      if (!(Number.isFinite(minU) && Number.isFinite(minV) && Number.isFinite(maxU) && Number.isFinite(maxV) && maxU > minU && maxV > minV)) { compBBoxCache.set(key, null); return null; }
-      const out = { minU, minV, maxU, maxV, w: Math.max(1, maxU - minU), h: Math.max(1, maxV - minV) };
+      const out = boundsToLocalBox(bounds);
+      if (!out) { compBBoxCache.set(key, null); return null; }
       compBBoxCache.set(key, out);
       return out;
     };
@@ -305,21 +353,14 @@ export const setupFlowLinkController = (deps = {}) => {
         source = "component";
       }
       if (!bb) {
-        const rb = rectAABBMasked(rr);
-        bb = {
-          minU: 0, minV: 0,
-          maxU: Math.max(1, rb.maxX - rb.minX),
-          maxV: Math.max(1, rb.maxY - rb.minY),
-          w: Math.max(1, rb.maxX - rb.minX),
-          h: Math.max(1, rb.maxY - rb.minY)
-        };
+        bb = rectLocalBoxFromAabb(rr);
         source = "rect";
         regionFallbackRects.push({ rectId: nm.rectId, rid: nm.rid, node: nk, source });
       }
-      const w = Math.max(1, bb.w);
-      const h = Math.max(1, bb.h);
-      const scalePx = Math.max(1, Number(st.globalScale) || Number(rr && rr.scale) || 256);
-      const areaM2Px = Math.max(1, Number(rr && rr.areaM2Px) || 65536);
+      const w = posNum(bb.w);
+      const h = posNum(bb.h);
+      const scalePx = posNum(st.globalScale, Number(rr && rr.scale) || 256);
+      const areaM2Px = posNum(rr && rr.areaM2Px, 65536);
       const k = Math.sqrt(areaM2Px) / scalePx;
       normalizedRects.push({ id: nk, rectId: nm.rectId, rid: nm.rid, source, w: Math.max(1e-6, w * k), h: Math.max(1e-6, h * k) });
     }
@@ -368,13 +409,12 @@ export const setupFlowLinkController = (deps = {}) => {
         const totalH = y + rowH;
         return { area: maxX * totalH, width: maxX, height: totalH };
       };
+      const pickBest = (best, cand) => (cand.area < best.area ? cand : best);
       let best = { area: Infinity, width: 0, height: 0 };
       for (const wLim of widths) {
         for (const items of sortedVariants) {
-          const a0 = placeShelf(items, wLim, false);
-          if (a0.area < best.area) best = a0;
-          const b0 = placeShelf(items, wLim, true);
-          if (b0.area < best.area) best = b0;
+          best = pickBest(best, placeShelf(items, wLim, false));
+          best = pickBest(best, placeShelf(items, wLim, true));
         }
       }
       return best.area < Infinity ? best : { area: sumArea, width: Math.sqrt(sumArea), height: Math.sqrt(sumArea) };
@@ -384,18 +424,18 @@ export const setupFlowLinkController = (deps = {}) => {
     const allowed = 655360 + AREA_LIMIT_EPS;
     const ok = chainArea <= allowed;
     logCanLinkFlowAnchorsDebug(a, b, ok, ok ? "ok" : "chain_area_limit", {
-      chainIds: [...chainIds].sort((x, y) => x - y),
+      chainIds: toSortedNumbers(chainIds),
       chainNodeCount: chainNodeSet.size,
-      chainNodes: [...chainNodeSet].sort(),
+      chainNodes: toSortedStrings(chainNodeSet),
       chainEdges,
-      chainRegionIds: [...rectRidMap.entries()].map(([rectId, set]) => ({ rectId, regions: [...set].sort((x, y) => x - y) })).sort((a0, b0) => a0.rectId - b0.rectId),
+      chainRegionIds: debugChainRegionIds(rectRidMap),
       regionFallbackRects,
-      normalizedRects: normalizedRects.map(it => ({ id: it.id, rectId: it.rectId, rid: it.rid, source: it.source, w: Math.round(it.w * 1000) / 1000, h: Math.round(it.h * 1000) / 1000 })),
-      chainArea: Math.round(chainArea * 1000) / 1000,
-      packedW: Math.round((packed && packed.width || 0) * 1000) / 1000,
-      packedH: Math.round((packed && packed.height || 0) * 1000) / 1000,
+      normalizedRects: debugNormalizedRects(normalizedRects),
+      chainArea: round3(chainArea),
+      packedW: round3(packed && packed.width || 0),
+      packedH: round3(packed && packed.height || 0),
       chainMaxAllowed: 655360,
-      allowed: Math.round(allowed * 1000) / 1000,
+      allowed: round3(allowed),
       linkCount: links.length,
       linkCountRaw: linksRaw.length,
       staleLinkCount: Math.max(0, linksRaw.length - links.length)
@@ -415,9 +455,9 @@ export const setupFlowLinkController = (deps = {}) => {
     if (!canLinkFlowAnchors(a, b)) return false;
     const toggle = !!(opts && opts.toggle);
     const link = { from: { rectId: a.rectId, rid: a.rid, cid: a.cid, kind: "end" }, to: { rectId: b.rectId, rid: b.rid, cid: b.cid, kind: "start" } };
-    const key = `${flowAnchorKey(link.from)}>${flowAnchorKey(link.to)}`;
+    const key = flowLinkPairKey(link.from, link.to);
     const set = normalizeFlowLinks(st.flowLinks);
-    const idx = set.findIndex(it => `${flowAnchorKey(it.from)}>${flowAnchorKey(it.to)}` === key);
+    const idx = set.findIndex(it => flowLinkKey(it) === key);
     if (idx >= 0) {
       if (!toggle) return false;
       set.splice(idx, 1);
