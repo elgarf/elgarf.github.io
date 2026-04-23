@@ -49,7 +49,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const showNumbers = !!r.numberCells;
       const cellEditActive = isCellEditMode(), rigEditActive = isRigEditMode(), clusterEditActive = isClusterEditMode(), flowEditActive = st.mode === "flowEdit";
       const flowEnabledByMode = normalizeDataFlow(r.dataFlow) !== "none";
-      const flowInteractivePause = !!(cellEditActive || rigEditActive || st.pan || st.drag || st.draft || clusterDraggingThisRect || (st.touch && st.touch.type === "pinch") || (lowDetail && !flowEditingThisRect));
+      const flowInteractivePause = !!(cellEditActive || rigEditActive || st.pan || (st.drag && st.drag.moved) || st.draft || clusterDraggingThisRect || (st.touch && st.touch.type === "pinch") || (lowDetail && !flowEditingThisRect));
       const flowFlags = computeRectRenderFlags({
         stMode: st.mode,
         sel,
@@ -67,7 +67,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const needRegions = !!(!lowDetail && (showNumbers || wantsFlowDraw || showRegionsOverlayRequested || (installView && sel && !clusterDraggingThisRect)));
       const regions = (needRegions ? planNumberRegions(r, cellX, cellY, topo, hs, !options.noCachedRegions) : null);
       const showRegionsOverlay = !!(regions && showRegionsOverlayRequested);
-      if (sel && r.id === st.sel && !(st.drag || st.clusterDrag || st.flowDrag || st.pan || st.draft)) updateSplitVariantControl(r);
+      if (sel && r.id === st.sel && !((st.drag && st.drag.moved) || st.clusterDrag || st.flowDrag || st.pan || st.draft)) updateSplitVariantControl(r);
       const flowGroups = (wantsFlowDraw || wantsFlowForNumbers) ? (flowGroupsOverride || getDataFlowGroups(r, cellX, cellY, topo, hs, regions)) : [];
       if (Array.isArray(flowGroups) && flowGroups.length) collectFlowLinkAnchors(r, flowGroups);
       if (st.mode === "flowEdit" && sel && r.id === st.sel) collectFlowEditPoints(r, flowGroups);

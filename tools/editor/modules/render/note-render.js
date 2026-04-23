@@ -54,6 +54,21 @@ export const setupNoteRender = (deps = {}) => {
       c.fillText(line, -w / 2 + pad, y);
       y += lh;
     }
+    if (sel) {
+      const hs = Math.max(8, 14 / Math.max(.25, z || 1));
+      const x0 = (w / 2) - hs;
+      const y0 = (h / 2) - hs;
+      c.fillStyle = "rgba(13,110,253,.95)";
+      c.strokeStyle = "rgba(255,255,255,.92)";
+      c.lineWidth = Math.max(1, 1.2 / Math.max(0.25, z || 1));
+      c.beginPath();
+      c.moveTo(w / 2, y0);
+      c.lineTo(w / 2, h / 2);
+      c.lineTo(x0, h / 2);
+      c.closePath();
+      c.fill();
+      c.stroke();
+    }
     c.restore();
   };
 

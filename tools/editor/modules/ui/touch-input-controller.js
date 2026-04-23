@@ -31,6 +31,7 @@ export const setupTouchInputController = (deps = {}) => {
       st.selBox = null;
       st.pan = false;
       st.draft = null;
+      st.draftPending = null;
       e.preventDefault();
       return;
     }

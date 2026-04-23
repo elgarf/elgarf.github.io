@@ -75,6 +75,7 @@ export const setupToolModeController = (deps = {}) => {
     if (!isRigEditMode()) resetRigHoverTransient();
     wrap.dataset.mode = m;
     st.draft = null;
+    st.draftPending = null;
     st.drag = null;
     updateToolbarOverflow();
     updateClusterEditCursor();

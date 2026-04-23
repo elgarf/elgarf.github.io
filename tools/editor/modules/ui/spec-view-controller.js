@@ -134,6 +134,18 @@ export const setupSpecViewController = (deps = {}) => {
     if (!st.specCustomSections || typeof st.specCustomSections !== "object") st.specCustomSections = {};
     return st.specCustomSections;
   };
+  const sameStringMap = (a, b) => {
+    const aObj = (a && typeof a === "object") ? a : {};
+    const bObj = (b && typeof b === "object") ? b : {};
+    const aKeys = Object.keys(aObj);
+    const bKeys = Object.keys(bObj);
+    if (aKeys.length !== bKeys.length) return false;
+    for (const k of aKeys) {
+      if (!Object.prototype.hasOwnProperty.call(bObj, k)) return false;
+      if (String(aObj[k] ?? "") !== String(bObj[k] ?? "")) return false;
+    }
+    return true;
+  };
 
   const schedulePersist = () => {
     if (persistTimer) clearTimeout(persistTimer);
@@ -402,7 +414,7 @@ export const setupSpecViewController = (deps = {}) => {
       nextMap[GLOBAL_SPEC_KEY] = prev ? `${prev}\n${tail}` : tail;
     }
 
-    const changed = JSON.stringify(map) !== JSON.stringify(nextMap);
+    const changed = !sameStringMap(map, nextMap);
     if (!changed) return false;
     st.specCustomSections = nextMap;
     return true;

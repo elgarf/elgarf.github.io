@@ -16,7 +16,6 @@ export const setupViewportOverlays = (deps = {}) => {
     listSignature
   } = deps;
 
-  const contentBoundsCache = { key: "", value: null };
   const cellBoundaryCache = { key: "", value: [] };
   const cellSummaryCache = { key: "", value: null };
   const cellOverlayPathCache = { key: "", gridPath: null, borderPath: null };
@@ -81,10 +80,6 @@ export const setupViewportOverlays = (deps = {}) => {
 
   const getContentBounds = () => {
     if (!st.rects.length) return null;
-    const key = st.rects
-      .map(r => [r.id, r.x, r.y, r.width, r.height, Number(r.rotation) || 0, listSignature(r.hiddenCells), drawCellX(r), drawCellY(r)].join(","))
-      .join(";");
-    if (contentBoundsCache.key === key && contentBoundsCache.value) return contentBoundsCache.value;
     let minX = 1e9;
     let minY = 1e9;
     let maxX = -1e9;
@@ -96,10 +91,7 @@ export const setupViewportOverlays = (deps = {}) => {
       maxX = Math.max(maxX, bb.maxX);
       maxY = Math.max(maxY, bb.maxY);
     }
-    const value = { minX, minY, maxX, maxY, w: Math.ceil(maxX - minX), h: Math.ceil(maxY - minY) };
-    contentBoundsCache.key = key;
-    contentBoundsCache.value = value;
-    return value;
+    return { minX, minY, maxX, maxY, w: Math.ceil(maxX - minX), h: Math.ceil(maxY - minY) };
   };
 
   const drawMaskOverlay = (c, z) => {

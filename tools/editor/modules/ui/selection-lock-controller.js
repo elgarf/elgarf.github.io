@@ -34,6 +34,7 @@ export const setupSelectionLockController = (deps = {}) => {
     st.flowDragPreview = null;
     st.clusterDrag = null;
     st.draft = null;
+    st.draftPending = null;
 
     if (nextLocked) {
       resetMaskTransient();

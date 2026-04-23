@@ -44,7 +44,11 @@ export const setupSelectionController = (deps = {}) => {
 
   const refreshMultiSelectionBase = () => {
     normSelSet();
-    const rects = st.rects.filter(r => st.selSet.has(r.id));
+    const rects = [];
+    for (const id of st.selSet) {
+      const r = getRectById(id);
+      if (r) rects.push(r);
+    }
     if (rects.length <= 1) { st.selMultiBase = null; return; }
     const bbox = getRectsBBox(rects);
     if (!bbox) { st.selMultiBase = null; return; }
@@ -148,8 +152,12 @@ export const setupSelectionController = (deps = {}) => {
 
   const getSelectedRects = () => {
     normSelSet();
-    const ids = new Set(st.selSet);
-    return st.rects.filter(r => ids.has(r.id));
+    const out = [];
+    for (const id of st.selSet) {
+      const r = getRectById(id);
+      if (r) out.push(r);
+    }
+    return out;
   };
 
   const selectOnly = id => setSelection(id == null ? [] : [id], id);

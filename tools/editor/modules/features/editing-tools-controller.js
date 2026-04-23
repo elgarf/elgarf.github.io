@@ -4,6 +4,7 @@ export const setupEditingToolsCore = (deps = {}) => {
     getRectById,
     isRectLocked,
     worldToRectUV,
+    rectAABBMasked,
     rectUVToWorld,
     getMaskNodeAxes,
     drawCellX,
@@ -38,6 +39,13 @@ export const setupEditingToolsCore = (deps = {}) => {
     for (let i = 0; i < st.rects.length; i++) {
       const r = st.rects[i];
       if (isRectLocked(r)) continue;
+      if (typeof rectAABBMasked === "function") {
+        const bb = rectAABBMasked(r);
+        const rigTopPad = (st.mode === "rigEdit")
+          ? Math.max(8, 0.22 * Math.max(1, Number(r && r.scale) || 256))
+          : 0;
+        if (x < bb.minX - rigTopPad || x > bb.maxX + rigTopPad || y < bb.minY - rigTopPad || y > bb.maxY + rigTopPad) continue;
+      }
       const p = worldToRectUV(r, x, y);
       const inRect = p.u >= 0 && p.u <= r.width && p.v >= 0 && p.v <= r.height;
       const rigTopPad = (st.mode === "rigEdit")

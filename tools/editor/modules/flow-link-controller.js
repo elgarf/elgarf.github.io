@@ -10,10 +10,12 @@ export const setupFlowLinkController = (deps = {}) => {
     rectAABBMasked,
     AREA_LIMIT_EPS
   } = deps;
+  if (st && typeof st.debugFlowLink === "undefined") st.debugFlowLink = false;
 
   const flowLinkCheckDebugState = new Map();
 
   const logCanLinkFlowAnchorsDebug = (a, b, ok, reason, extra = {}) => {
+    if (!st || !st.debugFlowLink) return;
     try {
       const fromId = Math.max(1, Math.round(Number(a && a.rectId) || 0));
       const toId = Math.max(1, Math.round(Number(b && b.rectId) || 0));
@@ -470,7 +472,27 @@ export const setupFlowLinkController = (deps = {}) => {
     drag.y = wy;
     const target = findFlowLinkAnchorAtPoint(wx, wy, "start");
     drag.target = target || null;
-    drag.canLink = !!(target && canLinkFlowAnchors(drag.from, target));
+    if (!target) {
+      drag.canLink = false;
+      drag._lastCanLinkSig = "";
+      drag._lastCanLink = false;
+      return;
+    }
+    const sig = [
+      flowAnchorKey(drag.from),
+      flowAnchorKey(target),
+      Array.isArray(st.flowLinks) ? st.flowLinks.length : 0,
+      Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors.length : 0,
+      Array.isArray(st.rects) ? st.rects.length : 0
+    ].join("|");
+    if (sig === drag._lastCanLinkSig) {
+      drag.canLink = !!drag._lastCanLink;
+      return;
+    }
+    const can = !!canLinkFlowAnchors(drag.from, target);
+    drag._lastCanLinkSig = sig;
+    drag._lastCanLink = can;
+    drag.canLink = can;
   };
 
   return {

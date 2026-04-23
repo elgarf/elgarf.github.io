@@ -16,6 +16,31 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       y: (u * u * u) * p0.y + 3 * (u * u) * t * p1.y + 3 * u * (t * t) * p2.y + (t * t * t) * p3.y
     };
   };
+  const curveCache = new Map();
+  const getCurveGeom = (a, b, steps = 18) => {
+    const ax = +a.x || 0, ay = +a.y || 0, bx = +b.x || 0, by = +b.y || 0;
+    const key = `${Math.round(ax * 10) / 10},${Math.round(ay * 10) / 10},${Math.round(bx * 10) / 10},${Math.round(by * 10) / 10},${steps}`;
+    const cached = curveCache.get(key);
+    if (cached) return cached;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len = Math.max(20, Math.hypot(dx, dy));
+    const sag = Math.max(8, Math.min(120, len * 0.18));
+    const c1 = { x: ax + dx * 0.25, y: ay + dy * 0.25 + sag };
+    const c2 = { x: ax + dx * 0.75, y: ay + dy * 0.75 + sag };
+    const pts = [];
+    for (let i = 1; i <= steps; i++) {
+      pts.push(sampleBezier({ x: ax, y: ay }, c1, c2, { x: bx, y: by }, i / steps));
+    }
+    const value = {
+      c1, c2, pts,
+      t0: sampleBezier({ x: ax, y: ay }, c1, c2, { x: bx, y: by }, 0.48),
+      t1: sampleBezier({ x: ax, y: ay }, c1, c2, { x: bx, y: by }, 0.52)
+    };
+    if (curveCache.size > 1024) curveCache.clear();
+    curveCache.set(key, value);
+    return value;
+  };
 
   const drawFlowLinkArrow = (c, tail, head, color, z = 1) => {
     const dx = (+head.x || 0) - (+tail.x || 0);
@@ -65,19 +90,13 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const b = findFlowAnchorByEndpoint(ln.to);
       if (!a || !b) continue;
       const key = `${flowAnchorKey(ln.from)}>${flowAnchorKey(ln.to)}`;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const len = Math.max(20, Math.hypot(dx, dy));
-      const sag = Math.max(8, Math.min(120, len * 0.18));
-      const c1 = { x: a.x + dx * 0.25, y: a.y + dy * 0.25 + sag };
-      const c2 = { x: a.x + dx * 0.75, y: a.y + dy * 0.75 + sag };
+      const geom = getCurveGeom(a, b, 18);
       const strokeColor = (key === hoverSegKey) ? "rgba(255,99,99,.98)" : "rgba(255,193,7,.95)";
-      const pts = [];
+      const pts = geom.pts;
       let prev = { x: a.x, y: a.y };
-      for (let i = 1; i <= 18; i++) {
-        const p = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, i / 18);
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
         st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
-        pts.push(p);
         prev = p;
       }
       c.save();
@@ -93,26 +112,19 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         baseW
       );
       c.restore();
-      const t0 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.48);
-      const t1 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.52);
-      drawFlowLinkArrow(c, t0, t1, strokeColor, st.zoom || 1);
+      drawFlowLinkArrow(c, geom.t0, geom.t1, strokeColor, st.zoom || 1);
     }
     if (linkDrag && linkDrag.from) {
       const a = linkDrag.from;
       const b = { x: +linkDrag.x || 0, y: +linkDrag.y || 0 };
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const len = Math.max(20, Math.hypot(dx, dy));
-      const sag = Math.max(8, Math.min(120, len * 0.18));
-      const c1 = { x: a.x + dx * 0.25, y: a.y + dy * 0.25 + sag };
-      const c2 = { x: a.x + dx * 0.75, y: a.y + dy * 0.75 + sag };
+      const geom = getCurveGeom(a, b, 24);
       c.save();
       const previewColor = linkDrag.canLink ? "rgba(255,193,7,.98)" : "rgba(255,99,99,.98)";
       const previewW = Math.max(1.4, 2.4 / Math.max(0.2, st.zoom || 1));
       c.setLineDash([7 / Math.max(0.2, st.zoom || 1), 5 / Math.max(0.2, st.zoom || 1)]);
       const previewPath = new Path2D();
       previewPath.moveTo(a.x, a.y);
-      previewPath.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y);
+      previewPath.bezierCurveTo(geom.c1.x, geom.c1.y, geom.c2.x, geom.c2.y, b.x, b.y);
       strokeOutlinedPath(
         previewPath,
         "rgba(12,16,22,.92)",
@@ -122,9 +134,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       );
       c.setLineDash([]);
       c.restore();
-      const t0 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.48);
-      const t1 = sampleBezier({ x: a.x, y: a.y }, c1, c2, { x: b.x, y: b.y }, 0.52);
-      drawFlowLinkArrow(c, t0, t1, previewColor, st.zoom || 1);
+      drawFlowLinkArrow(c, geom.t0, geom.t1, previewColor, st.zoom || 1);
     }
     if (st.mode === "flowEdit") {
       for (const a of st.flowLinkAnchors) {

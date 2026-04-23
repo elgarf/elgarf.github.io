@@ -8,6 +8,8 @@ export const setupPersistenceController = (deps = {}) => {
   let persistTimer = null;
   let persistTabsDirty = false;
   let persistProjectDirty = false;
+  let lastTabsJson = "";
+  let lastProjectJson = "";
 
   const formatTimeHHMMSS = d => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
   const setSaveIndicator = (text, tone = "secondary") => {
@@ -42,7 +44,14 @@ export const setupPersistenceController = (deps = {}) => {
   };
   const persistNow = () => {
     try {
-      if (persistTabsDirty) { lsSet(TABS_SAVE_KEY, JSON.stringify(buildTabsBundle())); persistTabsDirty = false; }
+      if (persistTabsDirty) {
+        const tabsJson = JSON.stringify(buildTabsBundle());
+        if (tabsJson !== lastTabsJson) {
+          lsSet(TABS_SAVE_KEY, tabsJson);
+          lastTabsJson = tabsJson;
+        }
+        persistTabsDirty = false;
+      }
       if (!persistProjectDirty) { saveStatus.saved(); return; }
       const nextProject = buildProject();
       persistProjectDirty = false;
@@ -50,7 +59,11 @@ export const setupPersistenceController = (deps = {}) => {
         saveStatus.error("Защита автосейва: пустой проект не записан");
         return;
       }
-      lsSet(AUTO_SAVE_KEY, JSON.stringify(nextProject));
+      const projectJson = JSON.stringify(nextProject);
+      if (projectJson !== lastProjectJson) {
+        lsSet(AUTO_SAVE_KEY, projectJson);
+        lastProjectJson = projectJson;
+      }
       saveStatus.saved();
     } catch (_e) {
       saveStatus.error();

@@ -914,7 +914,7 @@
       z-index: 1200;
       resize: none;
       border: 1px solid var(--bs-primary);
-      border-radius: 8px;
+      border-radius: 0 !important;
       background: rgba(255, 251, 209, .72);
       color: #1f2937;
       font: 500 13px/1.3 "Roboto", "Segoe UI", Arial, sans-serif;
@@ -2009,7 +2009,7 @@
     let applyBootstrapClasses = () => { };
     let updateToolbarOverflow = () => { };
     let overflowHiddenButtons = [];
-    const st = { rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", lockAll: false, specCustomText: "", specCustomSections: {}, maskPath: [], maskHover: null, cellHover: null, cellHoverPos: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
+    const st = { debugSnap: false, rects: [], sel: null, selSet: new Set(), selMultiBase: null, mode: "select", viewMode: "art", camX: 0, camY: 0, zoom: 1, next: 1, draft: null, drag: null, selBox: null, flowDrag: null, flowHover: null, flowDirHover: null, flowRegionRid: null, flowEditPoints: [], flowStartHandles: [], flowDirButtons: [], flowLinkAnchors: [], flowLinkSegments: [], flowLinkHover: null, flowLinkPending: null, flowLinkDrag: null, flowLinks: [], clusterActiveId: null, clusterHandles: [], clusterHandleHover: null, clusterCellHover: null, clusterStartHover: null, clusterBorderHover: null, clusterDrag: null, rigHover: null, pan: false, panS: null, g: { x: null, y: null }, dg: null, keys: { space: false, ctrl: false }, clip: null, touch: null, textSize: 12, fontFamily: "Roboto, Segoe UI, Arial", globalScale: 256, fontReady: false, projectName: "project", saveLocationId: "proj-project", themeMode: "auto", lockAll: false, specCustomText: "", specCustomSections: {}, maskPath: [], maskHover: null, cellHover: null, cellHoverPos: null, tabs: [], activeTabId: null, nextTabId: 1, snap: { grid: false, objects: true, centers: true, gaps: true }, history: { undo: [], redo: [], current: null, suspend: false } };
     const rectStore = createRectStore(() => st.rects);
     const getRectById = id => rectStore.getById(id);
     let flowDrawRenderEpoch = 0;
@@ -3126,6 +3126,7 @@
       getRectById,
       isRectLocked,
       worldToRectUV,
+      rectAABBMasked,
       rectUVToWorld,
       getMaskNodeAxes,
       drawCellX,
@@ -3273,6 +3274,7 @@
     let scheduleCanvasResize = () => { };
     let resize = () => { };
     let zoomAt = (_sx, _sy, _nz) => { };
+    let lastSpecAutoRefreshAt = 0;
     ({
       render,
       renderNow,
@@ -3305,7 +3307,13 @@
       onBeforeRenderFrame: () => {
         flowDrawRenderEpoch++;
         resetFlowPointIndexCache();
-        refreshSpecAuto(false);
+        if (normalizeViewMode(st.viewMode) === "spec") {
+          const now = Date.now();
+          if (now - lastSpecAutoRefreshAt >= 180) {
+            lastSpecAutoRefreshAt = now;
+            refreshSpecAuto(false);
+          }
+        }
       },
       bindWindowEvent,
       bindEvent,
@@ -3567,6 +3575,7 @@
     });
     const inputWiringServices = {
       cv, st, el, render, hit, s2w, zc, getViewMetrics,
+      getRectById, worldToRectUV,
       isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
       cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
       beginClusterHandleDragAtPoint, handleClusterEditAtPoint,

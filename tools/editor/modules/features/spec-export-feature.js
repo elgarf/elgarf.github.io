@@ -38,14 +38,35 @@ export const setupSpecExportFeature = (deps = {}) => {
     saveBlobWithSystemDialog,
     showMessageModal
   } = deps;
+  const rectFlowContextCache = new Map();
+  const rectFlowContextKey = r => [
+    Math.max(1, Math.round(Number(r && r.id) || 0)),
+    Math.round(Number(r && r.width) || 0),
+    Math.round(Number(r && r.height) || 0),
+    Math.round(Number(r && r.scale) || 0),
+    Math.round(Number(r && r.areaM2Px) || 0),
+    Math.round(Number(r && r.cellX) || 0),
+    Math.round(Number(r && r.cellY) || 0),
+    String(r && r.dataFlow || ""),
+    Math.round(Number(r && r.splitVariant) || 0),
+    Array.isArray(r && r.hiddenCells) ? r.hiddenCells.length : 0,
+    Array.isArray(r && r.cellLinks) ? r.cellLinks.length : 0,
+    Array.isArray(r && r.manualClusters) ? r.manualClusters.length : 0
+  ].join("|");
   const getRectFlowContext = r => {
+    const key = rectFlowContextKey(r);
+    const cached = rectFlowContextCache.get(key);
+    if (cached) return cached;
     const cellX = drawCellX(r);
     const cellY = drawCellY(r);
     const topo = getCellTopologyCached(r, cellX, cellY);
     const hs = getHiddenSet(r);
     const regions = planNumberRegions(r, cellX, cellY, topo, hs);
     const flowGroups = getDataFlowGroups(r, cellX, cellY, topo, hs, regions);
-    return { cellX, cellY, topo, hs, regions, flowGroups };
+    const value = { cellX, cellY, topo, hs, regions, flowGroups };
+    if (rectFlowContextCache.size > 512) rectFlowContextCache.clear();
+    rectFlowContextCache.set(key, value);
+    return value;
   };
   const bumpMap = (map, key, delta = 1) => {
     map.set(key, (map.get(key) || 0) + delta);

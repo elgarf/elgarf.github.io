@@ -64,6 +64,7 @@ export const setupTransientStateController = (deps = {}) => {
       st.clusterHandles = [];
       st.drag = null;
       st.draft = null;
+      st.draftPending = null;
       st.g.x = null;
       st.g.y = null;
       st.dg = null;
