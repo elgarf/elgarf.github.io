@@ -9,7 +9,7 @@ export const setupDragSnapController = (deps = {}) => {
     selectOnly,
     getEditableSelectedRects
   } = deps;
-  if (st && typeof st.debugSnap === "undefined") st.debugSnap = true;
+  if (st && typeof st.debugSnap === "undefined") st.debugSnap = false;
   const snapDebug = (tag, payload) => {
     if (!st || !st.debugSnap) return;
     try { console.info(`[snap-debug:${tag}]`, payload); } catch {}
@@ -27,8 +27,20 @@ export const setupDragSnapController = (deps = {}) => {
     for (const it of list) {
       const c = it && it.bb;
       if (!c || c === l || c === r) continue;
-      if (overlap1d(l.minY, l.maxY, c.minY, c.maxY) <= 0) continue;
-      if (overlap1d(r.minY, r.maxY, c.minY, c.maxY) <= 0) continue;
+      const lo = Math.max(l.minY, r.minY, c.minY);
+      const hi = Math.min(l.maxY, r.maxY, c.maxY);
+      if (hi - lo <= 0) continue;
+      if (c.minX <= r.minX && c.maxX >= l.maxX) return it;
+    }
+    return null;
+  };
+  const hasObstacleBetweenXAtY = (l, r, list, y) => {
+    if (!Number.isFinite(y)) return hasObstacleBetweenX(l, r, list);
+    for (const it of list) {
+      const c = it && it.bb;
+      if (!c || c === l || c === r) continue;
+      if (!(y > c.minY && y < c.maxY)) continue;
+      if (!(y > l.minY && y < l.maxY && y > r.minY && y < r.maxY)) continue;
       if (c.minX <= r.minX && c.maxX >= l.maxX) return it;
     }
     return null;
@@ -37,8 +49,20 @@ export const setupDragSnapController = (deps = {}) => {
     for (const it of list) {
       const c = it && it.bb;
       if (!c || c === t || c === b) continue;
-      if (overlap1d(t.minX, t.maxX, c.minX, c.maxX) <= 0) continue;
-      if (overlap1d(b.minX, b.maxX, c.minX, c.maxX) <= 0) continue;
+      const lo = Math.max(t.minX, b.minX, c.minX);
+      const hi = Math.min(t.maxX, b.maxX, c.maxX);
+      if (hi - lo <= 0) continue;
+      if (c.minY <= b.minY && c.maxY >= t.maxY) return it;
+    }
+    return null;
+  };
+  const hasObstacleBetweenYAtX = (t, b, list, x) => {
+    if (!Number.isFinite(x)) return hasObstacleBetweenY(t, b, list);
+    for (const it of list) {
+      const c = it && it.bb;
+      if (!c || c === t || c === b) continue;
+      if (!(x > c.minX && x < c.maxX)) continue;
+      if (!(x > t.minX && x < t.maxX && x > b.minX && x < b.maxX)) continue;
       if (c.minY <= b.minY && c.maxY >= t.maxY) return it;
     }
     return null;
@@ -77,47 +101,87 @@ export const setupDragSnapController = (deps = {}) => {
     if (blocker) return { ok: false, reason: "obstacle", blockerId: blocker && blocker.r ? blocker.r.id : null };
     return { ok: true, reason: "clear", blockerId: null };
   };
+  const explainSnapOnAxisAt = (a, b, axis, list, cross) => {
+    if (!a || !b) return { ok: false, reason: "missing_box", blockerId: null };
+    if (axis === "x") {
+      if (overlap1d(a.minY, a.maxY, b.minY, b.maxY) <= 0) return { ok: true, reason: "no_shadow_overlap", blockerId: null };
+      const l = a.minX <= b.minX ? a : b;
+      const r = l === a ? b : a;
+      if (l.maxX >= r.minX) return { ok: true, reason: "touch_or_overlap", blockerId: null };
+      const blocker = hasObstacleBetweenXAtY(l, r, list, cross);
+      if (blocker) return { ok: false, reason: "obstacle", blockerId: blocker && blocker.r ? blocker.r.id : null };
+      return { ok: true, reason: "clear", blockerId: null };
+    }
+    if (overlap1d(a.minX, a.maxX, b.minX, b.maxX) <= 0) return { ok: true, reason: "no_shadow_overlap", blockerId: null };
+    const t = a.minY <= b.minY ? a : b;
+    const bt = t === a ? b : a;
+    if (t.maxY >= bt.minY) return { ok: true, reason: "touch_or_overlap", blockerId: null };
+    const blocker = hasObstacleBetweenYAtX(t, bt, list, cross);
+    if (blocker) return { ok: false, reason: "obstacle", blockerId: blocker && blocker.r ? blocker.r.id : null };
+    return { ok: true, reason: "clear", blockerId: null };
+  };
   const shiftedBox = (bb, dx, dy) => ({
     minX: bb.minX + (dx || 0),
     minY: bb.minY + (dy || 0),
     maxX: bb.maxX + (dx || 0),
     maxY: bb.maxY + (dy || 0)
   });
-  const buildGapPairs = (shadow, axis) => {
+  const buildGapPairs = (list, axis, obstacleList = null) => {
+    const src = Array.isArray(list) ? list : [];
+    const blockers = Array.isArray(obstacleList) ? obstacleList : src;
     const out = [];
-    for (let i = 0; i < shadow.length; i++) {
-      for (let j = i + 1; j < shadow.length; j++) {
-        const a = shadow[i] && shadow[i].bb, b = shadow[j] && shadow[j].bb;
+    for (let i = 0; i < src.length; i++) {
+      for (let j = i + 1; j < src.length; j++) {
+        const a = src[i] && src[i].bb, b = src[j] && src[j].bb;
         if (!a || !b) continue;
         if (axis === "x") {
           const l = a.minX <= b.minX ? a : b, r = l === a ? b : a;
           if (l.maxX >= r.minX) continue;
           if (overlap1d(l.minY, l.maxY, r.minY, r.maxY) <= 0) continue;
-          if (hasObstacleBetweenX(l, r, shadow)) continue;
+          if (hasObstacleBetweenX(l, r, blockers)) continue;
           const g = Math.round(r.minX - l.maxX);
-          if (g > 0) out.push({ g, x1: l.maxX, x2: r.minX, y: pickY(l, r) });
+          if (g >= 0) out.push({ g, x1: l.maxX, x2: r.minX, y: pickY(l, r) });
         } else {
           const t = a.minY <= b.minY ? a : b, bt = t === a ? b : a;
           if (t.maxY >= bt.minY) continue;
           if (overlap1d(t.minX, t.maxX, bt.minX, bt.maxX) <= 0) continue;
-          if (hasObstacleBetweenY(t, bt, shadow)) continue;
+          if (hasObstacleBetweenY(t, bt, blockers)) continue;
           const g = Math.round(bt.minY - t.maxY);
-          if (g > 0) out.push({ g, y1: t.maxY, y2: bt.minY, x: pickX(t, bt) });
+          if (g >= 0) out.push({ g, y1: t.maxY, y2: bt.minY, x: pickX(t, bt) });
         }
       }
     }
     return out;
   };
-  const findGapSnapCandidate = (mb, mw, mh, others, d, axis) => {
-    const shadow = others.filter(o => {
+  const intersectsAabb = (a, b) => {
+    if (!a || !b) return false;
+    return !(a.maxX < b.minX || a.minX > b.maxX || a.maxY < b.minY || a.minY > b.maxY);
+  };
+  const collectGapZone = (mb, others, axis) => {
+    const src = Array.isArray(others) ? others : [];
+    if (!mb || !src.length) return [];
+    let minX = mb.minX, minY = mb.minY, maxX = mb.maxX, maxY = mb.maxY;
+    for (const o of src) {
+      const bb = o && o.bb;
+      if (!bb) continue;
+      if (bb.minX < minX) minX = bb.minX;
+      if (bb.minY < minY) minY = bb.minY;
+      if (bb.maxX > maxX) maxX = bb.maxX;
+      if (bb.maxY > maxY) maxY = bb.maxY;
+    }
+    const zone = (axis === "x")
+      ? { minX, minY: mb.minY, maxX, maxY: mb.maxY }
+      : { minX: mb.minX, minY, maxX: mb.maxX, maxY };
+    return src.filter(o => {
       const bb = o && o.bb;
       if (!bb) return false;
-      return axis === "x"
-        ? overlap1d(mb.minY, mb.maxY, bb.minY, bb.maxY) > 0
-        : overlap1d(mb.minX, mb.maxX, bb.minX, bb.maxX) > 0;
+      return intersectsAabb(bb, zone);
     });
+  };
+  const findGapSnapCandidate = (mb, mw, mh, others, d, axis) => {
+    const shadow = collectGapZone(mb, others, axis);
     if (!shadow.length) return null;
-    const pairs = buildGapPairs(shadow, axis);
+    const pairs = buildGapPairs(shadow, axis, shadow);
     if (!pairs.length) return null;
     const betterDist = (cand, current) => {
       if (!current) return true;
@@ -138,7 +202,7 @@ export const setupDragSnapController = (deps = {}) => {
             const dd = targetMinX - mb.minX, ad = Math.abs(dd);
             if (ad > d) continue;
             const moved = shiftedBox(mb, dd, 0);
-            const ex = explainSnapOnAxis(moved, ob, "x", others);
+            const ex = explainSnapOnAxisAt(moved, ob, "x", shadow, myv);
             if (!ex.ok) {
               if (ex.reason === "obstacle") snapDebug("gap-obstacle-x", { movingId: null, targetId: o && o.r ? o.r.id : null, blockerId: ex.blockerId, dd, gap: p.g });
               continue;
@@ -157,7 +221,7 @@ export const setupDragSnapController = (deps = {}) => {
             const dd = targetMinX - mb.minX, ad = Math.abs(dd);
             if (ad > d) continue;
             const moved = shiftedBox(mb, dd, 0);
-            const ex = explainSnapOnAxis(moved, ob, "x", others);
+            const ex = explainSnapOnAxisAt(moved, ob, "x", shadow, myv);
             if (!ex.ok) {
               if (ex.reason === "obstacle") snapDebug("gap-obstacle-x", { movingId: null, targetId: o && o.r ? o.r.id : null, blockerId: ex.blockerId, dd, gap: p.g });
               continue;
@@ -178,7 +242,7 @@ export const setupDragSnapController = (deps = {}) => {
             const dd = targetMinY - mb.minY, ad = Math.abs(dd);
             if (ad > d) continue;
             const moved = shiftedBox(mb, 0, dd);
-            const ex = explainSnapOnAxis(moved, ob, "y", others);
+            const ex = explainSnapOnAxisAt(moved, ob, "y", shadow, mxv);
             if (!ex.ok) {
               if (ex.reason === "obstacle") snapDebug("gap-obstacle-y", { movingId: null, targetId: o && o.r ? o.r.id : null, blockerId: ex.blockerId, dd, gap: p.g });
               continue;
@@ -197,7 +261,7 @@ export const setupDragSnapController = (deps = {}) => {
             const dd = targetMinY - mb.minY, ad = Math.abs(dd);
             if (ad > d) continue;
             const moved = shiftedBox(mb, 0, dd);
-            const ex = explainSnapOnAxis(moved, ob, "y", others);
+            const ex = explainSnapOnAxisAt(moved, ob, "y", shadow, mxv);
             if (!ex.ok) {
               if (ex.reason === "obstacle") snapDebug("gap-obstacle-y", { movingId: null, targetId: o && o.r ? o.r.id : null, blockerId: ex.blockerId, dd, gap: p.g });
               continue;
@@ -225,13 +289,7 @@ export const setupDragSnapController = (deps = {}) => {
     return ag <= bg ? a : b;
   };
   const findEqualGapSnapCandidate = (mb, mw, mh, others, d, axis) => {
-    const shadow = others.filter(o => {
-      const bb = o && o.bb;
-      if (!bb) return false;
-      return axis === "x"
-        ? overlap1d(mb.minY, mb.maxY, bb.minY, bb.maxY) > 0
-        : overlap1d(mb.minX, mb.maxX, bb.minX, bb.maxX) > 0;
-    });
+    const shadow = collectGapZone(mb, others, axis);
     if (shadow.length < 2) return null;
     let best = null;
     for (let i = 0; i < shadow.length; i++) {
@@ -248,13 +306,13 @@ export const setupDragSnapController = (deps = {}) => {
           const dd = targetMinX - mb.minX, ad = Math.abs(dd);
           if (ad > d) continue;
           const moved = shiftedBox(mb, dd, 0);
-          const exL = explainSnapOnAxis(moved, l, "x", others);
-          const exR = explainSnapOnAxis(moved, r, "x", others);
+          const y = pickY(l, r);
+          const exL = explainSnapOnAxisAt(moved, l, "x", shadow, y);
+          const exR = explainSnapOnAxisAt(moved, r, "x", shadow, y);
           if (!exL.ok || !exR.ok) continue;
           const gapL = Math.round((targetMinX) - l.maxX);
           const gapR = Math.round(r.minX - (targetMinX + mw));
           if (gapL < 0 || gapR < 0) continue;
-          const y = pickY(l, r);
           const cand = {
             kind: "equal",
             d: dd,
@@ -280,13 +338,13 @@ export const setupDragSnapController = (deps = {}) => {
           const dd = targetMinY - mb.minY, ad = Math.abs(dd);
           if (ad > d) continue;
           const moved = shiftedBox(mb, 0, dd);
-          const exT = explainSnapOnAxis(moved, t, "y", others);
-          const exB = explainSnapOnAxis(moved, bt, "y", others);
+          const x = pickX(t, bt);
+          const exT = explainSnapOnAxisAt(moved, t, "y", shadow, x);
+          const exB = explainSnapOnAxisAt(moved, bt, "y", shadow, x);
           if (!exT.ok || !exB.ok) continue;
           const gapT = Math.round(targetMinY - t.maxY);
           const gapB = Math.round(bt.minY - (targetMinY + mh));
           if (gapT < 0 || gapB < 0) continue;
-          const x = pickX(t, bt);
           const cand = {
             kind: "equal",
             d: dd,
@@ -335,12 +393,18 @@ export const setupDragSnapController = (deps = {}) => {
     }
     return best;
   };
+  const mergeGapGuides = (gxGuide, gyGuide) => {
+    if (gxGuide && gyGuide) return { ...gxGuide, refs: [gyGuide] };
+    return gxGuide || gyGuide || null;
+  };
 
-  const snap = (x, y, id, w, h, off) => {
+  const snap = (x, y, id, w, h, off, othersInput = null) => {
     if (off) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null, dg: null };
     const self = getRectById(id); if (!self) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null, dg: null };
-    const moving = { ...self, x, y }, mb = rectAABBMasked(moving), mw = mb.maxX - mb.minX, mh = mb.maxY - mb.minY, d = 8 / st.zoom, othersAll = st.rects.filter(r => r.id !== id).map(r => ({ r, bb: rectAABBMasked(r) })); let bx = null, by = null;
-    const others = othersAll;
+    const moving = { ...self, x, y }, mb = rectAABBMasked(moving), mw = mb.maxX - mb.minX, mh = mb.maxY - mb.minY, d = 8 / st.zoom; let bx = null, by = null;
+    const others = Array.isArray(othersInput)
+      ? othersInput
+      : st.rects.filter(r => r.id !== id).map(r => ({ r, bb: rectAABBMasked(r) }));
     const snapCfg = st.snap || { grid: false, objects: true, centers: true, gaps: true };
     if (snapCfg.grid) {
       const step = 10;
@@ -405,7 +469,9 @@ export const setupDragSnapController = (deps = {}) => {
       const px = findPerpEdgeSnap(movedY, others, d, "x");
       if (px && (!bx || Math.abs(px.d) <= Math.abs(dx || Infinity))) { dx = px.d; gx = px.g; }
     }
-    if (usedX && usedY) dg = Math.abs(gxCand.d) <= Math.abs(gyCand.d) ? gxCand.guide : gyCand.guide; else if (usedX) dg = gxCand.guide; else if (usedY) dg = gyCand.guide;
+    if (usedX && usedY) dg = mergeGapGuides(gxCand && gxCand.guide, gyCand && gyCand.guide);
+    else if (usedX) dg = gxCand.guide;
+    else if (usedY) dg = gyCand.guide;
     const out = { x: Math.round(x + dx), y: Math.round(y + dy), gx, gy, dg };
     snapDebug("result-single", { id, x: out.x, y: out.y, gx: out.gx, gy: out.gy, gapSnap: !!out.dg });
     return out
@@ -429,7 +495,9 @@ export const setupDragSnapController = (deps = {}) => {
       if (bb.maxY > maxY) maxY = bb.maxY;
     }
     if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) { minX = minY = maxX = maxY = 0; }
-    st.drag = { id: target.id, sx: p.x, sy: p.y, moved: false, items, groupBb: { minX, minY, maxX, maxY }, selectedIds: new Set(items.map(it => it.id)) };
+    const selectedIds = new Set(items.map(it => it.id));
+    const snapOthers = st.rects.filter(r => !selectedIds.has(r.id)).map(r => ({ r, bb: rectAABBMasked(r) }));
+    st.drag = { id: target.id, sx: p.x, sy: p.y, moved: false, items, groupBb: { minX, minY, maxX, maxY }, selectedIds, snapOthers };
   };
 
   const snapGroup = (nx, ny, drag, off) => {
@@ -439,7 +507,9 @@ export const setupDragSnapController = (deps = {}) => {
     const dx0 = nx - anchor.rx, dy0 = ny - anchor.ry, g0 = drag.groupBb || { minX: 0, minY: 0, maxX: 0, maxY: 0 };
     const mb = { minX: g0.minX + dx0, minY: g0.minY + dy0, maxX: g0.maxX + dx0, maxY: g0.maxY + dy0 }, mw = mb.maxX - mb.minX, mh = mb.maxY - mb.minY, d = 8 / st.zoom;
     const selectedIds = drag.selectedIds instanceof Set ? drag.selectedIds : new Set(drag.items.map(it => it.id));
-    const others = st.rects.filter(r => !selectedIds.has(r.id)).map(r => ({ r, bb: rectAABBMasked(r) }));
+    const others = Array.isArray(drag.snapOthers)
+      ? drag.snapOthers
+      : st.rects.filter(r => !selectedIds.has(r.id)).map(r => ({ r, bb: rectAABBMasked(r) }));
     let bx = null, by = null;
     const snapCfg = st.snap || { grid: false, objects: true, centers: true, gaps: true };
     if (snapCfg.grid) {
@@ -506,7 +576,9 @@ export const setupDragSnapController = (deps = {}) => {
       const px = findPerpEdgeSnap(movedY, others, d, "x");
       if (px && (!bx || Math.abs(px.d) <= Math.abs(dx || Infinity))) { dx = px.d; gx = px.g; }
     }
-    if (usedX && usedY) dg = Math.abs(gxCand.d) <= Math.abs(gyCand.d) ? gxCand.guide : gyCand.guide; else if (usedX) dg = gxCand.guide; else if (usedY) dg = gyCand.guide;
+    if (usedX && usedY) dg = mergeGapGuides(gxCand && gxCand.guide, gyCand && gyCand.guide);
+    else if (usedX) dg = gxCand.guide;
+    else if (usedY) dg = gyCand.guide;
     const out = { x: Math.round(nx + dx), y: Math.round(ny + dy), gx, gy, dg };
     snapDebug("result-group", { id: anchor.id, x: out.x, y: out.y, gx: out.gx, gy: out.gy, gapSnap: !!out.dg, count: drag.items.length });
     return out;
@@ -526,7 +598,7 @@ export const setupDragSnapController = (deps = {}) => {
     st.drag.moved = true;
     const anchor = st.drag.items.find(it => it.id === st.drag.id) || st.drag.items[0];
     if (!anchor) return;
-    const nx = anchor.rx + (p.x - st.drag.sx), ny = anchor.ry + (p.y - st.drag.sy), sn = (st.drag.items.length > 1) ? snapGroup(nx, ny, st.drag, disableSnap) : snap(nx, ny, anchor.id, anchor.w, anchor.h, disableSnap), dx = sn.x - anchor.rx, dy = sn.y - anchor.ry;
+    const nx = anchor.rx + (p.x - st.drag.sx), ny = anchor.ry + (p.y - st.drag.sy), sn = (st.drag.items.length > 1) ? snapGroup(nx, ny, st.drag, disableSnap) : snap(nx, ny, anchor.id, anchor.w, anchor.h, disableSnap, st.drag.snapOthers), dx = sn.x - anchor.rx, dy = sn.y - anchor.ry;
     for (const it of st.drag.items) {
       const rr = getRectById(it.id);
       if (!rr) continue;
