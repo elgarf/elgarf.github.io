@@ -126,6 +126,20 @@ export const setupDragSnapController = (deps = {}) => {
     maxX: bb.maxX + (dx || 0),
     maxY: bb.maxY + (dy || 0)
   });
+  const calcOthersStats = (others) => {
+    if (!Array.isArray(others) || !others.length) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const o of others) {
+      const bb = o && o.bb;
+      if (!bb) continue;
+      if (bb.minX < minX) minX = bb.minX;
+      if (bb.minY < minY) minY = bb.minY;
+      if (bb.maxX > maxX) maxX = bb.maxX;
+      if (bb.maxY > maxY) maxY = bb.maxY;
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null;
+    return { minX, minY, maxX, maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
+  };
   const buildGapPairs = (list, axis, obstacleList = null) => {
     const src = Array.isArray(list) ? list : [];
     const blockers = Array.isArray(obstacleList) ? obstacleList : src;
@@ -178,10 +192,17 @@ export const setupDragSnapController = (deps = {}) => {
       return intersectsAabb(bb, zone);
     });
   };
-  const findGapSnapCandidate = (mb, mw, mh, others, d, axis) => {
+  const getGapAxisData = (mb, others, axis, cache = null) => {
+    if (cache && cache[axis]) return cache[axis];
     const shadow = collectGapZone(mb, others, axis);
+    const pairs = shadow.length ? buildGapPairs(shadow, axis, shadow) : [];
+    const data = { shadow, pairs };
+    if (cache) cache[axis] = data;
+    return data;
+  };
+  const findGapSnapCandidate = (mb, mw, mh, others, d, axis, gapCache = null) => {
+    const { shadow, pairs } = getGapAxisData(mb, others, axis, gapCache);
     if (!shadow.length) return null;
-    const pairs = buildGapPairs(shadow, axis, shadow);
     if (!pairs.length) return null;
     const betterDist = (cand, current) => {
       if (!current) return true;
@@ -288,8 +309,8 @@ export const setupDragSnapController = (deps = {}) => {
     const bg = Math.abs(Math.round(Number(b.gap) || 0));
     return ag <= bg ? a : b;
   };
-  const findEqualGapSnapCandidate = (mb, mw, mh, others, d, axis) => {
-    const shadow = collectGapZone(mb, others, axis);
+  const findEqualGapSnapCandidate = (mb, mw, mh, others, d, axis, gapCache = null) => {
+    const shadow = getGapAxisData(mb, others, axis, gapCache).shadow;
     if (shadow.length < 2) return null;
     let best = null;
     for (let i = 0; i < shadow.length; i++) {
@@ -398,13 +419,14 @@ export const setupDragSnapController = (deps = {}) => {
     return gxGuide || gyGuide || null;
   };
 
-  const snap = (x, y, id, w, h, off, othersInput = null) => {
+  const snap = (x, y, id, w, h, off, othersInput = null, othersStatsInput = null) => {
     if (off) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null, dg: null };
     const self = getRectById(id); if (!self) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null, dg: null };
     const moving = { ...self, x, y }, mb = rectAABBMasked(moving), mw = mb.maxX - mb.minX, mh = mb.maxY - mb.minY, d = 8 / st.zoom; let bx = null, by = null;
     const others = Array.isArray(othersInput)
       ? othersInput
       : st.rects.filter(r => r.id !== id).map(r => ({ r, bb: rectAABBMasked(r) }));
+    const othersStats = othersStatsInput || calcOthersStats(others);
     const snapCfg = st.snap || { grid: false, objects: true, centers: true, gaps: true };
     if (snapCfg.grid) {
       const step = 10;
@@ -441,18 +463,26 @@ export const setupDragSnapController = (deps = {}) => {
         }
       }
       if (snapCfg.centers && others.length) {
-        let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (const o of others) { minX = Math.min(minX, o.bb.minX); minY = Math.min(minY, o.bb.minY); maxX = Math.max(maxX, o.bb.maxX); maxY = Math.max(maxY, o.bb.maxY) }
-        const bbCx = (minX + maxX) / 2, bbCy = (minY + maxY) / 2, mcx = (mb.minX + mb.maxX) / 2, mcy = (mb.minY + mb.maxY) / 2;
-        const ddx = bbCx - mcx, adx = Math.abs(ddx); if (adx <= d && (!bx || adx < Math.abs(bx.d))) bx = { d: ddx, g: bbCx };
-        const ddy = bbCy - mcy, ady = Math.abs(ddy); if (ady <= d && (!by || ady < Math.abs(by.d))) by = { d: ddy, g: bbCy };
+        const bbCx = othersStats ? othersStats.cx : null;
+        const bbCy = othersStats ? othersStats.cy : null;
+        const mcx = (mb.minX + mb.maxX) / 2, mcy = (mb.minY + mb.maxY) / 2;
+        if (Number.isFinite(bbCx)) {
+          const ddx = bbCx - mcx, adx = Math.abs(ddx);
+          if (adx <= d && (!bx || adx < Math.abs(bx.d))) bx = { d: ddx, g: bbCx };
+        }
+        if (Number.isFinite(bbCy)) {
+          const ddy = bbCy - mcy, ady = Math.abs(ddy);
+          if (ady <= d && (!by || ady < Math.abs(by.d))) by = { d: ddy, g: bbCy };
+        }
       }
     }
     let bdx = null, bdy = null, bex = null, bey = null;
     if (snapCfg.gaps) {
-      bdx = findGapSnapCandidate(mb, mw, mh, others, d, "x");
-      bdy = findGapSnapCandidate(mb, mw, mh, others, d, "y");
-      bex = findEqualGapSnapCandidate(mb, mw, mh, others, d, "x");
-      bey = findEqualGapSnapCandidate(mb, mw, mh, others, d, "y");
+      const gapCache = {};
+      bdx = findGapSnapCandidate(mb, mw, mh, others, d, "x", gapCache);
+      bdy = findGapSnapCandidate(mb, mw, mh, others, d, "y", gapCache);
+      bex = findEqualGapSnapCandidate(mb, mw, mh, others, d, "x", gapCache);
+      bey = findEqualGapSnapCandidate(mb, mw, mh, others, d, "y", gapCache);
     }
     const gxCand = pickBestGapCandidate(bdx, bex);
     const gyCand = pickBestGapCandidate(bdy, bey);
@@ -497,12 +527,14 @@ export const setupDragSnapController = (deps = {}) => {
     if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) { minX = minY = maxX = maxY = 0; }
     const selectedIds = new Set(items.map(it => it.id));
     const snapOthers = st.rects.filter(r => !selectedIds.has(r.id)).map(r => ({ r, bb: rectAABBMasked(r) }));
-    st.drag = { id: target.id, sx: p.x, sy: p.y, moved: false, items, groupBb: { minX, minY, maxX, maxY }, selectedIds, snapOthers };
+    const anchor = items.find(it => it.id === target.id) || items[0] || null;
+    const snapStats = calcOthersStats(snapOthers);
+    st.drag = { id: target.id, sx: p.x, sy: p.y, moved: false, items, anchor, groupBb: { minX, minY, maxX, maxY }, selectedIds, snapOthers, snapStats };
   };
 
   const snapGroup = (nx, ny, drag, off) => {
     if (off || !drag || !Array.isArray(drag.items) || drag.items.length < 2) return { x: Math.round(nx), y: Math.round(ny), gx: null, gy: null, dg: null };
-    const anchor = drag.items.find(it => it.id === drag.id) || drag.items[0];
+    const anchor = drag.anchor || drag.items.find(it => it.id === drag.id) || drag.items[0];
     if (!anchor) return { x: Math.round(nx), y: Math.round(ny), gx: null, gy: null, dg: null };
     const dx0 = nx - anchor.rx, dy0 = ny - anchor.ry, g0 = drag.groupBb || { minX: 0, minY: 0, maxX: 0, maxY: 0 };
     const mb = { minX: g0.minX + dx0, minY: g0.minY + dy0, maxX: g0.maxX + dx0, maxY: g0.maxY + dy0 }, mw = mb.maxX - mb.minX, mh = mb.maxY - mb.minY, d = 8 / st.zoom;
@@ -510,6 +542,7 @@ export const setupDragSnapController = (deps = {}) => {
     const others = Array.isArray(drag.snapOthers)
       ? drag.snapOthers
       : st.rects.filter(r => !selectedIds.has(r.id)).map(r => ({ r, bb: rectAABBMasked(r) }));
+    const othersStats = drag.snapStats || calcOthersStats(others);
     let bx = null, by = null;
     const snapCfg = st.snap || { grid: false, objects: true, centers: true, gaps: true };
     if (snapCfg.grid) {
@@ -547,19 +580,26 @@ export const setupDragSnapController = (deps = {}) => {
         }
       }
       if (snapCfg.centers && others.length) {
-        let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-        for (const o of others) { minX = Math.min(minX, o.bb.minX); minY = Math.min(minY, o.bb.minY); maxX = Math.max(maxX, o.bb.maxX); maxY = Math.max(maxY, o.bb.maxY); }
-        const bbCx = (minX + maxX) / 2, bbCy = (minY + maxY) / 2, mcx = (mb.minX + mb.maxX) / 2, mcy = (mb.minY + mb.maxY) / 2;
-        const ddx = bbCx - mcx, adx = Math.abs(ddx); if (adx <= d && (!bx || adx < Math.abs(bx.d))) bx = { d: ddx, g: bbCx };
-        const ddy = bbCy - mcy, ady = Math.abs(ddy); if (ady <= d && (!by || ady < Math.abs(by.d))) by = { d: ddy, g: bbCy };
+        const bbCx = othersStats ? othersStats.cx : null;
+        const bbCy = othersStats ? othersStats.cy : null;
+        const mcx = (mb.minX + mb.maxX) / 2, mcy = (mb.minY + mb.maxY) / 2;
+        if (Number.isFinite(bbCx)) {
+          const ddx = bbCx - mcx, adx = Math.abs(ddx);
+          if (adx <= d && (!bx || adx < Math.abs(bx.d))) bx = { d: ddx, g: bbCx };
+        }
+        if (Number.isFinite(bbCy)) {
+          const ddy = bbCy - mcy, ady = Math.abs(ddy);
+          if (ady <= d && (!by || ady < Math.abs(by.d))) by = { d: ddy, g: bbCy };
+        }
       }
     }
     let bdx = null, bdy = null, bex = null, bey = null;
     if (snapCfg.gaps) {
-      bdx = findGapSnapCandidate(mb, mw, mh, others, d, "x");
-      bdy = findGapSnapCandidate(mb, mw, mh, others, d, "y");
-      bex = findEqualGapSnapCandidate(mb, mw, mh, others, d, "x");
-      bey = findEqualGapSnapCandidate(mb, mw, mh, others, d, "y");
+      const gapCache = {};
+      bdx = findGapSnapCandidate(mb, mw, mh, others, d, "x", gapCache);
+      bdy = findGapSnapCandidate(mb, mw, mh, others, d, "y", gapCache);
+      bex = findEqualGapSnapCandidate(mb, mw, mh, others, d, "x", gapCache);
+      bey = findEqualGapSnapCandidate(mb, mw, mh, others, d, "y", gapCache);
     }
     const gxCand = pickBestGapCandidate(bdx, bex);
     const gyCand = pickBestGapCandidate(bdy, bey);
@@ -596,9 +636,9 @@ export const setupDragSnapController = (deps = {}) => {
       return;
     }
     st.drag.moved = true;
-    const anchor = st.drag.items.find(it => it.id === st.drag.id) || st.drag.items[0];
+    const anchor = st.drag.anchor || st.drag.items.find(it => it.id === st.drag.id) || st.drag.items[0];
     if (!anchor) return;
-    const nx = anchor.rx + (p.x - st.drag.sx), ny = anchor.ry + (p.y - st.drag.sy), sn = (st.drag.items.length > 1) ? snapGroup(nx, ny, st.drag, disableSnap) : snap(nx, ny, anchor.id, anchor.w, anchor.h, disableSnap, st.drag.snapOthers), dx = sn.x - anchor.rx, dy = sn.y - anchor.ry;
+    const nx = anchor.rx + (p.x - st.drag.sx), ny = anchor.ry + (p.y - st.drag.sy), sn = (st.drag.items.length > 1) ? snapGroup(nx, ny, st.drag, disableSnap) : snap(nx, ny, anchor.id, anchor.w, anchor.h, disableSnap, st.drag.snapOthers, st.drag.snapStats), dx = sn.x - anchor.rx, dy = sn.y - anchor.ry;
     for (const it of st.drag.items) {
       const rr = getRectById(it.id);
       if (!rr) continue;
