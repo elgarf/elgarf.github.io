@@ -1,3 +1,6 @@
+import { createDebounced } from "../utils/debounce.js";
+import { normalizeSemanticToken, createSectionKeySequencer } from "../spec/section-key-utils.js";
+
 const escapeHtml = value => String(value == null ? "" : value)
   .replace(/&/g, "&amp;")
   .replace(/</g, "&lt;")
@@ -30,25 +33,16 @@ const parseSpecSections = text => {
   flush();
   const out = [];
   let parentTitle = "Спецификация";
-  const counts = new Map();
-  const inc = k => {
-    const n = (counts.get(k) || 0) + 1;
-    counts.set(k, n);
-    return n;
-  };
+  const nextKey = createSectionKeySequencer();
   for (const s of raw) {
     const level = Number(s && s.level) || 5;
     const title = String(s && s.title || "").trim() || (level <= 5 ? "Секция" : "Экран");
     if (level <= 5) {
       parentTitle = title;
-      const sem = `h5:${normalizeSemanticToken(title)}`;
-      const occ = inc(sem);
-      out.push({ ...s, key: `${sem}:${occ}`, title, level: 5 });
+      out.push({ ...s, key: nextKey(5, parentTitle, title), title, level: 5 });
       continue;
     }
-    const sem = `h6:${normalizeSemanticToken(parentTitle)}:${normalizeSemanticToken(title)}`;
-    const occ = inc(sem);
-    out.push({ ...s, key: `${sem}:${occ}`, title, level: 6 });
+    out.push({ ...s, key: nextKey(6, parentTitle, title), title, level: 6 });
   }
   return out;
 };
@@ -84,13 +78,6 @@ const groupSpecSections = sections => {
   return groups;
 };
 
-const normalizeSemanticToken = raw => String(raw || "")
-  .toLowerCase()
-  .replace(/\s+/g, " ")
-  .trim()
-  .replace(/[^a-zа-я0-9@._ -]+/gi, "")
-  .replace(/\s+/g, "-");
-
 const sectionSemanticId = section => {
   const level = Number(section && section.level) || 0;
   const title = normalizeSemanticToken(section && section.title);
@@ -118,7 +105,6 @@ export const setupSpecViewController = (deps = {}) => {
 
   let autoTextCache = "";
   let autoSig = "";
-  let persistTimer = 0;
   let sections = [];
   let sectionGroups = [];
   const editorMap = new Map();
@@ -147,15 +133,12 @@ export const setupSpecViewController = (deps = {}) => {
     return true;
   };
 
-  const schedulePersist = () => {
-    if (persistTimer) clearTimeout(persistTimer);
-    persistTimer = setTimeout(() => {
-      persistTimer = 0;
-      if (typeof commitProjectChange === "function") {
-        commitProjectChange({ persist: true, persistKind: "project", render: false });
-      }
-    }, 180);
-  };
+  const persistDebounced = createDebounced(() => {
+    if (typeof commitProjectChange === "function") {
+      commitProjectChange({ persist: true, persistKind: "project", render: false });
+    }
+  }, 180);
+  const schedulePersist = () => persistDebounced.schedule();
 
   const getRectSig = () => {
     const parts = [];
@@ -178,36 +161,41 @@ export const setupSpecViewController = (deps = {}) => {
     editorMap.clear();
   };
 
-  const bindPlainTextarea = (ta, key) => {
-    ta.addEventListener("input", () => {
-      const map = ensureCustomMap();
-      const text = String(ta.value || "");
-      if (text.trim()) map[key] = text;
-      else delete map[key];
-      const sub = findSubSectionByKey(key);
-      if (sub) sub.classList.toggle("has-manual", !!text.trim());
+  const findSectionByKey = (selector, key) => {
+    if (!el.specAutoBlocks) return null;
+    const targetKey = String(key || "");
+    const items = el.specAutoBlocks.querySelectorAll(selector);
+    for (const item of items) {
+      if (String(item.getAttribute("data-section-key") || "") === targetKey) return item;
+    }
+    return null;
+  };
+
+  const findSubSectionByKey = key => findSectionByKey(".spec-mode-sub[data-section-key]", key);
+  const findParentSectionByKey = key => findSectionByKey(".spec-mode-parent[data-section-key]", key);
+
+  const updateManualClassState = (key, hasManual) => {
+    const on = !!hasManual;
+    const sub = findSubSectionByKey(key);
+    if (sub) sub.classList.toggle("has-manual", on);
+    if (String(key || "") === GLOBAL_SPEC_KEY) {
       const parent = findParentSectionByKey(key);
-      if (parent && key === GLOBAL_SPEC_KEY) parent.classList.toggle("has-manual", !!text.trim());
-      schedulePersist();
-    });
+      if (parent) parent.classList.toggle("has-manual", on);
+    }
   };
 
-  const findSubSectionByKey = key => {
-    if (!el.specAutoBlocks) return null;
-    const items = el.specAutoBlocks.querySelectorAll(".spec-mode-sub[data-section-key]");
-    for (const item of items) {
-      if (String(item.getAttribute("data-section-key") || "") === String(key || "")) return item;
-    }
-    return null;
+  const getCustomText = (key, fallback = "") => String((ensureCustomMap()[key] ?? fallback ?? ""));
+  const setCustomText = (key, textRaw) => {
+    const map = ensureCustomMap();
+    const text = String(textRaw || "");
+    if (text.trim()) map[key] = text;
+    else delete map[key];
+    updateManualClassState(key, !!text.trim());
+    schedulePersist();
   };
 
-  const findParentSectionByKey = key => {
-    if (!el.specAutoBlocks) return null;
-    const items = el.specAutoBlocks.querySelectorAll(".spec-mode-parent[data-section-key]");
-    for (const item of items) {
-      if (String(item.getAttribute("data-section-key") || "") === String(key || "")) return item;
-    }
-    return null;
+  const bindPlainTextarea = (ta, key) => {
+    ta.addEventListener("input", () => setCustomText(key, ta.value));
   };
 
   const bindSpecBlockEvents = () => {
@@ -222,14 +210,14 @@ export const setupSpecViewController = (deps = {}) => {
       if (!key) return;
       const editor = editorMap.get(key);
       if (editor && editor.codemirror) {
-        const text = String((ensureCustomMap()[key] ?? ""));
+        const text = getCustomText(key, "");
         if (String(editor.value() || "") !== text) editor.value(text);
         try { editor.codemirror.refresh(); } catch (_e) { }
         return;
       }
       const ta = target.querySelector("textarea[data-spec-edit]");
       if (ta instanceof HTMLTextAreaElement) {
-        const text = String((ensureCustomMap()[key] ?? ta.value ?? ""));
+        const text = getCustomText(key, ta.value);
         if (ta.value !== text) ta.value = text;
       }
     });
@@ -239,12 +227,11 @@ export const setupSpecViewController = (deps = {}) => {
     if (!el.specAutoBlocks) return;
     bindSpecBlockEvents();
     disposeEditors();
-    const customMap = ensureCustomMap();
     const textareas = el.specAutoBlocks.querySelectorAll("textarea[data-spec-edit]");
     for (const ta of textareas) {
       const key = String(ta.getAttribute("data-spec-edit") || "");
       if (!key) continue;
-      ta.value = String(customMap[key] ?? ta.value ?? "");
+      ta.value = getCustomText(key, ta.value);
       if (!hasEasyMde()) {
         bindPlainTextarea(ta, key);
         continue;
@@ -265,17 +252,9 @@ export const setupSpecViewController = (deps = {}) => {
             "quote", "code", "link"
           ]
         });
-        editor.value(String(customMap[key] ?? ta.value ?? ""));
+        editor.value(getCustomText(key, ta.value));
         editor.codemirror.on("change", () => {
-          const map = ensureCustomMap();
-          const text = String(editor.value() || "");
-          if (text.trim()) map[key] = text;
-          else delete map[key];
-          const sub = findSubSectionByKey(key);
-          if (sub) sub.classList.toggle("has-manual", !!text.trim());
-          const parent = findParentSectionByKey(key);
-          if (parent && key === GLOBAL_SPEC_KEY) parent.classList.toggle("has-manual", !!text.trim());
-          schedulePersist();
+          setCustomText(key, editor.value());
         });
         editorMap.set(key, editor);
         setTimeout(() => {

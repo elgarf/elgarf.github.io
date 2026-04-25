@@ -1,5 +1,7 @@
 import { setupExportPackageController } from "../export-package-controller.js";
 import { buildFlowLinksSpecText, fmtOne, fmtMeters, addCountToMap } from "../spec/build-flow-links-section.js";
+import { buildSagBezierControls, estimateBezierLength } from "../flow/bezier-utils.js";
+import { buildVisibleComponentStats } from "../calc/visible-cabinet-stats.js";
 
 export const setupSpecExportFeature = (deps = {}) => {
   const {
@@ -149,29 +151,12 @@ export const setupSpecExportFeature = (deps = {}) => {
     };
   };
 
-  const sampleBezier = (p0, p1, p2, p3, t) => {
-    const u = 1 - t;
-    return {
-      x: (u * u * u) * p0.x + 3 * (u * u) * t * p1.x + 3 * u * (t * t) * p2.x + (t * t * t) * p3.x,
-      y: (u * u * u) * p0.y + 3 * (u * u) * t * p1.y + 3 * u * (t * t) * p2.y + (t * t * t) * p3.y
-    };
-  };
   const estimateInterScreenCableLenPx = (a, b) => {
     if (!a || !b) return 0;
-    const dx = (+b.x || 0) - (+a.x || 0);
-    const dy = (+b.y || 0) - (+a.y || 0);
-    const len = Math.max(20, Math.hypot(dx, dy));
-    const sag = Math.max(8, Math.min(120, len * 0.18));
-    const c1 = { x: (+a.x || 0) + dx * 0.25, y: (+a.y || 0) + dy * 0.25 + sag };
-    const c2 = { x: (+a.x || 0) + dx * 0.75, y: (+a.y || 0) + dy * 0.75 + sag };
-    let total = 0;
-    let prev = { x: +a.x || 0, y: +a.y || 0 };
-    for (let i = 1; i <= 24; i++) {
-      const p = sampleBezier({ x: +a.x || 0, y: +a.y || 0 }, c1, c2, { x: +b.x || 0, y: +b.y || 0 }, i / 24);
-      total += Math.hypot((+p.x || 0) - (+prev.x || 0), (+p.y || 0) - (+prev.y || 0));
-      prev = p;
-    }
-    return total;
+    const p0 = { x: +a.x || 0, y: +a.y || 0 };
+    const p3 = { x: +b.x || 0, y: +b.y || 0 };
+    const { c1, c2 } = buildSagBezierControls(p0, p3);
+    return estimateBezierLength(p0, c1, c2, p3, 24);
   };
 
   const buildInterScreenSpecData = () => {
@@ -238,35 +223,11 @@ export const setupSpecExportFeature = (deps = {}) => {
 
   const buildRectSpecData = r => {
     const { cellX, cellY, topo, hs, flowGroups } = getRectFlowContext(r);
-    const cols = Math.max(1, topo && topo.cols || 1);
-    const rows = Math.max(1, topo && topo.rows || 1);
-    const colW = [];
-    for (let x = 0; x < r.width; x += cellX) colW.push(Math.min(cellX, r.width - x));
-    const rowH = [];
-    for (let y = 0; y < r.height; y += cellY) rowH.push(Math.min(cellY, r.height - y));
-    const colPref = [0];
-    for (let i = 0; i < colW.length; i++) colPref.push(colPref[i] + colW[i]);
-    const rowPref = [0];
-    for (let i = 0; i < rowH.length; i++) rowPref.push(rowPref[i] + rowH[i]);
-    const comp = new Map();
-    let visibleAreaPx = 0;
-    for (let iy = 0; iy < rows; iy++) for (let ix = 0; ix < cols; ix++) {
-      if (hs && hs.has(maskCellKey(ix, iy))) continue;
-      visibleAreaPx += Math.max(0, (colW[ix] || 0) * (rowH[iy] || 0));
-      const idx = iy * cols + ix;
-      const cid = ((topo && Array.isArray(topo.comp) ? topo.comp[idx] : 0) | 0);
-      let it = comp.get(cid);
-      if (!it) {
-        it = { c0: ix, c1: ix + 1, r0: iy, r1: iy + 1, cells: 1 };
-        comp.set(cid, it);
-        continue;
-      }
-      if (ix < it.c0) it.c0 = ix;
-      if (ix + 1 > it.c1) it.c1 = ix + 1;
-      if (iy < it.r0) it.r0 = iy;
-      if (iy + 1 > it.r1) it.r1 = iy + 1;
-      it.cells++;
-    }
+    const visibleStats = buildVisibleComponentStats(r, cellX, cellY, topo, hs, maskCellKey);
+    const colPref = visibleStats ? visibleStats.colPref : [0];
+    const rowPref = visibleStats ? visibleStats.rowPref : [0];
+    const comp = visibleStats ? visibleStats.compStats : new Map();
+    const visibleAreaPx = visibleStats ? visibleStats.visibleAreaPx : 0;
     const cabinetBySize = new Map();
     for (const it of comp.values()) {
       const wPx = Math.max(1, Math.round((colPref[it.c1] || 0) - (colPref[it.c0] || 0)));

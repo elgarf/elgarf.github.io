@@ -1,3 +1,5 @@
+import { createSectionKeySequencer } from "./section-key-utils.js";
+
 export const fmtAreaM2 = v => {
   const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
   return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "");
@@ -47,26 +49,8 @@ const sumMapCounts = map => {
   for (const v of map.values()) sum += Math.max(0, Math.round(Number(v) || 0));
   return sum;
 };
-const normalizeSemanticToken = raw => String(raw || "")
-  .toLowerCase()
-  .replace(/\s+/g, " ")
-  .trim()
-  .replace(/[^a-zа-я0-9@._ -]+/gi, "")
-  .replace(/\s+/g, "-");
 const createManualSectionResolver = (customMap = {}) => {
-  const counts = new Map();
-  const nextKey = (level, parentTitle, title) => {
-    if (Number(level) <= 5) {
-      const sem = `h5:${normalizeSemanticToken(title)}`;
-      const occ = (counts.get(sem) || 0) + 1;
-      counts.set(sem, occ);
-      return `${sem}:${occ}`;
-    }
-    const sem = `h6:${normalizeSemanticToken(parentTitle)}:${normalizeSemanticToken(title)}`;
-    const occ = (counts.get(sem) || 0) + 1;
-    counts.set(sem, occ);
-    return `${sem}:${occ}`;
-  };
+  const nextKey = createSectionKeySequencer();
   const getSectionManual = (level, parentTitle, title) => {
     const key = nextKey(level, parentTitle, title);
     return String((customMap && customMap[key]) || "").trim();
