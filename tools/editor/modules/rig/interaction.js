@@ -12,19 +12,25 @@ export const setupRigInteractionController = (deps = {}) => {
     worldToRectUV,
     RIG_DEFAULT_LOAD_KG
   } = deps;
+  const toInt0 = v => Math.max(0, Math.round(Number(v) || 0));
+  const toInt1 = v => Math.max(1, Math.round(Number(v) || 0));
+  const zoomSafe = z => Math.max(0.35, Number(z) || 1);
+  const scaleSafe = v => Math.max(1, Number(v) || 1);
+  const toLoadKg = v => Math.max(5, Math.round(Math.max(0, Number(v) || 0) / 5) * 5);
+  const loadEq = (a, b) => toInt0(a) === toInt0(b);
 
   const buildRigLayout = (r, cx, cy, topo, hs, z) => {
-    const w = Math.max(1, Math.round(Number(r && r.width) || 1));
-    const h = Math.max(1, Math.round(Number(r && r.height) || 1));
-    const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
-    const rows = Math.max(1, Math.round(Number(topo && topo.rows) || 1));
+    const w = toInt1(r && r.width);
+    const h = toInt1(r && r.height);
+    const cols = toInt1(topo && topo.cols);
+    const rows = toInt1(topo && topo.rows);
     const scalePx = Math.max(1, Number(r && r.scale) || 256);
     const hidden = hs || new Set();
     const isVisible = (ix, iy) => (ix >= 0 && ix < cols && iy >= 0 && iy < rows && !hidden.has(maskCellKey(ix, iy)));
     const seams = new Map();
     const bottomLoads = new Map();
     const anchors = new Map();
-    const halfRow = Math.max(0, Math.floor(rows / 2));
+    const halfRow = toInt0(Math.floor(rows / 2));
     const seamSpansByCol = new Map();
 
     for (let iy = 0; iy < rows; iy++) {
@@ -90,7 +96,7 @@ export const setupRigInteractionController = (deps = {}) => {
       anchors.set(ix, { col: ix, row: bestRow, x0, x1, x, y });
     }
 
-    const ui = Math.max(0.6, 1 / Math.max(0.35, Number(z) || 1));
+    const ui = Math.max(0.6, 1 / zoomSafe(z));
     const loadSizePx = Math.max(14, 0.25 * scalePx);
     return { w, h, cols, rows, seams, bottomLoads, anchors, ui, loadSizePx, scalePx };
   };
@@ -124,7 +130,7 @@ export const setupRigInteractionController = (deps = {}) => {
     const byCol = new Map();
     for (const s of seams) {
       if (!s) continue;
-      const c = Math.max(1, Math.round(Number(s.c) || 0));
+      const c = toInt1(s.c);
       let rec = byCol.get(c);
       if (!rec) rec = { globalBottom: null, fallback: null };
       if (!rec.fallback || (Number(s.yBottom) || -Infinity) > (Number(rec.fallback.yBottom) || -Infinity)) rec.fallback = s;
@@ -139,8 +145,8 @@ export const setupRigInteractionController = (deps = {}) => {
         changed = true;
         continue;
       }
-      const c = Math.max(1, Math.round(Number(p[0]) || 0));
-      const kg = Math.max(5, Math.round(Math.max(0, Number(v) || 0) / 5) * 5);
+      const c = toInt1(p[0]);
+      const kg = toLoadKg(v);
       if (!kg) {
         changed = true;
         continue;
@@ -153,14 +159,14 @@ export const setupRigInteractionController = (deps = {}) => {
       }
       const targetKey = String(target.key);
       if (targetKey !== String(k)) changed = true;
-      nextLoads[targetKey] = Math.max(Math.max(0, Math.round(Number(nextLoads[targetKey]) || 0)), kg);
+      nextLoads[targetKey] = Math.max(toInt0(nextLoads[targetKey]), kg);
     }
     const prevKeys = Object.keys(srcLoads).sort().join("|");
     const nextKeys = Object.keys(nextLoads).sort().join("|");
     if (prevKeys !== nextKeys) changed = true;
     if (!changed) {
       for (const kk of Object.keys(nextLoads)) {
-        if (Math.max(0, Math.round(Number(nextLoads[kk]) || 0)) !== Math.max(0, Math.round(Number(srcLoads[kk]) || 0))) {
+        if (!loadEq(nextLoads[kk], srcLoads[kk])) {
           changed = true;
           break;
         }
@@ -177,9 +183,9 @@ export const setupRigInteractionController = (deps = {}) => {
     if (direct) return direct;
     const p = String(key || "").split(",");
     if (p.length !== 2) return null;
-    const c = Math.max(1, Math.round(Number(p[0]) || 0));
-    const legacyRow = Math.max(0, Math.round(Number(p[1]) || 0));
-    const meter = Math.max(0, Math.floor(((legacyRow + 0.5) * Math.max(1, Number(cellY) || 1)) / Math.max(1, Number(layout.scalePx) || 1)));
+    const c = toInt1(p[0]);
+    const legacyRow = toInt0(p[1]);
+    const meter = toInt0(Math.floor(((legacyRow + 0.5) * scaleSafe(cellY)) / scaleSafe(layout.scalePx)));
     return layout.seams.get(`${c},${meter}`) || null;
   };
 
@@ -323,20 +329,20 @@ export const setupRigInteractionController = (deps = {}) => {
       else loads[hit.key] = RIG_DEFAULT_LOAD_KG;
       changed = true;
     } else if (hit.type === "loadPlus") {
-      const cur = Math.max(0, Math.round(Number(loads[hit.key]) || 0));
-      loads[hit.key] = Math.max(5, Math.round((cur + 5) / 5) * 5);
+      const cur = toInt0(loads[hit.key]);
+      loads[hit.key] = toLoadKg(cur + 5);
       changed = true;
     } else if (hit.type === "loadMinus") {
-      const cur = Math.max(0, Math.round(Number(loads[hit.key]) || 0)) - 5;
+      const cur = toInt0(loads[hit.key]) - 5;
       if (cur <= 0) delete loads[hit.key];
-      else loads[hit.key] = Math.max(5, Math.round(cur / 5) * 5);
+      else loads[hit.key] = toLoadKg(cur);
       changed = true;
     } else if (hit.type === "suspend") {
-      const c = Math.max(0, Math.round(Number(hit.col) || 0));
+      const c = toInt0(hit.col);
       if (suspends.has(c)) {
         suspends.delete(c);
         for (const lk of [...links]) {
-          const p = String(lk || "").split("-").map(v => Math.max(0, Math.round(Number(v) || 0)));
+          const p = String(lk || "").split("-").map(v => toInt0(v));
           if (p.length !== 2) continue;
           if (p[0] === c || p[1] === c) links.delete(lk);
         }

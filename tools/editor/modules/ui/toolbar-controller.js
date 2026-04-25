@@ -42,21 +42,25 @@ export const setupToolbarController = (deps = {}) => {
     el.themePopup.classList.remove("show");
     el.themeToggle.setAttribute("aria-expanded", "false");
   };
+  const placePopupNearAnchor = (popupEl, anchorEl, defaultWidth = 220) => {
+    if (!popupEl || !anchorEl) return;
+    const tr = anchorEl.getBoundingClientRect();
+    const vw = windowRef.innerWidth;
+    popupEl.style.visibility = "hidden";
+    popupEl.classList.add("show");
+    const pw = popupEl.offsetWidth || defaultWidth;
+    const left = Math.max(8, Math.min(vw - 8 - pw, tr.right - pw));
+    const top = tr.bottom + 6;
+    popupEl.style.left = `${left}px`;
+    popupEl.style.top = `${top}px`;
+    popupEl.style.visibility = "";
+  };
 
   const showThemePopup = (anchorEl = null) => {
     if (!el || !el.themePopup) return;
     const anchor = anchorEl || el.themeToggle;
     if (!anchor) return;
-    const tr = anchor.getBoundingClientRect();
-    const vw = windowRef.innerWidth;
-    el.themePopup.style.visibility = "hidden";
-    el.themePopup.classList.add("show");
-    const pw = el.themePopup.offsetWidth || 220;
-    const left = Math.max(8, Math.min(vw - 8 - pw, tr.right - pw));
-    const top = tr.bottom + 6;
-    el.themePopup.style.left = `${left}px`;
-    el.themePopup.style.top = `${top}px`;
-    el.themePopup.style.visibility = "";
+    placePopupNearAnchor(el.themePopup, anchor, 220);
     if (el.themeToggle) el.themeToggle.setAttribute("aria-expanded", "true");
   };
 
@@ -121,16 +125,7 @@ export const setupToolbarController = (deps = {}) => {
       el.overflowPopup.appendChild(item);
     }
 
-    const tr = el.overflowToggle.getBoundingClientRect();
-    const vw = windowRef.innerWidth;
-    el.overflowPopup.style.visibility = "hidden";
-    el.overflowPopup.classList.add("show");
-    const pw = el.overflowPopup.offsetWidth || 220;
-    const left = Math.max(8, Math.min(vw - 8 - pw, tr.right - pw));
-    const top = tr.bottom + 6;
-    el.overflowPopup.style.left = `${left}px`;
-    el.overflowPopup.style.top = `${top}px`;
-    el.overflowPopup.style.visibility = "";
+    placePopupNearAnchor(el.overflowPopup, el.overflowToggle, 220);
     el.overflowToggle.setAttribute("aria-expanded", "true");
   };
 

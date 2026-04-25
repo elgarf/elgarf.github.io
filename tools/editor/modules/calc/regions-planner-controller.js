@@ -29,6 +29,11 @@ export const setupRegionsPlannerController = (deps = {}) => {
     toLetters,
     REGION_ZONE_COLORS
   } = deps;
+  const toInt0 = v => Math.max(0, Math.round(Number(v) || 0));
+  const toInt1 = v => Math.max(1, Math.round(Number(v) || 0));
+  const clampInt = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(Number(v) || 0)));
+  const rectSig = z => `${z.c0},${z.c1},${z.r0},${z.r1}`;
+  const regsSig = regs => (Array.isArray(regs) ? regs.map(rectSig).sort().join("|") : "");
 
 const splitIndicesBySize = (sizes, groups) => {
   const n = sizes.length, g = Math.max(1, Math.min(groups, n)); if (g === 1) return [0, n];
@@ -44,7 +49,7 @@ const planNumberRegionsUncached = (r, cx, cy, topo, hs, budget) => {
   const startedAt = calcNow();
   const makeSingle = (timedOut = false) => {
     r._splitVariantCount = 1;
-    if (r && Math.round(Number(r.splitVariant) || 0) !== 0) r.splitVariant = 0;
+    if (r && toInt0(r.splitVariant) !== 0) r.splitVariant = 0;
     const out = buildSingleRegionPlan(r, cx, cy, topo, hs);
     out.variantCount = 1;
     if (timedOut) {
@@ -75,9 +80,9 @@ const planNumberRegionsUncached = (r, cx, cy, topo, hs, budget) => {
     const out = [];
     for (const it of raw) {
       if (!it || typeof it !== "object") continue;
-      const sx = Math.max(0, Math.round(Number(it.sx) || 0)), sy = Math.max(0, Math.round(Number(it.sy) || 0));
-      const mc0 = Math.max(0, Math.round(Number(it.c0) || 0)), mc1 = Math.max(mc0 + 1, Math.round(Number(it.c1) || 0));
-      const mr0 = Math.max(0, Math.round(Number(it.r0) || 0)), mr1 = Math.max(mr0 + 1, Math.round(Number(it.r1) || 0));
+      const sx = toInt0(it.sx), sy = toInt0(it.sy);
+      const mc0 = toInt0(it.c0), mc1 = Math.max(mc0 + 1, toInt0(it.c1));
+      const mr0 = toInt0(it.r0), mr1 = Math.max(mr0 + 1, toInt0(it.r1));
       const mid = Math.max(1, Math.round(Number(it.id) || out.length + 1));
       out.push({ id: mid, sx, sy, c0: mc0, c1: mc1, r0: mr0, r1: mr1 });
     }
@@ -102,7 +107,12 @@ const planNumberRegionsUncached = (r, cx, cy, topo, hs, budget) => {
     };
     const manual = Array.isArray(rects) ? rects : [];
     for (const z of manual) {
-      const nz = { c0: Math.max(0, Math.min(cols - 1, Math.round(Number(z && z.c0) || 0))), c1: Math.max(1, Math.min(cols, Math.round(Number(z && z.c1) || 0))), r0: Math.max(0, Math.min(rows - 1, Math.round(Number(z && z.r0) || 0))), r1: Math.max(1, Math.min(rows, Math.round(Number(z && z.r1) || 0))) }; if (nz.c1 <= nz.c0 || nz.r1 <= nz.r0) continue;
+      const nz = {
+        c0: clampInt(z && z.c0, 0, cols - 1),
+        c1: Math.max(1, clampInt(z && z.c1, 0, cols)),
+        r0: clampInt(z && z.r0, 0, rows - 1),
+        r1: Math.max(1, clampInt(z && z.r1, 0, rows))
+      }; if (nz.c1 <= nz.c0 || nz.r1 <= nz.r0) continue;
       if (areaRect(nz.c0, nz.c1, nz.r0, nz.r1) > maxAreaPx + AREA_LIMIT_EPS) continue;
       addRect(nz);
     }
@@ -121,7 +131,7 @@ const planNumberRegionsUncached = (r, cx, cy, topo, hs, budget) => {
     const manualPlan = buildPlanFromRects(manualRects);
     if (manualPlan) {
       r._splitVariantCount = 1;
-      if (r && Math.round(Number(r.splitVariant) || 0) !== 0) r.splitVariant = 0;
+      if (r && toInt0(r.splitVariant) !== 0) r.splitVariant = 0;
       safeDefine(manualPlan, "_profile", { variantCount: 1, optimalCount, maxAllowedCount, totalMs: Math.max(0, calcNow() - startedAt), manual: true });
       return manualPlan;
     }
@@ -193,7 +203,7 @@ const planNumberRegionsUncached = (r, cx, cy, topo, hs, budget) => {
     }
     if (!coversAllVisible(pruned)) return;
     if (!variantRespectsMergedCells(pruned)) return;
-    const sig = pruned.map(z => `${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
+    const sig = regsSig(pruned);
     if (seen.has(sig)) return;
     seen.add(sig);
     variants.push(pruned);
@@ -450,7 +460,7 @@ const planNumberRegionsUncached = (r, cx, cy, topo, hs, budget) => {
     }
     return mergeNeighborRects(regs);
   };
-  const regsSignature = regs => regs.map(z => `${z.c0},${z.c1},${z.r0},${z.r1}`).sort().join("|");
+  const regsSignature = regs => regsSig(regs);
   const regsScore = (regs, targetParts) => Math.abs((regs && regs.length || 0) - targetParts) * 1e15 + variantBad(regs) * 1e3 + variantShape(regs);
   const beamImproveVariant = (input, strategy, targetParts) => {
     const kind = (strategy && strategy.kind) || "block";
@@ -682,8 +692,8 @@ const planNumberRegionsUncached = (r, cx, cy, topo, hs, budget) => {
   if (!ordered.length) return makeSingle(false);
   const variantCount = Math.max(1, ordered.length);
   r._splitVariantCount = variantCount;
-  const variantIndex = Math.max(0, Math.min(variantCount - 1, Math.round(Number(r && r.splitVariant) || 0)));
-  if (r && Math.round(Number(r.splitVariant) || 0) !== variantIndex) r.splitVariant = variantIndex;
+  const variantIndex = Math.max(0, Math.min(variantCount - 1, toInt0(r && r.splitVariant)));
+  if (r && toInt0(r.splitVariant) !== variantIndex) r.splitVariant = variantIndex;
   const finalRegions = (ordered[variantIndex] ? ordered[variantIndex].v : ordered[0].v).map((z, idx) => ({ id: idx, label: toLetters(idx), gx: idx, gy: 0, c0: z.c0, c1: z.c1, r0: z.r0, r1: z.r1, w: colPref[z.c1] - colPref[z.c0], h: rowPref[z.r1] - rowPref[z.r0] }));
   const byId = new Map(); for (const rg of finalRegions) byId.set(rg.id, rg);
   const colToGroup = new Array(cols).fill(-1), rowToGroup = new Array(rows).fill(-1), cellToRegion = new Array(rows * cols).fill(-1);

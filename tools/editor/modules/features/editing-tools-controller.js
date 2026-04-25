@@ -33,6 +33,10 @@ export const setupEditingToolsCore = (deps = {}) => {
     clusterCanPlace,
     upsertManualCluster
   } = deps;
+  const zoomSafe = z => Math.max(0.25, Number(z) || 1);
+  const scaleSafe = v => Math.max(1, Number(v) || 256);
+  const rigTopPadFor = r => (st.mode === "rigEdit") ? Math.max(8, 0.22 * scaleSafe(r && r.scale)) : 0;
+  const nearEq = (a, b, eps = 0.001) => Math.abs((+a || 0) - (+b || 0)) < eps;
 
   const curFromState = () => getRectById(st.sel) || null;
   const hit = (x, y) => {
@@ -41,16 +45,12 @@ export const setupEditingToolsCore = (deps = {}) => {
       if (isRectLocked(r)) continue;
       if (typeof rectAABBMasked === "function") {
         const bb = rectAABBMasked(r);
-        const rigTopPad = (st.mode === "rigEdit")
-          ? Math.max(8, 0.22 * Math.max(1, Number(r && r.scale) || 256))
-          : 0;
+        const rigTopPad = rigTopPadFor(r);
         if (x < bb.minX - rigTopPad || x > bb.maxX + rigTopPad || y < bb.minY - rigTopPad || y > bb.maxY + rigTopPad) continue;
       }
       const p = worldToRectUV(r, x, y);
       const inRect = p.u >= 0 && p.u <= r.width && p.v >= 0 && p.v <= r.height;
-      const rigTopPad = (st.mode === "rigEdit")
-        ? Math.max(8, 0.22 * Math.max(1, Number(r && r.scale) || 256))
-        : 0;
+      const rigTopPad = rigTopPadFor(r);
       const inRigTopPad = (st.mode === "rigEdit")
         && p.u >= 0
         && p.u <= r.width
@@ -112,12 +112,12 @@ export const setupEditingToolsCore = (deps = {}) => {
     if (!p) return;
     const first = st.maskPath[0];
     const last = st.maskPath[st.maskPath.length - 1];
-    const eps = 6 / st.zoom;
+    const eps = 6 / zoomSafe(st.zoom);
     if (first && st.maskPath.length >= 3 && Math.hypot(p.x - first.x, p.y - first.y) <= eps) {
       applyMaskPath();
       return;
     }
-    if (last && Math.abs(last.x - p.x) < 0.001 && Math.abs(last.y - p.y) < 0.001) return;
+    if (last && nearEq(last.x, p.x) && nearEq(last.y, p.y)) return;
     st.maskPath.push(p);
     render();
   };

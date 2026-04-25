@@ -46,6 +46,10 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   const NOTE_RESIZE_HANDLE_PX = 16;
   const DRAFT_START_MOVE_PX = 2;
   const NOTE_RESIZE_CURSOR = "nwse-resize";
+  const zoomSafe = z => Math.max(0.25, Number(z) || 1);
+  const noteResizePad = () => NOTE_RESIZE_HANDLE_PX / zoomSafe(st.zoom);
+  const noteResizeMin = () => Math.max(24, 24 / zoomSafe(st.zoom));
+  const draftMovePx = (dx, dy) => Math.hypot(dx, dy) * Math.max(0.1, Number(st.zoom) || 1);
   const setNoteResizeCursor = on => {
     if (!cv || !cv.style) return;
     const cur = String(cv.style.cursor || "");
@@ -59,7 +63,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (!r || !isNoteRect(r) || !p || typeof worldToRectUV !== "function") return false;
     const uv = worldToRectUV(r, p.x, p.y);
     if (!uv) return false;
-    const pad = NOTE_RESIZE_HANDLE_PX / Math.max(0.25, Number(st.zoom) || 1);
+    const pad = noteResizePad();
     return uv.u >= (r.width - pad) && uv.u <= (r.width + pad * .5) && uv.v >= (r.height - pad) && uv.v <= (r.height + pad * .5);
   };
   const beginNoteResize = (r, p) => {
@@ -81,7 +85,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (!rs) return false;
     const r = getRectById(rs.id);
     if (!r || !isNoteRect(r) || isRectLocked(r)) { st.noteResize = null; return false; }
-    const minSize = Math.max(24, 24 / Math.max(0.25, Number(st.zoom) || 1));
+    const minSize = noteResizeMin();
     const nextW = Math.max(minSize, rs.width + ((+p.x || 0) - (+rs.sx || 0)));
     const nextH = Math.max(minSize, rs.height + ((+p.y || 0) - (+rs.sy || 0)));
     if (Math.abs(nextW - r.width) < 0.001 && Math.abs(nextH - r.height) < 0.001) return true;
@@ -204,7 +208,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       const ds = st.draftPending;
       const dx = (+p.x || 0) - (+ds.sx || 0);
       const dy = (+p.y || 0) - (+ds.sy || 0);
-      const movedPx = Math.hypot(dx, dy) * Math.max(0.1, Number(st.zoom) || 1);
+      const movedPx = draftMovePx(dx, dy);
       if (movedPx >= DRAFT_START_MOVE_PX) {
         st.draft = { x: ds.sx, y: ds.sy, width: 0, height: 0, sx: ds.sx, sy: ds.sy, kind: String(ds.kind || "rect") };
       }

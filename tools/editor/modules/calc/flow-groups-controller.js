@@ -34,13 +34,19 @@ export const setupFlowGroupsController = (deps = {}) => {
     v_rt_td: { order: ["_colRight", "desc", "_rowTop", "asc"], axes: { primary: "col", primaryDir: "desc", secondaryStart: "asc" } },
     default: { order: ["_rowTop", "asc", "_colLeft", "asc"], axes: { primary: "row", primaryDir: "asc", secondaryStart: "asc" } }
   });
+  const toInt0 = v => Math.max(0, Math.round(Number(v) || 0));
+  const toInt1 = v => Math.max(1, Math.round(Number(v) || 0));
+  const cidOf = it => toInt0(it && it.cid);
+  const colOf = it => toInt0(it && it.col);
+  const rowOf = it => toInt0(it && it.row);
+  const spanFrom = (minV, maxV, fallbackV) => Math.max(1, toInt0(maxV ?? fallbackV) - toInt0(minV ?? fallbackV) + 1);
 
   const getDataFlowGroupsUncached = (r, cx, cy, topo, hs, regions, budget, opts = {}) => {
     if (checkCalcTimeout(budget)) return [];
     const mode = normalizeDataFlow(r && r.dataFlow);
     const zMode = !!(r && r.dataFlowZ);
     const onlyRidRaw = Number(opts && opts.onlyRid);
-    const onlyRid = Number.isFinite(onlyRidRaw) ? Math.max(0, Math.round(onlyRidRaw)) : null;
+    const onlyRid = Number.isFinite(onlyRidRaw) ? toInt0(onlyRidRaw) : null;
     if (mode === "none") return [];
     const manualRegionsActive = Array.isArray(r && r.manualClusters) && r.manualClusters.length > 0;
     let regionFlowCache = getDataFlowGroupsUncached._regionFlowCache;
@@ -50,7 +56,7 @@ export const setupFlowGroupsController = (deps = {}) => {
       catch (_e) { getDataFlowGroupsUncached._regionFlowCache = regionFlowCache; }
     }
     const regionGeomKey = arr => {
-      const list = (Array.isArray(arr) ? arr : []).map(it => `${Math.max(0, Math.round(Number(it && it.cid) || 0))}:${Math.max(0, Math.round(Number(it && it.col) || 0))},${Math.max(0, Math.round(Number(it && it.row) || 0))}`).sort();
+      const list = (Array.isArray(arr) ? arr : []).map(it => `${cidOf(it)}:${colOf(it)},${rowOf(it)}`).sort();
       return `${list.length}|${list.join(";")}`;
     };
     const putRegionFlowCache = (key, value) => {
@@ -72,16 +78,16 @@ export const setupFlowGroupsController = (deps = {}) => {
       if (cached.cidSet instanceof Set) return cached.cidSet;
       const pts = Array.isArray(cached.points) ? cached.points : [];
       const set = new Set();
-      for (const p of pts) set.add(Math.max(0, Math.round(Number(p && p.cid) || 0)));
+      for (const p of pts) set.add(cidOf(p));
       try { cached.cidSet = set; } catch (_e) { }
       return set;
     };
     const rebuildOrderedFromCached = (arr, cached) => {
       if (!Array.isArray(arr) || !arr.length || !cached || !Array.isArray(cached.points)) return null;
-      const byCid = new Map(arr.map(it => [Math.max(0, Math.round(Number(it && it.cid) || 0)), it]));
+      const byCid = new Map(arr.map(it => [cidOf(it), it]));
       const used = new Set(), rebuilt = [];
       for (const p of cached.points) {
-        const cid = Math.max(0, Math.round(Number(p && p.cid) || 0));
+        const cid = cidOf(p);
         if (used.has(cid)) continue;
         const src = byCid.get(cid);
         if (!src) continue;
@@ -94,14 +100,14 @@ export const setupFlowGroupsController = (deps = {}) => {
     const regionOfCell = (ix, iy) => {
       if (regions && Array.isArray(regions.cellToRegion)) {
         const rid = regions.cellToRegion[iy * topo.cols + ix];
-        if (Number.isFinite(rid)) return rid >= 0 ? Math.max(0, Math.round(Number(rid) || 0)) : -1;
+        if (Number.isFinite(rid)) return rid >= 0 ? toInt0(rid) : -1;
       }
       if (regions && regions.regionsById && typeof regions.regionsById.values === "function") {
         for (const rg of regions.regionsById.values()) {
           if (!rg) continue;
-          const c0 = Math.max(0, Math.round(Number(rg.c0) || 0)), c1 = Math.max(c0 + 1, Math.round(Number(rg.c1) || 0));
-          const r0 = Math.max(0, Math.round(Number(rg.r0) || 0)), r1 = Math.max(r0 + 1, Math.round(Number(rg.r1) || 0));
-          if (ix >= c0 && ix < c1 && iy >= r0 && iy < r1) return Math.max(0, Math.round(Number(rg.id) || 0));
+          const c0 = toInt0(rg.c0), c1 = Math.max(c0 + 1, toInt0(rg.c1));
+          const r0 = toInt0(rg.r0), r1 = Math.max(r0 + 1, toInt0(rg.r1));
+          if (ix >= c0 && ix < c1 && iy >= r0 && iy < r1) return toInt0(rg.id);
         }
       }
       return -1;
@@ -131,14 +137,14 @@ export const setupFlowGroupsController = (deps = {}) => {
     }
     const list = [...stat.values()].filter(s => s.count > 0).map(s => {
       const u = s.sumU / s.count, v = s.sumV / s.count;
-      const rowBand = Math.max(0, Math.min(topo.rows - 1, Math.round(Number(s.minRow) || 0)));
-      const colBand = Math.max(0, Math.min(topo.cols - 1, Math.round(Number(s.minCol) || 0)));
-      let rid = Math.max(0, Math.round(Number(s.rid) || 0));
+      const rowBand = Math.max(0, Math.min(topo.rows - 1, toInt0(s.minRow)));
+      const colBand = Math.max(0, Math.min(topo.cols - 1, toInt0(s.minCol)));
+      let rid = toInt0(s.rid);
       if (!manualRegionsActive) {
         rid = -1;
         let best = 0;
         for (const [rk, rv] of Object.entries(s.ridCounts || {})) {
-          const c = rv | 0, id = Math.max(0, Math.round(Number(rk) || 0));
+          const c = rv | 0, id = toInt0(rk);
           if (c > best) { best = c; rid = id; }
         }
       }
@@ -148,10 +154,10 @@ export const setupFlowGroupsController = (deps = {}) => {
     const orderByMode = (arr, m, useZ = zMode) => {
       const src = (Array.isArray(arr) ? arr : []).map(it => ({
         ...it,
-        _rowTop: Math.max(0, Math.round(Number(it && it.minRow) || Number(it && it.row) || 0)),
-        _rowBottom: Math.max(0, Math.round(Number(it && it.maxRow) || Number(it && it.row) || 0)),
-        _colLeft: Math.max(0, Math.round(Number(it && it.minCol) || Number(it && it.col) || 0)),
-        _colRight: Math.max(0, Math.round(Number(it && it.maxCol) || Number(it && it.col) || 0))
+        _rowTop: toInt0(it && it.minRow != null ? it.minRow : it && it.row),
+        _rowBottom: toInt0(it && it.maxRow != null ? it.maxRow : it && it.row),
+        _colLeft: toInt0(it && it.minCol != null ? it.minCol : it && it.col),
+        _colRight: toInt0(it && it.maxCol != null ? it.maxCol : it && it.col)
       }));
       const cfg = FLOW_MODE_CFG[String(m || "")] || FLOW_MODE_CFG.default;
       const [a, ad, b, bd] = cfg.order;
@@ -163,14 +169,14 @@ export const setupFlowGroupsController = (deps = {}) => {
     const buildManualRegionOrdered = (arr, rid, m, useZ) => {
       const items = Array.isArray(arr) ? arr : [];
       if (!items.length) return items;
-      const byCid = new Map(items.map(it => [Math.max(0, Math.round(Number(it && it.cid) || 0)), it]));
+      const byCid = new Map(items.map(it => [cidOf(it), it]));
       const cfg = modeAxes(m), cellsByPrimary = new Map();
       for (let iy = 0; iy < topo.rows; iy++) {
         for (let ix = 0; ix < topo.cols; ix++) {
           if (hs && hs.has(maskCellKey(ix, iy))) continue;
           const rr = regionOfCell(ix, iy);
           if (rr !== rid) continue;
-          const cid = Math.max(0, Math.round(Number(topo.comp[iy * topo.cols + ix]) || 0));
+          const cid = toInt0(topo.comp[iy * topo.cols + ix]);
           if (!byCid.has(cid)) continue;
           const primary = (cfg.primary === "row") ? iy : ix, secondary = (cfg.primary === "row") ? ix : iy, third = (cfg.primary === "row") ? iy : ix;
           const key = String(primary), bucket = cellsByPrimary.get(key) || [];
@@ -200,7 +206,7 @@ export const setupFlowGroupsController = (deps = {}) => {
       }
       if (ordered.length !== items.length) {
         for (const it of items) {
-          const cid = Math.max(0, Math.round(Number(it && it.cid) || 0));
+          const cid = cidOf(it);
           if (seen.has(cid)) continue;
           ordered.push(it);
         }
@@ -210,7 +216,7 @@ export const setupFlowGroupsController = (deps = {}) => {
     const orientEndpointsByMode = arr => (Array.isArray(arr) ? arr : []);
     const alignEndpointByMode = arr => (Array.isArray(arr) ? arr : []);
     const groupOf = it => {
-      if (Number.isFinite(Number(it && it.rid)) && Number(it.rid) >= 0) return Math.max(0, Math.round(Number(it.rid) || 0));
+      if (Number.isFinite(Number(it && it.rid)) && Number(it.rid) >= 0) return toInt0(it.rid);
       if (regions && Array.isArray(regions.cellToRegion)) {
         const idx = it.row * topo.cols + it.col;
         const rid = regions.cellToRegion[idx];
@@ -220,18 +226,18 @@ export const setupFlowGroupsController = (deps = {}) => {
       if (regions && regions.regionsById && typeof regions.regionsById.values === "function") {
         for (const rg of regions.regionsById.values()) {
           if (!rg) continue;
-          const c0 = Math.max(0, Math.round(Number(rg.c0) || 0)), c1 = Math.max(c0 + 1, Math.round(Number(rg.c1) || 0));
-          const r0 = Math.max(0, Math.round(Number(rg.r0) || 0)), r1 = Math.max(r0 + 1, Math.round(Number(rg.r1) || 0));
-          if (it.col >= c0 && it.col < c1 && it.row >= r0 && it.row < r1) return Math.max(0, Math.round(Number(rg.id) || 0));
+          const c0 = toInt0(rg.c0), c1 = Math.max(c0 + 1, toInt0(rg.c1));
+          const r0 = toInt0(rg.r0), r1 = Math.max(r0 + 1, toInt0(rg.r1));
+          if (it.col >= c0 && it.col < c1 && it.row >= r0 && it.row < r1) return toInt0(rg.id);
         }
       }
       if (regions && Array.isArray(regions.colToGroup)) {
         const gx = regions.colToGroup[Math.max(0, Math.min(regions.colToGroup.length - 1, it.col))];
-        if (Number.isFinite(gx)) return Math.max(0, Math.round(Number(gx) || 0));
+        if (Number.isFinite(gx)) return toInt0(gx);
       }
       if (regions && Array.isArray(regions.rowToGroup)) {
         const gy = regions.rowToGroup[Math.max(0, Math.min(regions.rowToGroup.length - 1, it.row))];
-        if (Number.isFinite(gy)) return Math.max(0, Math.round(Number(gy) || 0));
+        if (Number.isFinite(gy)) return toInt0(gy);
       }
       return -1;
     };
@@ -249,7 +255,7 @@ export const setupFlowGroupsController = (deps = {}) => {
       if (onlyRid != null && rid !== onlyRid) continue;
       const cfgRegion = getFlowRegionConfig(r, rid);
       if (cfgRegion && cfgRegion.startPinned && cfgRegion.startCid != null) {
-        const hasStartCid = arr.some(it => Math.max(0, Math.round(Number(it && it.cid) || 0)) === Math.max(0, Math.round(Number(cfgRegion.startCid) || 0)));
+        const hasStartCid = arr.some(it => cidOf(it) === toInt0(cfgRegion.startCid));
         if (!hasStartCid) { cfgRegion.startCid = null; cfgRegion.startPinned = false; cfgRegion.startDir = ""; }
       }
       const routing = getFlowStartRoutingRegion(r, rid);
@@ -278,7 +284,7 @@ export const setupFlowGroupsController = (deps = {}) => {
         }
       }
       if (canUseRegionCache && !fromCache) {
-        const curCids = arr.map(it => Math.max(0, Math.round(Number(it && it.cid) || 0)));
+        const curCids = arr.map(cidOf);
         const curSet = new Set(curCids);
         let best = null;
         for (const [k, cached] of regionFlowCache) {
@@ -339,7 +345,7 @@ export const setupFlowGroupsController = (deps = {}) => {
         ordered = orientEndpointsByMode(ordered, localMode, routing);
         if (canUseRegionCache && cacheKey) {
           if (!pathSelfCrosses(ordered)) {
-            const points = ordered.map(v => ({ cid: Math.max(0, Math.round(Number(v && v.cid) || 0)) }));
+            const points = ordered.map(v => ({ cid: cidOf(v) }));
             const cidSet = new Set(points.map(p => p.cid));
             putRegionFlowCache(cacheKey, { zFallback: !!zFallbackUsed, points, cidSet });
           }
@@ -351,10 +357,10 @@ export const setupFlowGroupsController = (deps = {}) => {
         u: v.u,
         v: v.v,
         cid: v.cid,
-        spanCols: Math.max(1, (Math.max(0, Math.round(Number(v && v.maxCol) || Number(v && v.col) || 0)) - Math.max(0, Math.round(Number(v && v.minCol) || Number(v && v.col) || 0)) + 1)),
-        spanRows: Math.max(1, (Math.max(0, Math.round(Number(v && v.maxRow) || Number(v && v.row) || 0)) - Math.max(0, Math.round(Number(v && v.minRow) || Number(v && v.row) || 0)) + 1)),
-        bw: Math.max(cx, (Math.max(0, Math.round(Number(v && v.maxCol) || Number(v && v.col) || 0)) - Math.max(0, Math.round(Number(v && v.minCol) || Number(v && v.col) || 0)) + 1) * cx),
-        bh: Math.max(cy, (Math.max(0, Math.round(Number(v && v.maxRow) || Number(v && v.row) || 0)) - Math.max(0, Math.round(Number(v && v.minRow) || Number(v && v.row) || 0)) + 1) * cy)
+        spanCols: spanFrom(v && v.minCol, v && v.maxCol, v && v.col),
+        spanRows: spanFrom(v && v.minRow, v && v.maxRow, v && v.row),
+        bw: Math.max(cx, spanFrom(v && v.minCol, v && v.maxCol, v && v.col) * cx),
+        bh: Math.max(cy, spanFrom(v && v.minRow, v && v.maxRow, v && v.row) * cy)
       }));
       const debugInfo = {
         rid,
@@ -367,7 +373,7 @@ export const setupFlowGroupsController = (deps = {}) => {
         fromCache: !!fromCache,
         zFallback: !!zFallbackUsed,
         startPinned: !!(routing && routing.startPinned),
-        startCid: (routing && Number.isFinite(Number(routing.startCid))) ? Math.max(0, Math.round(Number(routing.startCid) || 0)) : null,
+        startCid: (routing && Number.isFinite(Number(routing.startCid))) ? toInt0(routing.startCid) : null,
         startDir: String(routing && routing.startDir || ""),
         points: orderedPoints.length,
         selfCross: !!pathSelfCrosses(ordered)
