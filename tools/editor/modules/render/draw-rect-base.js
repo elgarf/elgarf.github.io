@@ -41,7 +41,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
 
   function drawRectBase(c, r, sel, z, origin, opts) {
       if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
-      const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, options = opts || {}, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
+      const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, options = opts || {}, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, installTextMode = String(options.installTextMode || "normal"), flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
       const skeleton = !st.fontReady;
       const installView = (viewModeOverride || normalizeViewMode(st.viewMode)) === "install";
       const topo = getCellTopologyCached(r, cellX, cellY), maskRender = getMaskRenderDataCached(r, cellX, cellY, hs, topo);
@@ -74,6 +74,31 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const flowGroups = (wantsFlowDraw || wantsFlowForNumbers) ? (flowGroupsOverride || getDataFlowGroups(r, cellX, cellY, topo, hs, regions)) : [];
       if (Array.isArray(flowGroups) && flowGroups.length) collectFlowLinkAnchors(r, flowGroups);
       if (st.mode === "flowEdit" && sel && r.id === st.sel) collectFlowEditPoints(r, flowGroups);
+      const buildDeferredTextOverlay = () => {
+        const rx = Math.round(r.x - origin.x), ry = Math.round(r.y - origin.y), baseFs = getRectTextSizePx(r), wm = (r.widthM != null ? r.widthM : r.width / Math.max(1, r.scale || 256)), hm = (r.heightM != null ? r.heightM : r.height / Math.max(1, r.scale || 256)), pct = fillPercent(wm, hm, r.areaM2Px);
+        const installExtra = installView ? buildVisibleCabinetSummary(r, cellX, cellY, topo, hs) : { areaM2: 0, groups: [] };
+        const ls = buildRectOverlayLines(r, { installView, mFmt, pctFmt, wm, hm, pct, installExtra, rx, ry });
+        const maxW = Math.max(20, w - 6), localRect = { x: -w / 2, y: -h / 2, width: w, height: h };
+        const layoutKey = ["canvas", w, h, cellX, cellY, listSignature(r.hiddenCells), baseFs, maxW, st.fontFamily, ls.join("|")].join("|");
+        const layout = getRectTextLayoutCached(r, layoutKey, () => {
+          const hbs = hiddenCellBoxes(localRect, cellX, cellY, hs), freeRects = computeFreeRects(localRect, cellX, cellY, hs);
+          return chooseTextLayout(localRect, ls, (t, fs) => { c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`; return c.measureText(t).width }, maxW, baseFs, hbs, freeRects);
+        });
+        const txtTheme = rectTextTheme(r);
+        return { layout, ls, maxW, txtTheme };
+      };
+      if (installTextMode === "only") {
+        if (!skeleton && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
+          drawRectOverlays({
+            c, r, sel, z, w, h, cellX, cellY, topo, hs,
+            installView, cellEditActive, clusterEditActive, flowEditActive,
+            wantsFlowDraw: false, flowGroups: [], deferredTextOverlay: buildDeferredTextOverlay()
+          });
+        }
+        c.restore();
+        c.restore();
+        return;
+      }
       let drawContent = true, maskedClip = false;
       let deferredTextOverlay = null;
       if (maskRender.hasMask) {
@@ -152,18 +177,8 @@ export const setupDrawRectBaseController = (deps = {}) => {
               c.fillStyle = txtTheme.text; c.fillText(text, tx, ty);
             }
           }
-          if (!skeleton && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
-            const rx = Math.round(r.x - origin.x), ry = Math.round(r.y - origin.y), baseFs = getRectTextSizePx(r), wm = (r.widthM != null ? r.widthM : r.width / Math.max(1, r.scale || 256)), hm = (r.heightM != null ? r.heightM : r.height / Math.max(1, r.scale || 256)), pct = fillPercent(wm, hm, r.areaM2Px);
-            const installExtra = installView ? buildVisibleCabinetSummary(r, cellX, cellY, topo, hs) : { areaM2: 0, groups: [] };
-            const ls = buildRectOverlayLines(r, { installView, mFmt, pctFmt, wm, hm, pct, installExtra, rx, ry });
-            const maxW = Math.max(20, w - 6), localRect = { x: -w / 2, y: -h / 2, width: w, height: h };
-            const layoutKey = ["canvas", w, h, cellX, cellY, listSignature(r.hiddenCells), baseFs, maxW, st.fontFamily, ls.join("|")].join("|");
-            const layout = getRectTextLayoutCached(r, layoutKey, () => {
-              const hbs = hiddenCellBoxes(localRect, cellX, cellY, hs), freeRects = computeFreeRects(localRect, cellX, cellY, hs);
-              return chooseTextLayout(localRect, ls, (t, fs) => { c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`; return c.measureText(t).width }, maxW, baseFs, hbs, freeRects);
-            });
-            const txtTheme = rectTextTheme(r);
-            deferredTextOverlay = { layout, ls, maxW, txtTheme };
+          if (installTextMode !== "skip" && !skeleton && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
+            deferredTextOverlay = buildDeferredTextOverlay();
           }
         }
       }

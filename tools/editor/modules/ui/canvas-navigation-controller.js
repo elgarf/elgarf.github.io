@@ -17,6 +17,8 @@ export const setupCanvasNavigationController = (deps = {}) => {
     d.y = Math.min(d.sy, p.y);
     d.width = Math.abs(p.x - d.sx);
     d.height = Math.abs(p.y - d.sy);
+    d.pointerX = p.x;
+    d.pointerY = p.y;
   };
 
   const handlePointerDownSelect = (p, opts = null) => {

@@ -26,6 +26,16 @@ export const setupSelectionActionsFeature = (deps = {}) => {
     if (idx >= 0) st.rects.splice(idx, 0, clone);
     else st.rects.unshift(clone);
   };
+  const incrementNameNumberBeforeGroup = name => {
+    const raw = String(name || "").trim() || "Rect";
+    const at = raw.indexOf("@");
+    const stem = (at >= 0 ? raw.slice(0, at) : raw).trim() || "Rect";
+    const group = at >= 0 ? raw.slice(at).trim() : "";
+    const m = stem.match(/^(.*?)(?:\s+(\d+))?$/);
+    const base = String(m && m[1] || stem).trim() || "Rect";
+    const next = m && m[2] ? Math.max(1, Math.round(Number(m[2]) || 0) + 1) : 1;
+    return `${base} ${next}${group}`.trim();
+  };
 
   const cloneRectModel = (src, overrides = null) => {
     const o = (overrides && typeof overrides === "object") ? overrides : {};
@@ -44,7 +54,7 @@ export const setupSelectionActionsFeature = (deps = {}) => {
   };
 
   const cloneRectForClipboard = src => cloneRectModel(src, { id: src.id });
-  const cloneRectForDuplicate = src => cloneRectModel(src, { id: st.next++, name: withNameSuffixBeforeGroup(src.name, "copy"), x: src.x + 20, y: src.y + 20 });
+  const cloneRectForDuplicate = src => cloneRectModel(src, { id: st.next++, name: incrementNameNumberBeforeGroup(src.name), x: src.x + 20, y: src.y + 20 });
 
   const delSel = () => {
     normSelSet();

@@ -88,22 +88,31 @@ export const createRenderExportPngBlob = (deps = {}) => {
       const c = out.getContext("2d");
       const shiftX = l;
       const shiftY = startY + t;
-      for (let i = st.rects.length - 1; i >= 0; i--) {
-        const rct = st.rects[i];
-        const er = { ...rct, x: rct.x - minX + shiftX, y: rct.y - minY + shiftY };
-        const includeFlowRect = !!(includeFlow && normalizeDataFlow(rct && rct.dataFlow) !== "none");
-        const flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(rct) : null;
-        const drawOpts = {
-          noCachedRegions: true,
-          includeFlow: includeFlowRect,
-          disableLod: true,
-          forceRigOverlay: !!includeFlow,
-          viewModeOverride: includeFlow ? "install" : "art"
-        };
-        if (Array.isArray(flowGroups)) drawOpts.flowGroupsOverride = flowGroups;
-        drawRect(c, er, false, 1, { x: 0, y: 0 }, drawOpts);
+      const drawExportRects = extraOpts => {
+        for (let i = st.rects.length - 1; i >= 0; i--) {
+          const rct = st.rects[i];
+          const er = { ...rct, x: rct.x - minX + shiftX, y: rct.y - minY + shiftY };
+          const includeFlowRect = !!(includeFlow && normalizeDataFlow(rct && rct.dataFlow) !== "none");
+          const flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(rct) : null;
+          const drawOpts = {
+            noCachedRegions: true,
+            includeFlow: includeFlowRect,
+            disableLod: true,
+            forceRigOverlay: !!includeFlow,
+            viewModeOverride: includeFlow ? "install" : "art",
+            ...(extraOpts || {})
+          };
+          if (Array.isArray(flowGroups)) drawOpts.flowGroupsOverride = flowGroups;
+          drawRect(c, er, false, 1, { x: 0, y: 0 }, drawOpts);
+        }
+      };
+      if (includeFlow) {
+        drawExportRects({ installTextMode: "skip" });
+        drawInterScreenFlowLinks(c, true);
+        drawExportRects({ installTextMode: "only", includeFlow: false });
+      } else {
+        drawExportRects();
       }
-      if (includeFlow) drawInterScreenFlowLinks(c, true);
       return out;
     };
     const prevFlowAnchors = st.flowLinkAnchors;

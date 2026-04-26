@@ -44,11 +44,24 @@ const mergeCountMap = (dst, src) => {
 const mergeNumericMap = (dst, src) => {
   for (const [k, v] of src.entries()) dst.set(k, (dst.get(k) || 0) + (Number(v) || 0));
 };
+const multiplyMap = (src, factor = 1) => {
+  const out = new Map();
+  const n = Math.max(1, Number(factor) || 1);
+  for (const [k, v] of (src instanceof Map ? src.entries() : [])) {
+    out.set(k, (Number(v) || 0) * n);
+  }
+  return out;
+};
 const sumMapCounts = map => {
   let sum = 0;
   for (const v of map.values()) sum += Math.max(0, Math.round(Number(v) || 0));
   return sum;
 };
+const mapSignature = map =>
+  [...(map instanceof Map ? map.entries() : [])]
+    .filter(([, count]) => (Number(count) || 0) > 0)
+    .map(([key, count]) => [String(key), Number(count) || 0])
+    .sort((a, b) => a[0].localeCompare(b[0], "ru", { numeric: true }) || a[1] - b[1]);
 const createManualSectionResolver = (customMap = {}) => {
   const nextKey = createSectionKeySequencer();
   const getSectionManual = (level, parentTitle, title) => {
@@ -59,38 +72,80 @@ const createManualSectionResolver = (customMap = {}) => {
   return { getSectionManual, getGlobalManual };
 };
 
-const buildScreenSpecSection = (deps = {}) => {
+const screenSeriesName = meta => {
+  const name = String(meta && meta.name || "").trim();
+  const m = name.match(/^(.*?)\s+\d+$/);
+  return String(m ? m[1] : name).trim() || name || "Экран";
+};
+
+const createScreenSpecRecord = (deps = {}) => {
   const {
     rect,
     interSpec,
     parseScreenNameGroup,
     buildRectSpecData,
     buildRectRigSpecData,
-    fmtMeters,
-    manualText
+    fmtMeters
   } = deps;
   const r = rect;
-  const { name, group } = parseScreenNameGroup(r);
-  const { cabinetBySize, cableByLen } = buildRectSpecData(r);
-  const { supportBySize, frameCount, bottomRowFrameCount, bottomLoadByKg } = buildRectRigSpecData(r);
+  const meta = parseScreenNameGroup(r);
+  const specData = buildRectSpecData(r);
+  const rigData = buildRectRigSpecData(r);
   const interOut = interSpec && interSpec.byRectOut ? interSpec.byRectOut.get(r.id) : null;
+  const wM = fmtMeters((+r.width || 0) / Math.max(1, +r.scale || 256));
+  const hM = fmtMeters((+r.height || 0) / Math.max(1, +r.scale || 256));
+  return { rect: r, meta, specData, rigData, interOut, wM, hM };
+};
+
+const screenSpecKey = rec => JSON.stringify({
+  width: Math.round(Number(rec.rect && rec.rect.width) || 0),
+  height: Math.round(Number(rec.rect && rec.rect.height) || 0),
+  scale: Math.max(1, Math.round(Number(rec.rect && rec.rect.scale) || 256)),
+  cabinets: mapSignature(rec.specData.cabinetBySize),
+  cables: mapSignature(rec.specData.cableByLen),
+  supports: mapSignature(rec.rigData.supportBySize),
+  frameCount: Number(rec.rigData.frameCount) || 0,
+  bottomRowFrameCount: Number(rec.rigData.bottomRowFrameCount) || 0,
+  bottomLoads: mapSignature(rec.rigData.bottomLoadByKg)
+});
+
+const buildScreenSpecSection = (deps = {}) => {
+  const {
+    records,
+    manualText
+  } = deps;
+  const recs = Array.isArray(records) ? records.filter(Boolean) : [];
+  const rec = recs[0];
+  if (!rec) return "";
+  const r = rec.rect;
+  const { name } = rec.meta;
+  const count = Math.max(1, recs.length);
+  const cabinetBySize = multiplyMap(rec.specData.cabinetBySize, count);
+  const cableByLen = multiplyMap(rec.specData.cableByLen, count);
+  const supportBySize = multiplyMap(rec.rigData.supportBySize, count);
+  const frameCount = (Number(rec.rigData.frameCount) || 0) * count;
+  const bottomRowFrameCount = (Number(rec.rigData.bottomRowFrameCount) || 0) * count;
+  const bottomLoadByKg = multiplyMap(rec.rigData.bottomLoadByKg, count);
   const cabinetList = mapToCabinetList(cabinetBySize);
   const cableList = mapToCableList(cableByLen);
-  const interCableList = interOut ? mapToCableList(interOut.cableByLen) : [];
-  const interTargetList = interOut ? mapToNamedCountList(interOut.targets) : [];
   const supportList = mapToRigSizeList(supportBySize);
   const bottomLoadList = mapToRigWeightList(bottomLoadByKg);
   const frameBracketCount = frameCount + bottomRowFrameCount;
-  const wM = fmtMeters((+r.width || 0) / Math.max(1, +r.scale || 256));
-  const hM = fmtMeters((+r.height || 0) / Math.max(1, +r.scale || 256));
+  const groupCounts = new Map();
+  for (const item of recs) {
+    const group = String(item.meta && item.meta.group || "").trim() || "Общая";
+    groupCounts.set(group, (groupCounts.get(group) || 0) + 1);
+  }
+  const groupList = mapToNamedCountList(groupCounts);
+  const screenLabel = count > 1 ? `${screenSeriesName(rec.meta)}, ${count} шт.` : name;
   const out = [
-    `###### ${name} (${Math.round(r.width)}x${Math.round(r.height)} px / ${wM} x ${hM} м)`,
-    `* Группа: ${group}`
+    `###### ${screenLabel} (${Math.round(r.width)}x${Math.round(r.height)} px / ${rec.wM} x ${rec.hM} м)`,
+    count > 1 ? `* Количество экранов: ${count} шт.` : "",
+    groupList.length === 1 ? `* Группа: ${String(recs[0].meta.group || "Общая")}` : `* Группы: ${groupList.join("; ")}`
   ];
+  if (!out[1]) out.splice(1, 1);
   pushSpecListLine(out, "Кабинеты", cabinetList);
   pushSpecListLine(out, "Коммутация", cableList);
-  pushSpecListLine(out, "Межэкранные связи", interTargetList);
-  pushSpecListLine(out, "Межэкранная коммутация", interCableList);
   pushSpecListLine(out, "Подвесы", supportList);
   pushSpecCountLine(out, "Рамы", frameCount);
   pushSpecListLine(out, "Грузы", bottomLoadList);
@@ -152,23 +207,50 @@ export const buildFlowLinksSpecText = (deps = {}) => {
   const globalManual = includeManual
     ? [manualResolver.getGlobalManual(), String(specCustomText || "").trim()].filter(Boolean).join("\n\n").trim()
     : "";
-  const SPEC_PARENT = "Спецификация";
   const TOTAL_PARENT = "Итоговая сумма";
-  const screenBlocks = specRects
-    .map(r => {
-      const { name } = parseScreenNameGroup(r);
-      const wM = fmtMeters((+r.width || 0) / Math.max(1, +r.scale || 256));
-      const hM = fmtMeters((+r.height || 0) / Math.max(1, +r.scale || 256));
-      const title = `${name} (${Math.round(r.width)}x${Math.round(r.height)} px / ${wM} x ${hM} м)`;
-      return buildScreenSpecSection({
-        rect: r,
-        interSpec,
-        parseScreenNameGroup,
-        buildRectSpecData,
-        buildRectRigSpecData,
-        fmtMeters,
-        manualText: manualResolver.getSectionManual(6, SPEC_PARENT, title)
+  const byScreenSeries = new Map();
+  for (const r of specRects) {
+    const meta = parseScreenNameGroup(r);
+    const series = screenSeriesName(meta);
+    if (!byScreenSeries.has(series)) byScreenSeries.set(series, []);
+    byScreenSeries.get(series).push(r);
+  }
+  const screenBlocks = [...byScreenSeries.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "ru"))
+    .map(([series, rows]) => {
+      const records = rows
+        .slice()
+        .sort((a, b) => {
+          const am = parseScreenNameGroup(a);
+          const bm = parseScreenNameGroup(b);
+          return String(am.name || "").localeCompare(String(bm.name || ""), "ru", { numeric: true })
+            || String(am.group || "").localeCompare(String(bm.group || ""), "ru")
+            || (Number(a.id) || 0) - (Number(b.id) || 0);
+        })
+        .map(r => createScreenSpecRecord({
+          rect: r,
+          interSpec,
+          parseScreenNameGroup,
+          buildRectSpecData,
+          buildRectRigSpecData,
+          fmtMeters
+        }));
+      const bySpec = new Map();
+      for (const rec of records) {
+        const key = screenSpecKey(rec);
+        if (!bySpec.has(key)) bySpec.set(key, []);
+        bySpec.get(key).push(rec);
+      }
+      const blocks = [...bySpec.values()].map(recs => {
+        const rec = recs[0];
+        const titleLabel = recs.length > 1 ? `${series}, ${recs.length} шт.` : rec.meta.name;
+        const title = `${titleLabel} (${Math.round(rec.rect.width)}x${Math.round(rec.rect.height)} px / ${rec.wM} x ${rec.hM} м)`;
+        return buildScreenSpecSection({
+          records: recs,
+          manualText: manualResolver.getSectionManual(6, series, title)
+        });
       });
+      return [`##### ${series}`, ...blocks].join("\n\n");
     })
     .join("\n\n");
 
@@ -213,9 +295,7 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     .join("\n\n");
 
   return [
-    "##### Спецификация",
-    "",
-    ...(globalManual ? [globalManual, ""] : []),
+    ...(globalManual ? ["##### Спецификация", "", globalManual, ""] : []),
     screenBlocks,
     "",
     "##### Итоговая сумма",

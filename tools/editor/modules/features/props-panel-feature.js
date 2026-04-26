@@ -51,6 +51,65 @@ export const setupPropsPanelFeature = (deps = {}) => {
     cabinetUiToPx,
     normalizeDataFlow
   });
+  const selectionKey = () => {
+    const ids = getSelectedRects().map(r => Math.max(0, Math.round(Number(r && r.id) || 0))).sort((a, b) => a - b);
+    return ids.length ? ids.join(",") : String(cur() && cur().id || "");
+  };
+  const splitNameGroup = name => {
+    const raw = String(name || "").trim();
+    const at = raw.indexOf("@");
+    const groupName = at >= 0 ? raw.slice(at + 1).split("@")[0].trim() : "";
+    return {
+      stem: (at >= 0 ? raw.slice(0, at) : raw).trim(),
+      group: groupName ? `@${groupName}` : ""
+    };
+  };
+  const normalizeNumberedBaseInput = value => {
+    const parts = splitNameGroup(value);
+    const m = parts.stem.match(/^(.*?)\s+\d+$/);
+    return String(m ? m[1] : parts.stem).trim();
+  };
+  const parseNumberedName = name => {
+    const parts = splitNameGroup(name);
+    const m = parts.stem.match(/^(.*?)\s+(\d+)$/);
+    if (!m) return null;
+    const base = String(m[1] || "").trim();
+    if (!base) return null;
+    return { base, number: Math.max(1, Math.round(Number(m[2]) || 1)), group: parts.group };
+  };
+  const multiNumberedBase = rects => {
+    if (!Array.isArray(rects) || !rects.length) return "";
+    let base = null;
+    let group = null;
+    for (const r of rects) {
+      const parsed = parseNumberedName(r && r.name);
+      if (!parsed) return "";
+      if (base == null) base = parsed.base;
+      else if (base !== parsed.base) return "";
+      if (group == null) group = parsed.group || "";
+      else if (group !== (parsed.group || "")) group = "";
+    }
+    return `${base || ""}${group || ""}`.trim();
+  };
+  const numberedNameFor = (base, index, prevName, groupOverride = null) => {
+    const parts = splitNameGroup(prevName);
+    const group = groupOverride != null ? groupOverride : parts.group;
+    return `${String(base || "").trim()} ${index}${group || ""}`.trim();
+  };
+  const axisCompactSpan = (items, axis) => {
+    const EPS = 1e-6;
+    const entries = items.map(it => ({
+      min: axis === "x" ? it.minX : it.minY,
+      max: axis === "x" ? it.maxX : it.maxY
+    })).sort((a, b) => (a.min - b.min) || (a.max - b.max));
+    const clusters = [];
+    for (const e of entries) {
+      const last = clusters[clusters.length - 1];
+      if (!last || e.min > last.max + EPS) clusters.push({ min: e.min, max: e.max });
+      else last.max = Math.max(last.max, e.max);
+    }
+    return Math.max(1, clusters.reduce((sum, c) => sum + Math.max(0, c.max - c.min), 0));
+  };
   const syncPropsBySchema = (rect, unit) => {
     for (const f of rectPropSchema) {
       if (!f || typeof f.sync !== "function") continue;
@@ -69,7 +128,6 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
     [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.a, el.b, el.cx, el.cy, el.cUnit, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
     if (multi && el.rot) uiSetDisabled(el.rot, true);
-    if (multi && el.name) uiSetDisabled(el.name, true);
     if (el.multiEditBadge) {
       const show = multi && !!r;
       el.multiEditBadge.classList.toggle("d-none", !show);
@@ -137,12 +195,16 @@ export const setupPropsPanelFeature = (deps = {}) => {
     updateModeBadges(r);
     if (multi) {
       const selected = getSelectedRects(), bb = getRectsBBox(selected);
-      uiSetValue(el.name, `${selected.length} экранов`);
+      const commonBase = multiNumberedBase(selected);
+      uiSetValue(el.name, commonBase);
+      if (el.name) el.name.placeholder = commonBase ? "" : "Редактирование имени пронумерует экраны";
       if (bb) {
         uiSetValue(el.x, mFmt(bb.minX)); uiSetValue(el.y, mFmt(bb.minY));
         uiSetValue(el.wm, mFmt(bb.width / Math.max(1, r.scale || 256)));
         uiSetValue(el.hm, mFmt(bb.height / Math.max(1, r.scale || 256)));
       }
+    } else if (el.name) {
+      el.name.placeholder = "";
     }
   };
 
@@ -153,6 +215,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const selected = getSelectedRects(), targetsRaw = selected.length > 1 ? selected : [r], targets = targetsRaw.filter(t => !isRectLocked(t));
     if (!targets.length) return;
     const multi = targets.length > 1;
+    if (o.selectionKey && o.selectionKey !== selectionKey()) return;
     if (!multi) r.name = el.name.value || `Rect ${r.id}`;
     if (!multi) {
       r.x = Math.round(evalExpr(el.x.value, r.x));
@@ -170,11 +233,24 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const baseBb = (base && base.bbox) ? base.bbox : curBb;
       const scaleForBox = Math.max(1, Number(r.scale) || Number(st.globalScale) || 256);
       const curWm = curBb.width / scaleForBox, curHm = curBb.height / scaleForBox;
-      const nextMinX = Math.round(evalExpr(el.x.value, curBb.minX));
-      const nextMinY = Math.round(evalExpr(el.y.value, curBb.minY));
-      const desiredW = Math.max(baseBb.width, Math.round(Math.max(0.001, evalExpr(el.wm.value, curWm)) * scaleForBox));
-      const desiredH = Math.max(baseBb.height, Math.round(Math.max(0.001, evalExpr(el.hm.value, curHm)) * scaleForBox));
       const srcItems = (base && Array.isArray(base.items) && base.items.length) ? base.items.map(it => ({ ...it })) : targets.map(t => { const bb = rectAABB(t); return { id: t.id, x: t.x, y: t.y, minX: bb.minX, maxX: bb.maxX, minY: bb.minY, maxY: bb.maxY }; });
+      const desiredW = Math.max(axisCompactSpan(srcItems, "x"), Math.round(Math.max(0.001, evalExpr(el.wm.value, curWm)) * scaleForBox));
+      const desiredH = Math.max(axisCompactSpan(srcItems, "y"), Math.round(Math.max(0.001, evalExpr(el.hm.value, curHm)) * scaleForBox));
+      const inputMinX = Math.round(evalExpr(el.x.value, curBb.minX));
+      const inputMinY = Math.round(evalExpr(el.y.value, curBb.minY));
+      const widthChanged = Math.abs(desiredW - curBb.width) > 0.5;
+      const heightChanged = Math.abs(desiredH - curBb.height) > 0.5;
+      const nextMinX = widthChanged ? Math.round((curBb.minX + curBb.maxX - desiredW) / 2) : inputMinX;
+      const nextMinY = heightChanged ? Math.round((curBb.minY + curBb.maxY - desiredH) / 2) : inputMinY;
+      const nameInputParts = splitNameGroup(el.name && el.name.value);
+      const nextNameBase = normalizeNumberedBaseInput(el.name && el.name.value);
+      const nextNameGroup = nameInputParts.group || null;
+      if (nextNameBase) {
+        targets
+          .slice()
+          .sort((a, b) => (Number(a.x) || 0) - (Number(b.x) || 0) || (Number(a.y) || 0) - (Number(b.y) || 0) || (Number(a.id) || 0) - (Number(b.id) || 0))
+          .forEach((t, i) => { t.name = numberedNameFor(nextNameBase, i + 1, t.name, nextNameGroup); });
+      }
       const mapAxis = (axis, targetMin, targetSpan) => {
         const EPS = 1e-6;
         const entries = srcItems.map(it => {

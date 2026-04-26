@@ -8,7 +8,8 @@ export const setupUiBinders = (deps = {}) => {
     createProjectTab, makeEmptyProjectData,
     applyThemeMode, hideThemePopup, showThemePopup,
     hideToolbarOverflowPopup, showToolbarOverflowPopup,
-    updateMobileDock, updateToolbarOverflow, persistNow, scheduleCanvasResize
+    updateMobileDock, updateToolbarOverflow, persistNow, scheduleCanvasResize,
+    t = value => value
   } = deps;
 
   if (!el || !bindEvent || !bindClick || !bindWindowEvent) return {};
@@ -39,7 +40,7 @@ export const setupUiBinders = (deps = {}) => {
   };
   bindEvent(el.project, "input", () => applyProjectNameInput({ syncProps: false }));
   bindEvent(el.project, "change", () => applyProjectNameInput({ syncProps: true }));
-  bindEvent(el.projectTabAdd, "click", () => createProjectTab(makeEmptyProjectData("Новый проект")));
+  bindEvent(el.projectTabAdd, "click", () => createProjectTab(makeEmptyProjectData(t("Новый проект"))));
 
   if (el.themePopup) {
     for (const a of el.themePopup.querySelectorAll("[data-theme]")) {

@@ -5,7 +5,8 @@ export const setupProjectSerializationController = (deps = {}) => {
     normalizeFlowLinks,
     serializeRectForProject,
     genSaveLocationId,
-    cloneJson
+    cloneJson,
+    t = value => value
   } = deps;
 
   const buildProject = () => ({
@@ -35,7 +36,7 @@ export const setupProjectSerializationController = (deps = {}) => {
 
   const cloneProjectData = data => cloneJson(data, buildProject);
 
-  const makeEmptyProjectData = (name = "Новый проект") => ({
+  const makeEmptyProjectData = (name = t("Новый проект")) => ({
     version: 1,
     projectName: name,
     saveLocationId: genSaveLocationId(name),

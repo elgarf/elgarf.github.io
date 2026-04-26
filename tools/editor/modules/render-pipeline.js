@@ -23,11 +23,31 @@ export const setupRenderPipeline = (deps = {}) => {
   const drawDraftOverlay = z => {
     if (!st.draft) return;
     const d = st.draft;
+    const scale = Math.max(1, Math.round(Number(st.globalScale) || 256));
+    const roundHalf = v => Math.max(0.5, Math.round(Math.max(0, Number(v) || 0) * 2) / 2);
+    const wm = roundHalf(Math.abs(Number(d.width) || 0) / scale);
+    const hm = roundHalf(Math.abs(Number(d.height) || 0) / scale);
+    const fmt = v => Number.isInteger(v) ? String(v) : String(v).replace(".", ",");
+    const meterUnit = (typeof document !== "undefined" && /^en\b/i.test(document.documentElement.getAttribute("lang") || "")) ? "m" : "м";
+    const label = `${fmt(wm)} x ${fmt(hm)} ${meterUnit}`;
     ctx.strokeStyle = "#7fd4f8";
     ctx.lineWidth = 1 / z;
     ctx.setLineDash([8 / z, 5 / z]);
     ctx.strokeRect(d.x, d.y, d.width, d.height);
     ctx.setLineDash([]);
+    ctx.save();
+    ctx.font = `${Math.max(10, 12 / Math.max(0.5, z))}px sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    const pad = 5 / Math.max(0.5, z);
+    const tw = ctx.measureText(label).width;
+    const bx = (Number.isFinite(Number(d.pointerX)) ? Number(d.pointerX) : d.x) + 8 / Math.max(0.5, z);
+    const by = (Number.isFinite(Number(d.pointerY)) ? Number(d.pointerY) : d.y) + 8 / Math.max(0.5, z);
+    ctx.fillStyle = "rgba(15,19,24,.82)";
+    ctx.fillRect(bx - pad, by - pad, tw + pad * 2, Math.max(14 / Math.max(0.5, z), 12 / Math.max(0.5, z)) + pad * 2);
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.fillText(label, bx, by);
+    ctx.restore();
   };
 
   const drawSelectionBoxOverlay = z => {
@@ -43,7 +63,7 @@ export const setupRenderPipeline = (deps = {}) => {
     ctx.restore();
   };
 
-  const drawVisibleRects = (z, forceLowDetail) => {
+  const drawVisibleRects = (z, forceLowDetail, drawOptions = {}) => {
     const vm = getViewMetrics();
     const vw0 = s2w(0, 0);
     const vw1 = s2w(vm.viewWidth, vm.viewHeight);
@@ -57,7 +77,7 @@ export const setupRenderPipeline = (deps = {}) => {
       const rr = st.rects[i];
       const bb = rectAABB(rr);
       if (bb.maxX < viewMinX || bb.minX > viewMaxX || bb.maxY < viewMinY || bb.minY > viewMaxY) continue;
-      drawRect(ctx, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail });
+      drawRect(ctx, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, ...drawOptions });
     }
   };
 
@@ -72,8 +92,15 @@ export const setupRenderPipeline = (deps = {}) => {
     ctx.translate(vm.centerX, vm.centerY);
     ctx.scale(z, z);
     ctx.translate(-st.camX, -st.camY);
-    drawVisibleRects(z, !!renderState.forceLowDetail);
-    drawInterScreenFlowLinks(ctx);
+    const installFlowLayering = String(st.viewMode || "") === "install";
+    if (installFlowLayering) {
+      drawVisibleRects(z, !!renderState.forceLowDetail, { installTextMode: "skip" });
+      drawInterScreenFlowLinks(ctx);
+      drawVisibleRects(z, !!renderState.forceLowDetail, { installTextMode: "only", includeFlow: false });
+    } else {
+      drawVisibleRects(z, !!renderState.forceLowDetail);
+      drawInterScreenFlowLinks(ctx);
+    }
     drawDraftOverlay(z);
     drawSelectionBoxOverlay(z);
     if (!renderState.skipHeavyOverlays) {

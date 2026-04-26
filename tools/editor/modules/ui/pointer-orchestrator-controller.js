@@ -221,6 +221,11 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   const handlePointerUpCluster = () => clusterController.handlePointerUpCluster();
   const handlePointerUpFlowLink = () => flowController.handlePointerUpFlowLink();
   const handlePointerUpFlowDrag = () => flowController.handlePointerUpFlowDrag();
+  const roundDraftSizePx = value => {
+    const scale = Math.max(1, Math.round(Number(st.globalScale) || 256));
+    const meters = Math.max(0.5, Math.round((Math.max(0, Number(value) || 0) / scale) * 2) / 2);
+    return Math.max(1, Math.round(meters * scale));
+  };
   const handleCanvasPointerUp = () => {
     const hadDrag = !!st.drag;
     const hadNoteResize = !!(st.noteResize && st.noteResize.changed);
@@ -233,9 +238,11 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (st.draft) {
       const d = st.draft;
       if (d.width >= 1 && d.height >= 1) {
+        const width = roundDraftSizePx(d.width);
+        const height = roundDraftSizePx(d.height);
         created = (String(d.kind || "") === "note")
-          ? mkNote(d.x, d.y, d.width, d.height)
-          : mk(d.x, d.y, d.width, d.height);
+          ? mkNote(d.x, d.y, width, height)
+          : mk(d.x, d.y, width, height);
         st.rects.unshift(created);
       }
       st.draft = null;

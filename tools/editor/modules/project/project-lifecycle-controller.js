@@ -12,7 +12,8 @@ export const setupProjectLifecycleController = (deps = {}) => {
     updateViewModeUi,
     setGlobalSaveLocationId,
     getGlobalSaveLocationId,
-    genSaveLocationId
+    genSaveLocationId,
+    t = value => value
   } = deps;
 
   const resetProjectCore = () => {
@@ -22,7 +23,7 @@ export const setupProjectLifecycleController = (deps = {}) => {
     st.camX = 0;
     st.camY = 0;
     st.zoom = 1;
-    st.projectName = "Новый проект";
+    st.projectName = t("Новый проект");
     st.saveLocationId = setGlobalSaveLocationId(getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
     st.viewMode = "art";
     st.specCustomText = "";

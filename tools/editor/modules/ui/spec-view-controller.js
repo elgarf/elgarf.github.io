@@ -114,6 +114,7 @@ export const setupSpecViewController = (deps = {}) => {
   let easyMdeFailed = false;
   const GLOBAL_SPEC_KEY = "__global__";
   let specEventsBound = false;
+  let wasSpecMode = false;
 
   const isSpecMode = () => normalizeViewMode(st.viewMode) === "spec";
   const isEditableSection = s => Number(s && s.level) === 6;
@@ -429,6 +430,8 @@ export const setupSpecViewController = (deps = {}) => {
 
   const updateSpecViewUi = (force = false) => {
     const show = isSpecMode();
+    const enteringSpecMode = show && !wasSpecMode;
+    wasSpecMode = show;
     if (wrap) wrap.dataset.viewMode = show ? "spec" : "canvas";
     if (el.specModePanel) el.specModePanel.classList.toggle("d-none", !show);
     if (el.viewModeSpec) {
@@ -448,7 +451,7 @@ export const setupSpecViewController = (deps = {}) => {
       return;
     }
     easyMdeFailed = false;
-    refreshAutoSpec(!!force);
+    refreshAutoSpec(!!force || enteringSpecMode);
   };
 
   return {

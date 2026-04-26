@@ -911,7 +911,7 @@ const serializeRectForProject = r => {
 };
 let buildProject = () => ({ version: 1, projectName: "Новый проект", saveLocationId: "", camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: 12, fontFamily: "", scale: 256, viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: false, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
 let cloneProjectData = data => cloneJson(data, () => buildProject());
-let makeEmptyProjectData = (name = "Новый проект") => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: !!st.lockAll, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
+let makeEmptyProjectData = (name = translateText("Новый проект")) => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: !!st.lockAll, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
 let buildPortableProjectBase = (_strip) => _strip(buildProject());
 let buildPortableProject = () => buildPortableProjectBase(stripProjectCaches);
 ({
@@ -925,7 +925,8 @@ let buildPortableProject = () => buildPortableProjectBase(stripProjectCaches);
   normalizeFlowLinks,
   serializeRectForProject: r => serializeRectForProject(r),
   genSaveLocationId: name => genSaveLocationId(name),
-  cloneJson: (data, fallbackFactory) => cloneJson(data, fallbackFactory)
+  cloneJson: (data, fallbackFactory) => cloneJson(data, fallbackFactory),
+  t: value => translateText(value)
 }));
 const projectCodec = createProjectCodec({
   PROJECT_QUERY_VERSION,
@@ -1558,7 +1559,8 @@ let newProject = () => { };
   updateViewModeUi: () => updateViewModeUi(),
   setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
   getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
-  genSaveLocationId: name => genSaveLocationId(name)
+  genSaveLocationId: name => genSaveLocationId(name),
+  t: value => translateText(value)
 }));
 ({
   insertCloneAboveSource,
@@ -2018,7 +2020,8 @@ const appBootstrapDeps = {
   PROJECT_QUERY_PARAM,
   encodeProjectToQueryValue,
   decodeProjectFromQueryValue,
-  buildPortableProject
+  buildPortableProject,
+  t: value => translateText(value)
 };
 setupAppBootstrapFeature(appBootstrapDeps);
 i18n = setupI18n({
