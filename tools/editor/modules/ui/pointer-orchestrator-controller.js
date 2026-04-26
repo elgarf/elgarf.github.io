@@ -236,7 +236,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
         created = (String(d.kind || "") === "note")
           ? mkNote(d.x, d.y, d.width, d.height)
           : mk(d.x, d.y, d.width, d.height);
-        st.rects.push(created);
+        st.rects.unshift(created);
       }
       st.draft = null;
     }

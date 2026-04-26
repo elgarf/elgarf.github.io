@@ -148,9 +148,9 @@ export const setupRenderRuntimeController = (deps = {}) => {
     if (typeof onBeforeRenderFrame === "function") onBeforeRenderFrame();
     const fastPan = !!st.pan;
     const tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching"));
-    const interactiveFast = !!(((st.drag && st.drag.moved) || st.draft || st.clusterDrag || st.flowDrag));
+    const interactiveFast = !!((st.draft || st.clusterDrag || st.flowDrag));
     const flowEditActive = st.mode === "flowEdit";
-    const forceLowDetail = !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive));
+    const forceLowDetail = !!(tabSwitching || (interactiveFast && !flowEditActive));
     renderPipeline.resetFrameTransient();
     renderPipeline.renderScene({
       forceLowDetail,

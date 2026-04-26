@@ -48,7 +48,8 @@ export const setupDrawRectBaseController = (deps = {}) => {
       let flowEditingThisRect = !!(st.mode === "flowEdit" && sel && r.id === st.sel);
       const cellCount = (topo.cols || 1) * (topo.rows || 1), interactiveDetail = !!(sel || st.mode === "flowEdit" || isMaskMode() || isCellEditMode() || isClusterEditMode() || isRigEditMode()), lowDetail = !!((forceLowDetail && !flowEditingThisRect) || (!disableLod && designerRender && !interactiveDetail && cellCount > 3000));
       const clusterDraggingThisRect = !!(st.clusterDrag && Math.round(Number(st.clusterDrag.rectId) || 0) === Math.round(Number(r && r.id) || 0));
-      const showNumbers = !!r.numberCells;
+      const suppressCabinetLabels = !!(st.pan || (st.drag && st.drag.moved));
+      const showNumbers = !!(r.numberCells && !suppressCabinetLabels);
       const cellEditActive = isCellEditMode(), rigEditActive = isRigEditMode(), clusterEditActive = isClusterEditMode(), flowEditActive = st.mode === "flowEdit";
       const flowEnabledByMode = normalizeDataFlow(r.dataFlow) !== "none";
       const flowInteractivePause = !!(cellEditActive || rigEditActive || st.pan || (st.drag && st.drag.moved) || st.draft || clusterDraggingThisRect || (st.touch && st.touch.type === "pinch") || (lowDetail && !flowEditingThisRect));

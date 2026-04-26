@@ -79,6 +79,8 @@ export const setupRenderPipeline = (deps = {}) => {
     if (!renderState.skipHeavyOverlays) {
       drawMaskOverlay(ctx, z);
       drawCellEditOverlay(ctx, z);
+    }
+    if (!renderState.skipHeavyOverlays || st.pan) {
       drawContentBounds(ctx, z);
     }
     ctx.restore();
