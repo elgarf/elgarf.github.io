@@ -69,6 +69,15 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const m = parts.stem.match(/^(.*?)\s+\d+$/);
     return String(m ? m[1] : parts.stem).trim();
   };
+  const parseNumberedBaseInput = value => {
+    const parts = splitNameGroup(value);
+    const m = parts.stem.match(/^(.*?)\s+(\d+)$/);
+    return {
+      base: String(m ? m[1] : parts.stem).trim(),
+      startNumber: m ? Math.max(1, Math.round(Number(m[2]) || 1)) : null,
+      group: parts.group || ""
+    };
+  };
   const parseNumberedName = name => {
     const parts = splitNameGroup(name);
     const m = parts.stem.match(/^(.*?)\s+(\d+)$/);
@@ -90,6 +99,15 @@ export const setupPropsPanelFeature = (deps = {}) => {
       else if (group !== (parsed.group || "")) group = "";
     }
     return `${base || ""}${group || ""}`.trim();
+  };
+  const multiNumberedStart = rects => {
+    if (!Array.isArray(rects) || !rects.length) return null;
+    const items = rects
+      .map(r => ({ r, parsed: parseNumberedName(r && r.name) }))
+      .filter(it => it.parsed)
+      .sort((a, b) => (Number(a.r && a.r.x) || 0) - (Number(b.r && b.r.x) || 0) || (Number(a.r && a.r.y) || 0) - (Number(b.r && b.r.y) || 0) || (Number(a.r && a.r.id) || 0) - (Number(b.r && b.r.id) || 0));
+    if (items.length !== rects.length) return null;
+    return items[0].parsed.number;
   };
   const numberedNameFor = (base, index, prevName, groupOverride = null) => {
     const parts = splitNameGroup(prevName);
@@ -196,7 +214,11 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const selected = getSelectedRects(), bb = getRectsBBox(selected);
       const commonBase = multiNumberedBase(selected);
       uiSetValue(el.name, commonBase);
-      if (el.name) el.name.placeholder = commonBase ? "" : "Редактирование имени пронумерует экраны";
+      if (el.name) {
+        const start = commonBase ? multiNumberedStart(selected) : null;
+        el.name.dataset.multiStartNumber = start != null ? String(start) : "";
+        el.name.placeholder = commonBase ? "" : "Редактирование имени пронумерует экраны";
+      }
       if (bb) {
         uiSetValue(el.x, mFmt(bb.minX)); uiSetValue(el.y, mFmt(bb.minY));
         uiSetValue(el.wm, mFmt(bb.width / Math.max(1, r.scale || 256)));
@@ -207,6 +229,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       }
     } else if (el.name) {
       el.name.placeholder = "";
+      if (el.name.dataset) el.name.dataset.multiStartNumber = "";
     }
   };
 
@@ -244,14 +267,16 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const heightChanged = Math.abs(desiredH - curBb.height) > 0.5;
       const nextMinX = widthChanged ? Math.round((curBb.minX + curBb.maxX - desiredW) / 2) : inputMinX;
       const nextMinY = heightChanged ? Math.round((curBb.minY + curBb.maxY - desiredH) / 2) : inputMinY;
-      const nameInputParts = splitNameGroup(el.name && el.name.value);
-      const nextNameBase = normalizeNumberedBaseInput(el.name && el.name.value);
+      const nameInputParts = parseNumberedBaseInput(el.name && el.name.value);
+      const nextNameBase = nameInputParts.base || normalizeNumberedBaseInput(el.name && el.name.value);
+      const storedStartNumber = el.name && el.name.dataset ? Math.max(1, Math.round(Number(el.name.dataset.multiStartNumber) || 0)) : 0;
+      const startNumber = nameInputParts.startNumber || storedStartNumber || 1;
       const nextNameGroup = nameInputParts.group || null;
       if (nextNameBase) {
         targets
           .slice()
           .sort((a, b) => (Number(a.x) || 0) - (Number(b.x) || 0) || (Number(a.y) || 0) - (Number(b.y) || 0) || (Number(a.id) || 0) - (Number(b.id) || 0))
-          .forEach((t, i) => { t.name = numberedNameFor(nextNameBase, i + 1, t.name, nextNameGroup); });
+          .forEach((t, i) => { t.name = numberedNameFor(nextNameBase, startNumber + i, t.name, nextNameGroup); });
       }
       const mapAxis = (axis, targetMin, targetSpan) => {
         const EPS = 1e-6;

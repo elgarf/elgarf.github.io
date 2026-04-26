@@ -6,7 +6,13 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     refreshMultiSelectionBase,
     refreshPanels,
     schedulePersist,
-    render
+    render,
+    mFmt,
+    drawCellX,
+    drawCellY,
+    getCellTopologyCached,
+    getHiddenSet,
+    buildVisibleCabinetSummary
   } = deps;
 
   const ACTIONS = [
@@ -66,6 +72,47 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
   };
 
   const getSelectionBounds = () => itemsBounds(selectedItems());
+
+  const formatMeters = value => {
+    if (typeof mFmt === "function") return mFmt(value);
+    const n = Math.round((Number(value) || 0) * 10000) / 10000;
+    return Number.isInteger(n) ? String(n) : String(n);
+  };
+
+  const meterAreaUnit = () => {
+    if (typeof document !== "undefined" && /^en\b/i.test(document.documentElement.getAttribute("lang") || "")) return "m²";
+    return "м²";
+  };
+
+  const selectedAreaM2 = () => selectedItems().reduce((sum, it) => {
+    const r = it && it.rect;
+    if (!r || String(r.kind || "").toLowerCase() === "note") return sum;
+    if (
+      typeof drawCellX === "function"
+      && typeof drawCellY === "function"
+      && typeof getCellTopologyCached === "function"
+      && typeof getHiddenSet === "function"
+      && typeof buildVisibleCabinetSummary === "function"
+    ) {
+      const cx = drawCellX(r);
+      const cy = drawCellY(r);
+      const topo = getCellTopologyCached(r, cx, cy);
+      const summary = buildVisibleCabinetSummary(r, cx, cy, topo, getHiddenSet(r));
+      return sum + Math.max(0, Number(summary && summary.areaM2) || 0);
+    }
+    const scale = Math.max(1, Math.round(Number(r.scale) || 256));
+    const wm = Number(r.widthM) > 0 ? Number(r.widthM) : Math.max(0, Number(r.width) || 0) / scale;
+    const hm = Number(r.heightM) > 0 ? Number(r.heightM) : Math.max(0, Number(r.height) || 0) / scale;
+    return sum + Math.max(0, wm * hm);
+  }, 0);
+
+  const bootstrapPrimary = () => {
+    if (typeof document !== "undefined" && typeof getComputedStyle === "function") {
+      const value = getComputedStyle(document.documentElement).getPropertyValue("--bs-primary").trim();
+      if (value) return value;
+    }
+    return "#0d6efd";
+  };
 
   const hitAction = (x, y, z = 1) => {
     for (const btn of getButtons(z)) {
@@ -153,7 +200,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     c.fillStyle = hover ? "rgba(255,255,255,1)" : "rgba(255,255,255,.95)";
     c.fillText(btn.icon, btn.x + btn.size / 2, btn.y + btn.size / 2 + btn.size * 0.03);
     if (btn.marker === "distX" || btn.marker === "distY") {
-      c.strokeStyle = hover ? "rgba(255,224,138,.95)" : "rgba(255,255,255,.72)";
+      c.strokeStyle = hover ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.72)";
       c.lineWidth = Math.max(1, btn.size * 0.055);
       c.beginPath();
       if (btn.marker === "distX") {
@@ -203,14 +250,39 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     }
     for (const btn of buttons) {
       const hover = st.multiSelectionActionHover === btn.id;
-      c.fillStyle = hover ? "rgba(42,99,145,.96)" : "rgba(18,24,32,.88)";
-      c.strokeStyle = hover ? "rgba(255,224,138,.95)" : "rgba(255,255,255,.45)";
+      const primary = bootstrapPrimary();
+      c.fillStyle = hover ? primary : "rgba(18,24,32,.88)";
+      c.strokeStyle = hover ? primary : "rgba(255,255,255,.45)";
       c.lineWidth = Math.max(1, 1.2 / Math.max(0.5, Number(z) || 1));
       c.beginPath();
       roundedRect(btn.x, btn.y, btn.size, btn.size, Math.max(3, 5 / Math.max(0.5, Number(z) || 1)));
       c.fill();
       c.stroke();
       drawFontAwesomeIcon(c, btn);
+    }
+    if (buttons.length) {
+      const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
+      const last = buttons[buttons.length - 1];
+      const label = `${formatMeters(selectedAreaM2())} ${meterAreaUnit()}`;
+      const fontSize = 12 / zoom;
+      const padX = 7 / zoom;
+      const gap = 7 / zoom;
+      const x = last.x + last.size + gap;
+      const y = last.y + (last.size - 22 / zoom) / 2;
+      c.font = `600 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+      c.textAlign = "left";
+      c.textBaseline = "middle";
+      const tw = c.measureText(label).width;
+      const h = 22 / zoom;
+      c.fillStyle = "rgba(18,24,32,.88)";
+      c.strokeStyle = "rgba(255,255,255,.35)";
+      c.lineWidth = Math.max(1, 1.1 / zoom);
+      c.beginPath();
+      roundedRect(x, y, tw + padX * 2, h, Math.max(3, 5 / zoom));
+      c.fill();
+      c.stroke();
+      c.fillStyle = "rgba(255,255,255,.95)";
+      c.fillText(label, x + padX, y + h / 2);
     }
     c.restore();
   };

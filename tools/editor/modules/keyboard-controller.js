@@ -10,9 +10,22 @@ export const setupKeyboardController = (deps = {}) => {
 
   if (!st || !bindWindowEvent) return {};
 
+  const isEditableTarget = target => {
+    const node = target && target.nodeType === 1 ? target : (target && target.parentElement);
+    if (!node) return false;
+    const tag = String(node.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return true;
+    if (node.isContentEditable) return true;
+    return !!(node.closest && node.closest("input, textarea, select, [contenteditable='true'], .CodeMirror, .EasyMDEContainer"));
+  };
+
   const handleKeyDown = e => {
     const key = String((e && e.key) || "");
     const keyLower = key.toLowerCase();
+    if (isEditableTarget(e && e.target)) {
+      if (e.key === "Control") st.keys.ctrl = true;
+      return;
+    }
     if (e.key === " ") st.keys.space = true;
     if (e.key === "Control") st.keys.ctrl = true;
     if (e.ctrlKey && keyLower === "z") { undoHistory(); e.preventDefault(); return; }

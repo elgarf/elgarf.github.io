@@ -40,6 +40,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     resetRigHoverTransient,
     resetFlowRegionOverrides,
     syncProps,
+    syncPropsSmart,
     findFlowStartHandle,
     worldToRectUV,
     hitMultiSelectionAction,
@@ -238,7 +239,10 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       }
     }
     if (navigationController.handleDraftPointerMove(p)) return true;
-    if (navigationController.handleDragPointerMove(p, o)) return true;
+    if (navigationController.handleDragPointerMove(p, o)) {
+      if (typeof syncPropsSmart === "function") syncPropsSmart();
+      return true;
+    }
     return false;
   };
 

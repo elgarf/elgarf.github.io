@@ -38,6 +38,25 @@ export const setupRectFactoryController = (deps = {}) => {
     r.height = Math.max(1, Math.round(r.heightM * r.scale));
   };
 
+  const cabinetSizeMetersForNewRect = scale => {
+    const fallback = { x: 0.5, y: 0.5 };
+    const rects = Array.isArray(st && st.rects) ? st.rects : [];
+    let minX = Infinity;
+    let minY = Infinity;
+    for (const r of rects) {
+      if (!r || String(r.kind || "").toLowerCase() === "note") continue;
+      const s = Math.max(1, Math.round(Number(r.scale) || Number(scale) || 256));
+      const cx = Number(r.cellX);
+      const cy = Number(r.cellY);
+      if (cx > 0) minX = Math.min(minX, cx / s);
+      if (cy > 0) minY = Math.min(minY, cy / s);
+    }
+    return {
+      x: Number.isFinite(minX) && minX > 0 ? minX : fallback.x,
+      y: Number.isFinite(minY) && minY > 0 ? minY : fallback.y
+    };
+  };
+
   const parseProjectRect = (r, i, legacyAreaM2) => {
     const colorA = String(r.colorA || "#2fcaaf");
     const autoB = r.autoContrastB !== false;
@@ -90,6 +109,8 @@ export const setupRectFactoryController = (deps = {}) => {
   const mk = (x, y, w, h) => {
     const id = st.next++;
     const colorA = randomColor();
+    const scale = Math.max(1, Math.round(Number(st.globalScale) || 256));
+    const cabinetM = cabinetSizeMetersForNewRect(scale);
     const r = {
       id,
       name: `Rect ${id}`,
@@ -98,7 +119,7 @@ export const setupRectFactoryController = (deps = {}) => {
       rotation: 0,
       width: Math.max(1, Math.round(w)),
       height: Math.max(1, Math.round(h)),
-      scale: Math.max(1, Math.round(Number(st.globalScale) || 256)),
+      scale,
       widthM: 1,
       heightM: 1,
       areaM2Px: 65536,
@@ -106,8 +127,8 @@ export const setupRectFactoryController = (deps = {}) => {
       colorA,
       autoContrastB: true,
       colorB: autoContrast(colorA),
-      cellX: 128,
-      cellY: 128,
+      cellX: Math.max(1, Math.round(cabinetM.x * scale)),
+      cellY: Math.max(1, Math.round(cabinetM.y * scale)),
       dataFlow: "none",
       dataFlowZ: false,
       numberCells: false,

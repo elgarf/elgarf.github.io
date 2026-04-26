@@ -22,7 +22,6 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     listRects,
     isRectLocked,
     parseAreaM2PxInput,
-    persistProjectAndRender,
     getAreaM2BadgeLabel,
     getAreaM2PresetValues,
     setAreaM2ExpressionSource,
@@ -177,13 +176,16 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     const r = cur();
     if (!r || isRectLocked(r)) return;
     const input = el.areaM2 && el.areaM2.value;
-    r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
-    if (typeof setAreaM2ExpressionSource === "function") setAreaM2ExpressionSource(r, input);
+    const parsedForBadge = parseAreaM2PxInput(input, r.areaM2Px || 65536);
+    const count = applyToTargets(t => {
+      t.areaM2Px = parseAreaM2PxInput(input, t.areaM2Px || 65536);
+      if (typeof setAreaM2ExpressionSource === "function") setAreaM2ExpressionSource(t, input);
+      invalidateRectCache(t, "regions");
+    }, { persist: true, render: true });
+    if (!count) return;
     if (typeof updateAreaM2Badge === "function" && typeof getAreaM2BadgeLabel === "function") {
-      updateAreaM2Badge(getAreaM2BadgeEl(), getAreaM2BadgeLabel(input, r.areaM2Px, r._areaM2Expression, typeof getAreaM2PresetValues === "function" ? getAreaM2PresetValues() : []));
+      updateAreaM2Badge(getAreaM2BadgeEl(), getAreaM2BadgeLabel(input, parsedForBadge, r._areaM2Expression, typeof getAreaM2PresetValues === "function" ? getAreaM2PresetValues() : []));
     }
-    invalidateRectCache(r, "regions");
-    persistProjectAndRender();
   };
   if (el.areaM2) {
     bindEvent(el.areaM2, "input", e => {

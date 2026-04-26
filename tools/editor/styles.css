@@ -41,9 +41,13 @@
     }
 
     input,
-    textarea {
-      user-select: text;
-      -webkit-user-select: text
+    textarea,
+    select,
+    [contenteditable="true"],
+    .CodeMirror,
+    .EasyMDEContainer {
+      user-select: text !important;
+      -webkit-user-select: text !important
     }
 
     .app {

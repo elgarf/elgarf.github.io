@@ -1213,6 +1213,7 @@ const rectHasManualFlow = r => {
   isNoteRect,
   closeNoteEditor,
   syncProps,
+  syncPropsSmart: () => syncPropsSmart(),
   updateModeBadges,
   updateClusterEditCursor,
   render: () => render(),
@@ -1227,7 +1228,13 @@ const multiSelectionActions = setupMultiSelectionActionsController({
   refreshMultiSelectionBase: () => refreshMultiSelectionBase(),
   refreshPanels: () => refreshPanels(),
   schedulePersist: kind => schedulePersist(kind),
-  render: () => render()
+  render: () => render(),
+  mFmt,
+  drawCellX: r => drawCellX(r),
+  drawCellY: r => drawCellY(r),
+  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+  getHiddenSet: r => getHiddenSet(r),
+  buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs)
 });
 let hit = (_x, _y) => null;
 let snapMaskNode = (_r, _wx, _wy) => null;

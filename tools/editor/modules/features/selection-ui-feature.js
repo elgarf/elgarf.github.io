@@ -22,8 +22,18 @@ export const setupSelectionUiFeature = (deps = {}) => {
     render,
     isSelected,
     toggleRectLockById,
-    persistProjectAndRender
+    persistProjectAndRender,
+    syncPropsSmart
   } = deps;
+
+  const syncSelectionProps = () => {
+    if (typeof syncPropsSmart === "function") syncPropsSmart();
+    else syncProps();
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => {
+      if (typeof syncPropsSmart === "function") syncPropsSmart();
+      else syncProps();
+    });
+  };
 
   const selRect = (id, opts) => {
     if (id != null) {
@@ -41,7 +51,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
     const r = getRectById(st.sel) || null;
     if (!r || !findManualClusterById(r, st.clusterActiveId)) st.clusterActiveId = null;
     if (!r || !isNoteRect(r)) closeNoteEditor(true);
-    syncProps();
+    syncSelectionProps();
     listRects();
     updateModeBadges(r);
     updateClusterEditCursor();
