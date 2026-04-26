@@ -52,7 +52,7 @@ export const setupViewportMetricsController = (deps = {}) => {
 
   const zc = v => {
     const min = windowRef.matchMedia("(max-width:900px)").matches ? 0.01 : 0.1;
-    return Math.min(8, Math.max(min, v));
+    return Math.min(2.5, Math.max(min, v));
   };
 
   return {

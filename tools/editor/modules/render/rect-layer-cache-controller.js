@@ -11,12 +11,22 @@ export const setupRectLayerCacheController = (deps = {}) => {
     drawDataFlowOnRect
   } = deps;
 
-  const createLayerCanvas = (w, h) => {
-    const ww = Math.max(1, Math.round(w)), hh = Math.max(1, Math.round(h));
+  const MAX_LAYER_SCALE = 8;
+  const MAX_LAYER_PIXELS = 32000000;
+
+  const createLayerCanvas = (w, h, scale = 1) => {
+    const safeScale = Math.max(1, Number(scale) || 1);
+    const ww = Math.max(1, Math.round(w * safeScale)), hh = Math.max(1, Math.round(h * safeScale));
     if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(ww, hh);
     const cv = document.createElement("canvas");
     cv.width = ww; cv.height = hh;
     return cv;
+  };
+
+  const getLayerScale = (w, h, z) => {
+    const desired = Math.min(MAX_LAYER_SCALE, Math.max(1, Math.ceil((Number(z) || 1) - 0.5)));
+    const pixelCap = Math.sqrt(MAX_LAYER_PIXELS / Math.max(1, w * h));
+    return Math.max(1, Math.min(desired, Math.max(1, Math.floor(pixelCap))));
   };
 
   const getRectComponentRenderDataCached = (r, cx, cy, topo) => {
@@ -83,12 +93,14 @@ export const setupRectLayerCacheController = (deps = {}) => {
     return value;
   };
 
-  const getRectFillLayerCached = (r, cx, cy, topo, maskRender, lowDetail) => {
+  const getRectFillLayerCached = (r, cx, cy, topo, maskRender, lowDetail, z = 1) => {
     const cache = getRectCalcCache(r), w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1));
-    const key = [w, h, cx || 0, cy || 0, topoCalcKey(r, cx, cy), listSignature(r && r.hiddenCells), String(r && r.colorA || ""), String(r && r.colorB || ""), lowDetail ? "1" : "0"].join("|");
+    const layerScale = getLayerScale(w, h, z);
+    const key = [w, h, layerScale, cx || 0, cy || 0, topoCalcKey(r, cx, cy), listSignature(r && r.hiddenCells), String(r && r.colorA || ""), String(r && r.colorB || ""), lowDetail ? "1" : "0"].join("|");
     if (cache.fillLayer && cache.fillLayer.key === key && cache.fillLayer.canvas) return cache.fillLayer.canvas;
-    const layer = createLayerCanvas(w, h), lc = layer.getContext("2d");
+    const layer = createLayerCanvas(w, h, layerScale), lc = layer.getContext("2d");
     if (!lc) return null;
+    lc.scale(layerScale, layerScale);
     if (lowDetail) {
       lc.fillStyle = r.colorA;
       lc.fillRect(0, 0, w, h);
@@ -179,20 +191,22 @@ export const setupRectLayerCacheController = (deps = {}) => {
   };
 
   const getRectDecorLayerCached = (r, maskRender, z) => {
-    const cache = getRectCalcCache(r), w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1)), zq = (Math.round((Number(z) || 1) * 100) / 100) || 1;
-    const key = [w, h, listSignature(r && r.hiddenCells), zq].join("|");
+    const cache = getRectCalcCache(r), w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1));
+    const layerScale = getLayerScale(w, h, z);
+    const key = [w, h, layerScale, listSignature(r && r.hiddenCells)].join("|");
     if (cache.decorLayer && cache.decorLayer.key === key && cache.decorLayer.canvas) return cache.decorLayer.canvas;
-    const layer = createLayerCanvas(w, h), lc = layer.getContext("2d");
+    const layer = createLayerCanvas(w, h, layerScale), lc = layer.getContext("2d");
     if (!lc) return null;
+    lc.scale(layerScale, layerScale);
     lc.strokeStyle = "rgba(255,255,255,.55)";
-    lc.lineWidth = 2.4 / Math.max(0.01, zq);
+    lc.lineWidth = 2.4 / Math.max(0.01, layerScale);
     lc.beginPath();
     lc.moveTo(0, 0); lc.lineTo(w, h); lc.moveTo(w, 0); lc.lineTo(0, h);
     lc.stroke();
     lc.strokeStyle = "rgba(255,255,255,.75)";
-    lc.lineWidth = 2.4 / Math.max(0.01, zq);
+    lc.lineWidth = 2.4 / Math.max(0.01, layerScale);
     lc.beginPath();
-    lc.arc(w / 2, h / 2, Math.max(0, Math.min(w, h) / 2 - (2 / Math.max(0.01, zq))), 0, Math.PI * 2);
+    lc.arc(w / 2, h / 2, Math.max(0, Math.min(w, h) / 2 - (2 / Math.max(0.01, layerScale))), 0, Math.PI * 2);
     lc.stroke();
     if (maskRender && maskRender.hasMask && Array.isArray(maskRender.hiddenRects) && maskRender.hiddenRects.length) {
       lc.save();
@@ -232,4 +246,3 @@ export const setupRectLayerCacheController = (deps = {}) => {
     getRectFlowPassiveLayerCached
   };
 };
-

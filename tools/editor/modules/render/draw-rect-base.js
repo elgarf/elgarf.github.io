@@ -87,10 +87,10 @@ export const setupDrawRectBaseController = (deps = {}) => {
         }
       }
       if (drawContent) {
-        const layer = getRectFillLayerCached(r, cellX, cellY, topo, maskRender, lowDetail);
-        if (layer) c.drawImage(layer, -w / 2, -h / 2);
+        const layer = getRectFillLayerCached(r, cellX, cellY, topo, maskRender, lowDetail, z);
+        if (layer) c.drawImage(layer, -w / 2, -h / 2, w, h);
         const decorLayer = getRectDecorLayerCached(r, maskRender, z);
-        if (decorLayer) c.drawImage(decorLayer, -w / 2, -h / 2);
+        if (decorLayer) c.drawImage(decorLayer, -w / 2, -h / 2, w, h);
         if (!lowDetail) {
           const comps = getRectComponentRenderDataCached(r, cellX, cellY, topo);
           if (!skeleton && showNumbers && regions) {

@@ -263,17 +263,18 @@ export const setupViewportOverlays = (deps = {}) => {
       cellOverlayPathCache.gridPath = gridPath;
       cellOverlayPathCache.borderPath = borderPath;
     }
+    const zoomSafe = Math.max(0.01, Number(z) || 1);
     c.strokeStyle = gridCol;
-    c.lineWidth = Math.max(1, 1.1 / z);
+    c.lineWidth = 1.1 / zoomSafe;
     c.stroke(cellOverlayPathCache.gridPath);
     if (hasLinks) {
       c.strokeStyle = boundCol;
-      c.lineWidth = Math.max(1.8, 2.2 / z);
+      c.lineWidth = 2.2 / zoomSafe;
       c.stroke(cellOverlayPathCache.borderPath);
     } else {
       // Fast path for large unlinked grids: draw only outer border, skip component-boundary pass.
       c.strokeStyle = boundCol;
-      c.lineWidth = Math.max(1.6, 2 / z);
+      c.lineWidth = 2 / zoomSafe;
       c.stroke(cellOverlayPathCache.borderPath);
     }
     c.restore();
