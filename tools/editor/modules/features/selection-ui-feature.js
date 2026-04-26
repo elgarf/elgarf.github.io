@@ -35,6 +35,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
     else if (o.add) {
       normSelSet();
       if (id != null && hasRect(id)) { st.selSet.add(id); st.sel = id; }
+      if (typeof deps.refreshMultiSelectionBase === "function") deps.refreshMultiSelectionBase();
     } else selectOnly(id);
     resetSelectionTransient();
     const r = getRectById(st.sel) || null;

@@ -127,11 +127,10 @@ export const setupPropsPanelFeature = (deps = {}) => {
   const syncProps = () => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
     [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.a, el.b, el.cx, el.cy, el.cUnit, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
-    if (multi && el.rot) uiSetDisabled(el.rot, true);
     if (el.multiEditBadge) {
       const show = multi && !!r;
       el.multiEditBadge.classList.toggle("d-none", !show);
-      if (show) el.multiEditBadge.textContent = locked ? "Текущий экран заблокирован. Разблокируйте слой для редактирования." : "Групповое редактирование: W/H масштабируют расстояния, минимум — исходный bbox";
+      if (show) el.multiEditBadge.textContent = locked ? "Текущий экран заблокирован. Разблокируйте слой для редактирования." : "Групповое редактирование: W/H масштабируют расстояния, поворот идёт вокруг центра группы";
     }
     if (el.areaM2) uiSetDisabled(el.areaM2, !on);
     uiSetDisabled(el.randColor, !on);
@@ -203,6 +202,9 @@ export const setupPropsPanelFeature = (deps = {}) => {
         uiSetValue(el.wm, mFmt(bb.width / Math.max(1, r.scale || 256)));
         uiSetValue(el.hm, mFmt(bb.height / Math.max(1, r.scale || 256)));
       }
+      if (st.selMultiBase && Number.isFinite(Number(st.selMultiBase.activeRotation))) {
+        uiSetValue(el.rot, mFmt(Number(st.selMultiBase.activeRotation) || 0));
+      }
     } else if (el.name) {
       el.name.placeholder = "";
     }
@@ -233,7 +235,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const baseBb = (base && base.bbox) ? base.bbox : curBb;
       const scaleForBox = Math.max(1, Number(r.scale) || Number(st.globalScale) || 256);
       const curWm = curBb.width / scaleForBox, curHm = curBb.height / scaleForBox;
-      const srcItems = (base && Array.isArray(base.items) && base.items.length) ? base.items.map(it => ({ ...it })) : targets.map(t => { const bb = rectAABB(t); return { id: t.id, x: t.x, y: t.y, minX: bb.minX, maxX: bb.maxX, minY: bb.minY, maxY: bb.maxY }; });
+      const srcItems = (base && Array.isArray(base.items) && base.items.length) ? base.items.map(it => ({ ...it })) : targets.map(t => { const bb = rectAABB(t); return { id: t.id, x: t.x, y: t.y, rotation: Number(t.rotation) || 0, minX: bb.minX, maxX: bb.maxX, minY: bb.minY, maxY: bb.maxY, cx: (bb.minX + bb.maxX) / 2, cy: (bb.minY + bb.maxY) / 2 }; });
       const desiredW = Math.max(axisCompactSpan(srcItems, "x"), Math.round(Math.max(0.001, evalExpr(el.wm.value, curWm)) * scaleForBox));
       const desiredH = Math.max(axisCompactSpan(srcItems, "y"), Math.round(Math.max(0.001, evalExpr(el.hm.value, curHm)) * scaleForBox));
       const inputMinX = Math.round(evalExpr(el.x.value, curBb.minX));
@@ -287,9 +289,35 @@ export const setupPropsPanelFeature = (deps = {}) => {
         return nextPos;
       };
       const nextX = mapAxis("x", nextMinX, desiredW), nextY = mapAxis("y", nextMinY, desiredH);
+      const baseRot = base && Number.isFinite(Number(base.activeRotation))
+        ? Number(base.activeRotation)
+        : Number(r.rotation) || 0;
+      const desiredRot = evalExpr(el.rot && el.rot.value, baseRot);
+      const rotDelta = desiredRot - baseRot;
+      const rotRad = rotDelta * Math.PI / 180;
+      const rotCx = nextMinX + desiredW / 2;
+      const rotCy = nextMinY + desiredH / 2;
+      const itemById = new Map(srcItems.map(it => [it.id, it]));
       for (const t of targets) {
-        if (nextX.has(t.id)) t.x = nextX.get(t.id);
-        if (nextY.has(t.id)) t.y = nextY.get(t.id);
+        const item = itemById.get(t.id);
+        const nx = nextX.has(t.id) ? nextX.get(t.id) : t.x;
+        const ny = nextY.has(t.id) ? nextY.get(t.id) : t.y;
+        if (item) {
+          const localCx = (Number(item.cx) || 0) - (Number(item.x) || 0);
+          const localCy = (Number(item.cy) || 0) - (Number(item.y) || 0);
+          const cx0 = nx + localCx;
+          const cy0 = ny + localCy;
+          const dx = cx0 - rotCx;
+          const dy = cy0 - rotCy;
+          const cx1 = rotCx + dx * Math.cos(rotRad) - dy * Math.sin(rotRad);
+          const cy1 = rotCy + dx * Math.sin(rotRad) + dy * Math.cos(rotRad);
+          t.x = Math.round(cx1 - localCx);
+          t.y = Math.round(cy1 - localCy);
+          t.rotation = (Number(item.rotation) || 0) + rotDelta;
+        } else {
+          if (nextX.has(t.id)) t.x = nx;
+          if (nextY.has(t.id)) t.y = ny;
+        }
       }
     }
     for (const t of targets) {

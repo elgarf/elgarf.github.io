@@ -2,7 +2,7 @@ export const setupRenderPipeline = (deps = {}) => {
   const {
     ctx, st, cv, wrap,
     getViewMetrics, s2w, rectAABB, getOrigin, isSelected,
-    drawRect, drawInterScreenFlowLinks, drawMaskOverlay, drawCellEditOverlay, drawContentBounds,
+    drawRect, drawInterScreenFlowLinks, drawMaskOverlay, drawCellEditOverlay, drawContentBounds, drawMultiSelectionActions,
     drawGrid, drawGuides, drawDistanceGuide, drawInstallSummaryOverlay, updateNoteEditorOverlay,
     selBoxBounds, resetClusterHoverTransient, isClusterEditMode
   } = deps;
@@ -109,6 +109,9 @@ export const setupRenderPipeline = (deps = {}) => {
     }
     if (!renderState.skipHeavyOverlays || st.pan) {
       drawContentBounds(ctx, z);
+    }
+    if (!renderState.skipHeavyOverlays && typeof drawMultiSelectionActions === "function") {
+      drawMultiSelectionActions(ctx, z);
     }
     ctx.restore();
     if (typeof drawGuidesFn === "function") drawGuidesFn();

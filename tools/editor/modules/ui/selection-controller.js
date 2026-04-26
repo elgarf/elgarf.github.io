@@ -58,6 +58,7 @@ export const setupSelectionController = (deps = {}) => {
         id: r.id,
         x: r.x,
         y: r.y,
+        rotation: Number(r.rotation) || 0,
         minX: bb.minX,
         maxX: bb.maxX,
         minY: bb.minY,
@@ -69,7 +70,8 @@ export const setupSelectionController = (deps = {}) => {
       };
     });
     const ids = [...st.selSet].sort((a, b) => a - b);
-    st.selMultiBase = { idsKey: ids.join(","), bbox, items };
+    const activeItem = items.find(it => it.id === st.sel) || items[0];
+    st.selMultiBase = { idsKey: ids.join(","), bbox, items, activeRotation: activeItem ? Number(activeItem.rotation) || 0 : 0 };
   };
 
   const setSelection = (ids, activeId = null) => {
@@ -170,6 +172,7 @@ export const setupSelectionController = (deps = {}) => {
     if (st.selSet.has(id)) st.selSet.delete(id);
     else st.selSet.add(id);
     st.sel = st.selSet.has(id) ? id : ([...(st.selSet || [])][0] || null);
+    refreshMultiSelectionBase();
   };
 
   return {

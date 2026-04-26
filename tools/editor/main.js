@@ -24,6 +24,7 @@ import { setupToolbarActionsController } from "./modules/ui/toolbar-actions-cont
 import { setupViewThemeLockController } from "./modules/ui/view-theme-lock-controller.js";
 import { setupSpecViewController } from "./modules/ui/spec-view-controller.js";
 import { setupToolModeController } from "./modules/ui/tool-mode-controller.js";
+import { setupMultiSelectionActionsController } from "./modules/ui/multi-selection-actions-controller.js";
 import { setupPropertiesSyncController } from "./modules/ui/properties-sync-controller.js";
 import { setupPropsUiUtils } from "./modules/ui/props-ui-utils.js";
 import { getAreaM2BadgeLabel, getAreaM2PresetValues, setAreaM2ExpressionSource, updateAreaM2Badge } from "./modules/ui/area-m2-badge.js";
@@ -1204,6 +1205,7 @@ const rectHasManualFlow = r => {
   isRectLocked,
   hasRect,
   normSelSet,
+  refreshMultiSelectionBase,
   toggleSelect,
   selectOnly,
   resetSelectionTransient,
@@ -1218,6 +1220,15 @@ const rectHasManualFlow = r => {
   toggleRectLockById,
   persistProjectAndRender
 }));
+const multiSelectionActions = setupMultiSelectionActionsController({
+  st,
+  getSelectedRects: () => getSelectedRects(),
+  rectAABB,
+  refreshMultiSelectionBase: () => refreshMultiSelectionBase(),
+  refreshPanels: () => refreshPanels(),
+  schedulePersist: kind => schedulePersist(kind),
+  render: () => render()
+});
 let hit = (_x, _y) => null;
 let snapMaskNode = (_r, _wx, _wy) => null;
 let addMaskPoint = (_wx, _wy) => { };
@@ -1433,6 +1444,7 @@ let lastSpecAutoRefreshAt = 0;
   drawMaskOverlay,
   drawCellEditOverlay,
   drawContentBounds,
+  drawMultiSelectionActions: (c, z) => multiSelectionActions.drawActions(c, z),
   drawInstallSummaryOverlay,
   updateNoteEditorOverlay,
   selBoxBounds,
@@ -1737,6 +1749,10 @@ const inputWiringServices = {
   resetFlowRegionOverrides, syncProps,
   buildRebuiltFlowPreview,
   rebuildAndPatchFlowRegion,
+  hitMultiSelectionAction: (x, y) => multiSelectionActions.hitAction(x, y, st.zoom),
+  setMultiSelectionActionHover: (x, y) => multiSelectionActions.setHover(x, y, st.zoom),
+  clearMultiSelectionActionHover: () => multiSelectionActions.clearHover(),
+  applyMultiSelectionAction: id => multiSelectionActions.applyAction(id),
   bindEvent, bindWindowEvent, zoomAt
 };
 setupInputController({ ...inputWiringServices });

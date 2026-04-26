@@ -24,6 +24,7 @@ export const setupInputController = (deps = {}) => {
     resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
     resetFlowRegionOverrides, syncProps,
     buildRebuiltFlowPreview, rebuildAndPatchFlowRegion,
+    hitMultiSelectionAction, setMultiSelectionActionHover, clearMultiSelectionActionHover, applyMultiSelectionAction,
     bindEvent, bindWindowEvent
   } = deps;
 
@@ -132,7 +133,11 @@ export const setupInputController = (deps = {}) => {
     resetFlowRegionOverrides,
     syncProps,
     findFlowStartHandle,
-    worldToRectUV
+    worldToRectUV,
+    hitMultiSelectionAction,
+    setMultiSelectionActionHover,
+    clearMultiSelectionActionHover,
+    applyMultiSelectionAction
   });
   const handleCanvasPointerDown = (p, opts = null) => pointerOrchestrator.handleCanvasPointerDown(p, opts);
   const handleCanvasPointerMove = (p, opts = null) => pointerOrchestrator.handleCanvasPointerMove(p, opts);
