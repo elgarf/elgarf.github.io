@@ -26,6 +26,7 @@ import { setupSpecViewController } from "./modules/ui/spec-view-controller.js";
 import { setupToolModeController } from "./modules/ui/tool-mode-controller.js";
 import { setupPropertiesSyncController } from "./modules/ui/properties-sync-controller.js";
 import { setupPropsUiUtils } from "./modules/ui/props-ui-utils.js";
+import { getAreaM2BadgeLabel, getAreaM2PresetValues, setAreaM2ExpressionSource, updateAreaM2Badge } from "./modules/ui/area-m2-badge.js";
 import { setupDragSnapController } from "./modules/ui/drag-snap-controller.js";
 import { setupTransientStateController } from "./modules/ui/transient-state-controller.js";
 import { setupSelectionController } from "./modules/ui/selection-controller.js";
@@ -117,6 +118,7 @@ let ensureMobileDock = () => { };
 let hideToolbarOverflowPopup = () => { };
 let hideThemePopup = () => { };
 let showThemePopup = (_anchorEl = null) => { };
+let syncThemePopupLabels = () => { };
 let showToolbarOverflowPopup = () => { };
 let applyBootstrapClasses = () => { };
 let updateToolbarOverflow = () => { };
@@ -802,13 +804,23 @@ const toolbarController = setupToolbarController({
   st,
   bindEvent,
   mobileToolButtons,
-  applyThemeMode: (mode, persist) => applyThemeMode(mode, persist)
+  applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
+  t: value => translateText(value)
 });
 ensureMobileDock = toolbarController.ensureMobileDock;
 hideToolbarOverflowPopup = toolbarController.hideToolbarOverflowPopup;
 hideThemePopup = toolbarController.hideThemePopup;
-showThemePopup = toolbarController.showThemePopup;
-showToolbarOverflowPopup = toolbarController.showToolbarOverflowPopup;
+const showThemePopupBase = toolbarController.showThemePopup;
+syncThemePopupLabels = typeof toolbarController.syncThemePopupLabels === "function" ? toolbarController.syncThemePopupLabels : () => { };
+const showToolbarOverflowPopupBase = toolbarController.showToolbarOverflowPopup;
+showThemePopup = (...args) => {
+  if (typeof showThemePopupBase === "function") showThemePopupBase(...args);
+  if (i18n && el.themePopup) i18n.translateDom(el.themePopup);
+};
+showToolbarOverflowPopup = (...args) => {
+  if (typeof showToolbarOverflowPopupBase === "function") showToolbarOverflowPopupBase(...args);
+  if (i18n && el.overflowPopup) i18n.translateDom(el.overflowPopup);
+};
 applyBootstrapClasses = toolbarController.applyBootstrapClasses;
 updateToolbarOverflow = toolbarController.updateToolbarOverflow;
 overflowHiddenButtons = toolbarController.overflowHiddenButtons;
@@ -1690,6 +1702,9 @@ let applyProps = (_opts) => { };
   schedulePersist: kind => schedulePersist(kind),
   render: () => render(),
   createRectPropSchema,
+  getAreaM2BadgeLabel,
+  getAreaM2PresetValues: () => getAreaM2PresetValues(document),
+  updateAreaM2Badge,
   updateSplitVariantLabel: r => updateSplitVariantLabel(r)
 }));
 const { scheduleSyncProps, syncPropsSmart } = setupPropertiesSyncController({
@@ -1767,6 +1782,10 @@ setupPropsInputBindingsFeature({
   listRects: () => listRects(),
   isRectLocked: r => isRectLocked(r),
   parseAreaM2PxInput: (input, fallback) => parseAreaM2PxInput(input, fallback),
+  getAreaM2BadgeLabel,
+  getAreaM2PresetValues: () => getAreaM2PresetValues(document),
+  setAreaM2ExpressionSource,
+  updateAreaM2Badge,
   persistProjectAndRender: () => persistProjectAndRender()
 });
 const {
@@ -2007,6 +2026,7 @@ i18n = setupI18n({
   navigatorRef: navigator,
   languageToggle: el.languageToggle,
   onLanguageChange: () => {
+    if (typeof syncThemePopupLabels === "function") syncThemePopupLabels();
     updateSpecViewUi(true);
     render(true);
     updateToolbarOverflow();

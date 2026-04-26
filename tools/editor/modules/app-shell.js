@@ -10,7 +10,7 @@ const EDITOR_ELEMENT_IDS = [
   "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
   "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
   "snapGrid", "snapObjects", "snapCenters", "snapGaps", "propName", "propTextSize", "propTextSizeLabel", "propX", "propY", "propRot",
-  "propWm", "propHm", "propScale", "propAreaM2", "propColorA", "propColorB", "btnAutoContrast", "btnRandomColor",
+  "propWm", "propHm", "propScale", "propAreaM2", "propAreaM2Badge", "propColorA", "propColorB", "btnAutoContrast", "btnRandomColor",
   "propCellX", "propCellY", "propCellUnit", "propDataFlow", "propDataFlowZ", "propNumberCells",
   "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
   "propSplitVariantLabel", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "btnConvertRegionsToScreens", "rectList",

@@ -6,7 +6,8 @@ export const setupToolbarController = (deps = {}) => {
     st,
     bindEvent,
     mobileToolButtons = [],
-    applyThemeMode
+    applyThemeMode,
+    t = value => value
   } = deps;
 
   const overflowButtonIds = [
@@ -55,11 +56,30 @@ export const setupToolbarController = (deps = {}) => {
     popupEl.style.top = `${top}px`;
     popupEl.style.visibility = "";
   };
+  const getThemeItems = () => [
+    { mode: "auto", label: t("Авто"), icon: "fa-solid fa-circle-half-stroke" },
+    { mode: "light", label: t("Светлая"), icon: "fa-regular fa-sun" },
+    { mode: "dark", label: t("Тёмная"), icon: "fa-regular fa-moon" }
+  ];
+
+  const syncThemePopupLabels = () => {
+    if (!el || !el.themePopup) return;
+    const labels = new Map(getThemeItems().map(item => [item.mode, item.label]));
+    for (const btn of el.themePopup.querySelectorAll("[data-theme]")) {
+      const mode = String(btn.getAttribute("data-theme") || "");
+      const label = labels.get(mode);
+      if (!label) continue;
+      const span = btn.querySelector("span");
+      if (span) span.textContent = label;
+      else btn.textContent = label;
+    }
+  };
 
   const showThemePopup = (anchorEl = null) => {
     if (!el || !el.themePopup) return;
     const anchor = anchorEl || el.themeToggle;
     if (!anchor) return;
+    syncThemePopupLabels();
     placePopupNearAnchor(el.themePopup, anchor, 220);
     if (el.themeToggle) el.themeToggle.setAttribute("aria-expanded", "true");
   };
@@ -75,16 +95,12 @@ export const setupToolbarController = (deps = {}) => {
         item.type = "button";
         item.className = "dropdown-item d-flex align-items-center justify-content-between gap-2";
         item.setAttribute("aria-expanded", "false");
-        item.innerHTML = '<span class="d-inline-flex align-items-center gap-2"><i class="fa-solid fa-circle-half-stroke"></i><span>Тема</span></span><i class="fa-solid fa-chevron-right small"></i>';
+        item.innerHTML = `<span class="d-inline-flex align-items-center gap-2"><i class="fa-solid fa-circle-half-stroke"></i><span>${t("Тема")}</span></span><i class="fa-solid fa-chevron-right small"></i>`;
 
         const submenu = documentRef.createElement("div");
         submenu.className = "d-none ps-4 py-1";
 
-        const themeItems = [
-          { mode: "auto", label: "Авто", icon: "fa-solid fa-circle-half-stroke" },
-          { mode: "light", label: "Светлая", icon: "fa-regular fa-sun" },
-          { mode: "dark", label: "Тёмная", icon: "fa-regular fa-moon" }
-        ];
+        const themeItems = getThemeItems();
 
         for (const t of themeItems) {
           const subBtn = documentRef.createElement("button");
@@ -210,6 +226,7 @@ export const setupToolbarController = (deps = {}) => {
     showToolbarOverflowPopup,
     applyBootstrapClasses,
     updateToolbarOverflow,
+    syncThemePopupLabels,
     overflowHiddenButtons
   };
 };

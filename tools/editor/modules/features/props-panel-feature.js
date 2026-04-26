@@ -39,7 +39,10 @@ export const setupPropsPanelFeature = (deps = {}) => {
     listRects,
     schedulePersist,
     render,
-    createRectPropSchema
+    createRectPropSchema,
+    getAreaM2BadgeLabel,
+    getAreaM2PresetValues,
+    updateAreaM2Badge
   } = deps;
 
   const rectPropSchema = createRectPropSchema({
@@ -60,6 +63,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       f.apply({ el, rect, multi, unit, evalExpr, parseAreaM2PxInput, cabinetUiToPx, normalizeDataFlow });
     }
   };
+  const getAreaM2BadgeEl = () => el.propAreaM2Badge || (typeof document !== "undefined" ? document.getElementById("propAreaM2Badge") : null);
 
   const syncProps = () => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
@@ -87,6 +91,12 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (el.snapCenters) uiSetChecked(el.snapCenters, !!(st.snap && st.snap.centers));
     if (el.snapGaps) uiSetChecked(el.snapGaps, !!(st.snap && st.snap.gaps));
     if (el.areaM2) uiSetValue(el.areaM2, r ? mFmt(r.areaM2Px || 65536) : "65536");
+    if (typeof updateAreaM2Badge === "function") {
+      updateAreaM2Badge(
+        getAreaM2BadgeEl(),
+        r && typeof getAreaM2BadgeLabel === "function" ? getAreaM2BadgeLabel(el.areaM2 && el.areaM2.value, r.areaM2Px || 65536, r._areaM2Expression, typeof getAreaM2PresetValues === "function" ? getAreaM2PresetValues() : []) : ""
+      );
+    }
     if (!r) {
       updateSplitVariantModeUi(null); updateModeBadges(null);
       uiSetValue(el.name, ""); uiSetValue(el.rectTextSize, "0"); updateRectTextSizeLabel(null);

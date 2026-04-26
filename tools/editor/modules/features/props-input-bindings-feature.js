@@ -22,10 +22,15 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     listRects,
     isRectLocked,
     parseAreaM2PxInput,
-    persistProjectAndRender
+    persistProjectAndRender,
+    getAreaM2BadgeLabel,
+    getAreaM2PresetValues,
+    setAreaM2ExpressionSource,
+    updateAreaM2Badge
   } = deps;
 
   let propsInputRaf = 0;
+  const getAreaM2BadgeEl = () => el.propAreaM2Badge || (typeof document !== "undefined" ? document.getElementById("propAreaM2Badge") : null);
   const scheduleApplyPropsInput = () => {
     if (propsInputRaf) return;
     propsInputRaf = requestAnimationFrame(() => {
@@ -143,10 +148,23 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   const applyAreaM2Settings = () => {
     const r = cur();
     if (!r || isRectLocked(r)) return;
+    const input = el.areaM2 && el.areaM2.value;
     r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
+    if (typeof setAreaM2ExpressionSource === "function") setAreaM2ExpressionSource(r, input);
+    if (typeof updateAreaM2Badge === "function" && typeof getAreaM2BadgeLabel === "function") {
+      updateAreaM2Badge(getAreaM2BadgeEl(), getAreaM2BadgeLabel(input, r.areaM2Px, r._areaM2Expression, typeof getAreaM2PresetValues === "function" ? getAreaM2PresetValues() : []));
+    }
     invalidateRectCache(r, "regions");
     persistProjectAndRender();
   };
+  if (el.areaM2) {
+    bindEvent(el.areaM2, "input", () => {
+      const r = cur();
+      if (!r || typeof updateAreaM2Badge !== "function" || typeof getAreaM2BadgeLabel !== "function") return;
+      const parsed = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
+      updateAreaM2Badge(getAreaM2BadgeEl(), getAreaM2BadgeLabel(el.areaM2.value, parsed, r._areaM2Expression, typeof getAreaM2PresetValues === "function" ? getAreaM2PresetValues() : []));
+    });
+  }
   if (el.areaM2) bindCommitInput(el.areaM2, () => { applyAreaM2Settings(); syncProps(); });
 
   for (const btn of document.querySelectorAll("[data-area-m2-preset]")) {
