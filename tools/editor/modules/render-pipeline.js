@@ -3,7 +3,7 @@ export const setupRenderPipeline = (deps = {}) => {
     ctx, st, cv, wrap,
     getViewMetrics, s2w, rectAABB, getOrigin, isSelected,
     drawRect, drawInterScreenFlowLinks, drawMaskOverlay, drawCellEditOverlay, drawContentBounds,
-    drawGrid, drawGuides, drawDistanceGuide, updateNoteEditorOverlay,
+    drawGrid, drawGuides, drawDistanceGuide, drawInstallSummaryOverlay, updateNoteEditorOverlay,
     selBoxBounds, resetClusterHoverTransient, isClusterEditMode
   } = deps;
   let drawGridFn = drawGrid;
@@ -84,6 +84,7 @@ export const setupRenderPipeline = (deps = {}) => {
     ctx.restore();
     if (typeof drawGuidesFn === "function") drawGuidesFn();
     if (typeof drawDistanceGuideFn === "function") drawDistanceGuideFn();
+    if (typeof drawInstallSummaryOverlay === "function") drawInstallSummaryOverlay(ctx);
     if (wrap) wrap.dataset.panning = st.pan ? "1" : "0";
     updateNoteEditorOverlay();
   };
