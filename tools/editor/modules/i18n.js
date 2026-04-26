@@ -200,7 +200,6 @@ const EN = {
   "Скоба монтажная для рамы": "Frame mounting bracket",
   "Болт для крепления скобы": "Bracket mounting bolt",
   "Площадь экранов": "Screen area",
-  "Объём": "Area",
   "Итого": "Total",
   "Кабинетов": "Cabinets",
   "Локальный размер": "Local size",

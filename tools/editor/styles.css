@@ -657,6 +657,11 @@
       font-weight: 500
     }
 
+    .install-summary-group-name {
+      font-weight: 700;
+      font-style: italic
+    }
+
     @media (max-width:900px) {
       .install-summary-overlay {
         display: none !important

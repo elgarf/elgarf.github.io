@@ -16,7 +16,14 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
     t = value => value
   } = deps;
 
-  const groupLine = item => `${t(item.name)}: ${mFmt(item.areaM2)} ${t("м²")}`;
+  const cabinetAreaKey = item => `${mFmt(Math.max(0, Number(item && item.w) || 0))}x${mFmt(Math.max(0, Number(item && item.h) || 0))}`;
+  const cabinetAreaLabel = item => `${item.size}: ${mFmt(item.areaM2)} ${t("м²")}`;
+  const groupLineRest = item => {
+    const cabinetAreas = Array.isArray(item && item.cabinetAreaItems) && item.cabinetAreaItems.length
+      ? ` (${item.cabinetAreaItems.map(cabinetAreaLabel).join(", ")})`
+      : "";
+    return `: ${mFmt(item.areaM2)} ${t("м²")}${cabinetAreas}`;
+  };
   const isDesktop = () => !(window.matchMedia && window.matchMedia("(max-width:900px)").matches);
   const isInstallView = () => normalizeViewMode(st && st.viewMode) === "install";
   let overlayEl = null;
@@ -51,11 +58,25 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
       totalAreaM2 += areaM2;
       const meta = typeof parseScreenNameGroup === "function" ? parseScreenNameGroup(r) : { group: "Общая" };
       const groupName = String((meta && meta.group) || "Общая").trim() || "Общая";
-      const prev = byGroup.get(groupName) || { name: groupName, areaM2: 0 };
+      const prev = byGroup.get(groupName) || { name: groupName, areaM2: 0, cabinetAreaBySize: new Map() };
       prev.areaM2 += areaM2;
+      for (const item of Array.isArray(summary && summary.groupItems) ? summary.groupItems : []) {
+        const w = Math.max(0, Number(item && item.w) || 0);
+        const h = Math.max(0, Number(item && item.h) || 0);
+        const count = Math.max(0, Math.round(Number(item && item.count) || 0));
+        if (!(w > 0 && h > 0 && count > 0)) continue;
+        const key = cabinetAreaKey(item);
+        const rec = prev.cabinetAreaBySize.get(key) || { size: key, w, h, areaM2: 0 };
+        rec.areaM2 += w * h * count;
+        prev.cabinetAreaBySize.set(key, rec);
+      }
       byGroup.set(groupName, prev);
     }
-    const groups = [...byGroup.values()].sort((a, b) => b.areaM2 - a.areaM2 || a.name.localeCompare(b.name, "ru"));
+    const groups = [...byGroup.values()].map(group => {
+      group.cabinetAreaItems = [...group.cabinetAreaBySize.values()].sort((a, b) => (b.w * b.h) - (a.w * a.h) || b.w - a.w || b.h - a.h);
+      delete group.cabinetAreaBySize;
+      return group;
+    }).sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
     return { groups, totalAreaM2 };
   };
 
@@ -73,16 +94,24 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
       return;
     }
 
-    const lines = [t("Объём")];
-    for (const group of summary.groups) lines.push(groupLine(group));
-    lines.push(`${t("Итого")}: ${mFmt(summary.totalAreaM2)} ${t("м²")}`);
+    const rows = [{ title: true, text: t("Площадь экранов") }];
+    for (const group of summary.groups) rows.push({ group });
+    rows.push({ text: `${t("Итого")}: ${mFmt(summary.totalAreaM2)} ${t("м²")}` });
     node.hidden = false;
     node.style.fontFamily = fontFamilyCss(st.fontFamily);
     node.textContent = "";
-    lines.forEach((line, index) => {
+    rows.forEach(rowData => {
       const row = document.createElement("div");
-      row.className = index === 0 ? "install-summary-title" : "install-summary-row";
-      row.textContent = line;
+      row.className = rowData.title ? "install-summary-title" : "install-summary-row";
+      if (rowData.group) {
+        const name = document.createElement("span");
+        name.className = "install-summary-group-name";
+        name.textContent = t(rowData.group.name);
+        row.appendChild(name);
+        row.appendChild(document.createTextNode(groupLineRest(rowData.group)));
+      } else {
+        row.textContent = rowData.text;
+      }
       node.appendChild(row);
     });
   };

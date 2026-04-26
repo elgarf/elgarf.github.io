@@ -36,12 +36,14 @@ export const createRenderExportPngBlob = (deps = {}) => {
       minY = Math.min(minY, bb.minY);
       maxX = Math.max(maxX, bb.maxX);
       maxY = Math.max(maxY, bb.maxY);
-      const rig = getRectRigData(r);
-      const scalePx = Math.max(1, Number(r && r.scale) || 256);
-      const suspendH = Math.max(10, 0.1 * scalePx);
-      const ringD = Math.max(8, 0.1 * scalePx);
-      const suspends = Array.isArray(rig.suspends) ? rig.suspends : [];
-      if (suspends.length > 0) startY = Math.max(startY, suspendH + ringD + 2.4);
+      if (includeFlow) {
+        const rig = getRectRigData(r);
+        const scalePx = Math.max(1, Number(r && r.scale) || 256);
+        const suspendH = Math.max(10, 0.1 * scalePx);
+        const ringD = Math.max(8, 0.1 * scalePx);
+        const suspends = Array.isArray(rig.suspends) ? rig.suspends : [];
+        if (suspends.length > 0) startY = Math.max(startY, suspendH + ringD + 2.4);
+      }
     }
     const w = Math.max(1, Math.ceil(maxX - minX));
     const h = Math.max(1, Math.ceil(maxY - minY));
