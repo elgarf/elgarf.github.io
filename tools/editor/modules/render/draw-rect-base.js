@@ -1,5 +1,5 @@
 export const setupDrawRectBaseController = (deps = {}) => {
-  const { st, isNoteRect, drawNoteRect, drawCellX, drawCellY, getHiddenSet, rads, rectCenter, normalizeViewMode, getCellTopologyCached, getMaskRenderDataCached, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode, normalizeDataFlow, planNumberRegions, updateSplitVariantControl, getDataFlowGroups, collectFlowLinkAnchors, collectFlowEditPoints, getRectFillLayerCached, getRectDecorLayerCached, getRectComponentRenderDataCached, rectTextTheme, fontFamilyCss, toLetters, mFmt, pctFmt, fillPercent, getRectTextSizePx, buildVisibleCabinetSummary, listSignature, getRectTextLayoutCached, hiddenCellBoxes, computeFreeRects, chooseTextLayout, REGION_ZONE_COLORS, getVisibleBoundarySegmentsCached, drawRectOverlays, drawRectInteractions, drawRigOutsideOverlay } = deps;
+  const { st, isNoteRect, drawNoteRect, drawCellX, drawCellY, getHiddenSet, rads, rectCenter, normalizeViewMode, getCellTopologyCached, getMaskRenderDataCached, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode, normalizeDataFlow, planNumberRegions, updateSplitVariantControl, getDataFlowGroups, collectFlowLinkAnchors, collectFlowEditPoints, getRectFillLayerCached, getRectDecorLayerCached, getRectComponentRenderDataCached, rectTextTheme, fontFamilyCss, toLetters, mFmt, pctFmt, fillPercent, getRectTextSizePx, buildVisibleCabinetSummary, listSignature, getRectTextLayoutCached, hiddenCellBoxes, computeFreeRects, chooseTextLayout, REGION_ZONE_COLORS, getVisibleBoundarySegmentsCached, drawRectOverlays, drawRectInteractions, drawRigOutsideOverlay, t = value => value } = deps;
 
   const computeRectRenderFlags = ({
     stMode,
@@ -29,9 +29,11 @@ export const setupDrawRectBaseController = (deps = {}) => {
       ry = 0
     } = opts;
     const installCabText = Array.isArray(installExtra.groups) && installExtra.groups.length ? installExtra.groups.join("\n") : "—";
+    const meterUnit = t("м");
+    const areaUnit = t("м²");
     const lsRaw = installView
-      ? [r.name, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`, `${mFmt(installExtra.areaM2)} м²`, installCabText]
-      : [r.name, `(${rx}; ${ry}) px`, `${Math.round(r.width)} x ${Math.round(r.height)} px`, `${mFmt(wm)} x ${mFmt(hm)} m`, `${pctFmt(pct)}%`];
+      ? [r.name, `${mFmt(wm)} x ${mFmt(hm)} ${meterUnit}`, `${pctFmt(pct)}%`, `${mFmt(installExtra.areaM2)} ${areaUnit}`, installCabText]
+      : [r.name, `(${rx}; ${ry}) px`, `${Math.round(r.width)} x ${Math.round(r.height)} px`, `${mFmt(wm)} x ${mFmt(hm)} ${meterUnit}`, `${pctFmt(pct)}%`];
     return lsRaw
       .flatMap(line => String(line == null ? "" : line).replace(/\r/g, "").split("\n"))
       .filter(line => line.length > 0);

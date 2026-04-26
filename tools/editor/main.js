@@ -1,5 +1,6 @@
 import { createProjectCodec } from "./modules/project-codec.js";
 import { createEditorDomRefs, createInitialEditorState } from "./modules/app-shell.js";
+import { setupI18n, translateText } from "./modules/i18n.js";
 import { createToolFsm, createModePredicates } from "./modules/tool-fsm.js";
 import { createRectPropSchema } from "./modules/props-schema.js";
 import { touchProgressState, setCacheWithPrune } from "./modules/cache-utils.js";
@@ -48,6 +49,8 @@ import * as FlowDrawHelpers from "./modules/flow/draw-helpers.js";
 import { setupInterScreenLinksRender } from "./modules/flow/inter-screen-links-render.js";
 import { setupFlowEditHitTestController } from "./modules/flow/flow-edit-hit-test-controller.js";
 import { setupFlowEditOverlayRender } from "./modules/flow/flow-edit-overlay-render.js";
+import { setupFlowRegionRebuilder } from "./modules/flow/flow-region-rebuilder.js";
+import { setupVisibleRectGeometry } from "./modules/geometry/visible-rects.js";
 import { setupNoteRender } from "./modules/render/note-render.js";
 import { setupDrawRectStagesController } from "./modules/render/draw-rect-stages.js";
 import { setupDrawRectBaseController } from "./modules/render/draw-rect-base.js";
@@ -59,6 +62,7 @@ import { setupRenderRuntimeFeature } from "./modules/features/render-runtime-fea
 import { setupViewportMetricsController } from "./modules/render/viewport-metrics.js";
 import { setupViewportOverlays } from "./modules/render/viewport-overlays.js";
 import { setupInstallSummaryOverlay } from "./modules/render/install-summary-overlay.js";
+import { setupRectRuntimeService } from "./modules/rect-runtime-service.js";
 import { setupInputController } from "./modules/input-controller.js";
 import { setupAppBootstrapFeature } from "./modules/features/app-bootstrap-feature.js";
 import { setupSelectionUiFeature } from "./modules/features/selection-ui-feature.js";
@@ -118,6 +122,7 @@ let applyBootstrapClasses = () => { };
 let updateToolbarOverflow = () => { };
 let overflowHiddenButtons = [];
 const st = createInitialEditorState();
+let i18n = null;
 const rectStore = createRectStore(() => st.rects);
 const getRectById = id => rectStore.getById(id);
 let flowDrawRenderEpoch = 0;
@@ -285,37 +290,26 @@ cellFromWorldPoint = createCellFromWorldPoint({
   worldToRectUV
 });
 const getMaskNodeAxes = createMaskNodeAxesGetter(r => drawCellX(r), r => drawCellY(r));
-const computeRectAABBMasked = r => { const hs = getHiddenSet(r); if (!hs.size) return rectAABB(r); const cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); let has = false, minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (let iy = 0; iy < rows; iy++) { for (let ix = 0; ix < cols; ix++) { if (hs.has(maskCellKey(ix, iy))) continue; const u = ix * cx, v = iy * cy, cw = Math.min(cx, r.width - u), ch = Math.min(cy, r.height - v), p1 = rectUVToWorld(r, u, v), p2 = rectUVToWorld(r, u + cw, v), p3 = rectUVToWorld(r, u + cw, v + ch), p4 = rectUVToWorld(r, u, v + ch); minX = Math.min(minX, p1.x, p2.x, p3.x, p4.x); minY = Math.min(minY, p1.y, p2.y, p3.y, p4.y); maxX = Math.max(maxX, p1.x, p2.x, p3.x, p4.x); maxY = Math.max(maxY, p1.y, p2.y, p3.y, p4.y); has = true } } return has ? { minX, minY, maxX, maxY } : rectAABB(r) };
-const rectIntersectsSelectionBoxVisible = (r, b) => {
-  if (!r || !b) return false;
-  const mb = rectAABBMasked(r);
-  const quickHit = !(mb.maxX < b.minX || mb.minX > b.maxX || mb.maxY < b.minY || mb.minY > b.maxY);
-  if (!quickHit) return false;
-  const cx = drawCellX(r), cy = drawCellY(r);
-  const cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy));
-  const hs = getHiddenSet(r);
-  let hasVisible = false;
-  for (let iy = 0; iy < rows; iy++) {
-    for (let ix = 0; ix < cols; ix++) {
-      if (hs.has(maskCellKey(ix, iy))) continue;
-      hasVisible = true;
-      const u = ix * cx, v = iy * cy;
-      const cw = Math.min(cx, r.width - u), ch = Math.min(cy, r.height - v);
-      const p1 = rectUVToWorld(r, u, v), p2 = rectUVToWorld(r, u + cw, v), p3 = rectUVToWorld(r, u + cw, v + ch), p4 = rectUVToWorld(r, u, v + ch);
-      const minX = Math.min(p1.x, p2.x, p3.x, p4.x), minY = Math.min(p1.y, p2.y, p3.y, p4.y), maxX = Math.max(p1.x, p2.x, p3.x, p4.x), maxY = Math.max(p1.y, p2.y, p3.y, p4.y);
-      if (!(maxX < b.minX || minX > b.maxX || maxY < b.minY || minY > b.maxY)) return true;
-    }
-  }
-  return false;
-};
 const rectAABBMaskedKey = r => buildRectAABBMaskedKey(r, drawCellX, drawCellY, listSignature);
-const rectAABBMasked = r => {
-  const cache = getRectCalcCache(r), key = rectAABBMaskedKey(r);
-  if (cache.aabb && cache.aabb.key === key) return cache.aabb.value;
-  const value = computeRectAABBMasked(r);
-  cache.aabb = { key, value };
-  return value;
-};
+let getRectCalcCache = (_r) => ({});
+let invalidateRectCache = (_r, _reason) => { };
+let getCellTopologyCached = (_r, _cx, _cy) => null;
+let planNumberRegions = (_r, _cx, _cy, _topo, _hs, _useCache = true) => buildSingleRegionPlan(_r, _cx, _cy, _topo, _hs);
+let getDataFlowGroups = (_r, _cx, _cy, _topo, _hs, _regions) => [];
+const {
+  computeRectAABBMasked,
+  rectAABBMasked,
+  rectIntersectsSelectionBoxVisible
+} = setupVisibleRectGeometry({
+  drawCellX,
+  drawCellY,
+  getHiddenSet,
+  getRectCalcCache: r => getRectCalcCache(r),
+  buildRectAABBMaskedKey: r => rectAABBMaskedKey(r),
+  rectAABB,
+  rectUVToWorld,
+  maskCellKey
+});
 const parseLinkKey = k => { const p = String(k || "").split("-"); if (p.length !== 2) return null; const a = +p[0], b = +p[1]; if (!(a >= 0 && b >= 0 && a !== b)) return null; return a < b ? { a, b } : { a: b, b: a } };
 const mkLinkKey = (a, b) => a < b ? `${a}-${b}` : `${b}-${a}`;
 const {
@@ -352,7 +346,7 @@ const {
   FLOW_SEARCH_NODE_LIMIT_STRICT,
   FLOW_SEARCH_NODE_LIMIT_RELAXED
 });
-const {
+({
   getRectCalcCache,
   invalidateRectCache,
   getCellTopologyCached
@@ -360,15 +354,15 @@ const {
   makeNonEnumerableCalcCache: (...args) => makeNonEnumerableCalcCache(...args),
   topoCalcKey,
   getCellTopology
+}));
+const { getRectRuntime } = setupRectRuntimeService({
+  drawCellX,
+  drawCellY,
+  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+  getHiddenSet: r => getHiddenSet(r),
+  planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
+  getDataFlowGroups: (r, cx, cy, topo, hs, regions) => getDataFlowGroups(r, cx, cy, topo, hs, regions)
 });
-const getRectRuntime = (r, opts = null) => {
-  const o = (opts && typeof opts === "object") ? opts : {};
-  const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy), hs = getHiddenSet(r);
-  const out = { cx, cy, topo, hs, regions: null, groups: null };
-  if (o.withRegions || o.withGroups) out.regions = planNumberRegions(r, cx, cy, topo, hs, true);
-  if (o.withGroups) out.groups = getDataFlowGroups(r, cx, cy, topo, hs, out.regions);
-  return out;
-};
 const {
   getRectComponentRenderDataCached,
   getMaskRenderDataCached,
@@ -593,7 +587,8 @@ const {
   buildVisibleCabinetSummary
 } = setupCabinetSummaryUtils({
   maskCellKey,
-  mFmt
+  mFmt,
+  t: value => translateText(value)
 });
 const pctFmt = v => { const n = Number.isFinite(+v) ? +v : 0; const t = Math.trunc(n * 100) / 100; return t.toFixed(2) };
 const calcNow = () => ((typeof performance !== "undefined" && performance && typeof performance.now === "function") ? performance.now() : Date.now());
@@ -681,8 +676,6 @@ const calcWorkerScript = buildCalcWorkerScript({
 let resetCalcWorkers = () => { };
 let scheduleRegionCalcWorker = (_r, _key, _cx, _cy, _topo, _hs) => { };
 let scheduleFlowCalcWorker = (_r, _key, _cx, _cy, _topo, _hs, _regions) => { };
-let planNumberRegions = (_r, _cx, _cy, _topo, _hs, _useCache = true) => buildSingleRegionPlan(_r, _cx, _cy, _topo, _hs);
-let getDataFlowGroups = (_r, _cx, _cy, _topo, _hs, _regions) => [];
 let applySplitVariantLimitFromRegions = (_r, _regions) => { };
 let flowGroupsStats = (_groups) => ({ flowCount: 0, totalFlowLen: 0 });
 let logFlowCalcSummary = (_rectId, _key, _groups, _extra) => { };
@@ -843,7 +836,9 @@ let refreshSpecAuto = (_force = false) => { };
   wrap,
   normalizeViewMode,
   commitProjectChange: opts => commitProjectChange(opts),
-  getAutoSpecText: () => buildFlowSpecTextForView()
+  getAutoSpecText: () => buildFlowSpecTextForView(),
+  getLanguage: () => i18n ? i18n.getLanguage() : "",
+  t: value => translateText(value)
 }));
 const isInstallViewMode = () => normalizeViewMode(st.viewMode) === "install";
 const isInstallOnlyToolMode = m => m === "flowEdit" || m === "clusterEdit" || m === "rigEdit";
@@ -1269,7 +1264,8 @@ const { drawNoteRect } = setupNoteRender({
   rads,
   rectCenter,
   getRectTextSizePx: r => getRectTextSizePx(r),
-  fontFamilyCss
+  fontFamilyCss,
+  t: value => translateText(value)
 });
 const { drawRectBase } = setupDrawRectBaseController({
   st,
@@ -1309,6 +1305,7 @@ const { drawRectBase } = setupDrawRectBaseController({
   hiddenCellBoxes: (r, cx, cy, hs) => hiddenCellBoxes(r, cx, cy, hs),
   computeFreeRects: (r, cx, cy, hs) => computeFreeRects(r, cx, cy, hs),
   chooseTextLayout,
+  t: value => translateText(value),
   REGION_ZONE_COLORS,
   getVisibleBoundarySegmentsCached: (r, cx, cy, hs) => getVisibleBoundarySegmentsCached(r, cx, cy, hs),
   drawRectOverlays: ctx => drawRectOverlays(ctx),
@@ -1374,7 +1371,8 @@ const { drawMaskOverlay, drawCellEditOverlay, drawContentBounds } = setupViewpor
   getHiddenSet: r => getHiddenSet(r),
   fontFamilyCss,
   rectAABBMasked: r => rectAABBMasked(r),
-  listSignature
+  listSignature,
+  t: value => translateText(value)
 });
 const { drawInstallSummaryOverlay } = setupInstallSummaryOverlay({
   st,
@@ -1389,7 +1387,8 @@ const { drawInstallSummaryOverlay } = setupInstallSummaryOverlay({
   fontFamilyCss,
   mFmt,
   isNoteRect: r => isNoteRect(r),
-  parseScreenNameGroup
+  parseScreenNameGroup,
+  t: value => translateText(value)
 });
 let render = (_immediate = false) => { };
 let renderNow = () => { };
@@ -1473,33 +1472,26 @@ let moveRectDrag = (_p, _disableSnap) => { };
   getEditableSelectedRects: () => getEditableSelectedRects()
 }));
 let handleFlowEditPointerDown = (_p) => false;
-const rebuildAndPatchFlowRegion = (r, rid, timeoutMs = 5000) => {
-  if (!r) return false;
-  const rg = Math.max(0, Math.round(Number(rid) || 0));
-  const cx = drawCellX(r), cy = drawCellY(r);
-  const topo = getCellTopologyCached(r, cx, cy);
-  const hs = getHiddenSet(r);
-  const budget = makeCalcBudget();
-  budget.deadline = calcNow() + Math.max(50, Math.round(Number(timeoutMs) || 0));
-  const regions = planNumberRegionsUncached(r, cx, cy, topo, hs, budget);
-  if (!regions || budget.timedOut) return false;
-  const groups = getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget, { onlyRid: rg });
-  if (!Array.isArray(groups) || budget.timedOut) return false;
-  const group = groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg) || null;
-  const cache = getRectCalcCache(r);
-  if (!cache) return false;
-  const prev = (cache.flow && Array.isArray(cache.flow.value)) ? cache.flow.value : [];
-  const next = prev.filter(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) !== rg);
-  if (group) next.push(group);
-  next.sort((a, b) => Math.max(0, Math.round(Number(a && a.rid) || 0)) - Math.max(0, Math.round(Number(b && b.rid) || 0)));
-  if (cache.flow && typeof cache.flow === "object") {
-    cache.flow.value = next;
-    cache.flow.pending = false;
-  } else {
-    cache.flow = { key: "", regionKey: "", value: next, pending: false };
-  }
-  return true;
-};
+const {
+  buildRebuiltFlowPreview,
+  rebuildAndPatchFlowRegion
+} = setupFlowRegionRebuilder({
+  st,
+  cur: () => cur(),
+  isRectLocked: r => isRectLocked(r),
+  normalizeFlowLocks,
+  setFlowStart,
+  setFlowLock,
+  drawCellX,
+  drawCellY,
+  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+  getHiddenSet: r => getHiddenSet(r),
+  planNumberRegionsUncached: (r, cx, cy, topo, hs, budget) => planNumberRegionsUncached(r, cx, cy, topo, hs, budget),
+  getDataFlowGroupsUncached: (r, cx, cy, topo, hs, regions, budget, opts) => getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget, opts),
+  makeCalcBudget: () => makeCalcBudget(),
+  calcNow: () => calcNow(),
+  getRectCalcCache: r => getRectCalcCache(r)
+});
 ({
   handleFlowEditPointerDown,
   handleRigPointerDown,
@@ -1726,9 +1718,8 @@ const inputWiringServices = {
   mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
   resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
   resetFlowRegionOverrides, syncProps,
-  normalizeFlowLocks, drawCellX, drawCellY, getCellTopologyCached, getHiddenSet,
-  planNumberRegionsUncached, getDataFlowGroupsUncached, makeCalcBudget, calcNow,
-  getRectCalcCache,
+  buildRebuiltFlowPreview,
+  rebuildAndPatchFlowRegion,
   bindEvent, bindWindowEvent, zoomAt
 };
 setupInputController({ ...inputWiringServices });
@@ -1933,7 +1924,8 @@ const {
       setGlobalSaveLocationId,
       getGlobalSaveLocationId,
       saveStatus,
-      showMessageModal: (...args) => showMessageModal(...args)
+      showMessageModal: (...args) => showMessageModal(...args),
+      t: value => translateText(value)
     }
   }
 });
@@ -2010,3 +2002,15 @@ const appBootstrapDeps = {
   buildPortableProject
 };
 setupAppBootstrapFeature(appBootstrapDeps);
+i18n = setupI18n({
+  documentRef: document,
+  navigatorRef: navigator,
+  languageToggle: el.languageToggle,
+  onLanguageChange: () => {
+    updateSpecViewUi(true);
+    render(true);
+    updateToolbarOverflow();
+    if (i18n) i18n.translateDom(document.body);
+  }
+});
+i18n.translateDom(document.body);

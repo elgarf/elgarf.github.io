@@ -23,9 +23,7 @@ export const setupInputController = (deps = {}) => {
     mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
     resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
     resetFlowRegionOverrides, syncProps,
-    normalizeFlowLocks, drawCellX, drawCellY, getCellTopologyCached, getHiddenSet,
-    planNumberRegionsUncached, getDataFlowGroupsUncached, makeCalcBudget, calcNow,
-    getRectCalcCache,
+    buildRebuiltFlowPreview, rebuildAndPatchFlowRegion,
     bindEvent, bindWindowEvent
   } = deps;
 
@@ -42,79 +40,6 @@ export const setupInputController = (deps = {}) => {
     render();
     return true;
   };
-  const buildRebuiltFlowPreview = flowDrag => {
-    if (!flowDrag) return null;
-    if (typeof drawCellX !== "function" || typeof drawCellY !== "function" || typeof getCellTopologyCached !== "function") return null;
-    if (typeof getHiddenSet !== "function" || typeof planNumberRegionsUncached !== "function" || typeof getDataFlowGroupsUncached !== "function") return null;
-    const r = cur();
-    if (!r || isRectLocked(r)) return null;
-    const rid = Math.max(0, Math.round(Number(flowDrag.rid) || 0));
-    const fromIndex = Math.max(0, Math.round(Number(flowDrag.fromIndex) || 0));
-    const currentIndex = Math.max(fromIndex, Math.round(Number(flowDrag.currentIndex) || fromIndex));
-    const regionPoints = (st.flowEditPoints || []).filter(p => Math.max(0, Math.round(Number(p && p.rid) || 0)) === rid);
-    if (!regionPoints.length) return null;
-    const target = regionPoints.find(p => Math.max(0, Math.round(Number(p && p.index) || 0)) === currentIndex);
-    if (!target) return null;
-    const rr = {
-      ...r,
-      flowLocks: typeof normalizeFlowLocks === "function" ? normalizeFlowLocks(r.flowLocks) : (r.flowLocks && typeof r.flowLocks === "object" ? { ...r.flowLocks } : {})
-    };
-    if (String(flowDrag.kind || "") === "start") setFlowStart(rr, rid, target.cid);
-    else setFlowLock(rr, rid, fromIndex, target.cid);
-    const cx = drawCellX(rr), cy = drawCellY(rr);
-    const topo = getCellTopologyCached(rr, cx, cy);
-    const hs = getHiddenSet(rr);
-    const budget = typeof makeCalcBudget === "function" ? makeCalcBudget() : { timedOut: false, deadline: 0 };
-    if (typeof calcNow === "function") budget.deadline = calcNow() + 5000;
-    const regions = planNumberRegionsUncached(rr, cx, cy, topo, hs, budget);
-    if (!regions || budget.timedOut) return null;
-    const groups = getDataFlowGroupsUncached(rr, cx, cy, topo, hs, regions, budget, { onlyRid: rid });
-    if (!Array.isArray(groups) || budget.timedOut) return null;
-    const g = groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rid);
-    if (!g || !Array.isArray(g.points) || g.points.length < 2) return null;
-    return {
-      rid,
-      fromIndex,
-      currentIndex,
-      kind: String(flowDrag.kind || "") === "start" ? "start" : "lock",
-      points: g.points.map((p, i) => ({
-        u: +p.u || 0,
-        v: +p.v || 0,
-        index: i,
-        cid: Math.max(0, Math.round(Number(p && p.cid) || 0))
-      }))
-    };
-  };
-  const rebuildAndPatchFlowRegion = (r, rid, timeoutMs = 5000) => {
-    if (!r || typeof getRectCalcCache !== "function") return false;
-    const rg = Math.max(0, Math.round(Number(rid) || 0));
-    if (typeof drawCellX !== "function" || typeof drawCellY !== "function" || typeof getCellTopologyCached !== "function") return false;
-    if (typeof getHiddenSet !== "function" || typeof planNumberRegionsUncached !== "function" || typeof getDataFlowGroupsUncached !== "function") return false;
-    const cx = drawCellX(r), cy = drawCellY(r);
-    const topo = getCellTopologyCached(r, cx, cy);
-    const hs = getHiddenSet(r);
-    const budget = typeof makeCalcBudget === "function" ? makeCalcBudget() : { timedOut: false, deadline: 0 };
-    if (typeof calcNow === "function") budget.deadline = calcNow() + Math.max(50, Math.round(Number(timeoutMs) || 0));
-    const regions = planNumberRegionsUncached(r, cx, cy, topo, hs, budget);
-    if (!regions || budget.timedOut) return false;
-    const groups = getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget, { onlyRid: rg });
-    if (!Array.isArray(groups) || budget.timedOut) return false;
-    const group = groups.find(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) === rg) || null;
-    const cache = getRectCalcCache(r);
-    if (!cache) return false;
-    const prev = (cache.flow && Array.isArray(cache.flow.value)) ? cache.flow.value : [];
-    const next = prev.filter(it => Math.max(0, Math.round(Number(it && it.rid) || 0)) !== rg);
-    if (group) next.push(group);
-    next.sort((a, b) => Math.max(0, Math.round(Number(a && a.rid) || 0)) - Math.max(0, Math.round(Number(b && b.rid) || 0)));
-    if (cache.flow && typeof cache.flow === "object") {
-      cache.flow.value = next;
-      cache.flow.pending = false;
-    } else {
-      cache.flow = { key: "", regionKey: "", value: next, pending: false };
-    }
-    return true;
-  };
-
   const navigationController = setupCanvasNavigationController({
     st,
     render,

@@ -170,6 +170,14 @@
       line-height: 1
     }
 
+    .language-toggle {
+      min-width: 42px;
+      width: auto;
+      padding: 0 8px;
+      font-weight: 700;
+      letter-spacing: 0
+    }
+
     #lockAllToggle.btn-primary,
     #mLockAllToggle.btn-primary,
     #lockAllToggle.btn-danger,

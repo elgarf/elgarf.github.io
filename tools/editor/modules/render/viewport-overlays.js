@@ -13,7 +13,8 @@ export const setupViewportOverlays = (deps = {}) => {
     getHiddenSet,
     fontFamilyCss,
     rectAABBMasked,
-    listSignature
+    listSignature,
+    t = value => value
   } = deps;
 
   const cellBoundaryCache = { key: "", value: [] };
@@ -305,7 +306,7 @@ export const setupViewportOverlays = (deps = {}) => {
         cellSummaryCache.value = buildVisibleCabinetSummary(r, cx, cy, topo, getHiddenSet(r));
       }
       const summary = cellSummaryCache.value;
-      const lines = [`Кабинетов: ${Math.max(0, Math.round(Number(summary && summary.totalCount) || 0))}`];
+      const lines = [`${t("Кабинетов")}: ${Math.max(0, Math.round(Number(summary && summary.totalCount) || 0))}`];
       for (const row of (summary && summary.groups ? summary.groups : [])) lines.push(String(row || ""));
       const fs = Math.max(8, 11 / Math.max(0.45, z || 1));
       const lh = fs + Math.max(2, 3 / Math.max(0.45, z || 1));

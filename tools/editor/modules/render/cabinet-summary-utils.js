@@ -1,10 +1,10 @@
 import { buildVisibleComponentStats } from "../calc/visible-cabinet-stats.js";
 
 export const setupCabinetSummaryUtils = (deps = {}) => {
-  const { maskCellKey, mFmt } = deps;
+  const { maskCellKey, mFmt, t = value => value } = deps;
   const toPosNum = (v, fallback = 0) => Math.max(0, Number(v) || fallback);
   const sizeKey = (wk, hk) => `${wk}x${hk}`;
-  const sizeLine = it => `${it.wk}x${it.hk}м - ${it.count} шт.`;
+  const sizeLine = it => `${it.wk}x${it.hk} ${t("м")} - ${it.count} ${t("шт.")}`;
   const toCount = v => Math.max(0, Math.round(Number(v) || 0));
 
   const fillPercent = (wm, hm, areaM2Px) => {

@@ -38,7 +38,8 @@ export const setupSpecExportFeature = (deps = {}) => {
     getGlobalSaveLocationId,
     saveStatus,
     saveBlobWithSystemDialog,
-    showMessageModal
+    showMessageModal,
+    t = value => value
   } = deps;
   const rectFlowContextCache = new Map();
   const rectFlowContextKey = r => [
@@ -256,7 +257,7 @@ export const setupSpecExportFeature = (deps = {}) => {
     return { cabinetBySize, cableByLen, visibleAreaM2 };
   };
 
-  const buildFlowSpecText = (options = {}) => buildFlowLinksSpecText({
+  const buildFlowSpecText = (options = {}) => t(buildFlowLinksSpecText({
     rects: st.rects,
     isNoteRect,
     buildInterScreenSpecData,
@@ -267,7 +268,7 @@ export const setupSpecExportFeature = (deps = {}) => {
     specCustomSections: st.specCustomSections,
     specCustomText: st.specCustomText,
     includeManual: !!(options && options.includeManual)
-  });
+  }));
 
   const { exportPackage } = setupExportPackageController({
     st,

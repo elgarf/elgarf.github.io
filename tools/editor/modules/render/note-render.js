@@ -4,7 +4,8 @@ export const setupNoteRender = (deps = {}) => {
     rads,
     rectCenter,
     getRectTextSizePx,
-    fontFamilyCss
+    fontFamilyCss,
+    t = value => value
   } = deps;
 
   const wrapNoteText = (c, text, maxW) => {
@@ -45,7 +46,7 @@ export const setupNoteRender = (deps = {}) => {
     c.textAlign = "left";
     c.textBaseline = "top";
     c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`;
-    const text = String(r.noteText || "").trim() || "Двойной клик для ввода текста";
+    const text = String(r.noteText || "").trim() || t("Двойной клик для ввода текста");
     const lines = wrapNoteText(c, text, Math.max(8, w - pad * 2));
     const lh = Math.max(12, fs * 1.3);
     let y = -h / 2 + pad;

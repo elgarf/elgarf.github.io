@@ -100,11 +100,14 @@ export const setupSpecViewController = (deps = {}) => {
     wrap,
     normalizeViewMode,
     commitProjectChange,
-    getAutoSpecText
+    getAutoSpecText,
+    getLanguage,
+    t = value => value
   } = deps;
 
   let autoTextCache = "";
   let autoSig = "";
+  let renderLang = "";
   let sections = [];
   let sectionGroups = [];
   const editorMap = new Map();
@@ -270,7 +273,7 @@ export const setupSpecViewController = (deps = {}) => {
   const renderSections = () => {
     if (!el.specAutoBlocks) return;
     if (!sectionGroups.length) {
-      el.specAutoBlocks.innerHTML = `<div class="spec-mode-empty">Нет данных для спецификации</div>`;
+      el.specAutoBlocks.innerHTML = `<div class="spec-mode-empty">${escapeHtml(t("Нет данных для спецификации"))}</div>`;
       disposeEditors();
       return;
     }
@@ -281,7 +284,7 @@ export const setupSpecViewController = (deps = {}) => {
       const manual = isEditableSection(s)
         ? (`<div class="spec-mode-manual">`
           + `<div class="spec-mode-manual-edit">`
-          + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${escapeHtml(s.key)}" placeholder="- Доп. пункт 1&#10;- Доп. пункт 2">${escapeHtml(custom)}</textarea>`
+          + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${escapeHtml(s.key)}" placeholder="- ${escapeHtml(t("Доп. пункт"))} 1&#10;- ${escapeHtml(t("Доп. пункт"))} 2">${escapeHtml(custom)}</textarea>`
           + `</div>`
           + `</div>`)
         : "";
@@ -292,7 +295,7 @@ export const setupSpecViewController = (deps = {}) => {
         `<div class="accordion-item spec-mode-sub ${hasManual ? "has-manual" : ""}" data-section-key="${escapeHtml(s.key)}">`
         + `<h2 class="accordion-header" id="${escapeHtml(headingId)}">`
         + `<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${escapeHtml(collapseId)}" aria-expanded="false" aria-controls="${escapeHtml(collapseId)}">`
-        + `${escapeHtml(s.title || "Блок")}`
+        + `${escapeHtml(t(s.title || "Блок"))}`
         + `</button>`
         + `</h2>`
         + `<div id="${escapeHtml(collapseId)}" class="accordion-collapse collapse" aria-labelledby="${escapeHtml(headingId)}" data-bs-parent="#${escapeHtml(parentAccordionId)}">`
@@ -308,10 +311,10 @@ export const setupSpecViewController = (deps = {}) => {
     const globalHasManual = !!globalText.trim();
     const globalBlock = (
       `<section class="spec-mode-block spec-mode-parent ${globalHasManual ? "has-manual" : ""}" data-section-key="${GLOBAL_SPEC_KEY}">`
-      + `<header>Общее дополнение</header>`
+      + `<header>${escapeHtml(t("Общее дополнение"))}</header>`
       + `<div class="spec-mode-manual">`
       + `<div class="spec-mode-manual-edit">`
-      + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${GLOBAL_SPEC_KEY}" placeholder="- Общие замечания">${escapeHtml(globalText)}</textarea>`
+      + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${GLOBAL_SPEC_KEY}" placeholder="- ${escapeHtml(t("Общие замечания"))}">${escapeHtml(globalText)}</textarea>`
       + `</div>`
       + `</div>`
       + `</section>`
@@ -325,7 +328,7 @@ export const setupSpecViewController = (deps = {}) => {
       const accordion = children ? `<div id="${escapeHtml(parentAccordionId)}" class="accordion spec-mode-accordion">${children}</div>` : "";
       return (
         `<section class="spec-mode-block spec-mode-parent" data-section-key="${escapeHtml(parent.key || "")}">`
-        + `<header>${escapeHtml(parent.title || "Секция")}</header>`
+        + `<header>${escapeHtml(t(parent.title || "Секция"))}</header>`
         + parentPre
         + accordion
         + `</section>`
@@ -389,7 +392,7 @@ export const setupSpecViewController = (deps = {}) => {
     }
     if (orphans.length) {
       const prev = String(nextMap[GLOBAL_SPEC_KEY] || "");
-      const tail = orphans.map((t, i) => `- Перенесено (${i + 1}): ${t}`).join("\n");
+      const tail = orphans.map((text, i) => `- ${t("Перенесено")} (${i + 1}): ${text}`).join("\n");
       nextMap[GLOBAL_SPEC_KEY] = prev ? `${prev}\n${tail}` : tail;
     }
 
@@ -401,6 +404,8 @@ export const setupSpecViewController = (deps = {}) => {
 
   const refreshAutoSpec = (force = false) => {
     if (!isSpecMode() && !force) return;
+    const currentLang = typeof getLanguage === "function" ? String(getLanguage() || "") : "";
+    if (currentLang !== renderLang) force = true;
     const nextSig = getRectSig();
     if (!force && nextSig === autoSig) {
       if (editorMap.size === 0) initEditors();
@@ -417,6 +422,7 @@ export const setupSpecViewController = (deps = {}) => {
     const remapped = remapCustomSectionsBySemantic(sections);
     sectionGroups = groupSpecSections(sections);
     renderSections();
+    renderLang = currentLang;
     if (remapped) schedulePersist();
     migrateLegacyCustomText();
   };

@@ -1,6 +1,6 @@
 const EDITOR_ELEMENT_IDS = [
   "projectTabs", "projectTabsList", "projectTabAdd", "toolbarMain", "overflowGroup", "toolbarOverflowToggle", "toolbarOverflowPopup",
-  "projectName", "saveIndicator", "themeToggle", "themeIcon", "themePopup", "helpOpen", "viewModeArt", "viewModeInstall", "viewModeSpec",
+  "projectName", "saveIndicator", "languageToggle", "themeToggle", "themeIcon", "themePopup", "helpOpen", "viewModeArt", "viewModeInstall", "viewModeSpec",
   "mobileMenu", "installApp", "installBanner", "installBannerText", "installBannerAction", "installBannerClose",
   "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkLoading", "projectLinkText", "projectLinkCopyBtn",
   "sidePanel", "sideClose", "multiEditBadge",

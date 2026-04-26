@@ -12,10 +12,11 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
     fontFamilyCss,
     mFmt,
     isNoteRect,
-    parseScreenNameGroup
+    parseScreenNameGroup,
+    t = value => value
   } = deps;
 
-  const groupLine = item => `${item.name} - ${mFmt(item.areaM2)} м²`;
+  const groupLine = item => `${t(item.name)}: ${mFmt(item.areaM2)} ${t("м²")}`;
   const isDesktop = () => !(window.matchMedia && window.matchMedia("(max-width:900px)").matches);
   const isInstallView = () => normalizeViewMode(st && st.viewMode) === "install";
   let overlayEl = null;
@@ -72,9 +73,9 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
       return;
     }
 
-    const lines = ["Объём"];
+    const lines = [t("Объём")];
     for (const group of summary.groups) lines.push(groupLine(group));
-    lines.push(`Итого: ${mFmt(summary.totalAreaM2)} м²`);
+    lines.push(`${t("Итого")}: ${mFmt(summary.totalAreaM2)} ${t("м²")}`);
     node.hidden = false;
     node.style.fontFamily = fontFamilyCss(st.fontFamily);
     node.textContent = "";
