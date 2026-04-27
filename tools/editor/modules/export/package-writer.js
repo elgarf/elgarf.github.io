@@ -15,17 +15,19 @@ export const createExportPackageWriter = (deps = {}) => {
     await writable.close();
   };
 
-  return async ({ pngArt, pngFlow, specBlob }) => {
+  return async ({ pngArt, pngFlow, specBlob, projectBlob }) => {
     const baseName = projectFileBase();
     const fileArt = `${baseName}.png`;
     const fileFlow = `${baseName}-flow.png`;
     const fileSpec = `${baseName}-flow.md`;
+    const fileProject = `${baseName}.json`;
     if (window.showDirectoryPicker) {
       try {
         const dirHandle = await window.showDirectoryPicker({ mode: "readwrite", id: setGlobalSaveLocationId(st.saveLocationId || getGlobalSaveLocationId()) });
         await writeFileToDirectory(dirHandle, fileArt, pngArt);
         await writeFileToDirectory(dirHandle, fileFlow, pngFlow);
         await writeFileToDirectory(dirHandle, fileSpec, specBlob);
+        if (projectBlob) await writeFileToDirectory(dirHandle, fileProject, projectBlob);
         saveStatus.saved("Пакет экспортирован");
         return;
       } catch (err) {
@@ -36,5 +38,6 @@ export const createExportPackageWriter = (deps = {}) => {
     await saveBlobWithSystemDialog(pngArt, fileArt, "image/png", ".png", "PNG images", st.saveLocationId);
     await saveBlobWithSystemDialog(pngFlow, fileFlow, "image/png", ".png", "PNG images", st.saveLocationId);
     await saveBlobWithSystemDialog(specBlob, fileSpec, "text/markdown", ".md", "Markdown files", st.saveLocationId);
+    if (projectBlob) await saveBlobWithSystemDialog(projectBlob, fileProject, "application/json", ".json", "JSON files", st.saveLocationId);
   };
 };

@@ -34,13 +34,17 @@ export const setupToolbarActionsController = (deps = {}) => {
     if (mode === "install") return "spec";
     return "art";
   };
+  const previousCanvasViewMode = () => {
+    const mode = String(st && st.prevViewMode || "art");
+    return mode === "install" ? "install" : "art";
+  };
 
   bindClicks([
     [el.viewModeArt, () => setViewMode("art", true)],
     [el.viewModeInstall, () => setViewMode("install", true)],
     [el.viewModeSpec, () => setViewMode("spec", true)],
     [el.mViewModeToggle, () => setViewMode(nextMobileViewMode(), true)],
-    [el.specModeClose, () => setViewMode("art", true)],
+    [el.specModeClose, () => setViewMode(previousCanvasViewMode(), true)],
     [el.toolSelect, () => activateToolOrSelect("select")],
     [el.toolDraw, () => activateToolOrSelect("draw")],
     [el.toolNote, () => activateToolOrSelect("note")],

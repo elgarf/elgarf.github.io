@@ -96,7 +96,11 @@ export const setupViewThemeLockController = (deps = {}) => {
 
   const setViewMode = (mode, persist = true) => {
     if (typeof cancelActiveDrag === "function") cancelActiveDrag();
-    st.viewMode = normalizeViewMode(mode);
+    const currentMode = normalizeViewMode(st.viewMode);
+    const nextMode = normalizeViewMode(mode);
+    if (nextMode === "spec" && currentMode !== "spec") st.prevViewMode = currentMode;
+    if (nextMode !== "spec") st.prevViewMode = nextMode;
+    st.viewMode = nextMode;
     updateViewModeUi();
     if (!isInstallViewMode() && typeof isInstallOnlyToolMode === "function" && isInstallOnlyToolMode(st.mode)) {
       if (typeof setMode === "function") setMode("select");

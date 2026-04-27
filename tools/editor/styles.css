@@ -723,15 +723,24 @@
     .spec-mode-close {
       position: absolute;
       top: 8px;
-      right: 8px;
-      width: 30px;
-      height: 30px;
+      right: max(8px, calc((100% - 1100px) / 2));
+      width: 36px;
+      height: 36px;
       padding: 0;
-      border-radius: 8px;
       z-index: 26;
       align-items: center;
       justify-content: center;
       display: none;
+      line-height: 1;
+    }
+
+    .canvas-wrap[data-view-mode="spec"] .spec-mode-close {
+      display: inline-flex;
+    }
+
+    .spec-mode-close i {
+      font-size: 16px;
+      line-height: 1;
     }
 
     .spec-mode-scroll {
@@ -832,8 +841,12 @@
       border-bottom: 1px solid var(--spec-header-border);
       background: var(--spec-header-bg);
       list-style: none;
-      cursor: pointer;
       user-select: none;
+    }
+
+    .spec-mode-block>summary,
+    .spec-mode-parent .spec-mode-sub .accordion-button {
+      cursor: pointer;
     }
 
     .spec-mode-block>summary::-webkit-details-marker {
@@ -961,7 +974,10 @@
     .spec-mode-manual-edit .editor-toolbar i.separator {
       display: inline-block;
       float: none !important;
+      height: 18px;
+      margin: 0 6px;
       vertical-align: top;
+      transform: translateY(6px);
     }
     .spec-mode-manual-edit .editor-toolbar button {
       color: var(--bs-body-color) !important;
@@ -1352,6 +1368,11 @@
 
       .side-close {
         display: inline-flex
+      }
+
+      .spec-mode-close {
+        width: 42px;
+        height: 42px
       }
 
       .mobile-dock {

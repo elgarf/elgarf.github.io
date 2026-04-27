@@ -52,7 +52,8 @@ export const setupExportPackageController = (deps = {}) => {
     const [pngArt, pngFlow] = await Promise.all([renderExportPngBlob(false), renderExportPngBlob(true)]);
     if (!pngArt || !pngFlow) { showExportPackageMessage("Ошибка экспорта"); return; }
     const specBlob = new Blob([buildFlowSpecText()], { type: "text/markdown;charset=utf-8" });
-    await writePackageFiles({ pngArt, pngFlow, specBlob });
+    const projectBlob = new Blob([JSON.stringify(buildProject(), null, 2)], { type: "application/json;charset=utf-8" });
+    await writePackageFiles({ pngArt, pngFlow, specBlob, projectBlob });
   };
 
   return {
