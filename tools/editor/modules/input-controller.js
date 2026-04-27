@@ -161,7 +161,8 @@ export const setupInputController = (deps = {}) => {
     getViewMetrics,
     handleCanvasPointerDown,
     handleCanvasPointerMove,
-    handleCanvasPointerUp
+    handleCanvasPointerUp,
+    hitLayerButton
   });
   const handleTouchStart = e => touchController.handleTouchStart(e);
   const handleTouchMove = e => touchController.handleTouchMove(e);

@@ -22,7 +22,8 @@ export const setupToolbarActionsController = (deps = {}) => {
     randomColor,
     undoHistory,
     redoHistory,
-    commitProjectChange
+    commitProjectChange,
+    windowRef = window
   } = deps;
 
   const bindClicks = entries => {
@@ -38,13 +39,17 @@ export const setupToolbarActionsController = (deps = {}) => {
     const mode = String(st && st.prevViewMode || "art");
     return mode === "install" ? "install" : "art";
   };
+  const closeSpecViewMode = () => {
+    const isMobile = !!(windowRef.matchMedia && windowRef.matchMedia("(max-width:900px)").matches);
+    setViewMode(isMobile ? "art" : previousCanvasViewMode(), true);
+  };
 
   bindClicks([
     [el.viewModeArt, () => setViewMode("art", true)],
     [el.viewModeInstall, () => setViewMode("install", true)],
     [el.viewModeSpec, () => setViewMode("spec", true)],
     [el.mViewModeToggle, () => setViewMode(nextMobileViewMode(), true)],
-    [el.specModeClose, () => setViewMode(previousCanvasViewMode(), true)],
+    [el.specModeClose, closeSpecViewMode],
     [el.toolSelect, () => activateToolOrSelect("select")],
     [el.toolDraw, () => activateToolOrSelect("draw")],
     [el.toolNote, () => activateToolOrSelect("note")],

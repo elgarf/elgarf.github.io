@@ -8,7 +8,8 @@ export const setupTouchInputController = (deps = {}) => {
     getViewMetrics,
     handleCanvasPointerDown,
     handleCanvasPointerMove,
-    handleCanvasPointerUp
+    handleCanvasPointerUp,
+    hitLayerButton
   } = deps;
 
   const touchDist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
@@ -41,6 +42,11 @@ export const setupTouchInputController = (deps = {}) => {
     const sy = t.clientY - rect.top;
     const p = s2w(sx, sy);
     st.touch = { type: "single" };
+    if (typeof hitLayerButton === "function" && hitLayerButton(p.x, p.y)) {
+      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true });
+      e.preventDefault();
+      return;
+    }
     if (st.lockAll) {
       st.pan = true;
       st.panS = { sx, sy, cx: st.camX, cy: st.camY };
