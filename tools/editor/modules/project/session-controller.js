@@ -14,6 +14,7 @@ export const setupProjectSessionController = (deps = {}) => {
     buildProject,
     loadProjectIntoActiveState,
     onTabActivated,
+    cancelActiveDrag,
     schedulePersistRef,
     lsGet,
     lsSet,
@@ -37,6 +38,7 @@ export const setupProjectSessionController = (deps = {}) => {
     buildProject,
     loadProjectIntoActiveState,
     onTabActivated,
+    cancelActiveDrag,
     schedulePersist: (...args) => schedulePersist(...args)
   });
 

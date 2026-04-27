@@ -12,6 +12,7 @@ export const setupViewThemeLockController = (deps = {}) => {
     refreshToolButtons,
     commitProjectChange,
     setMode,
+    cancelActiveDrag,
     isInstallOnlyToolMode,
     lsSet,
     THEME_MODE_KEY,
@@ -81,6 +82,7 @@ export const setupViewThemeLockController = (deps = {}) => {
   };
 
   const setLockAll = (next, persist = true) => {
+    if (typeof cancelActiveDrag === "function") cancelActiveDrag();
     st.lockAll = !!next;
     st.sel = null;
     if (!(st.selSet instanceof Set)) st.selSet = new Set();
@@ -93,6 +95,7 @@ export const setupViewThemeLockController = (deps = {}) => {
   };
 
   const setViewMode = (mode, persist = true) => {
+    if (typeof cancelActiveDrag === "function") cancelActiveDrag();
     st.viewMode = normalizeViewMode(mode);
     updateViewModeUi();
     if (!isInstallViewMode() && typeof isInstallOnlyToolMode === "function" && isInstallOnlyToolMode(st.mode)) {

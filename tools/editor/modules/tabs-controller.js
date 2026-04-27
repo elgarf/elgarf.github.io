@@ -3,7 +3,8 @@ export const setupTabsController = (deps = {}) => {
     st, el, wrap, bindEvent, eventClosest, render,
     cloneProjectData, makeEmptyProjectData, buildProject,
     loadProjectIntoActiveState, schedulePersist,
-    onTabActivated
+    onTabActivated,
+    cancelActiveDrag
   } = deps;
 
   let tabSwitchTimer = 0;
@@ -54,6 +55,7 @@ export const setupTabsController = (deps = {}) => {
   };
   const activateTabData = tab => {
     if (!tab) return;
+    if (typeof cancelActiveDrag === "function") cancelActiveDrag();
     st.activeTabId = tab.id;
     loadProjectIntoActiveState(tab.data || makeEmptyProjectData(tab.title || "Новый проект"));
     if (typeof onTabActivated === "function") onTabActivated(tab);
@@ -63,12 +65,14 @@ export const setupTabsController = (deps = {}) => {
   const openProjectTab = tabId => {
     const next = st.tabs.find(t => t.id === tabId);
     if (!next || st.activeTabId === tabId) return;
+    if (typeof cancelActiveDrag === "function") cancelActiveDrag();
     if (st.activeTabId !== null) syncActiveTabSnapshot();
     runTabSwitchTransition(() => {
       activateTabData(next);
     });
   };
   const createProjectTab = data => {
+    if (typeof cancelActiveDrag === "function") cancelActiveDrag();
     syncActiveTabSnapshot();
     const d = cloneProjectData(data || makeEmptyProjectData("Новый проект"));
     const title = (d.projectName || "Новый проект").trim() || "Новый проект";
@@ -82,6 +86,7 @@ export const setupTabsController = (deps = {}) => {
     const idx = st.tabs.findIndex(t => t.id === tabId);
     if (idx < 0) return;
     const wasActive = st.activeTabId === tabId;
+    if (wasActive && typeof cancelActiveDrag === "function") cancelActiveDrag();
     st.tabs.splice(idx, 1);
     if (!wasActive) { renderProjectTabs(); schedulePersist("tabs"); return; }
     const next = st.tabs[Math.max(0, idx - 1)] || st.tabs[0];

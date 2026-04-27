@@ -30,7 +30,11 @@ export const setupCanvasNavigationController = (deps = {}) => {
         render();
         return true;
       }
-      if (!isSelected(h.id)) selRect(h.id);
+      if (!isSelected(h.id)) {
+        selRect(h.id);
+        render();
+        return true;
+      }
       beginRectDrag(h, p);
     } else {
       beginSelectionBox(p, !!o.shiftToggle, !!o.touchLike);

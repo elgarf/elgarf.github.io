@@ -9,12 +9,23 @@ export const setupViewportMetricsController = (deps = {}) => {
     getZoom
   } = deps;
 
+  const getDesktopSidePanelWidthPx = side => {
+    if (!side) return 0;
+    const stl = windowRef.getComputedStyle(side);
+    if (stl.display === "none") return 0;
+    const cssWidth = Number.parseFloat(stl.width);
+    const offsetWidth = Number(side.offsetWidth) || 0;
+    return Math.max(0, offsetWidth, Number.isFinite(cssWidth) ? cssWidth : 0);
+  };
+
   const getRightPanelOcclusionPx = () => {
     if (!windowRef.matchMedia("(min-width:901px)").matches) return 0;
     const side = typeof getSidePanel === "function" ? getSidePanel() : documentRef.getElementById("sidePanel");
     if (!side || !canvas) return 0;
     const stl = windowRef.getComputedStyle(side);
-    if (stl.display === "none" || stl.visibility === "hidden") return 0;
+    if (stl.display === "none") return 0;
+    const reservedWidth = getDesktopSidePanelWidthPx(side);
+    if (reservedWidth > 0) return Math.max(0, Math.min(canvas.clientWidth, reservedWidth));
     const cr = canvas.getBoundingClientRect();
     const sr = side.getBoundingClientRect();
     const overlap = Math.max(0, Math.min(cr.right, sr.right) - Math.max(cr.left, sr.left));

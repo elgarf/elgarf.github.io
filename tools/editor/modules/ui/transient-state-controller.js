@@ -38,6 +38,27 @@ export const setupTransientStateController = (deps = {}) => {
     st.selBox = null;
   };
 
+  const cancelActiveDrag = () => {
+    const drag = st && st.drag;
+    if (!drag) return false;
+    let restored = false;
+    if (Array.isArray(drag.items) && Array.isArray(st.rects)) {
+      const byId = new Map(st.rects.map(r => [Math.round(Number(r && r.id) || 0), r]));
+      for (const item of drag.items) {
+        const r = byId.get(Math.round(Number(item && item.id) || 0));
+        if (!r) continue;
+        if (Number.isFinite(Number(item.rx))) r.x = Math.round(Number(item.rx));
+        if (Number.isFinite(Number(item.ry))) r.y = Math.round(Number(item.ry));
+        restored = true;
+      }
+    }
+    st.drag = null;
+    st.g.x = null;
+    st.g.y = null;
+    st.dg = null;
+    return restored;
+  };
+
   const resetTransientState = (full = false) => {
     st.maskPath = [];
     st.maskHover = null;
@@ -62,12 +83,9 @@ export const setupTransientStateController = (deps = {}) => {
       st.flowLinkAnchors = [];
       st.flowLinkSegments = [];
       st.clusterHandles = [];
-      st.drag = null;
+      cancelActiveDrag();
       st.draft = null;
       st.draftPending = null;
-      st.g.x = null;
-      st.g.y = null;
-      st.dg = null;
     }
   };
 
@@ -78,6 +96,7 @@ export const setupTransientStateController = (deps = {}) => {
     resetClusterHoverTransient,
     resetRigHoverTransient,
     resetSelectionTransient,
+    cancelActiveDrag,
     resetTransientState
   };
 };

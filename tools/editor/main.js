@@ -768,6 +768,7 @@ let resetFlowHoverTransient = () => { };
 let resetClusterHoverTransient = () => { };
 let resetRigHoverTransient = () => { };
 let resetSelectionTransient = () => { };
+let cancelActiveDrag = () => false;
 let resetTransientState = (_full = false) => { };
 let getRectsBBox = (_rects) => null;
 let normSelSet = () => { };
@@ -882,6 +883,7 @@ const viewThemeLockController = setupViewThemeLockController({
   refreshToolButtons: () => setMode(st.mode),
   commitProjectChange: opts => commitProjectChange(opts),
   setMode: m => setMode(m),
+  cancelActiveDrag: () => cancelActiveDrag(),
   isInstallOnlyToolMode,
   lsSet,
   THEME_MODE_KEY,
@@ -984,6 +986,7 @@ const {
     if (typeof syncProps === "function") syncProps();
     if (typeof listRects === "function") listRects();
   },
+  cancelActiveDrag: () => cancelActiveDrag(),
   schedulePersistRef: fn => { schedulePersist = fn; },
   lsSet,
   TABS_SAVE_KEY,
@@ -1024,6 +1027,7 @@ const ensureFontReady = async () => {
   resetClusterHoverTransient,
   resetRigHoverTransient,
   resetSelectionTransient,
+  cancelActiveDrag,
   resetTransientState
 } = setupTransientStateController({ st }));
 let metricFromPx = (_r) => { };
@@ -1119,6 +1123,7 @@ let toggleRectLockById = (_id) => false;
   resetRigHoverTransient,
   resetMaskTransient,
   resetCellTransient,
+  cancelActiveDrag: () => cancelActiveDrag(),
   isMaskMode,
   isCellEditMode,
   isRigEditMode,

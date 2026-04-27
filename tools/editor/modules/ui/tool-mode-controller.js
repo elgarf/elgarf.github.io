@@ -11,6 +11,7 @@ export const setupToolModeController = (deps = {}) => {
     resetRigHoverTransient,
     resetMaskTransient,
     resetCellTransient,
+    cancelActiveDrag,
     isMaskMode,
     isCellEditMode,
     isRigEditMode,
@@ -28,6 +29,7 @@ export const setupToolModeController = (deps = {}) => {
 
   const setMode = m => {
     m = toolFsm.resolve(m);
+    if (typeof cancelActiveDrag === "function") cancelActiveDrag();
     if (st.mode !== m && m !== "note") closeNoteEditor(true);
     st.mode = m;
     st.flowDrag = null;

@@ -614,7 +614,7 @@
     }
 
     .canvas-wrap[data-panning="1"] canvas {
-      cursor: grabbing
+      cursor: grabbing !important
     }
 
     .install-summary-overlay {
