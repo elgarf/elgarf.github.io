@@ -21,6 +21,11 @@ export const createRenderExportPngBlob = (deps = {}) => {
     if (!cache || !cache.flow || cache.flow.pending || !Array.isArray(cache.flow.value)) return null;
     return cache.flow.value;
   };
+  const getExportRegionsFromCache = r => {
+    const cache = getRectCalcCache(r);
+    if (!cache || !cache.regions || cache.regions.pending || !cache.regions.value) return null;
+    return cache.regions.value;
+  };
 
   return async exportMode => {
     const mode = (exportMode && typeof exportMode === "object") ? exportMode : { includeFlow: !!exportMode };
@@ -103,17 +108,21 @@ export const createRenderExportPngBlob = (deps = {}) => {
           const er = { ...rct, x: rct.x - minX + shiftX, y: rct.y - minY + shiftY };
           const includeFlowRect = !!(includeFlow && normalizeDataFlow(rct && rct.dataFlow) !== "none");
           const flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(rct) : null;
+          const regions = getExportRegionsFromCache(rct);
           const drawOpts = {
             noCachedRegions: true,
             includeFlow: includeFlowRect,
             disableLod: true,
             ignoreInstallLayerToggles: true,
+            skipRegionCalc: true,
+            skipFlowCalc: true,
+            regionsOverride: regions,
             forceRigOverlay,
             suppressRigOverlay: !!flowOnly,
             viewModeOverride: (includeFlow || includeRig) ? "install" : "art",
             ...(extraOpts || {})
           };
-          if (Array.isArray(flowGroups)) drawOpts.flowGroupsOverride = flowGroups;
+          if (includeFlowRect) drawOpts.flowGroupsOverride = Array.isArray(flowGroups) ? flowGroups : [];
           drawRect(c, er, false, 1, { x: 0, y: 0 }, drawOpts);
         }
       };

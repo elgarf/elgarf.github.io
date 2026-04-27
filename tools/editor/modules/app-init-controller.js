@@ -7,7 +7,7 @@ export const setupAppInitController = (deps = {}) => {
     getProjectDataFromQueryParam, showMessageModal, restoreAutoSave,
     mk, autoContrast, selRect, resize, refreshPanels, fit,
     cloneProjectData, buildProject, loadProjectIntoActiveState, syncActiveTabSnapshot, renderProjectTabs,
-    clearProjectQueryParamFromUrl, initHistoryCurrent, ensureFontReady, render
+    clearProjectQueryParamFromUrl, initHistoryCurrent, ensureFontReady, render, hideStartupLoader
   } = deps;
 
   const initializeAppUi = () => {
@@ -68,7 +68,11 @@ export const setupAppInitController = (deps = {}) => {
     if (el.redo) el.redo.disabled = !st.history.redo.length;
     syncActiveTabSnapshot();
     renderProjectTabs();
-    ensureFontReady().then(() => { render(); }).catch(() => { });
+    render();
+    if (typeof hideStartupLoader === "function") hideStartupLoader();
+    ensureFontReady()
+      .then(() => { render(); })
+      .catch(() => { });
   };
 
   return {

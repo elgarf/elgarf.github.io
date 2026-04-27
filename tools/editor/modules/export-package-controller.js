@@ -20,6 +20,7 @@ export const setupExportPackageController = (deps = {}) => {
     saveStatus,
     saveBlobWithSystemDialog,
     buildFlowSpecText,
+    ensureExportCaches,
     showMessageModal
   } = deps;
 
@@ -49,6 +50,7 @@ export const setupExportPackageController = (deps = {}) => {
 
   const exportPackage = async () => {
     if (!st.rects.length) { showExportPackageMessage("Нечего экспортировать"); return; }
+    if (typeof ensureExportCaches === "function") await ensureExportCaches();
     const [pngArt, pngFlow, pngRig, pngFlowOnly] = await Promise.all([
       renderExportPngBlob(false),
       renderExportPngBlob(true),

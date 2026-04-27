@@ -38,6 +38,8 @@ export const setupSpecExportFeature = (deps = {}) => {
     getGlobalSaveLocationId,
     saveStatus,
     saveBlobWithSystemDialog,
+    schedulePersist,
+    persistNow,
     showMessageModal,
     t = value => value
   } = deps;
@@ -56,19 +58,29 @@ export const setupSpecExportFeature = (deps = {}) => {
     Array.isArray(r && r.cellLinks) ? r.cellLinks.length : 0,
     Array.isArray(r && r.manualClusters) ? r.manualClusters.length : 0
   ].join("|");
-  const getRectFlowContext = r => {
+  const getRectFlowContext = (r, options = {}) => {
     const key = rectFlowContextKey(r);
-    const cached = rectFlowContextCache.get(key);
+    const cachedOnly = !!(options && options.cachedOnly);
+    const cacheKey = cachedOnly ? `${key}|cached` : key;
+    const cached = rectFlowContextCache.get(cacheKey);
     if (cached) return cached;
     const cellX = drawCellX(r);
     const cellY = drawCellY(r);
     const topo = getCellTopologyCached(r, cellX, cellY);
     const hs = getHiddenSet(r);
-    const regions = planNumberRegions(r, cellX, cellY, topo, hs);
-    const flowGroups = getDataFlowGroups(r, cellX, cellY, topo, hs, regions);
+    let regions = null;
+    let flowGroups = [];
+    if (cachedOnly) {
+      const calcCache = getRectCalcCache(r);
+      regions = (calcCache && calcCache.regions && !calcCache.regions.pending) ? calcCache.regions.value : null;
+      flowGroups = (calcCache && calcCache.flow && !calcCache.flow.pending && Array.isArray(calcCache.flow.value)) ? calcCache.flow.value : [];
+    } else {
+      regions = planNumberRegions(r, cellX, cellY, topo, hs);
+      flowGroups = getDataFlowGroups(r, cellX, cellY, topo, hs, regions);
+    }
     const value = { cellX, cellY, topo, hs, regions, flowGroups };
     if (rectFlowContextCache.size > 512) rectFlowContextCache.clear();
-    rectFlowContextCache.set(key, value);
+    rectFlowContextCache.set(cacheKey, value);
     return value;
   };
   const bumpMap = (map, key, delta = 1) => {
@@ -160,14 +172,14 @@ export const setupSpecExportFeature = (deps = {}) => {
     return estimateBezierLength(p0, c1, c2, p3, 24);
   };
 
-  const buildInterScreenSpecData = () => {
+  const buildInterScreenSpecData = (options = {}) => {
     const anchorByKey = new Map();
     const rectById = new Map();
     const specRects = st.rects.filter(r => !isNoteRect(r));
     for (const r of specRects) rectById.set(Math.max(1, Math.round(Number(r && r.id) || 0)), r);
     for (const r of specRects) {
       if (normalizeDataFlow(r && r.dataFlow) === "none") continue;
-      const { flowGroups } = getRectFlowContext(r);
+      const { flowGroups } = getRectFlowContext(r, { cachedOnly: !!(options && options.cachedOnly) });
       for (const g of flowGroups || []) {
         const rid = Math.max(0, Math.round(Number(g && g.rid) || 0));
         const pts = Array.isArray(g && g.points) ? g.points : [];
@@ -222,8 +234,8 @@ export const setupSpecExportFeature = (deps = {}) => {
     return { byRectOut, byGroupOut };
   };
 
-  const buildRectSpecData = r => {
-    const { cellX, cellY, topo, hs, flowGroups } = getRectFlowContext(r);
+  const buildRectSpecData = (r, options = {}) => {
+    const { cellX, cellY, topo, hs, flowGroups } = getRectFlowContext(r, { cachedOnly: !!(options && options.cachedOnly) });
     const visibleStats = buildVisibleComponentStats(r, cellX, cellY, topo, hs, maskCellKey);
     const colPref = visibleStats ? visibleStats.colPref : [0];
     const rowPref = visibleStats ? visibleStats.rowPref : [0];
@@ -260,15 +272,65 @@ export const setupSpecExportFeature = (deps = {}) => {
   const buildFlowSpecText = (options = {}) => t(buildFlowLinksSpecText({
     rects: st.rects,
     isNoteRect,
-    buildInterScreenSpecData,
+    buildInterScreenSpecData: () => buildInterScreenSpecData({ cachedOnly: !!(options && options.cachedOnly) }),
     parseScreenNameGroup,
-    buildRectSpecData,
+    buildRectSpecData: r => buildRectSpecData(r, { cachedOnly: !!(options && options.cachedOnly) }),
     buildRectRigSpecData,
     fmtMeters,
     specCustomSections: st.specCustomSections,
     specCustomText: st.specCustomText,
     includeManual: !!(options && options.includeManual)
   }));
+
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const waitForCacheReady = async (r, kind, timeoutMs = 45000) => {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      const cache = getRectCalcCache(r);
+      const entry = cache && cache[kind];
+      if (!entry || !entry.pending) return entry || null;
+      await delay(60);
+    }
+    return (getRectCalcCache(r) || {})[kind] || null;
+  };
+  const hasReadyRegionsCache = r => {
+    const cache = getRectCalcCache(r);
+    return !!(cache && cache.regions && !cache.regions.pending && cache.regions.value);
+  };
+  const hasReadyFlowCache = r => {
+    if (normalizeDataFlow(r && r.dataFlow) === "none") return true;
+    const cache = getRectCalcCache(r);
+    return !!(cache && cache.flow && !cache.flow.pending && Array.isArray(cache.flow.value));
+  };
+  const ensureExportCaches = async () => {
+    let changed = false;
+    rectFlowContextCache.clear();
+    for (const r of st.rects || []) {
+      if (!r || isNoteRect(r)) continue;
+      const needsRegions = !hasReadyRegionsCache(r);
+      const needsFlow = !hasReadyFlowCache(r);
+      if (!needsRegions && !needsFlow) continue;
+      changed = true;
+      const cellX = drawCellX(r);
+      const cellY = drawCellY(r);
+      const topo = getCellTopologyCached(r, cellX, cellY);
+      const hs = getHiddenSet(r);
+      let regions = planNumberRegions(r, cellX, cellY, topo, hs);
+      if (needsRegions) {
+        const entry = await waitForCacheReady(r, "regions");
+        if (entry && entry.value) regions = entry.value;
+      }
+      if (normalizeDataFlow(r && r.dataFlow) !== "none") {
+        getDataFlowGroups(r, cellX, cellY, topo, hs, regions);
+        await waitForCacheReady(r, "flow");
+      }
+    }
+    rectFlowContextCache.clear();
+    if (changed) {
+      if (typeof schedulePersist === "function") schedulePersist("project");
+      if (typeof persistNow === "function") persistNow();
+    }
+  };
 
   const { exportPackage } = setupExportPackageController({
     st,
@@ -287,7 +349,8 @@ export const setupSpecExportFeature = (deps = {}) => {
     getGlobalSaveLocationId,
     saveStatus,
     saveBlobWithSystemDialog,
-    buildFlowSpecText: () => buildFlowSpecText({ includeManual: true }),
+    buildFlowSpecText: () => buildFlowSpecText({ includeManual: true, cachedOnly: true }),
+    ensureExportCaches,
     showMessageModal
   });
 

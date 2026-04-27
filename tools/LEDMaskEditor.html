@@ -5,6 +5,51 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Редактор масок LED экранов</title>
+  <style>
+    html,
+    body {
+      background: #111820;
+    }
+
+    .app-loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      background: #111820;
+      color: rgba(255, 255, 255, .86);
+      opacity: 1;
+      transition: opacity .18s ease;
+    }
+
+    .app-loading-screen.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .app-loading-box {
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+      font: 500 14px "Roboto", "Segoe UI", Arial, sans-serif;
+    }
+
+    .app-loading-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 255, 255, .18);
+      border-top-color: #0d6efd;
+      border-radius: 50%;
+      animation: app-loading-spin .8s linear infinite;
+    }
+
+    @keyframes app-loading-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
   <link rel="stylesheet" href="./vendor/bootstrap/bootstrap.min.css">
   <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
   <link rel="stylesheet" href="./vendor/fonts/roboto/roboto.css">
@@ -13,6 +58,24 @@
 </head>
 
 <body>
+  <div id="appLoadingScreen" class="app-loading-screen" role="status" aria-live="polite" aria-label="Загрузка">
+    <div class="app-loading-box">
+      <div class="app-loading-spinner" aria-hidden="true"></div>
+      <div>Загрузка...</div>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const hide = () => {
+        const node = document.getElementById("appLoadingScreen");
+        if (!node) return;
+        node.classList.add("is-hidden");
+        window.setTimeout(() => { if (node.parentNode) node.parentNode.removeChild(node); }, 220);
+      };
+      window.ledMaskHideStartupLoader = hide;
+      window.addEventListener("load", () => window.setTimeout(hide, 1200), { once: true });
+    })();
+  </script>
   <div class="app">
     <div id="projectTabs" class="project-tabs">
       <ul id="projectTabsList" class="project-tabs-list nav nav-tabs"></ul>

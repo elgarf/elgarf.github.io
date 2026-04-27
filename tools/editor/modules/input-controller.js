@@ -183,6 +183,10 @@ export const setupInputController = (deps = {}) => {
   bindEvent(cv, "mousedown", e => {
     invalidateCanvasRectCache();
     const { sx, sy, p } = getCanvasPoint(e);
+    if (e.button === 0 && typeof hitLayerButton === "function" && hitLayerButton(p.x, p.y)) {
+      handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, touchLike: false });
+      return;
+    }
     const panWithLeft = e.button === 0 && (st.keys.space || st.lockAll);
     const pan = e.button === 1 || e.button === 2 || panWithLeft;
     if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return; }

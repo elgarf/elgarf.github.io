@@ -747,6 +747,16 @@ let saveStatus = {
   error: (_text) => { },
   idle: (_text) => { }
 };
+const hideStartupLoader = () => {
+  if (typeof window.ledMaskHideStartupLoader === "function") {
+    window.ledMaskHideStartupLoader();
+    return;
+  }
+  const node = document.getElementById("appLoadingScreen");
+  if (!node) return;
+  node.classList.add("is-hidden");
+  window.setTimeout(() => { if (node.parentNode) node.parentNode.removeChild(node); }, 220);
+};
 let getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
 let isMobileTabStorageMode = () => false;
 let syncActiveTabSnapshot = () => { };
@@ -1981,6 +1991,8 @@ const {
       setGlobalSaveLocationId,
       getGlobalSaveLocationId,
       saveStatus,
+      schedulePersist: kind => schedulePersist(kind),
+      persistNow: () => persistNow(),
       showMessageModal: (...args) => showMessageModal(...args),
       t: value => translateText(value)
     }
@@ -2052,6 +2064,7 @@ const appBootstrapDeps = {
   clearProjectQueryParamFromUrl,
   initHistoryCurrent,
   ensureFontReady,
+  hideStartupLoader,
   PROJECT_QUERY_VERSION,
   PROJECT_QUERY_PARAM,
   encodeProjectToQueryValue,

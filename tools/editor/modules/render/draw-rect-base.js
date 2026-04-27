@@ -41,7 +41,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
 
   function drawRectBase(c, r, sel, z, origin, opts) {
       if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
-      const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, options = opts || {}, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, installTextMode = String(options.installTextMode || "normal"), flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
+      const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, options = opts || {}, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, installTextMode = String(options.installTextMode || "normal"), flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, hasRegionsOverride = Object.prototype.hasOwnProperty.call(options, "regionsOverride"), viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
       const skeleton = !st.fontReady;
       const installView = (viewModeOverride || normalizeViewMode(st.viewMode)) === "install";
       const topo = getCellTopologyCached(r, cellX, cellY), maskRender = getMaskRenderDataCached(r, cellX, cellY, hs, topo);
@@ -73,10 +73,10 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const suppressFlowEditText = !!(flowEditingThisRect && st.mode === "flowEdit" && sel && r.id === st.sel);
       const showRegionsOverlayRequested = !!(installView && designerRender && !clusterDraggingThisRect);
       const needRegions = !!(!lowDetail && (showNumbers || wantsFlowDraw || showRegionsOverlayRequested || (installView && sel && !clusterDraggingThisRect)));
-      const regions = (needRegions ? planNumberRegions(r, cellX, cellY, topo, hs, !options.noCachedRegions) : null);
+      const regions = (needRegions ? (hasRegionsOverride ? options.regionsOverride : (options.skipRegionCalc ? null : planNumberRegions(r, cellX, cellY, topo, hs, !options.noCachedRegions))) : null);
       const showRegionsOverlay = !!(regions && showRegionsOverlayRequested);
       if (sel && r.id === st.sel && !((st.drag && st.drag.moved) || st.clusterDrag || st.flowDrag || st.pan || st.draft)) updateSplitVariantControl(r);
-      const flowGroups = (wantsFlowDraw || wantsFlowForNumbers) ? (flowGroupsOverride || getDataFlowGroups(r, cellX, cellY, topo, hs, regions)) : [];
+      const flowGroups = (wantsFlowDraw || wantsFlowForNumbers) ? (flowGroupsOverride || (options.skipFlowCalc ? [] : getDataFlowGroups(r, cellX, cellY, topo, hs, regions))) : [];
       if (Array.isArray(flowGroups) && flowGroups.length) collectFlowLinkAnchors(r, flowGroups);
       if (st.mode === "flowEdit" && sel && r.id === st.sel) collectFlowEditPoints(r, flowGroups);
       const buildDeferredTextOverlay = () => {
