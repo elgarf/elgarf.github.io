@@ -17,8 +17,8 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
   } = deps;
 
   const cabinetAreaKey = item => `${mFmt(Math.max(0, Number(item && item.w) || 0))}x${mFmt(Math.max(0, Number(item && item.h) || 0))}`;
-  const cabinetAreaLabel = item => `${item.size}: ${mFmt(item.areaM2)} ${t("м²")}`;
   const groupLineRest = item => `: ${mFmt(item.areaM2)} ${t("м²")}`;
+  const CABINET_ICON_MAX_PX = 13;
   const isDesktop = () => !(window.matchMedia && window.matchMedia("(max-width:900px)").matches);
   const isInstallView = () => normalizeViewMode(st && st.viewMode) === "install";
   let overlayEl = null;
@@ -43,6 +43,7 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
   const collectSummary = () => {
     const byGroup = new Map();
     let totalAreaM2 = 0;
+    let maxCabinetSide = 0;
     for (const r of Array.isArray(st && st.rects) ? st.rects : []) {
       if (!r || (typeof isNoteRect === "function" && isNoteRect(r))) continue;
       const cx = drawCellX(r);
@@ -60,6 +61,7 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
         const h = Math.max(0, Number(item && item.h) || 0);
         const count = Math.max(0, Math.round(Number(item && item.count) || 0));
         if (!(w > 0 && h > 0 && count > 0)) continue;
+        maxCabinetSide = Math.max(maxCabinetSide, w, h);
         const key = cabinetAreaKey(item);
         const rec = prev.cabinetAreaBySize.get(key) || { size: key, w, h, areaM2: 0 };
         rec.areaM2 += w * h * count;
@@ -72,7 +74,19 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
       delete group.cabinetAreaBySize;
       return group;
     }).sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
-    return { groups, totalAreaM2 };
+    return { groups, totalAreaM2, maxCabinetSide };
+  };
+
+  const appendCabinetIcon = (row, item, maxCabinetSide) => {
+    const maxSide = Math.max(0, Number(maxCabinetSide) || 0);
+    const w = Math.max(0, Number(item && item.w) || 0);
+    const h = Math.max(0, Number(item && item.h) || 0);
+    if (!(maxSide > 0 && w > 0 && h > 0)) return;
+    const icon = document.createElement("span");
+    icon.className = "install-summary-cabinet-icon";
+    icon.style.width = `${Math.max(2, (w / maxSide) * CABINET_ICON_MAX_PX)}px`;
+    icon.style.height = `${Math.max(2, (h / maxSide) * CABINET_ICON_MAX_PX)}px`;
+    row.appendChild(icon);
   };
 
   const drawInstallSummaryOverlay = () => {
@@ -91,7 +105,7 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
 
     const rows = [{ title: true, text: t("Площадь экранов") }];
     for (const group of summary.groups) rows.push({ group });
-    rows.push({ text: `${t("Итого")}: ${mFmt(summary.totalAreaM2)} ${t("м²")}` });
+    rows.push({ total: true, label: `${t("Итого")}:`, area: `${mFmt(summary.totalAreaM2)} ${t("м²")}` });
     node.hidden = false;
     node.style.fontFamily = fontFamilyCss(st.fontFamily);
     node.textContent = "";
@@ -107,9 +121,26 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
         for (const item of Array.isArray(rowData.group.cabinetAreaItems) ? rowData.group.cabinetAreaItems : []) {
           const cabinetRow = document.createElement("div");
           cabinetRow.className = "install-summary-cabinet-row";
-          cabinetRow.textContent = cabinetAreaLabel(item);
+          appendCabinetIcon(cabinetRow, item, summary.maxCabinetSide);
+          const size = document.createElement("span");
+          size.className = "install-summary-cabinet-size";
+          size.textContent = `${item.size}:`;
+          const area = document.createElement("span");
+          area.className = "install-summary-cabinet-area";
+          area.textContent = `${mFmt(item.areaM2)} ${t("м²")}`;
+          cabinetRow.appendChild(size);
+          cabinetRow.appendChild(area);
           row.appendChild(cabinetRow);
         }
+      } else if (rowData.total) {
+        row.classList.add("install-summary-total-row");
+        const label = document.createElement("span");
+        label.textContent = rowData.label;
+        const area = document.createElement("span");
+        area.className = "install-summary-total-area";
+        area.textContent = rowData.area;
+        row.appendChild(label);
+        row.appendChild(area);
       } else {
         row.textContent = rowData.text;
       }

@@ -663,13 +663,45 @@
     }
 
     .install-summary-cabinet-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
       margin-left: 14px;
       font-weight: 500;
       color: rgba(226, 232, 240, .82)
     }
 
+    .install-summary-cabinet-icon {
+      flex: 0 0 auto;
+      box-sizing: border-box;
+      display: inline-block;
+      border: 1px solid currentColor;
+      background: rgba(226, 232, 240, .16)
+    }
+
+    .install-summary-cabinet-area {
+      color: rgba(255, 255, 255, .98);
+      font-weight: 700
+    }
+
+    .install-summary-total-row {
+      display: flex;
+      align-items: baseline;
+      gap: 5px
+    }
+
+    .install-summary-total-area {
+      color: rgba(255, 255, 255, .98);
+      font-weight: 800
+    }
+
     [data-bs-theme="light"] .install-summary-cabinet-row {
       color: rgba(55, 65, 81, .82)
+    }
+
+    [data-bs-theme="light"] .install-summary-cabinet-area,
+    [data-bs-theme="light"] .install-summary-total-area {
+      color: rgba(15, 23, 42, .98)
     }
 
     @media (max-width:900px) {
