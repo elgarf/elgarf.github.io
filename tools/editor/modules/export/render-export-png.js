@@ -107,6 +107,7 @@ export const createRenderExportPngBlob = (deps = {}) => {
             noCachedRegions: true,
             includeFlow: includeFlowRect,
             disableLod: true,
+            ignoreInstallLayerToggles: true,
             forceRigOverlay,
             suppressRigOverlay: !!flowOnly,
             viewModeOverride: (includeFlow || includeRig) ? "install" : "art",

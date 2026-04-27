@@ -13,11 +13,9 @@ export const setupRenderRuntimeController = (deps = {}) => {
   } = deps;
 
   const drawGrid = () => {
-    let step = 64;
+    let step = Math.max(1, Math.round((Number(st.globalScale) || 256) * 0.5));
     const lt = s2w(0, 0);
     const rb = s2w(cv.clientWidth, cv.clientHeight);
-    const maxLines = 220;
-    while (((rb.x - lt.x) / step) > maxLines || ((rb.y - lt.y) / step) > maxLines) step *= 2;
     const sx = Math.floor(lt.x / step) * step;
     const ex = Math.ceil(rb.x / step) * step;
     const sy = Math.floor(lt.y / step) * step;

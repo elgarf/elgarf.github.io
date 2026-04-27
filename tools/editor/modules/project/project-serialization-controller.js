@@ -22,6 +22,11 @@ export const setupProjectSerializationController = (deps = {}) => {
       specCustomText: String(st.specCustomText || ""),
       specCustomSections: (st.specCustomSections && typeof st.specCustomSections === "object") ? { ...st.specCustomSections } : {},
       lockAll: !!st.lockAll,
+      installLayers: {
+        text: !(st.installLayers && st.installLayers.text === false),
+        flow: !(st.installLayers && st.installLayers.flow === false),
+        rig: !(st.installLayers && st.installLayers.rig === false)
+      },
       snap: {
         grid: !!(st.snap && st.snap.grid),
         objects: !!(st.snap && st.snap.objects),
@@ -53,6 +58,7 @@ export const setupProjectSerializationController = (deps = {}) => {
       specCustomText: "",
       specCustomSections: {},
       lockAll: false,
+      installLayers: { text: true, flow: true, rig: true },
       snap: { grid: false, objects: true, centers: true, gaps: true }
     },
     nextId: 1,

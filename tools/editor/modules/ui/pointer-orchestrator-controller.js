@@ -43,6 +43,9 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     syncPropsSmart,
     findFlowStartHandle,
     worldToRectUV,
+    hitLayerButton,
+    setLayerButtonHover,
+    clearLayerButtonHover,
     hitMultiSelectionAction,
     hitMultiSelectionResizeHandle,
     setMultiSelectionActionHover,
@@ -175,9 +178,22 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     return !!handleFlowEditPointerDown(p);
   };
   const handlePointerDownSelect = (p, opts = null) => navigationController.handlePointerDownSelect(p, opts);
+  const toggleInstallLayer = id => {
+    const key = String(id || "");
+    if (!key) return false;
+    if (!st.installLayers || typeof st.installLayers !== "object") st.installLayers = { text: true, flow: true, rig: true };
+    st.installLayers[key] = st.installLayers[key] === false;
+    schedulePersist("project");
+    render();
+    return true;
+  };
 
   const handleCanvasPointerDown = (p, opts = null) => {
     suppressMoveCursorUntilMouseUp = false;
+    if (typeof hitLayerButton === "function") {
+      const layerId = hitLayerButton(p.x, p.y);
+      if (layerId && toggleInstallLayer(layerId)) return;
+    }
     if (st.mode === "select" && typeof hitMultiSelectionResizeHandle === "function" && typeof beginMultiSelectionResize === "function") {
       const resizeHandle = hitMultiSelectionResizeHandle(p.x, p.y);
       if (resizeHandle && beginMultiSelectionResize(resizeHandle, p)) {
@@ -266,6 +282,17 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       return !!clusterController.handleClusterPointerMove(p);
     }
     if (handleFlowEditPointerMove(p)) return true;
+    if (typeof setLayerButtonHover === "function" && String(st.viewMode || "") === "install") {
+      const changed = setLayerButtonHover(p.x, p.y);
+      const hoveringLayer = !!st.installLayerButtonHover;
+      if (hoveringLayer) setCanvasCursor("pointer");
+      else clearCursorIf("pointer");
+      if (changed) render();
+      if (hoveringLayer) return true;
+    } else if (typeof clearLayerButtonHover === "function" && clearLayerButtonHover()) {
+      clearCursorIf("pointer");
+      render();
+    }
     if (st.mode === "select" && !st.drag && !st.selBox && !st.pan && typeof setMultiSelectionActionHover === "function") {
       const changed = setMultiSelectionActionHover(p.x, p.y);
       const hoveringAction = !!st.multiSelectionActionHover;
@@ -359,6 +386,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
 
   const handleCanvasMouseLeave = () => {
+    if (typeof clearLayerButtonHover === "function" && clearLayerButtonHover()) render();
     if (typeof clearMultiSelectionActionHover === "function" && clearMultiSelectionActionHover()) render();
     clearCursorIf("pointer", MOVE_CURSOR, ...RESIZE_CURSORS);
     setNoteResizeCursor(false);

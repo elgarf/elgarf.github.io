@@ -24,6 +24,7 @@ export const setupInputController = (deps = {}) => {
     resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
     resetFlowRegionOverrides, syncProps,
     buildRebuiltFlowPreview, rebuildAndPatchFlowRegion,
+    hitLayerButton, setLayerButtonHover, clearLayerButtonHover,
     hitMultiSelectionAction, hitMultiSelectionResizeHandle, setMultiSelectionActionHover, clearMultiSelectionActionHover, applyMultiSelectionAction,
     beginMultiSelectionResize, updateMultiSelectionResize, endMultiSelectionResize,
     bindEvent, bindWindowEvent
@@ -135,6 +136,9 @@ export const setupInputController = (deps = {}) => {
     syncProps,
     findFlowStartHandle,
     worldToRectUV,
+    hitLayerButton,
+    setLayerButtonHover,
+    clearLayerButtonHover,
     hitMultiSelectionAction,
     hitMultiSelectionResizeHandle,
     setMultiSelectionActionHover,

@@ -51,6 +51,10 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const suppressCabinetLabels = !!(st.pan || (st.drag && st.drag.moved));
       const showNumbers = !!(r.numberCells && !suppressCabinetLabels);
       const cellEditActive = isCellEditMode(), rigEditActive = isRigEditMode(), clusterEditActive = isClusterEditMode(), flowEditActive = st.mode === "flowEdit";
+      const installLayerState = options.ignoreInstallLayerToggles ? {} : (st.installLayers || {});
+      const showInstallTextLayer = !!(!installView || installLayerState.text !== false);
+      const showInstallFlowLayer = !!(!installView || installLayerState.flow !== false || flowEditActive);
+      const showInstallRigLayer = !!(!installView || installLayerState.rig !== false || rigEditActive);
       const flowEnabledByMode = normalizeDataFlow(r.dataFlow) !== "none";
       const flowInteractivePause = !!(cellEditActive || rigEditActive || st.pan || (st.drag && st.drag.moved) || st.draft || clusterDraggingThisRect || (st.touch && st.touch.type === "pinch") || (lowDetail && !flowEditingThisRect));
       const flowFlags = computeRectRenderFlags({
@@ -58,7 +62,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
         sel,
         rectId: r && r.id,
         selectedId: st.sel,
-        installView: !!(installView && includeFlow),
+        installView: !!(installView && includeFlow && showInstallFlowLayer),
         flowEnabledByMode,
         flowInteractivePause,
         showNumbers
@@ -89,7 +93,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
         return { layout, ls, maxW, txtTheme };
       };
       if (installTextMode === "only") {
-        if (!skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
+        if (showInstallTextLayer && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
           drawRectOverlays({
             c, r, sel, z, w, h, cellX, cellY, topo, hs,
             installView, cellEditActive, clusterEditActive, flowEditActive,
@@ -178,7 +182,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
               c.fillStyle = txtTheme.text; c.fillText(text, tx, ty);
             }
           }
-          if (installTextMode !== "skip" && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
+          if (installTextMode !== "skip" && showInstallTextLayer && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
             deferredTextOverlay = buildDeferredTextOverlay();
           }
         }
@@ -232,13 +236,13 @@ export const setupDrawRectBaseController = (deps = {}) => {
         c, r, sel, z, w, h, cellX, cellY, topo, hs,
         installView, cellEditActive, clusterEditActive, flowEditActive,
         wantsFlowDraw, flowGroups, deferredTextOverlay,
-        suppressRigOverlay: !!(options && options.suppressRigOverlay)
+        suppressRigOverlay: !!((options && options.suppressRigOverlay) || !showInstallRigLayer)
       };
       drawRectOverlays(drawCtx);
       drawRectInteractions(drawCtx);
       c.restore();
       c.restore();
-      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive && !(options && options.suppressRigOverlay)) {
+      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive && !(options && options.suppressRigOverlay) && showInstallRigLayer) {
         const forceRigOverlay = !!(options && options.forceRigOverlay);
         drawRigOutsideOverlay(c, r, cellX, cellY, topo, hs, z, !!sel || forceRigOverlay);
       }

@@ -126,6 +126,7 @@ export const createInitialEditorState = () => ({
   saveLocationId: "proj-project",
   themeMode: "auto",
   lockAll: false,
+  installLayers: { text: true, flow: true, rig: true },
   specCustomText: "",
   specCustomSections: {},
   maskPath: [],

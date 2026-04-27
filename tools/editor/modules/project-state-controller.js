@@ -50,6 +50,14 @@ export const setupProjectStateController = (deps = {}) => {
         ? { ...d.settings.specCustomSections }
         : {};
       st.lockAll = !!(d.settings && d.settings.lockAll);
+      {
+        const layers = (d.settings && d.settings.installLayers && typeof d.settings.installLayers === "object") ? d.settings.installLayers : {};
+        st.installLayers = {
+          text: layers.text !== false,
+          flow: layers.flow !== false,
+          rig: layers.rig !== false
+        };
+      }
       const ss = (d.settings && d.settings.snap) || {};
       st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false };
     } else {
@@ -60,6 +68,7 @@ export const setupProjectStateController = (deps = {}) => {
       st.specCustomText = "";
       st.specCustomSections = {};
       st.lockAll = false;
+      st.installLayers = { text: true, flow: true, rig: true };
       st.snap = { grid: false, objects: true, centers: true, gaps: true };
     }
     st.projectName = String((d && d.projectName) || "project").trim() || "project";

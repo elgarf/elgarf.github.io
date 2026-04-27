@@ -3,7 +3,7 @@ export const setupRenderPipeline = (deps = {}) => {
     ctx, st, cv, wrap,
     getViewMetrics, s2w, rectAABB, getOrigin, isSelected,
     drawRect, drawInterScreenFlowLinks, drawMaskOverlay, drawCellEditOverlay, drawContentBounds, drawMultiSelectionActions,
-    drawGrid, drawGuides, drawDistanceGuide, drawInstallSummaryOverlay, updateNoteEditorOverlay,
+    drawGrid, drawGuides, drawDistanceGuide, drawInstallSummaryOverlay, drawLayerButtons, updateNoteEditorOverlay,
     selBoxBounds, resetClusterHoverTransient, isClusterEditMode
   } = deps;
   let drawGridFn = drawGrid;
@@ -94,9 +94,10 @@ export const setupRenderPipeline = (deps = {}) => {
     ctx.scale(z, z);
     ctx.translate(-st.camX, -st.camY);
     const installFlowLayering = String(st.viewMode || "") === "install";
+    const showInstallFlowLayer = !(st.installLayers && st.installLayers.flow === false) || st.mode === "flowEdit";
     if (installFlowLayering) {
       drawVisibleRects(z, !!renderState.forceLowDetail, { installTextMode: "skip" });
-      drawInterScreenFlowLinks(ctx);
+      if (showInstallFlowLayer) drawInterScreenFlowLinks(ctx);
       drawVisibleRects(z, !!renderState.forceLowDetail, { installTextMode: "only", includeFlow: false });
     } else {
       drawVisibleRects(z, !!renderState.forceLowDetail);
@@ -113,6 +114,9 @@ export const setupRenderPipeline = (deps = {}) => {
     }
     if (!renderState.skipHeavyOverlays && typeof drawMultiSelectionActions === "function") {
       drawMultiSelectionActions(ctx, z);
+    }
+    if (!renderState.skipHeavyOverlays && typeof drawLayerButtons === "function") {
+      drawLayerButtons(ctx, z);
     }
     ctx.restore();
     if (typeof drawGuidesFn === "function") drawGuidesFn();

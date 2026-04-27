@@ -17,6 +17,12 @@ export const setupViewportOverlays = (deps = {}) => {
     t = value => value
   } = deps;
 
+  const LAYER_BUTTONS = [
+    { id: "text", icon: "\uf031", title: "Текст" },
+    { id: "flow", icon: "\uf542", title: "Потоки" },
+    { id: "rig", icon: "\uf0ad", title: "Риг" }
+  ];
+
   const cellBoundaryCache = { key: "", value: [] };
   const cellSummaryCache = { key: "", value: null };
   const cellOverlayPathCache = { key: "", gridPath: null, borderPath: null };
@@ -369,9 +375,82 @@ export const setupViewportOverlays = (deps = {}) => {
     c.restore();
   };
 
+  const layerButtonRects = (z = 1) => {
+    if (String(st.viewMode || "") !== "install") return [];
+    const b = getContentBounds();
+    if (!b) return [];
+    const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
+    const size = Math.max(24, 30 / zoom);
+    const gap = Math.max(6, 7 / zoom);
+    const x = b.minX - size - gap;
+    const y0 = b.minY;
+    return LAYER_BUTTONS.map((btn, i) => ({ ...btn, x, y: y0 + i * (size + gap), size }));
+  };
+
+  const drawLayerButtons = (c, z) => {
+    const buttons = layerButtonRects(z);
+    if (!buttons.length) return;
+    const layers = st.installLayers || {};
+    const force = {
+      text: false,
+      flow: st.mode === "flowEdit",
+      rig: st.mode === "rigEdit"
+    };
+    const roundRect = (x, y, w, h, r) => {
+      if (typeof c.roundRect === "function") { c.roundRect(x, y, w, h, r); return; }
+      const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+      c.moveTo(x + rr, y); c.lineTo(x + w - rr, y); c.quadraticCurveTo(x + w, y, x + w, y + rr);
+      c.lineTo(x + w, y + h - rr); c.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+      c.lineTo(x + rr, y + h); c.quadraticCurveTo(x, y + h, x, y + h - rr);
+      c.lineTo(x, y + rr); c.quadraticCurveTo(x, y, x + rr, y);
+    };
+    c.save();
+    for (const btn of buttons) {
+      const on = force[btn.id] || layers[btn.id] !== false;
+      const hover = st.installLayerButtonHover === btn.id;
+      c.fillStyle = on ? (hover ? "rgba(13,110,253,.96)" : "rgba(13,110,253,.82)") : (hover ? "rgba(96,104,116,.9)" : "rgba(18,24,32,.72)");
+      c.strokeStyle = on ? "rgba(255,255,255,.72)" : "rgba(255,255,255,.34)";
+      c.lineWidth = Math.max(1, 1.2 / Math.max(0.5, Number(z) || 1));
+      c.beginPath();
+      roundRect(btn.x, btn.y, btn.size, btn.size, Math.max(3, 5 / Math.max(0.5, Number(z) || 1)));
+      c.fill();
+      c.stroke();
+      c.font = `900 ${Math.max(12, btn.size * 0.5)}px "Font Awesome 6 Free", "FontAwesome"`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillStyle = on ? "rgba(255,255,255,.98)" : "rgba(255,255,255,.62)";
+      c.fillText(btn.icon, btn.x + btn.size / 2, btn.y + btn.size / 2 + btn.size * 0.02);
+    }
+    c.restore();
+  };
+
+  const hitLayerButton = (x, y, z = 1) => {
+    for (const btn of layerButtonRects(z)) {
+      if (x >= btn.x && x <= btn.x + btn.size && y >= btn.y && y <= btn.y + btn.size) return btn.id;
+    }
+    return "";
+  };
+
+  const setLayerButtonHover = (x, y, z = 1) => {
+    const prev = String(st.installLayerButtonHover || "");
+    const next = hitLayerButton(x, y, z);
+    st.installLayerButtonHover = next;
+    return prev !== next;
+  };
+
+  const clearLayerButtonHover = () => {
+    const had = !!st.installLayerButtonHover;
+    st.installLayerButtonHover = "";
+    return had;
+  };
+
   return {
     drawMaskOverlay,
     drawCellEditOverlay,
-    drawContentBounds
+    drawContentBounds,
+    drawLayerButtons,
+    hitLayerButton,
+    setLayerButtonHover,
+    clearLayerButtonHover
   };
 };
