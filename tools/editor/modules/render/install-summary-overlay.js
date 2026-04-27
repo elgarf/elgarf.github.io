@@ -18,12 +18,7 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
 
   const cabinetAreaKey = item => `${mFmt(Math.max(0, Number(item && item.w) || 0))}x${mFmt(Math.max(0, Number(item && item.h) || 0))}`;
   const cabinetAreaLabel = item => `${item.size}: ${mFmt(item.areaM2)} ${t("м²")}`;
-  const groupLineRest = item => {
-    const cabinetAreas = Array.isArray(item && item.cabinetAreaItems) && item.cabinetAreaItems.length
-      ? ` (${item.cabinetAreaItems.map(cabinetAreaLabel).join(", ")})`
-      : "";
-    return `: ${mFmt(item.areaM2)} ${t("м²")}${cabinetAreas}`;
-  };
+  const groupLineRest = item => `: ${mFmt(item.areaM2)} ${t("м²")}`;
   const isDesktop = () => !(window.matchMedia && window.matchMedia("(max-width:900px)").matches);
   const isInstallView = () => normalizeViewMode(st && st.viewMode) === "install";
   let overlayEl = null;
@@ -109,6 +104,12 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
         name.textContent = t(rowData.group.name);
         row.appendChild(name);
         row.appendChild(document.createTextNode(groupLineRest(rowData.group)));
+        for (const item of Array.isArray(rowData.group.cabinetAreaItems) ? rowData.group.cabinetAreaItems : []) {
+          const cabinetRow = document.createElement("div");
+          cabinetRow.className = "install-summary-cabinet-row";
+          cabinetRow.textContent = cabinetAreaLabel(item);
+          row.appendChild(cabinetRow);
+        }
       } else {
         row.textContent = rowData.text;
       }

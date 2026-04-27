@@ -23,6 +23,36 @@ export const setupDragSnapController = (deps = {}) => {
     const lo = Math.max(a.minX, b.minX), hi = Math.min(a.maxX, b.maxX);
     return lo < hi ? (lo + hi) / 2 : (a.minX + a.maxX) / 2;
   };
+  const midpointOverlap = (a0, a1, b0, b1) => {
+    const lo = Math.max(a0, b0), hi = Math.min(a1, b1);
+    return lo < hi ? (lo + hi) / 2 : null;
+  };
+  const makeGapGuide = (base, targetBb, movingEdge, targetEdge) => ({ ...base, targetBb, movingEdge, targetEdge });
+  const normalizeGapGuide = (guide, moved) => {
+    if (!guide) return null;
+    let out = guide;
+    const target = guide.targetBb;
+    if (target && moved) {
+      if (guide.axis === "x") {
+        const y = midpointOverlap(moved.minY, moved.maxY, target.minY, target.maxY);
+        if (y == null) return null;
+        const movingX = guide.movingEdge === "maxX" ? moved.maxX : moved.minX;
+        const targetX = guide.targetEdge === "maxX" ? target.maxX : target.minX;
+        out = { ...guide, x1: targetX, y1: y, x2: movingX, y2: y, v: Math.abs(Math.round(movingX - targetX)) };
+      } else if (guide.axis === "y") {
+        const x = midpointOverlap(moved.minX, moved.maxX, target.minX, target.maxX);
+        if (x == null) return null;
+        const movingY = guide.movingEdge === "maxY" ? moved.maxY : moved.minY;
+        const targetY = guide.targetEdge === "maxY" ? target.maxY : target.minY;
+        out = { ...guide, x1: x, y1: targetY, x2: x, y2: movingY, v: Math.abs(Math.round(movingY - targetY)) };
+      }
+    }
+    const ref = normalizeGapGuide(out.ref, moved);
+    const refs = Array.isArray(out.refs) ? out.refs.map(r => normalizeGapGuide(r, moved)).filter(Boolean) : null;
+    if (ref || refs) return { ...out, ...(ref ? { ref } : {}), ...(refs ? { refs } : {}) };
+    const { ref: _ref, refs: _refs, ...rest } = out;
+    return rest;
+  };
   const hasObstacleBetween = (a, b, list, axis, cross = null) => {
     const crossPinned = Number.isFinite(cross);
     const ai = axis === "x";
@@ -183,7 +213,12 @@ export const setupDragSnapController = (deps = {}) => {
             const cand = {
               d: dd,
               gap: p.g,
-              guide: { axis: "x", x1: ob.maxX, y1: myv, x2: targetMinX, y2: myv, v: p.g, ref: { axis: "x", x1: p.x1, y1: p.y, x2: p.x2, y2: p.y, v: p.g } }
+              guide: makeGapGuide(
+                { axis: "x", x1: ob.maxX, y1: myv, x2: targetMinX, y2: myv, v: p.g, ref: { axis: "x", x1: p.x1, y1: p.y, x2: p.x2, y2: p.y, v: p.g } },
+                ob,
+                "minX",
+                "maxX"
+              )
             };
             if (betterDist(cand, best)) best = cand;
           }
@@ -202,7 +237,12 @@ export const setupDragSnapController = (deps = {}) => {
             const cand = {
               d: dd,
               gap: p.g,
-              guide: { axis: "x", x1: targetMinX + mw, y1: myv, x2: ob.minX, y2: myv, v: p.g, ref: { axis: "x", x1: p.x1, y1: p.y, x2: p.x2, y2: p.y, v: p.g } }
+              guide: makeGapGuide(
+                { axis: "x", x1: targetMinX + mw, y1: myv, x2: ob.minX, y2: myv, v: p.g, ref: { axis: "x", x1: p.x1, y1: p.y, x2: p.x2, y2: p.y, v: p.g } },
+                ob,
+                "maxX",
+                "minX"
+              )
             };
             if (betterDist(cand, best)) best = cand;
           }
@@ -223,7 +263,12 @@ export const setupDragSnapController = (deps = {}) => {
             const cand = {
               d: dd,
               gap: p.g,
-              guide: { axis: "y", x1: mxv, y1: ob.maxY, x2: mxv, y2: targetMinY, v: p.g, ref: { axis: "y", x1: p.x, y1: p.y1, x2: p.x, y2: p.y2, v: p.g } }
+              guide: makeGapGuide(
+                { axis: "y", x1: mxv, y1: ob.maxY, x2: mxv, y2: targetMinY, v: p.g, ref: { axis: "y", x1: p.x, y1: p.y1, x2: p.x, y2: p.y2, v: p.g } },
+                ob,
+                "minY",
+                "maxY"
+              )
             };
             if (betterDist(cand, best)) best = cand;
           }
@@ -242,7 +287,12 @@ export const setupDragSnapController = (deps = {}) => {
             const cand = {
               d: dd,
               gap: p.g,
-              guide: { axis: "y", x1: mxv, y1: targetMinY + mh, x2: mxv, y2: ob.minY, v: p.g, ref: { axis: "y", x1: p.x, y1: p.y1, x2: p.x, y2: p.y2, v: p.g } }
+              guide: makeGapGuide(
+                { axis: "y", x1: mxv, y1: targetMinY + mh, x2: mxv, y2: ob.minY, v: p.g, ref: { axis: "y", x1: p.x, y1: p.y1, x2: p.x, y2: p.y2, v: p.g } },
+                ob,
+                "maxY",
+                "minY"
+              )
             };
             if (betterDist(cand, best)) best = cand;
           }
@@ -290,15 +340,15 @@ export const setupDragSnapController = (deps = {}) => {
             kind: "equal",
             d: dd,
             gap: Math.round((gapL + gapR) / 2),
-            guide: {
+            guide: makeGapGuide({
               axis: "x",
               x1: l.maxX,
               y1: y,
               x2: targetMinX,
               y2: y,
               v: gapL,
-              ref: { axis: "x", x1: targetMinX + mw, y1: y, x2: r.minX, y2: y, v: gapR }
-            }
+              ref: makeGapGuide({ axis: "x", x1: targetMinX + mw, y1: y, x2: r.minX, y2: y, v: gapR }, r, "maxX", "minX")
+            }, l, "minX", "maxX")
           };
           if (!best || Math.abs(cand.d) < Math.abs(best.d)) best = cand;
         } else {
@@ -322,15 +372,15 @@ export const setupDragSnapController = (deps = {}) => {
             kind: "equal",
             d: dd,
             gap: Math.round((gapT + gapB) / 2),
-            guide: {
+            guide: makeGapGuide({
               axis: "y",
               x1: x,
               y1: t.maxY,
               x2: x,
               y2: targetMinY,
               v: gapT,
-              ref: { axis: "y", x1: x, y1: targetMinY + mh, x2: x, y2: bt.minY, v: gapB }
-            }
+              ref: makeGapGuide({ axis: "y", x1: x, y1: targetMinY + mh, x2: x, y2: bt.minY, v: gapB }, bt, "maxY", "minY")
+            }, t, "minY", "maxY")
           };
           if (!best || Math.abs(cand.d) < Math.abs(best.d)) best = cand;
         }
@@ -469,6 +519,7 @@ export const setupDragSnapController = (deps = {}) => {
     if (usedX && usedY) dg = mergeGapGuides(gxCand && gxCand.guide, gyCand && gyCand.guide);
     else if (usedX) dg = gxCand.guide;
     else if (usedY) dg = gyCand.guide;
+    dg = normalizeGapGuide(dg, shiftedBox(mb, dx, dy));
     return { dx, dy, gx, gy, dg };
   };
 

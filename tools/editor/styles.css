@@ -662,6 +662,16 @@
       font-style: italic
     }
 
+    .install-summary-cabinet-row {
+      margin-left: 14px;
+      font-weight: 500;
+      color: rgba(226, 232, 240, .82)
+    }
+
+    [data-bs-theme="light"] .install-summary-cabinet-row {
+      color: rgba(55, 65, 81, .82)
+    }
+
     @media (max-width:900px) {
       .install-summary-overlay {
         display: none !important
