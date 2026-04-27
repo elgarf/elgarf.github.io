@@ -28,14 +28,15 @@ export const setupDrawRectStagesController = (deps = {}) => {
       flowEditActive,
       wantsFlowDraw,
       flowGroups,
-      deferredTextOverlay
+      deferredTextOverlay,
+      suppressRigOverlay
     } = ctx;
 
     const drawRigOnRect = getDrawRigOnRect();
     const drawDataFlowOnRect = getDrawDataFlowOnRect();
     const getFlowPassiveLayer = getRectFlowPassiveLayerCached();
 
-    if (installView && !cellEditActive && !clusterEditActive && !flowEditActive) {
+    if (installView && !cellEditActive && !clusterEditActive && !flowEditActive && !suppressRigOverlay) {
       drawRigOnRect(c, r, w, h, cellX, cellY, topo, hs, z, !!sel);
     }
 

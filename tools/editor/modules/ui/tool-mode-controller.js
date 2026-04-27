@@ -26,6 +26,7 @@ export const setupToolModeController = (deps = {}) => {
   };
 
   const updateModeBadges = (_r) => {};
+  const AUTO_SELECTION_MODES = new Set(["maskEdit", "cellEdit", "flowEdit", "clusterEdit", "rigEdit"]);
 
   const setMode = m => {
     m = toolFsm.resolve(m);
@@ -76,6 +77,7 @@ export const setupToolModeController = (deps = {}) => {
     if (!isCellEditMode()) resetCellTransient();
     if (!isRigEditMode()) resetRigHoverTransient();
     wrap.dataset.mode = m;
+    if (el && el.side) el.side.classList.toggle("tool-auto-select-guard", AUTO_SELECTION_MODES.has(m));
     st.draft = null;
     st.draftPending = null;
     st.drag = null;

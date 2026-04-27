@@ -15,10 +15,12 @@ export const createExportPackageWriter = (deps = {}) => {
     await writable.close();
   };
 
-  return async ({ pngArt, pngFlow, specBlob, projectBlob }) => {
+  return async ({ pngArt, pngFlow, pngRig, pngFlowOnly, specBlob, projectBlob }) => {
     const baseName = projectFileBase();
     const fileArt = `${baseName}.png`;
     const fileFlow = `${baseName}-flow.png`;
+    const fileRig = `${baseName}-rig.png`;
+    const fileFlowOnly = `${baseName}-flow-only.png`;
     const fileSpec = `${baseName}-flow.md`;
     const fileProject = `${baseName}.json`;
     if (window.showDirectoryPicker) {
@@ -26,6 +28,8 @@ export const createExportPackageWriter = (deps = {}) => {
         const dirHandle = await window.showDirectoryPicker({ mode: "readwrite", id: setGlobalSaveLocationId(st.saveLocationId || getGlobalSaveLocationId()) });
         await writeFileToDirectory(dirHandle, fileArt, pngArt);
         await writeFileToDirectory(dirHandle, fileFlow, pngFlow);
+        if (pngRig) await writeFileToDirectory(dirHandle, fileRig, pngRig);
+        if (pngFlowOnly) await writeFileToDirectory(dirHandle, fileFlowOnly, pngFlowOnly);
         await writeFileToDirectory(dirHandle, fileSpec, specBlob);
         if (projectBlob) await writeFileToDirectory(dirHandle, fileProject, projectBlob);
         saveStatus.saved("Пакет экспортирован");
@@ -37,6 +41,8 @@ export const createExportPackageWriter = (deps = {}) => {
     }
     await saveBlobWithSystemDialog(pngArt, fileArt, "image/png", ".png", "PNG images", st.saveLocationId);
     await saveBlobWithSystemDialog(pngFlow, fileFlow, "image/png", ".png", "PNG images", st.saveLocationId);
+    if (pngRig) await saveBlobWithSystemDialog(pngRig, fileRig, "image/png", ".png", "PNG images", st.saveLocationId);
+    if (pngFlowOnly) await saveBlobWithSystemDialog(pngFlowOnly, fileFlowOnly, "image/png", ".png", "PNG images", st.saveLocationId);
     await saveBlobWithSystemDialog(specBlob, fileSpec, "text/markdown", ".md", "Markdown files", st.saveLocationId);
     if (projectBlob) await saveBlobWithSystemDialog(projectBlob, fileProject, "application/json", ".json", "JSON files", st.saveLocationId);
   };

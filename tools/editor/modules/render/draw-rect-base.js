@@ -231,13 +231,14 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const drawCtx = {
         c, r, sel, z, w, h, cellX, cellY, topo, hs,
         installView, cellEditActive, clusterEditActive, flowEditActive,
-        wantsFlowDraw, flowGroups, deferredTextOverlay
+        wantsFlowDraw, flowGroups, deferredTextOverlay,
+        suppressRigOverlay: !!(options && options.suppressRigOverlay)
       };
       drawRectOverlays(drawCtx);
       drawRectInteractions(drawCtx);
       c.restore();
       c.restore();
-      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive) {
+      if (installView && !cellEditActive && !clusterEditActive && !flowEditActive && !(options && options.suppressRigOverlay)) {
         const forceRigOverlay = !!(options && options.forceRigOverlay);
         drawRigOutsideOverlay(c, r, cellX, cellY, topo, hs, z, !!sel || forceRigOverlay);
       }

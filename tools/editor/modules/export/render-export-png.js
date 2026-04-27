@@ -22,7 +22,14 @@ export const createRenderExportPngBlob = (deps = {}) => {
     return cache.flow.value;
   };
 
-  return async includeFlow => {
+  return async exportMode => {
+    const mode = (exportMode && typeof exportMode === "object") ? exportMode : { includeFlow: !!exportMode };
+    const includeFlow = !!(mode.includeFlow || mode.flowOnly);
+    const flowOnly = !!mode.flowOnly;
+    const rigOnly = !!mode.rigOnly;
+    const includeRig = !!(mode.includeFlow || rigOnly);
+    const includeScreenLabels = !(flowOnly || rigOnly);
+    const forceRigOverlay = !!(includeRig && !flowOnly);
     if (!st.rects.length) return null;
     await ensureFontReady();
     let minX = 1e9;
@@ -36,7 +43,7 @@ export const createRenderExportPngBlob = (deps = {}) => {
       minY = Math.min(minY, bb.minY);
       maxX = Math.max(maxX, bb.maxX);
       maxY = Math.max(maxY, bb.maxY);
-      if (includeFlow) {
+      if (includeRig) {
         const rig = getRectRigData(r);
         const scalePx = Math.max(1, Number(r && r.scale) || 256);
         const suspendH = Math.max(10, 0.1 * scalePx);
@@ -100,8 +107,9 @@ export const createRenderExportPngBlob = (deps = {}) => {
             noCachedRegions: true,
             includeFlow: includeFlowRect,
             disableLod: true,
-            forceRigOverlay: !!includeFlow,
-            viewModeOverride: includeFlow ? "install" : "art",
+            forceRigOverlay,
+            suppressRigOverlay: !!flowOnly,
+            viewModeOverride: (includeFlow || includeRig) ? "install" : "art",
             ...(extraOpts || {})
           };
           if (Array.isArray(flowGroups)) drawOpts.flowGroupsOverride = flowGroups;
@@ -111,7 +119,9 @@ export const createRenderExportPngBlob = (deps = {}) => {
       if (includeFlow) {
         drawExportRects({ installTextMode: "skip" });
         drawInterScreenFlowLinks(c, true);
-        drawExportRects({ installTextMode: "only", includeFlow: false });
+        if (includeScreenLabels) drawExportRects({ installTextMode: "only", includeFlow: false });
+      } else if (rigOnly) {
+        drawExportRects({ installTextMode: "skip", includeFlow: false });
       } else {
         drawExportRects();
       }

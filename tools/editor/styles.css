@@ -1064,7 +1064,25 @@
       background: var(--bs-body-bg);
       padding: 12px;
       overflow: auto;
-      z-index: 1100
+      z-index: 1100;
+      position: relative
+    }
+
+    .side.tool-auto-select-guard > * {
+      opacity: .34;
+      filter: grayscale(.35);
+      pointer-events: none;
+      transition: opacity .16s ease, filter .16s ease
+    }
+
+    .side.tool-auto-select-guard::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background: color-mix(in srgb, var(--bs-body-bg) 62%, transparent);
+      cursor: not-allowed;
+      pointer-events: auto
     }
 
     .offcanvas-backdrop {
