@@ -41,8 +41,8 @@ export const setupProjectStateController = (deps = {}) => {
       st.zoom = zc(+d.camera.zoom || 1);
     }
     if (d && d.settings) {
-      st.textSize = Math.max(6, evalExpr(d.settings.textSize, 12));
-      st.fontFamily = String(d.settings.fontFamily || "Roboto, Segoe UI, Arial").trim() || "Roboto, Segoe UI, Arial";
+      st.textSize = Math.max(6, evalExpr(d.settings.textSize, 32));
+      st.fontFamily = String(d.settings.fontFamily || "Roboto").trim() || "Roboto";
       st.globalScale = Math.max(1, Math.round(evalExpr(d.settings.scale, 256)));
       st.viewMode = normalizeViewMode(d.settings.viewMode);
       st.specCustomText = String(d.settings.specCustomText || "");
@@ -53,6 +53,8 @@ export const setupProjectStateController = (deps = {}) => {
       const ss = (d.settings && d.settings.snap) || {};
       st.snap = { grid: !!ss.grid, objects: ss.objects !== false, centers: ss.centers !== false, gaps: ss.gaps !== false };
     } else {
+      st.textSize = 32;
+      st.fontFamily = "Roboto";
       st.globalScale = 256;
       st.viewMode = "art";
       st.specCustomText = "";

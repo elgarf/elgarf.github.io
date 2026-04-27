@@ -914,7 +914,7 @@ const serializeRectForProject = r => {
 };
 let buildProject = () => ({ version: 1, projectName: "Новый проект", saveLocationId: "", camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: 12, fontFamily: "", scale: 256, viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: false, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
 let cloneProjectData = data => cloneJson(data, () => buildProject());
-let makeEmptyProjectData = (name = translateText("Новый проект")) => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: st.textSize, fontFamily: st.fontFamily, scale: Math.max(1, Math.round(Number(st.globalScale) || 256)), viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: !!st.lockAll, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
+let makeEmptyProjectData = (name = translateText("Новый проект")) => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: 32, fontFamily: "Roboto", scale: 256, viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: false, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
 let buildPortableProjectBase = (_strip) => _strip(buildProject());
 let buildPortableProject = () => buildPortableProjectBase(stripProjectCaches);
 ({
@@ -1762,9 +1762,13 @@ const inputWiringServices = {
   buildRebuiltFlowPreview,
   rebuildAndPatchFlowRegion,
   hitMultiSelectionAction: (x, y) => multiSelectionActions.hitAction(x, y, st.zoom),
+  hitMultiSelectionResizeHandle: (x, y) => multiSelectionActions.hitResizeHandle(x, y, st.zoom),
   setMultiSelectionActionHover: (x, y) => multiSelectionActions.setHover(x, y, st.zoom),
   clearMultiSelectionActionHover: () => multiSelectionActions.clearHover(),
   applyMultiSelectionAction: id => multiSelectionActions.applyAction(id),
+  beginMultiSelectionResize: (handle, p) => multiSelectionActions.beginResize(handle, p),
+  updateMultiSelectionResize: (p, opts) => multiSelectionActions.updateResize(p, opts),
+  endMultiSelectionResize: () => multiSelectionActions.endResize(),
   bindEvent, bindWindowEvent, zoomAt
 };
 setupInputController({ ...inputWiringServices });

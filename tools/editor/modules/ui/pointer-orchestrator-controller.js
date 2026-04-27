@@ -44,14 +44,19 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     findFlowStartHandle,
     worldToRectUV,
     hitMultiSelectionAction,
+    hitMultiSelectionResizeHandle,
     setMultiSelectionActionHover,
     clearMultiSelectionActionHover,
-    applyMultiSelectionAction
+    applyMultiSelectionAction,
+    beginMultiSelectionResize,
+    updateMultiSelectionResize,
+    endMultiSelectionResize
   } = deps;
   const NOTE_RESIZE_HANDLE_PX = 16;
   const DRAFT_START_MOVE_PX = 2;
   const NOTE_RESIZE_CURSOR = "nwse-resize";
   const MOVE_CURSOR = "move";
+  const RESIZE_CURSORS = ["ew-resize", "ns-resize", "nwse-resize"];
   let lastPointer = null;
   let suppressMoveCursorUntilMouseUp = false;
   const zoomSafe = z => Math.max(0.25, Number(z) || 1);
@@ -76,6 +81,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (on) setCanvasCursor(NOTE_RESIZE_CURSOR);
     else clearCursorIf(NOTE_RESIZE_CURSOR);
   };
+  const multiResizeCursor = handle => (handle === "w" || handle === "e") ? "ew-resize" : (handle === "n" || handle === "s") ? "ns-resize" : "nwse-resize";
   const updateSelectHoverCursor = p => {
     if (st.mode !== "select" || st.drag || st.selBox || st.pan) {
       clearCursorIf(MOVE_CURSOR);
@@ -172,6 +178,14 @@ export const setupPointerOrchestratorController = (deps = {}) => {
 
   const handleCanvasPointerDown = (p, opts = null) => {
     suppressMoveCursorUntilMouseUp = false;
+    if (st.mode === "select" && typeof hitMultiSelectionResizeHandle === "function" && typeof beginMultiSelectionResize === "function") {
+      const resizeHandle = hitMultiSelectionResizeHandle(p.x, p.y);
+      if (resizeHandle && beginMultiSelectionResize(resizeHandle, p)) {
+        setCanvasCursor(multiResizeCursor(resizeHandle));
+        render();
+        return;
+      }
+    }
     if (st.mode === "select" && typeof hitMultiSelectionAction === "function" && typeof applyMultiSelectionAction === "function") {
       const action = hitMultiSelectionAction(p.x, p.y);
       if (action) {
@@ -215,6 +229,13 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     const o = (opts && typeof opts === "object") ? opts : {};
     if (navigationController.handlePanPointerMove(p, o)) return true;
     if (navigationController.handleSelectionBoxPointerMove(p)) return true;
+    if (st.multiSelectionResize && typeof updateMultiSelectionResize === "function") {
+      updateMultiSelectionResize(p, { disableSnap: !!o.ctrlSnap, fromCenter: !!o.altResize });
+      setCanvasCursor(multiResizeCursor(st.multiSelectionResize.handle));
+      if (typeof syncPropsSmart === "function") syncPropsSmart();
+      render();
+      return true;
+    }
     if (st.noteResize) setNoteResizeCursor(true);
     if (handleNoteResizePointerMove(p)) return true;
     if (isMaskMode()) {
@@ -248,12 +269,14 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (st.mode === "select" && !st.drag && !st.selBox && !st.pan && typeof setMultiSelectionActionHover === "function") {
       const changed = setMultiSelectionActionHover(p.x, p.y);
       const hoveringAction = !!st.multiSelectionActionHover;
+      const resizeHover = String(st.multiSelectionResizeHover || "");
+      if (resizeHover) setCanvasCursor(multiResizeCursor(resizeHover));
       if (hoveringAction) setCanvasCursor("pointer");
-      if (!hoveringAction) clearCursorIf("pointer");
+      if (!hoveringAction && !resizeHover) clearCursorIf("pointer", ...RESIZE_CURSORS);
       if (changed) render();
-      if (hoveringAction) return true;
+      if (hoveringAction || resizeHover) return true;
     } else if (typeof clearMultiSelectionActionHover === "function" && clearMultiSelectionActionHover()) {
-      clearCursorIf("pointer");
+      clearCursorIf("pointer", ...RESIZE_CURSORS);
       render();
     }
     if (st.mode === "select" && !st.drag && !st.selBox && !st.pan) {
@@ -290,12 +313,19 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
   const handleCanvasPointerUp = () => {
     const hadDrag = !!st.drag;
+    const hadMultiSelectionResize = !!(st.multiSelectionResize && st.multiSelectionResize.changed);
     const hadNoteResize = !!(st.noteResize && st.noteResize.changed);
     if (st.pan) { st.pan = false; st.panS = null; }
     if (st.selBox) { finishSelectionBox(); return true; }
     if (handlePointerUpCluster()) return true;
     if (handlePointerUpFlowLink()) return true;
     if (handlePointerUpFlowDrag()) return true;
+    if (st.multiSelectionResize && typeof endMultiSelectionResize === "function") {
+      endMultiSelectionResize();
+      clearCursorIf(...RESIZE_CURSORS);
+      render();
+      return true;
+    }
     let created = null;
     if (st.draft) {
       const d = st.draft;
@@ -322,7 +352,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       selRect(created.id);
       if (isNoteRect(created)) openNoteEditor(created.id);
     }
-    if (hadDrag || created || hadNoteResize) { refreshPanels(); schedulePersist("project"); }
+    if (hadDrag || created || hadNoteResize || hadMultiSelectionResize) { refreshPanels(); schedulePersist("project"); }
     if (!created && lastPointer && st.mode === "select") updateSelectHoverCursor(lastPointer);
     render();
     return true;
@@ -330,7 +360,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
 
   const handleCanvasMouseLeave = () => {
     if (typeof clearMultiSelectionActionHover === "function" && clearMultiSelectionActionHover()) render();
-    clearCursorIf("pointer", MOVE_CURSOR);
+    clearCursorIf("pointer", MOVE_CURSOR, ...RESIZE_CURSORS);
     setNoteResizeCursor(false);
     if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) {
       resetCellTransient();

@@ -9,7 +9,12 @@ export const setupHistoryController = (deps = {}) => {
     if (el && el.redo) el.redo.disabled = !(st && st.history && st.history.redo && st.history.redo.length);
   };
   const cloneSnapshot = data => cloneJson(data, buildProject);
-  const currentSnapshot = () => cloneSnapshot(buildProject());
+  const stripCamera = data => {
+    const out = cloneSnapshot(data);
+    if (out && typeof out === "object") delete out.camera;
+    return out;
+  };
+  const currentSnapshot = () => stripCamera(buildProject());
 
   const initHistoryCurrent = () => {
     if (!st || !st.history) return;

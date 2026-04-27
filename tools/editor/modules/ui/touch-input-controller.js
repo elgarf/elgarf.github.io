@@ -70,7 +70,7 @@ export const setupTouchInputController = (deps = {}) => {
     const sx = t.clientX - rect.left;
     const sy = t.clientY - rect.top;
     const p = s2w(sx, sy);
-    if (handleCanvasPointerMove(p, { sx, sy, ctrlSnap: false })) e.preventDefault();
+    if (handleCanvasPointerMove(p, { sx, sy, ctrlSnap: false, altResize: false })) e.preventDefault();
   };
 
   const handleTouchEnd = e => {

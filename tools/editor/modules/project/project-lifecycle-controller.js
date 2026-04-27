@@ -28,6 +28,8 @@ export const setupProjectLifecycleController = (deps = {}) => {
     st.viewMode = "art";
     st.specCustomText = "";
     st.specCustomSections = {};
+    st.textSize = 32;
+    st.fontFamily = "Roboto";
     st.globalScale = 256;
     if (el.cUnit) el.cUnit.value = "m";
     setSelection([], null);

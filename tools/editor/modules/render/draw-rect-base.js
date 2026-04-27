@@ -66,6 +66,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
       flowEditingThisRect = flowFlags.flowEditingThisRect;
       const wantsFlowDraw = flowFlags.wantsFlowDraw;
       const wantsFlowForNumbers = flowFlags.wantsFlowForNumbers;
+      const suppressFlowEditText = !!(flowEditingThisRect && st.mode === "flowEdit" && sel && r.id === st.sel);
       const showRegionsOverlayRequested = !!(installView && designerRender && !clusterDraggingThisRect);
       const needRegions = !!(!lowDetail && (showNumbers || wantsFlowDraw || showRegionsOverlayRequested || (installView && sel && !clusterDraggingThisRect)));
       const regions = (needRegions ? planNumberRegions(r, cellX, cellY, topo, hs, !options.noCachedRegions) : null);
@@ -88,7 +89,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
         return { layout, ls, maxW, txtTheme };
       };
       if (installTextMode === "only") {
-        if (!skeleton && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
+        if (!skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
           drawRectOverlays({
             c, r, sel, z, w, h, cellX, cellY, topo, hs,
             installView, cellEditActive, clusterEditActive, flowEditActive,
@@ -177,7 +178,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
               c.fillStyle = txtTheme.text; c.fillText(text, tx, ty);
             }
           }
-          if (installTextMode !== "skip" && !skeleton && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
+          if (installTextMode !== "skip" && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
             deferredTextOverlay = buildDeferredTextOverlay();
           }
         }

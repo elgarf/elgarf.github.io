@@ -1,4 +1,5 @@
-const DEFAULT_FONT_FAMILY = "Roboto, Segoe UI, Arial";
+const DEFAULT_TEXT_SIZE = 32;
+const DEFAULT_FONT_FAMILY = "Roboto";
 
 export const createProjectCodec = (deps) => {
   const d = deps || {};
@@ -72,7 +73,7 @@ export const createProjectCodec = (deps) => {
     out.projectName = String(out.projectName || "project").trim() || "project";
     if (!isPlainObject(out.camera)) out.camera = { x: 0, y: 0, zoom: 1 };
     if (!isPlainObject(out.settings)) out.settings = {};
-    if (!Number.isFinite(Number(out.settings.textSize))) out.settings.textSize = 12;
+    if (!Number.isFinite(Number(out.settings.textSize))) out.settings.textSize = DEFAULT_TEXT_SIZE;
     out.settings.fontFamily = String(out.settings.fontFamily || DEFAULT_FONT_FAMILY).trim() || DEFAULT_FONT_FAMILY;
     if (!Number.isFinite(Number(out.settings.scale))) out.settings.scale = 256;
     out.settings.viewMode = String(out.settings.viewMode || "art");
@@ -157,7 +158,7 @@ export const createProjectCodec = (deps) => {
       if (isEmptyObject(out.camera)) delete out.camera;
     } else delete out.camera;
     if (isPlainObject(out.settings)) {
-      if ((Number(out.settings.textSize) || 12) === 12) delete out.settings.textSize;
+      if ((Number(out.settings.textSize) || DEFAULT_TEXT_SIZE) === DEFAULT_TEXT_SIZE) delete out.settings.textSize;
       if (String(out.settings.fontFamily || DEFAULT_FONT_FAMILY) === DEFAULT_FONT_FAMILY) delete out.settings.fontFamily;
       if ((Number(out.settings.scale) || 256) === 256) delete out.settings.scale;
       if (String(out.settings.viewMode || "art") === "art") delete out.settings.viewMode;

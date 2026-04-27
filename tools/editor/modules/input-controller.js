@@ -24,7 +24,8 @@ export const setupInputController = (deps = {}) => {
     resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
     resetFlowRegionOverrides, syncProps,
     buildRebuiltFlowPreview, rebuildAndPatchFlowRegion,
-    hitMultiSelectionAction, setMultiSelectionActionHover, clearMultiSelectionActionHover, applyMultiSelectionAction,
+    hitMultiSelectionAction, hitMultiSelectionResizeHandle, setMultiSelectionActionHover, clearMultiSelectionActionHover, applyMultiSelectionAction,
+    beginMultiSelectionResize, updateMultiSelectionResize, endMultiSelectionResize,
     bindEvent, bindWindowEvent
   } = deps;
 
@@ -135,9 +136,13 @@ export const setupInputController = (deps = {}) => {
     findFlowStartHandle,
     worldToRectUV,
     hitMultiSelectionAction,
+    hitMultiSelectionResizeHandle,
     setMultiSelectionActionHover,
     clearMultiSelectionActionHover,
-    applyMultiSelectionAction
+    applyMultiSelectionAction,
+    beginMultiSelectionResize,
+    updateMultiSelectionResize,
+    endMultiSelectionResize
   });
   const handleCanvasPointerDown = (p, opts = null) => pointerOrchestrator.handleCanvasPointerDown(p, opts);
   const handleCanvasPointerMove = (p, opts = null) => pointerOrchestrator.handleCanvasPointerMove(p, opts);
@@ -182,7 +187,7 @@ export const setupInputController = (deps = {}) => {
   });
   bindWindowEvent("mousemove", e => {
     const { sx, sy, p } = getCanvasPoint(e);
-    handleCanvasPointerMove(p, { sx, sy, ctrlSnap: !!(e.ctrlKey || st.keys.ctrl) });
+    handleCanvasPointerMove(p, { sx, sy, ctrlSnap: !!(e.ctrlKey || st.keys.ctrl), altResize: !!e.altKey });
   });
   bindEvent(cv, "mouseleave", handleCanvasMouseLeave);
   bindWindowEvent("mouseup", () => { handleCanvasPointerUp(); });

@@ -288,7 +288,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
         const clusters = [];
         for (const e of entries) {
           const last = clusters[clusters.length - 1];
-          if (!last || e.min > last.max + EPS) clusters.push({ min: e.min, max: e.max, members: [e] });
+          if (!last || e.min >= last.max - EPS) clusters.push({ min: e.min, max: e.max, members: [e] });
           else { last.max = Math.max(last.max, e.max); last.members.push(e); }
         }
         let sumGaps = 0, fixedSpan = 0;
@@ -301,6 +301,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
           const targetGap = Math.max(0, targetSpan - fixedSpan);
           gapScale = targetGap / sumGaps;
         }
+        const equalGap = sumGaps > EPS || clusters.length < 2 ? null : Math.max(0, targetSpan - fixedSpan) / Math.max(1, clusters.length - 1);
         const nextPos = new Map();
         let curMin = targetMin;
         for (let i = 0; i < clusters.length; i++) {
@@ -309,7 +310,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
           for (const m of c.members) nextPos.set(m.id, Math.round(m.pos + shift));
           const width = Math.max(0, c.max - c.min);
           const baseGap = (i + 1 < clusters.length) ? Math.max(0, clusters[i + 1].min - c.max) : 0;
-          curMin = curMin + width + baseGap * gapScale;
+          curMin = curMin + width + (equalGap == null ? baseGap * gapScale : equalGap);
         }
         return nextPos;
       };

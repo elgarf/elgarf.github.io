@@ -36,19 +36,23 @@ export const setupProjectSerializationController = (deps = {}) => {
 
   const cloneProjectData = data => cloneJson(data, buildProject);
 
+  const DEFAULT_TEXT_SIZE = 32;
+  const DEFAULT_FONT_FAMILY = "Roboto";
+  const DEFAULT_SCALE = 256;
+
   const makeEmptyProjectData = (name = t("Новый проект")) => ({
     version: 1,
     projectName: name,
     saveLocationId: genSaveLocationId(name),
     camera: { x: 0, y: 0, zoom: 1 },
     settings: {
-      textSize: st.textSize,
-      fontFamily: st.fontFamily,
-      scale: Math.max(1, Math.round(Number(st.globalScale) || 256)),
+      textSize: DEFAULT_TEXT_SIZE,
+      fontFamily: DEFAULT_FONT_FAMILY,
+      scale: DEFAULT_SCALE,
       viewMode: "art",
       specCustomText: "",
       specCustomSections: {},
-      lockAll: !!st.lockAll,
+      lockAll: false,
       snap: { grid: false, objects: true, centers: true, gaps: true }
     },
     nextId: 1,

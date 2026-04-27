@@ -73,6 +73,43 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
 
   const getSelectionBounds = () => itemsBounds(selectedItems());
 
+  const axisClusters = (items, axis) => {
+    const entries = (Array.isArray(items) ? items : []).map(it => ({
+      min: axis === "x" ? it.minX : it.minY,
+      max: axis === "x" ? it.maxX : it.maxY
+    })).sort((a, b) => (a.min - b.min) || (a.max - b.max));
+    const clusters = [];
+    const EPS = 1e-6;
+    for (const e of entries) {
+      const last = clusters[clusters.length - 1];
+      if (!last || e.min >= last.max - EPS) clusters.push({ min: e.min, max: e.max });
+      else last.max = Math.max(last.max, e.max);
+    }
+    return clusters;
+  };
+
+  const getResizeHandles = (z = 1) => {
+    if (!st || st.mode !== "select" || st.drag || st.selBox || st.pan || st.draft) return [];
+    const items = selectedItems();
+    const b = itemsBounds(items);
+    if (!b) return [];
+    const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
+    const size = Math.max(9, 12 / zoom);
+    const half = size / 2;
+    const midX = (b.minX + b.maxX) / 2;
+    const midY = (b.minY + b.maxY) / 2;
+    const out = [];
+    if (axisClusters(items, "x").length > 1) {
+      out.push({ id: "w", cursor: "ew-resize", x: b.minX - half, y: midY - half, size });
+      out.push({ id: "e", cursor: "ew-resize", x: b.maxX - half, y: midY - half, size });
+    }
+    if (axisClusters(items, "y").length > 1) {
+      out.push({ id: "n", cursor: "ns-resize", x: midX - half, y: b.minY - half, size });
+      out.push({ id: "s", cursor: "ns-resize", x: midX - half, y: b.maxY - half, size });
+    }
+    return out;
+  };
+
   const formatMeters = value => {
     if (typeof mFmt === "function") return mFmt(value);
     const n = Math.round((Number(value) || 0) * 10000) / 10000;
@@ -121,16 +158,27 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     return "";
   };
 
+  const hitResizeHandle = (x, y, z = 1) => {
+    for (const h of getResizeHandles(z)) {
+      if (x >= h.x && x <= h.x + h.size && y >= h.y && y <= h.y + h.size) return h.id;
+    }
+    return "";
+  };
+
   const setHover = (x, y, z = 1) => {
     const prev = String(st.multiSelectionActionHover || "");
-    const next = hitAction(x, y, z);
+    const prevResize = String(st.multiSelectionResizeHover || "");
+    const resize = hitResizeHandle(x, y, z);
+    const next = resize ? "" : hitAction(x, y, z);
+    st.multiSelectionResizeHover = resize;
     st.multiSelectionActionHover = next;
-    return prev !== next;
+    return prev !== next || prevResize !== resize;
   };
 
   const clearHover = () => {
-    const had = !!st.multiSelectionActionHover;
+    const had = !!st.multiSelectionActionHover || !!st.multiSelectionResizeHover;
     st.multiSelectionActionHover = "";
+    st.multiSelectionResizeHover = "";
     return had;
   };
 
@@ -191,6 +239,232 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     return true;
   };
 
+  const axisCompactSpan = (items, axis) => Math.max(1, axisClusters(items, axis).reduce((sum, c) => sum + Math.max(0, c.max - c.min), 0));
+
+  const mapAxis = (items, axis, targetMin, targetSpan) => {
+    const entries = items.map(it => {
+      const min = axis === "x" ? it.minX : it.minY;
+      const max = axis === "x" ? it.maxX : it.maxY;
+      const pos = axis === "x" ? it.x : it.y;
+      return { id: it.id, min, max, pos };
+    }).sort((a, b) => (a.min - b.min) || (a.max - b.max) || (a.id - b.id));
+    const clusters = [];
+    const EPS = 1e-6;
+    for (const e of entries) {
+      const last = clusters[clusters.length - 1];
+      if (!last || e.min >= last.max - EPS) clusters.push({ min: e.min, max: e.max, members: [e] });
+      else { last.max = Math.max(last.max, e.max); last.members.push(e); }
+    }
+    let fixedSpan = 0;
+    let sumGaps = 0;
+    for (let i = 0; i < clusters.length; i++) {
+      fixedSpan += Math.max(0, clusters[i].max - clusters[i].min);
+      if (i + 1 < clusters.length) sumGaps += Math.max(0, clusters[i + 1].min - clusters[i].max);
+    }
+    const targetGap = Math.max(0, targetSpan - fixedSpan);
+    const gapScale = sumGaps > EPS ? targetGap / sumGaps : 0;
+    const equalGap = sumGaps > EPS || clusters.length < 2 ? null : targetGap / Math.max(1, clusters.length - 1);
+    const next = new Map();
+    let cursor = targetMin;
+    for (let i = 0; i < clusters.length; i++) {
+      const c = clusters[i];
+      const shift = cursor - c.min;
+      for (const m of c.members) next.set(m.id, Math.round(m.pos + shift));
+      const width = Math.max(0, c.max - c.min);
+      const baseGap = (i + 1 < clusters.length) ? Math.max(0, clusters[i + 1].min - c.max) : 0;
+      cursor += width + (equalGap == null ? baseGap * gapScale : equalGap);
+    }
+    return next;
+  };
+
+  const getSnapCfg = () => st && st.snap ? st.snap : { grid: false, objects: true, centers: true, gaps: true };
+
+  const snapResizeEdge = (axis, value, drag, opts = {}) => {
+    const cfg = getSnapCfg();
+    if (opts.disableSnap || !(cfg.grid || cfg.objects || cfg.centers)) return { value, guide: null };
+    const threshold = 8 / Math.max(0.25, Number(st && st.zoom) || 1);
+    const selectedIds = new Set((drag.items || []).map(it => it.id));
+    const candidates = [];
+    if (cfg.grid) {
+      const step = 10;
+      candidates.push(Math.round(value / step) * step);
+    }
+    if (cfg.objects || cfg.centers) {
+      const rects = Array.isArray(st && st.rects) ? st.rects : [];
+      for (const r of rects) {
+        if (!r || selectedIds.has(r.id) || typeof rectAABB !== "function") continue;
+        const bb = rectAABB(r);
+        if (!bb) continue;
+        if (axis === "x") {
+          if (cfg.objects) candidates.push(bb.minX, bb.maxX);
+          if (cfg.centers) candidates.push((bb.minX + bb.maxX) / 2);
+        } else {
+          if (cfg.objects) candidates.push(bb.minY, bb.maxY);
+          if (cfg.centers) candidates.push((bb.minY + bb.maxY) / 2);
+        }
+      }
+    }
+    let best = null;
+    for (const c of candidates) {
+      if (!Number.isFinite(Number(c))) continue;
+      const d = Number(c) - value;
+      if (Math.abs(d) > threshold) continue;
+      if (!best || Math.abs(d) < Math.abs(best.d)) best = { d, guide: Number(c) };
+    }
+    return best ? { value: value + best.d, guide: best.guide } : { value, guide: null };
+  };
+
+  const resolveResizeAxis = (axis, edge, pointerValue, drag, minSpan, opts = {}) => {
+    const b = drag.bbox;
+    const fromCenter = !!opts.fromCenter;
+    const minEdge = axis === "x" ? b.minX : b.minY;
+    const maxEdge = axis === "x" ? b.maxX : b.maxY;
+    if (fromCenter) {
+      const center = (minEdge + maxEdge) / 2;
+      const rawHalf = Math.max(minSpan / 2, Math.abs((Number(pointerValue) || 0) - center));
+      const snapEdge = edge === "min" ? center - rawHalf : center + rawHalf;
+      const snapped = snapResizeEdge(axis, snapEdge, drag, opts);
+      const half = Math.max(minSpan / 2, Math.abs(snapped.value - center));
+      return { min: center - half, span: half * 2, guide: half > minSpan / 2 + 1e-6 ? snapped.guide : null };
+    }
+    const snapped = snapResizeEdge(axis, Number(pointerValue) || 0, drag, opts);
+    if (edge === "min") {
+      const min = Math.min(maxEdge - minSpan, snapped.value);
+      return { min, span: maxEdge - min, guide: maxEdge - snapped.value >= minSpan ? snapped.guide : null };
+    }
+    const span = Math.max(minSpan, snapped.value - minEdge);
+    return { min: minEdge, span, guide: snapped.value - minEdge >= minSpan ? snapped.guide : null };
+  };
+
+  const projectedBounds = (items, nextX, nextY) => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const it of items) {
+      const nx = nextX.has(it.id) ? nextX.get(it.id) : it.x;
+      const ny = nextY.has(it.id) ? nextY.get(it.id) : it.y;
+      const dx = nx - it.x;
+      const dy = ny - it.y;
+      minX = Math.min(minX, it.minX + dx);
+      minY = Math.min(minY, it.minY + dy);
+      maxX = Math.max(maxX, it.maxX + dx);
+      maxY = Math.max(maxY, it.maxY + dy);
+    }
+    if (!(Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY))) return null;
+    return { minX, minY, maxX, maxY };
+  };
+
+  const actualGuide = (axis, edge, guide, bounds, drag, opts = {}) => {
+    if (!Number.isFinite(Number(guide)) || !bounds || !drag || !drag.bbox) return null;
+    const fromCenter = !!opts.fromCenter;
+    const EPS = 0.75;
+    if (axis === "x") {
+      const currentMin = drag.bbox.minX;
+      const currentMax = drag.bbox.maxX;
+      if (fromCenter) {
+        const moved = Math.abs(bounds.minX - currentMin) > EPS || Math.abs(bounds.maxX - currentMax) > EPS;
+        const actual = edge === "min" ? bounds.minX : bounds.maxX;
+        return moved && Math.abs(actual - guide) <= EPS ? guide : null;
+      }
+      const actual = edge === "min" ? bounds.minX : bounds.maxX;
+      const current = edge === "min" ? currentMin : currentMax;
+      return Math.abs(actual - current) > EPS && Math.abs(actual - guide) <= EPS ? guide : null;
+    }
+    const currentMin = drag.bbox.minY;
+    const currentMax = drag.bbox.maxY;
+    if (fromCenter) {
+      const moved = Math.abs(bounds.minY - currentMin) > EPS || Math.abs(bounds.maxY - currentMax) > EPS;
+      const actual = edge === "min" ? bounds.minY : bounds.maxY;
+      return moved && Math.abs(actual - guide) <= EPS ? guide : null;
+    }
+    const actual = edge === "min" ? bounds.minY : bounds.maxY;
+    const current = edge === "min" ? currentMin : currentMax;
+    return Math.abs(actual - current) > EPS && Math.abs(actual - guide) <= EPS ? guide : null;
+  };
+
+  const beginResize = (handle, p) => {
+    const items = selectedItems().map(it => ({
+      id: it.rect.id,
+      rect: it.rect,
+      x: Number(it.rect.x) || 0,
+      y: Number(it.rect.y) || 0,
+      minX: it.minX,
+      minY: it.minY,
+      maxX: it.maxX,
+      maxY: it.maxY
+    }));
+    const bbox = itemsBounds(items);
+    if (!bbox || !items.length || !handle) return false;
+    st.multiSelectionResize = {
+      handle,
+      sx: Number(p && p.x) || 0,
+      sy: Number(p && p.y) || 0,
+      bbox,
+      items,
+      changed: false
+    };
+    st.multiSelectionActionHover = "";
+    st.multiSelectionResizeHover = handle;
+    return true;
+  };
+
+  const updateResize = (p, opts = {}) => {
+    const drag = st && st.multiSelectionResize;
+    if (!drag || !drag.bbox || !Array.isArray(drag.items)) return false;
+    const b = drag.bbox;
+    let nextW = Math.max(1, b.maxX - b.minX);
+    let nextH = Math.max(1, b.maxY - b.minY);
+    let nextMinX = b.minX;
+    let nextMinY = b.minY;
+    let gx = null;
+    let gy = null;
+    let xEdge = "max";
+    let yEdge = "max";
+    if (drag.handle === "w" || drag.handle === "e") {
+      xEdge = drag.handle === "w" ? "min" : "max";
+      const x = resolveResizeAxis("x", xEdge, p && p.x, drag, axisCompactSpan(drag.items, "x"), opts);
+      nextMinX = x.min;
+      nextW = x.span;
+      gx = x.guide;
+    }
+    if (drag.handle === "n" || drag.handle === "s") {
+      yEdge = drag.handle === "n" ? "min" : "max";
+      const y = resolveResizeAxis("y", yEdge, p && p.y, drag, axisCompactSpan(drag.items, "y"), opts);
+      nextMinY = y.min;
+      nextH = y.span;
+      gy = y.guide;
+    }
+    const nextX = mapAxis(drag.items, "x", nextMinX, nextW);
+    const nextY = mapAxis(drag.items, "y", nextMinY, nextH);
+    const projected = projectedBounds(drag.items, nextX, nextY);
+    let changed = false;
+    for (const it of drag.items) {
+      const r = it.rect;
+      if (!r) continue;
+      const nx = nextX.has(it.id) ? nextX.get(it.id) : it.x;
+      const ny = nextY.has(it.id) ? nextY.get(it.id) : it.y;
+      if (r.x !== nx) { r.x = nx; changed = true; }
+      if (r.y !== ny) { r.y = ny; changed = true; }
+    }
+    st.g.x = actualGuide("x", xEdge, gx, projected, drag, opts);
+    st.g.y = actualGuide("y", yEdge, gy, projected, drag, opts);
+    st.dg = null;
+    drag.changed = drag.changed || changed;
+    return true;
+  };
+
+  const endResize = () => {
+    const changed = !!(st && st.multiSelectionResize && st.multiSelectionResize.changed);
+    st.multiSelectionResize = null;
+    st.multiSelectionResizeHover = "";
+    st.g.x = null;
+    st.g.y = null;
+    st.dg = null;
+    if (!changed) return false;
+    if (typeof refreshMultiSelectionBase === "function") refreshMultiSelectionBase();
+    if (typeof refreshPanels === "function") refreshPanels();
+    if (typeof schedulePersist === "function") schedulePersist("project");
+    return true;
+  };
+
   const drawFontAwesomeIcon = (c, btn) => {
     const hover = st.multiSelectionActionHover === btn.id;
     c.save();
@@ -247,6 +521,17 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
       c.setLineDash([7 / zoom, 5 / zoom]);
       c.strokeRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
       c.setLineDash([]);
+      for (const h of getResizeHandles(z)) {
+        const hover = st.multiSelectionResizeHover === h.id || (st.multiSelectionResize && st.multiSelectionResize.handle === h.id);
+        const primary = bootstrapPrimary();
+        c.fillStyle = hover ? primary : "rgba(18,24,32,.92)";
+        c.strokeStyle = "rgba(255,255,255,.85)";
+        c.lineWidth = Math.max(1, 1.2 / zoom);
+        c.beginPath();
+        roundedRect(h.x, h.y, h.size, h.size, Math.max(2, 3 / zoom));
+        c.fill();
+        c.stroke();
+      }
     }
     for (const btn of buttons) {
       const hover = st.multiSelectionActionHover === btn.id;
@@ -290,8 +575,12 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
   return {
     drawActions,
     hitAction,
+    hitResizeHandle,
     setHover,
     clearHover,
-    applyAction
+    applyAction,
+    beginResize,
+    updateResize,
+    endResize
   };
 };
