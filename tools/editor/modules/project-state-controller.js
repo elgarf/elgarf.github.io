@@ -91,11 +91,11 @@ export const setupProjectStateController = (deps = {}) => {
     const firstId = st.rects[0] ? st.rects[0].id : null;
     if (firstId != null && st.lockAll) {
       setSelection([], null);
-      syncProps();
-      listRects();
     } else {
       selRect(firstId);
     }
+    syncProps();
+    listRects();
     if (syncTabSnapshot) syncActiveTabSnapshot();
     if (renderTabs) renderProjectTabs();
     resetHistoryUi();
