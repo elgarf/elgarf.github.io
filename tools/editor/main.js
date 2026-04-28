@@ -4,15 +4,12 @@ import { setupI18n, translateText } from "./modules/i18n.js";
 import { createToolFsm, createModePredicates } from "./modules/tool-fsm.js";
 import { createRectPropSchema } from "./modules/props-schema.js";
 import { touchProgressState, setCacheWithPrune } from "./modules/cache-utils.js";
-import { isWorkerBootMessage, buildWorkerMessage, collectSetValues } from "./modules/worker-runtime.js";
-import { safeDefine } from "./modules/utils/safe-define.js";
 import { autoContrast, hexRgb, hslToRgb, pickByContrast, rgbHex, rgbToHsl, contrastRatio, shadeHex, randomColor, rectTextTheme, bwTextForRgb } from "./modules/utils/color-utils.js";
 import { distToSegment, overlapArea, rads, rectAABB, rectCenter, rectUVToWorld, worldToRectUV, maskCellKey, pointInPoly, getOriginFromRects, createCellFromWorldPoint, hiddenCellBoxes, computeFreeRects, createMaskNodeAxesGetter } from "./modules/utils/geometry.js";
 import { toInt, toPosInt, toTrimmed, evalExpr, toRoundedInt, clampInt, toPositiveInt, parseAreaM2PxInput } from "./modules/utils/number-utils.js";
 import { fontFamilyCss, escXml } from "./modules/utils/text-utils.js";
 import { withNameSuffixBeforeGroup, parseScreenNameGroup } from "./modules/utils/name-group.js";
 import { lsGet, lsSet, cloneJson, jsonEquals } from "./modules/utils/storage-json.js";
-import { createRectStore } from "./modules/rect-store.js";
 import { syncModeToggleButton, syncLockButtons } from "./modules/ui/toggles.js";
 import { createEventBinders } from "./modules/ui/event-binders.js";
 import { setupSplitVariantController } from "./modules/ui/split-variant-controller.js";
@@ -25,16 +22,12 @@ import { setupViewThemeLockController } from "./modules/ui/view-theme-lock-contr
 import { setupSpecViewController } from "./modules/ui/spec-view-controller.js";
 import { setupToolModeController } from "./modules/ui/tool-mode-controller.js";
 import { setupMultiSelectionActionsController } from "./modules/ui/multi-selection-actions-controller.js";
-import { setupPropertiesSyncController } from "./modules/ui/properties-sync-controller.js";
-import { setupPropsUiUtils } from "./modules/ui/props-ui-utils.js";
-import { getAreaM2BadgeLabel, getAreaM2PresetValues, setAreaM2ExpressionSource, updateAreaM2Badge } from "./modules/ui/area-m2-badge.js";
 import { setupDragSnapController } from "./modules/ui/drag-snap-controller.js";
 import { setupTransientStateController } from "./modules/ui/transient-state-controller.js";
 import { setupSelectionController } from "./modules/ui/selection-controller.js";
 import { setupSelectionLockController } from "./modules/ui/selection-lock-controller.js";
 import { setupProjectActionsFeature } from "./modules/features/project-actions-feature.js";
 import { setupProjectIoController } from "./modules/project-io-controller.js";
-import { setupProjectMetaController } from "./modules/project-meta-controller.js";
 import { setupRectFactoryController } from "./modules/rect-factory-controller.js";
 import { setupProjectSessionController } from "./modules/project/session-controller.js";
 import { setupProjectLifecycleController } from "./modules/project/project-lifecycle-controller.js";
@@ -64,15 +57,22 @@ import { setupRenderRuntimeFeature } from "./modules/features/render-runtime-fea
 import { setupViewportMetricsController } from "./modules/render/viewport-metrics.js";
 import { setupViewportOverlays } from "./modules/render/viewport-overlays.js";
 import { setupInstallSummaryOverlay } from "./modules/render/install-summary-overlay.js";
-import { setupRectRuntimeService } from "./modules/rect-runtime-service.js";
 import { setupInputController } from "./modules/input-controller.js";
 import { setupAppBootstrapFeature } from "./modules/features/app-bootstrap-feature.js";
 import { setupSelectionUiFeature } from "./modules/features/selection-ui-feature.js";
 import { setupSelectionActionsFeature } from "./modules/features/selection-actions-feature.js";
 import { setupMirrorDuplicateFeature } from "./modules/features/mirror-duplicate-feature.js";
-import { setupPropsPanelFeature } from "./modules/features/props-panel-feature.js";
+import {
+  setupPropsPanelFeature,
+  setupPropsInputBindingsFeature,
+  setupPropertiesSyncController,
+  setupPropsUiUtils,
+  getAreaM2BadgeLabel,
+  getAreaM2PresetValues,
+  setAreaM2ExpressionSource,
+  updateAreaM2Badge
+} from "./modules/features/props-panel-feature.js";
 import { setupTargetActionsFeature } from "./modules/features/target-actions-feature.js";
-import { setupPropsInputBindingsFeature } from "./modules/features/props-input-bindings-feature.js";
 import { setupUiTailFeature } from "./modules/features/ui-tail-feature.js";
 import { setupClusterEditController } from "./modules/features/cluster-edit-controller.js";
 import { setupEditingToolsCore, setupEditingToolsInput } from "./modules/features/editing-tools-controller.js";
@@ -126,8 +126,24 @@ let updateToolbarOverflow = () => { };
 let overflowHiddenButtons = [];
 const st = createInitialEditorState();
 let i18n = null;
-const rectStore = createRectStore(() => st.rects);
-const getRectById = id => rectStore.getById(id);
+const safeDefine = (obj, key, value, enumerable = false) => {
+  try {
+    Object.defineProperty(obj, key, { value, writable: true, configurable: true, enumerable: !!enumerable });
+  } catch (_e) {
+    obj[key] = value;
+  }
+  return value;
+};
+const getRectById = id => {
+  const target = Math.round(Number(id) || 0);
+  return st.rects.find(it => Math.round(Number(it && it.id) || 0) === target) || null;
+};
+const isWorkerBootMessage = data => {
+  const kind = String(data && data.kind || "");
+  return kind === "booted" || kind === "boot-error";
+};
+const buildWorkerMessage = (kind, reqId, payload) => ({ kind, reqId, payload });
+const collectSetValues = value => [...(value && typeof value.forEach === "function" ? value : new Set())];
 let flowDrawRenderEpoch = 0;
 let resetFlowPointIndexCache = () => { };
 let flowDrawKeyForGroups = _groups => "flow-empty";
@@ -149,17 +165,32 @@ if (FlowDrawHelpers && typeof FlowDrawHelpers.setupFlowDrawController === "funct
 }
 const clampTextSize = v => Math.max(6, Math.min(128, Math.round(v)));
 const getRectTextSizePx = r => { const lv = Number(r && r.textSize); return Number.isFinite(lv) && lv > 0 ? clampTextSize(lv) : clampTextSize(st.textSize || 12); };
-const projectMetaController = setupProjectMetaController({
-  normalizeSaveLocationId,
-  lsGet,
-  lsSet,
-  SAVE_LOCATION_ID_KEY,
-  getProjectName: () => st.projectName
-});
-const genSaveLocationId = projectMetaController.genSaveLocationId;
-const getGlobalSaveLocationId = projectMetaController.getGlobalSaveLocationId;
-const setGlobalSaveLocationId = projectMetaController.setGlobalSaveLocationId;
-const projectFileBase = projectMetaController.projectFileBase;
+const genSaveLocationId = (seed = "project") => {
+  const slug = String(seed || "project")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return normalizeSaveLocationId(`proj-${slug || "project"}`);
+};
+const getGlobalSaveLocationId = () => {
+  try {
+    return normalizeSaveLocationId(lsGet(SAVE_LOCATION_ID_KEY, "") || "");
+  } catch (_e) {
+    return "ledmask-default";
+  }
+};
+const setGlobalSaveLocationId = id => {
+  const norm = normalizeSaveLocationId(id);
+  lsSet(SAVE_LOCATION_ID_KEY, norm);
+  return norm;
+};
+const projectFileBase = () => {
+  const raw = st.projectName || "project";
+  const base = String(raw).trim() || "project";
+  const sanitized = base.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim();
+  return sanitized || "project";
+};
 const viewportMetricsController = setupViewportMetricsController({
   windowRef: window,
   documentRef: document,
@@ -358,14 +389,17 @@ const {
   topoCalcKey,
   getCellTopology
 }));
-const { getRectRuntime } = setupRectRuntimeService({
-  drawCellX,
-  drawCellY,
-  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
-  getHiddenSet: r => getHiddenSet(r),
-  planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
-  getDataFlowGroups: (r, cx, cy, topo, hs, regions) => getDataFlowGroups(r, cx, cy, topo, hs, regions)
-});
+const getRectRuntime = (r, opts = null) => {
+  const o = (opts && typeof opts === "object") ? opts : {};
+  const cx = drawCellX(r);
+  const cy = drawCellY(r);
+  const topo = getCellTopologyCached(r, cx, cy);
+  const hs = getHiddenSet(r);
+  const out = { cx, cy, topo, hs, regions: null, groups: null };
+  if (o.withRegions || o.withGroups) out.regions = planNumberRegions(r, cx, cy, topo, hs, true);
+  if (o.withGroups) out.groups = getDataFlowGroups(r, cx, cy, topo, hs, out.regions);
+  return out;
+};
 const {
   getRectComponentRenderDataCached,
   getMaskRenderDataCached,

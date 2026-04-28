@@ -1451,17 +1451,6 @@
         height: 42px
       }
 
-      .mobile-dock {
-        display: flex !important;
-        position: fixed;
-        z-index: 1000;
-        background: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 14px;
-        padding: 6px;
-        gap: 6px
-      }
-
       .side {
         padding: 10px 10px 14px
       }
@@ -1547,33 +1536,7 @@
       }
     }
 
-    @media (max-width:900px) and (orientation:portrait) {
-      .mobile-dock {
-        left: 10px;
-        top: 50%;
-        bottom: auto;
-        transform: translateY(-50%);
-        flex-direction: column;
-        max-height: calc(100vh - 24px);
-        overflow-y: auto;
-        overflow-x: hidden
-      }
-    }
-
-    @media (max-width:900px) and (orientation:landscape) {
-      .mobile-dock {
-        left: 50%;
-        top: auto;
-        bottom: 10px;
-        transform: translateX(-50%);
-        flex-direction: row;
-        max-width: calc(100vw - 20px);
-        overflow-x: auto;
-        overflow-y: hidden
-      }
-    }
-
-    @media (hover:none) and (pointer:coarse) {
+    @media (max-width:900px), (hover:none) and (pointer:coarse) {
       .mobile-dock {
         display: flex !important;
         position: fixed;
@@ -1586,7 +1549,7 @@
       }
     }
 
-    @media (hover:none) and (pointer:coarse) and (orientation:portrait) {
+    @media (max-width:900px) and (orientation:portrait), (hover:none) and (pointer:coarse) and (orientation:portrait) {
       .mobile-dock {
         left: 10px;
         top: 50%;
@@ -1599,7 +1562,7 @@
       }
     }
 
-    @media (hover:none) and (pointer:coarse) and (orientation:landscape) {
+    @media (max-width:900px) and (orientation:landscape), (hover:none) and (pointer:coarse) and (orientation:landscape) {
       .mobile-dock {
         left: 50%;
         top: auto;
