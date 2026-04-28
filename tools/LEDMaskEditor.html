@@ -83,7 +83,7 @@
           class="fa-solid fa-plus"></i></button>
     </div>
     <div id="toolbarMain" class="toolbar navbar bg-body-tertiary shadow-sm">
-      <div class="group"><span class="text-secondary" style="font-size:12px">Проект</span><input id="projectName"
+      <div class="group mobile-hide"><span class="text-secondary" style="font-size:12px">Проект</span><input id="projectName"
           class="toolbar-input" type="text" value="project"></div>
       <div class="group"><button id="helpOpen" class="icon-btn" title="Инструкция" aria-label="Инструкция"><i
             class="fa-solid fa-circle-question"></i></button></div>
@@ -187,12 +187,10 @@
           <i class="fa-solid fa-ellipsis"></i>
         </button>
       </div>
-      <div class="group mobile-only mobile-menu-group"><button id="mobileMenu" class="icon-btn" title="Панель свойств"
-          aria-label="Панель свойств" data-bs-toggle="offcanvas" data-bs-target="#sidePanel"
-          aria-controls="sidePanel"><i class="fa-solid fa-bars"></i></button></div>
-      <div class="group mobile-only"><button id="installApp" class="icon-btn install-btn" title="Установить приложение"
-          aria-label="Установить приложение"><i class="fa-solid fa-download"></i></button></div>
       <div class="group toolbar-right">
+        <button id="mobileMenu" class="icon-btn mobile-only" title="Параметры" aria-label="Параметры"
+          data-bs-toggle="offcanvas" data-bs-target="#sidePanel" aria-controls="sidePanel"><i
+            class="fa-solid fa-bars"></i></button>
         <button id="languageToggle" class="icon-btn language-toggle" title="Язык" aria-label="Язык">RU</button>
         <button id="themeToggle" class="icon-btn icon-dropdown" title="Тема" aria-label="Тема" aria-expanded="false">
           <i id="themeIcon" class="fa-solid fa-circle-half-stroke"></i>
@@ -223,7 +221,7 @@
       <aside id="sidePanel" class="side offcanvas offcanvas-end bg-body border-start shadow-sm" tabindex="-1"
         aria-labelledby="sideTitle">
         <div class="side-head">
-          <h2 id="sideTitle" class="panel-title">Свойства экрана</h2><button id="sideClose" type="button"
+          <h2 id="sideTitle" class="panel-title">Параметры проекта и экрана</h2><button id="sideClose" type="button"
             class="icon-btn side-close" title="Закрыть" aria-label="Закрыть" data-bs-dismiss="offcanvas"><i
               class="fa-solid fa-xmark"></i></button>
         </div>
@@ -231,7 +229,9 @@
           class="multi-edit-badge border border-primary-subtle text-primary-emphasis bg-primary-subtle d-none mb-2">
           Групповое редактирование: W/H масштабируют расстояния, минимум — исходный bbox</div>
         <details class="settings-collapse">
-          <summary>Глобальные настройки</summary>
+          <summary>Настройки проекта</summary>
+          <div class="field mobile-only"><label for="projectNamePanel">Название проекта</label><input
+              id="projectNamePanel" type="text" value="project"></div>
           <div class="grid2">
             <div class="field"><label for="globalTextSize">Размер текста (px)</label><input id="globalTextSize"
                 type="text" inputmode="decimal" spellcheck="false" value="32"></div>

@@ -12,7 +12,7 @@ export const setupToolbarController = (deps = {}) => {
 
   const overflowButtonIds = [
     "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
-    "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "themeToggle"
+    "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "languageToggle", "themeToggle"
   ];
 
   const overflowButtons = overflowButtonIds.map(id => el && el[id]).filter(Boolean);
@@ -123,6 +123,19 @@ export const setupToolbarController = (deps = {}) => {
 
         el.overflowPopup.appendChild(item);
         el.overflowPopup.appendChild(submenu);
+        continue;
+      }
+
+      if (b === el.languageToggle) {
+        const item = documentRef.createElement("button");
+        item.type = "button";
+        item.className = "dropdown-item d-flex align-items-center gap-2";
+        item.innerHTML = `<i class="fa-solid fa-language"></i><span>${b.getAttribute("title") || t("Язык")}</span>`;
+        on(item, "click", () => {
+          hideToolbarOverflowPopup();
+          b.click();
+        });
+        el.overflowPopup.appendChild(item);
         continue;
       }
 

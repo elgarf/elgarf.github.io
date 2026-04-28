@@ -158,6 +158,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (el.btnConvertRegionsToScreens) uiSetDisabled(el.btnConvertRegionsToScreens, !on || (typeof deps.isNoteRect === "function" && deps.isNoteRect(r)));
     if (el.btnAutoContrast) uiSetDisabled(el.btnAutoContrast, !on);
     uiSetValue(el.project, st.projectName);
+    uiSetValue(el.projectNamePanel, st.projectName);
     updateThemeUi(); updateViewModeUi(); updateLockAllUi();
     uiSetValue(el.textSize, mFmt(st.textSize));
     uiSetValue(el.font, st.fontFamily);

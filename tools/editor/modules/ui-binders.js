@@ -31,15 +31,23 @@ export const setupUiBinders = (deps = {}) => {
   bindProxyClick(el.mCopyMirror, el.btnCopyMirror);
   bindProxyClick(el.mDelete, el.btnDelete);
 
+  const syncProjectNameInputs = () => {
+    if (el.project) el.project.value = st.projectName;
+    if (el.projectNamePanel) el.projectNamePanel.value = st.projectName;
+  };
   const applyProjectNameInput = (opts = {}) => {
-    st.projectName = (el.project.value || "project").trim() || "project";
+    const source = opts && opts.source ? opts.source : el.project;
+    st.projectName = ((source && source.value) || "project").trim() || "project";
+    syncProjectNameInputs();
     syncActiveTabSnapshot();
     renderProjectTabs();
     if (opts.syncProps) syncProps();
     schedulePersist("all");
   };
-  bindEvent(el.project, "input", () => applyProjectNameInput({ syncProps: false }));
-  bindEvent(el.project, "change", () => applyProjectNameInput({ syncProps: true }));
+  bindEvent(el.project, "input", () => applyProjectNameInput({ syncProps: false, source: el.project }));
+  bindEvent(el.project, "change", () => applyProjectNameInput({ syncProps: true, source: el.project }));
+  bindEvent(el.projectNamePanel, "input", () => applyProjectNameInput({ syncProps: false, source: el.projectNamePanel }));
+  bindEvent(el.projectNamePanel, "change", () => applyProjectNameInput({ syncProps: true, source: el.projectNamePanel }));
   bindEvent(el.projectTabAdd, "click", () => createProjectTab(makeEmptyProjectData(t("Новый проект"))));
 
   if (el.themePopup) {
