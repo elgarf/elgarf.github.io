@@ -758,7 +758,6 @@ const hideStartupLoader = () => {
   window.setTimeout(() => { if (node.parentNode) node.parentNode.removeChild(node); }, 220);
 };
 let getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
-let isMobileTabStorageMode = () => false;
 let syncActiveTabSnapshot = () => { };
 let renderProjectTabs = () => { };
 let buildTabsBundle = () => ({ version: 1, nextTabId: 2, activeTabId: 1, tabs: [] });
@@ -970,7 +969,6 @@ const {
 });
 ({
   getActiveTab,
-  isMobileTabStorageMode,
   syncActiveTabSnapshot,
   renderProjectTabs,
   buildTabsBundle,
@@ -1097,7 +1095,6 @@ let mkNote = (_x, _y, _w, _h) => ({});
   render: () => render(),
   cloneProjectData,
   makeEmptyProjectData,
-  isMobileTabStorageMode,
   getActiveTab,
   loadProjectIntoActiveState,
   lsGet,

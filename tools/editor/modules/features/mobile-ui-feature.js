@@ -35,7 +35,15 @@ export const setupMobileUiFeature = (deps = {}) => {
     btn.title = t(collapsed ? "Развернуть инструменты" : "Свернуть инструменты");
     btn.setAttribute("aria-label", btn.title);
     const icon = btn.querySelector("i");
-    if (icon) icon.className = collapsed ? "fa-solid fa-chevron-right" : "fa-solid fa-chevron-left";
+    if (icon) {
+      const dock = el && el.mobileDock;
+      const flexDirection = dock && windowRef.getComputedStyle ? windowRef.getComputedStyle(dock).flexDirection : "";
+      const isVerticalDock = flexDirection === "column" || flexDirection === "column-reverse";
+      const iconName = isVerticalDock
+        ? (collapsed ? "fa-chevron-up" : "fa-chevron-down")
+        : (collapsed ? "fa-chevron-left" : "fa-chevron-right");
+      icon.className = `fa-solid ${iconName}`;
+    }
   };
   const setDockCollapsed = collapsed => {
     const dock = el && el.mobileDock;

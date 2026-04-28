@@ -11,15 +11,6 @@ export const setupTabsController = (deps = {}) => {
   let persistAfterTabSwitch = null;
 
   const getActiveTab = () => st.tabs.find(t => t.id === st.activeTabId) || null;
-  const isMobileTabStorageMode = () => {
-    try {
-      const byWidth = window.matchMedia && window.matchMedia("(max-width:900px)").matches;
-      const byPointer = window.matchMedia && window.matchMedia("(hover:none) and (pointer:coarse)").matches;
-      return !!(byWidth || byPointer);
-    } catch (_e) {
-      return false;
-    }
-  };
   const runTabSwitchTransition = task => {
     const host = wrap;
     if (!host) { task(); return; }
@@ -127,16 +118,6 @@ export const setupTabsController = (deps = {}) => {
   };
   const buildTabsBundle = () => {
     syncActiveTabSnapshot();
-    if (isMobileTabStorageMode()) {
-      const active = getActiveTab() || st.tabs[0] || { id: 1, title: "Новый проект", data: makeEmptyProjectData("Новый проект") };
-      const activeId = Number(active && active.id) || 1;
-      return {
-        version: 1,
-        nextTabId: Math.max(2, activeId + 1),
-        activeTabId: activeId,
-        tabs: [{ id: activeId, title: active.title || "Новый проект", data: cloneProjectData(active.data || makeEmptyProjectData(active.title || "Новый проект")) }]
-      };
-    }
     return {
       version: 1,
       nextTabId: st.nextTabId,
@@ -150,7 +131,6 @@ export const setupTabsController = (deps = {}) => {
 
   return {
     getActiveTab,
-    isMobileTabStorageMode,
     runTabSwitchTransition,
     syncActiveTabSnapshot,
     renderProjectTabs,
