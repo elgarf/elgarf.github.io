@@ -1876,7 +1876,8 @@ const {
     el,
     bindEvent: (...args) => bindEvent(...args),
     st,
-    normalizeViewMode
+    normalizeViewMode,
+    t: value => translateText(value)
   },
   modalDeps: {
     windowRef: window,

@@ -42,6 +42,8 @@ const EN = {
   "Ещё": "More",
   "Панель свойств": "Properties panel",
   "Параметры": "Settings",
+  "Свернуть инструменты": "Collapse tools",
+  "Развернуть инструменты": "Expand tools",
   "Установить приложение": "Install app",
   "Тема": "Theme",
   "Авто": "Auto",

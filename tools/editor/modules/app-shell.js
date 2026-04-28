@@ -4,7 +4,7 @@ const EDITOR_ELEMENT_IDS = [
   "mobileMenu", "installApp", "installBanner", "installBannerText", "installBannerAction", "installBannerClose",
   "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkLoading", "projectLinkText", "projectLinkCopyBtn",
   "sidePanel", "sideClose", "multiEditBadge",
-  "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
+  "mDockToggle", "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
   "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle",
   "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
   "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",

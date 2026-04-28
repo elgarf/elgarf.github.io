@@ -370,6 +370,12 @@
       display: flex !important;
       z-index: 1070
     }
+
+    .mobile-dock.is-resizing {
+      overflow: hidden;
+      transition: width .22s ease, height .22s ease
+    }
+
     .m-view-toggle {
       min-width: 40px;
       width: 40px;
@@ -378,6 +384,53 @@
       display: inline-flex;
       align-items: center;
       justify-content: center
+    }
+
+    .mobile-dock > button {
+      flex: 0 0 auto;
+      opacity: 1;
+      transform: scale(1);
+      transform-origin: center center;
+      transition: opacity .18s ease, transform .18s ease
+    }
+
+    .mobile-dock-toggle {
+      order: -1
+    }
+
+    .mobile-dock .mobile-copy-tool {
+      display: none !important
+    }
+
+    .mobile-dock.is-collapsed > .mobile-dock-toggle {
+      box-shadow: var(--bs-box-shadow)
+    }
+
+    .mobile-dock.is-collapsed {
+      background: transparent !important;
+      border-color: transparent !important;
+      border-radius: 0;
+      box-shadow: none !important;
+      gap: 0;
+      overflow: hidden;
+      padding: 0
+    }
+
+    .mobile-dock.is-collapsed > button:not(.mobile-dock-toggle) {
+      opacity: 0;
+      pointer-events: none;
+      position: absolute;
+      transform: scale(.72);
+      width: 0 !important;
+      height: 0 !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
+      max-width: 0;
+      max-height: 0;
+      margin: 0 !important;
+      padding: 0 !important;
+      border-width: 0 !important;
+      overflow: hidden
     }
 
     .install-banner {
