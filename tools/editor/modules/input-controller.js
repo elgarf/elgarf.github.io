@@ -6,7 +6,7 @@ import { setupTouchInputController } from "./ui/touch-input-controller.js";
 
 export const setupInputController = (deps = {}) => {
   const {
-    cv, st, render, hit, s2w, zc, getViewMetrics,
+    cv, st, render, renderOverlay, hit, s2w, zc, getViewMetrics,
     getRectById, worldToRectUV,
     isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
     cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
@@ -99,6 +99,7 @@ export const setupInputController = (deps = {}) => {
     st,
     cv,
     render,
+    renderOverlay,
     getRectById,
     hit,
     cur,

@@ -3,7 +3,7 @@ import { drawCanvasTooltip } from "../render/canvas-tooltip.js";
 export function setupFlowEditOverlayRender(deps = {}) {
   const { st, fontFamilyCss, t = value => value } = deps;
 
-  const drawFlowEditOverlay = (c, w, h) => {
+  const drawFlowEditOverlay = (c, w, h, opts = {}) => {
     if (st.mode !== "flowEdit") return;
     const points = Array.isArray(st.flowEditPoints) ? st.flowEditPoints : [];
     const starts = Array.isArray(st.flowStartHandles) ? st.flowStartHandles : [];
@@ -214,8 +214,20 @@ export function setupFlowEditOverlayRender(deps = {}) {
       }
       c.restore();
     }
-    if (tooltip) drawCanvasTooltip(c, tooltip.label, tooltip.x, tooltip.y, st.zoom || 1);
+    let deferredTooltip = null;
+    if (tooltip) {
+      if (opts && opts.deferTooltip) {
+        const label = tooltip.label;
+        const x = tooltip.x;
+        const y = tooltip.y;
+        const z = st.zoom || 1;
+        deferredTooltip = () => drawCanvasTooltip(c, label, x, y, z);
+      } else {
+        drawCanvasTooltip(c, tooltip.label, tooltip.x, tooltip.y, st.zoom || 1);
+      }
+    }
     c.restore();
+    return deferredTooltip;
   };
 
   return { drawFlowEditOverlay };

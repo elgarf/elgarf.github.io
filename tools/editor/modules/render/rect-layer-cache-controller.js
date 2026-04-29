@@ -223,7 +223,7 @@ export const setupRectLayerCacheController = (deps = {}) => {
   };
 
   const getRectFlowPassiveLayerCached = (r, w, h, z, groups, activeRid) => {
-    const cache = getRectCalcCache(r), zq = (Math.round((Number(z) || 1) * 100) / 100) || 1, flowKey = flowDrawKeyForGroups(groups), key = [w, h, zq, flowKey, Math.max(0, Math.round(Number(activeRid) || 0))].join("|");
+    const cache = getRectCalcCache(r), layerScale = getLayerScale(w, h, z), flowKey = flowDrawKeyForGroups(groups), key = [w, h, layerScale, flowKey, Math.max(0, Math.round(Number(activeRid) || 0))].join("|");
     if (cache.flowPassiveLayer && cache.flowPassiveLayer.key === key && cache.flowPassiveLayer.canvas) return cache.flowPassiveLayer.canvas;
     const passive = (Array.isArray(groups) ? groups : []).filter(g => Math.round(Number(g && g.rid) || 0) !== Math.round(Number(activeRid) || 0));
     if (!passive.length) { cache.flowPassiveLayer = { key, canvas: null }; return null; }

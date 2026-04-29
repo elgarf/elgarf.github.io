@@ -29,6 +29,7 @@ export const setupViewportOverlays = (deps = {}) => {
   const cellSummaryCache = { key: "", value: null };
   const cellOverlayPathCache = { key: "", gridPath: null, borderPath: null };
   const maskNodesPathCache = { key: "", dot: 0, path: null };
+  const contentBoundsCache = { key: "", value: null };
   const keyOf = (...parts) => parts.join("|");
   const toIntMin = (v, min = 0) => Math.max(min, Math.round(Number(v) || 0));
   const toPosInt = v => toIntMin(v, 1);
@@ -118,6 +119,18 @@ export const setupViewportOverlays = (deps = {}) => {
 
   const getContentBounds = () => {
     if (!st.rects.length) return null;
+    const key = (Array.isArray(st.rects) ? st.rects : []).map(r => [
+      toIntMin(r && r.id, 0),
+      r && r.x || 0,
+      r && r.y || 0,
+      r && r.width || 0,
+      r && r.height || 0,
+      Number(r && r.rotation) || 0,
+      toPosInt(drawCellX(r)),
+      toPosInt(drawCellY(r)),
+      listSignature(r && r.hiddenCells)
+    ].join(":")).join("|");
+    if (contentBoundsCache.key === key && contentBoundsCache.value) return contentBoundsCache.value;
     let minX = 1e9;
     let minY = 1e9;
     let maxX = -1e9;
@@ -129,7 +142,10 @@ export const setupViewportOverlays = (deps = {}) => {
       maxX = Math.max(maxX, bb.maxX);
       maxY = Math.max(maxY, bb.maxY);
     }
-    return { minX, minY, maxX, maxY, w: Math.ceil(maxX - minX), h: Math.ceil(maxY - minY) };
+    const value = { minX, minY, maxX, maxY, w: Math.ceil(maxX - minX), h: Math.ceil(maxY - minY) };
+    contentBoundsCache.key = key;
+    contentBoundsCache.value = value;
+    return value;
   };
 
   const drawMaskOverlay = (c, z) => {

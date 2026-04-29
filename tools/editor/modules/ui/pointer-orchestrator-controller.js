@@ -3,6 +3,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     st,
     cv,
     render,
+    renderOverlay = render,
     getRectById,
     hit,
     cur,
@@ -287,11 +288,11 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       const hoveringLayer = !!st.installLayerButtonHover;
       if (hoveringLayer) setCanvasCursor("pointer");
       else clearCursorIf("pointer");
-      if (changed) render();
+      if (changed) renderOverlay();
       if (hoveringLayer) return true;
     } else if (typeof clearLayerButtonHover === "function" && clearLayerButtonHover()) {
       clearCursorIf("pointer");
-      render();
+      renderOverlay();
     }
     if (st.mode === "select" && !st.drag && !st.selBox && !st.pan && typeof setMultiSelectionActionHover === "function") {
       const changed = setMultiSelectionActionHover(p.x, p.y);
@@ -300,11 +301,11 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       if (resizeHover) setCanvasCursor(multiResizeCursor(resizeHover));
       if (hoveringAction) setCanvasCursor("pointer");
       if (!hoveringAction && !resizeHover) clearCursorIf("pointer", ...RESIZE_CURSORS);
-      if (changed) render();
+      if (changed) renderOverlay();
       if (hoveringAction || resizeHover) return true;
     } else if (typeof clearMultiSelectionActionHover === "function" && clearMultiSelectionActionHover()) {
       clearCursorIf("pointer", ...RESIZE_CURSORS);
-      render();
+      renderOverlay();
     }
     if (st.mode === "select" && !st.drag && !st.selBox && !st.pan) {
       updateSelectHoverCursor(p);
@@ -386,8 +387,8 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
 
   const handleCanvasMouseLeave = () => {
-    if (typeof clearLayerButtonHover === "function" && clearLayerButtonHover()) render();
-    if (typeof clearMultiSelectionActionHover === "function" && clearMultiSelectionActionHover()) render();
+    if (typeof clearLayerButtonHover === "function" && clearLayerButtonHover()) renderOverlay();
+    if (typeof clearMultiSelectionActionHover === "function" && clearMultiSelectionActionHover()) renderOverlay();
     clearCursorIf("pointer", MOVE_CURSOR, ...RESIZE_CURSORS);
     setNoteResizeCursor(false);
     if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) {

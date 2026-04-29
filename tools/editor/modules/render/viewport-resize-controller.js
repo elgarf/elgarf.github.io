@@ -2,6 +2,7 @@ export const setupViewportResizeController = (deps = {}) => {
   const {
     st,
     cv,
+    overlayCanvas,
     wrap,
     bindWindowEvent,
     bindEvent,
@@ -21,8 +22,14 @@ export const setupViewportResizeController = (deps = {}) => {
   const resize = () => {
     const r = window.devicePixelRatio || 1;
     const b = cv.getBoundingClientRect();
-    cv.width = Math.max(1, Math.floor(b.width * r));
-    cv.height = Math.max(1, Math.floor(b.height * r));
+    const width = Math.max(1, Math.floor(b.width * r));
+    const height = Math.max(1, Math.floor(b.height * r));
+    cv.width = width;
+    cv.height = height;
+    if (overlayCanvas) {
+      overlayCanvas.width = width;
+      overlayCanvas.height = height;
+    }
     render(true);
   };
 

@@ -114,7 +114,7 @@ import {
   PROJECT_QUERY_PARAM, PROJECT_ID_PARAM, PROJECT_QUERY_VERSION, PROJECT_STORE_API_URL,
   PNG_PROJECT_META_KEY
 } from "./modules/constants.js";
-const { cv, ctx, wrap, el, desktopToolButtons, mobileToolButtons } = createEditorDomRefs(document);
+const { cv, ctx, overlayCanvas, overlayCtx, wrap, el, desktopToolButtons, mobileToolButtons } = createEditorDomRefs(document);
 let ensureMobileDock = () => { };
 let hideToolbarOverflowPopup = () => { };
 let hideThemePopup = () => { };
@@ -636,6 +636,9 @@ const {
 } = setupCabinetSummaryUtils({
   maskCellKey,
   mFmt,
+  topoCalcKey,
+  listSignature,
+  getRectCalcCache: r => getRectCalcCache(r),
   t: value => translateText(value)
 });
 const pctFmt = v => { const n = Number.isFinite(+v) ? +v : 0; const t = Math.trunc(n * 100) / 100; return t.toFixed(2) };
@@ -1478,9 +1481,12 @@ const { drawInstallSummaryOverlay } = setupInstallSummaryOverlay({
   mFmt,
   isNoteRect: r => isNoteRect(r),
   parseScreenNameGroup,
+  listSignature,
   t: value => translateText(value)
 });
 let render = (_immediate = false) => { };
+let renderOverlay = (_immediate = false) => { };
+let renderOverlayNow = () => { };
 let renderNow = () => { };
 let updateAppViewportHeight = () => { };
 let scheduleCanvasResize = () => { };
@@ -1489,6 +1495,8 @@ let zoomAt = (_sx, _sy, _nz) => { };
 let lastSpecAutoRefreshAt = 0;
 ({
   render,
+  renderOverlay,
+  renderOverlayNow,
   renderNow,
   updateAppViewportHeight,
   resize,
@@ -1496,13 +1504,15 @@ let lastSpecAutoRefreshAt = 0;
   zoomAt
 } = setupRenderRuntimeFeature({
   ctx,
+  overlayCtx,
   st,
   cv,
+  overlayCanvas,
   wrap,
   getViewMetrics,
   s2w,
   w2s,
-  rectAABB,
+  rectAABB: rectAABBMasked,
   getOrigin,
   isSelected,
   drawRect,
@@ -1535,11 +1545,15 @@ let lastSpecAutoRefreshAt = 0;
   zc
 }));
 const renderRuntimeBase = render;
+const renderOverlayRuntimeBase = renderOverlay;
 const renderNowRuntimeBase = renderNow;
 render = (immediate = false) => {
   renderRuntimeBase(immediate);
   if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => drawInstallSummaryOverlay());
   else drawInstallSummaryOverlay();
+};
+renderOverlay = (immediate = false) => {
+  renderOverlayRuntimeBase(immediate);
 };
 renderNow = () => {
   renderNowRuntimeBase();
@@ -1801,7 +1815,7 @@ const { scheduleSyncProps, syncPropsSmart } = setupPropertiesSyncController({
   clearDelay: id => clearTimeout(id)
 });
 const inputWiringServices = {
-  cv, st, el, render, hit, s2w, zc, getViewMetrics,
+  cv, st, el, render, renderOverlay, hit, s2w, zc, getViewMetrics,
   getRectById, worldToRectUV,
   isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
   cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,

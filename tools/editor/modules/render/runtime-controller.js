@@ -1,8 +1,10 @@
 export const setupRenderRuntimeController = (deps = {}) => {
   const {
     ctx,
+    overlayCtx,
     st,
     cv,
+    overlayCanvas,
     wrap,
     s2w,
     w2s,
@@ -42,64 +44,66 @@ export const setupRenderRuntimeController = (deps = {}) => {
     ctx.restore();
   };
 
-  const drawGuides = () => {
+  const drawGuides = (targetCtx = ctx) => {
     if (st.g.x == null && st.g.y == null) return;
-    ctx.save();
-    ctx.strokeStyle = "rgba(74,200,255,.9)";
-    ctx.setLineDash([6, 5]);
-    ctx.lineWidth = 1;
+    const c = targetCtx || ctx;
+    c.save();
+    c.strokeStyle = "rgba(74,200,255,.9)";
+    c.setLineDash([6, 5]);
+    c.lineWidth = 1;
     if (st.g.x != null) {
       const x = w2s(st.g.x, 0).x;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, cv.clientHeight);
-      ctx.stroke();
+      c.beginPath();
+      c.moveTo(x, 0);
+      c.lineTo(x, cv.clientHeight);
+      c.stroke();
     }
     if (st.g.y != null) {
       const y = w2s(0, st.g.y).y;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(cv.clientWidth, y);
-      ctx.stroke();
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(cv.clientWidth, y);
+      c.stroke();
     }
-    ctx.restore();
+    c.restore();
   };
 
-  const drawDistanceGuide = () => {
+  const drawDistanceGuide = (targetCtx = ctx) => {
     if (!st.dg) return;
+    const c = targetCtx || ctx;
     const drawDim = (g, color, labelShift) => {
       let { x1, y1, x2, y2, v, axis } = g;
       const p1 = w2s(x1, y1);
       const p2 = w2s(x2, y2);
       const t = `${Math.round(v)} px`;
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
+      c.save();
+      c.strokeStyle = color;
+      c.lineWidth = 1.5;
+      c.setLineDash([]);
+      c.beginPath();
+      c.moveTo(p1.x, p1.y);
+      c.lineTo(p2.x, p2.y);
+      c.stroke();
       if (!st.fontReady) {
-        ctx.restore();
+        c.restore();
         return;
       }
-      ctx.font = `12px ${fontFamilyCss(st.fontFamily)}`;
-      const tw = ctx.measureText(t).width + 10;
-      ctx.fillStyle = "rgba(15,19,24,.85)";
+      c.font = `12px ${fontFamilyCss(st.fontFamily)}`;
+      const tw = c.measureText(t).width + 10;
+      c.fillStyle = "rgba(15,19,24,.85)";
       if (axis === "y") {
         const m = (p1.y + p2.y) / 2;
-        ctx.beginPath();
-        ctx.moveTo(p1.x - 7, p1.y);
-        ctx.lineTo(p1.x + 7, p1.y);
-        ctx.moveTo(p2.x - 7, p2.y);
-        ctx.lineTo(p2.x + 7, p2.y);
-        ctx.stroke();
-        ctx.fillRect(p1.x + 8 + labelShift, m - 8, tw, 16);
-        ctx.fillStyle = color;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillText(t, p1.x + 13 + labelShift, m);
+        c.beginPath();
+        c.moveTo(p1.x - 7, p1.y);
+        c.lineTo(p1.x + 7, p1.y);
+        c.moveTo(p2.x - 7, p2.y);
+        c.lineTo(p2.x + 7, p2.y);
+        c.stroke();
+        c.fillRect(p1.x + 8 + labelShift, m - 8, tw, 16);
+        c.fillStyle = color;
+        c.textAlign = "left";
+        c.textBaseline = "middle";
+        c.fillText(t, p1.x + 13 + labelShift, m);
       } else {
         if (p1.x > p2.x) {
           const tx = p1.x;
@@ -107,19 +111,19 @@ export const setupRenderRuntimeController = (deps = {}) => {
           p2.x = tx;
         }
         const m = (p1.x + p2.x) / 2;
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y - 7);
-        ctx.lineTo(p1.x, p1.y + 7);
-        ctx.moveTo(p2.x, p2.y - 7);
-        ctx.lineTo(p2.x, p2.y + 7);
-        ctx.stroke();
-        ctx.fillRect(m - tw / 2, p1.y - 24 - labelShift, tw, 16);
-        ctx.fillStyle = color;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(t, m, p1.y - 16 - labelShift);
+        c.beginPath();
+        c.moveTo(p1.x, p1.y - 7);
+        c.lineTo(p1.x, p1.y + 7);
+        c.moveTo(p2.x, p2.y - 7);
+        c.lineTo(p2.x, p2.y + 7);
+        c.stroke();
+        c.fillRect(m - tw / 2, p1.y - 24 - labelShift, tw, 16);
+        c.fillStyle = color;
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText(t, m, p1.y - 16 - labelShift);
       }
-      ctx.restore();
+      c.restore();
     };
     if (st.dg.refs && Array.isArray(st.dg.refs)) {
       for (const r of st.dg.refs) drawDim(r, "#ffd77a", 0);
@@ -141,8 +145,24 @@ export const setupRenderRuntimeController = (deps = {}) => {
   }
 
   let renderRaf = 0;
+  let overlayRaf = 0;
+  const profilerEnabled = () => !!(st && (st.renderProfiler || (typeof location !== "undefined" && /(?:^|[?&])profile=1(?:&|$)/.test(location.search || ""))));
+  const createProfile = kind => profilerEnabled() ? { kind, sections: [], start: performance.now(), totalMs: 0 } : null;
+  const finishProfile = profile => {
+    if (!profile) return;
+    profile.totalMs = performance.now() - profile.start;
+    st.renderProfile = {
+      kind: profile.kind,
+      totalMs: profile.totalMs,
+      sections: profile.sections.slice().sort((a, b) => Number(b.ms || 0) - Number(a.ms || 0)).slice(0, 8)
+    };
+  };
 
   const renderNow = () => {
+    if (overlayRaf && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(overlayRaf);
+      overlayRaf = 0;
+    }
     if (typeof onBeforeRenderFrame === "function") onBeforeRenderFrame();
     const fastPan = !!st.pan;
     const tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching"));
@@ -150,11 +170,31 @@ export const setupRenderRuntimeController = (deps = {}) => {
     const flowEditActive = st.mode === "flowEdit";
     const forceLowDetail = !!(tabSwitching || (interactiveFast && !flowEditActive));
     renderPipeline.resetFrameTransient();
+    const profile = createProfile("full");
     renderPipeline.renderScene({
       forceLowDetail,
-      skipHeavyOverlays: !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive))
+      skipHeavyOverlays: !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive)),
+      profile
     });
+    finishProfile(profile);
     if (el && el.zoomLabel) el.zoomLabel.textContent = `${Math.round(st.zoom * 100)}%`;
+  };
+
+  const renderOverlayNow = () => {
+    if (renderRaf) return;
+    const fastPan = !!st.pan;
+    const tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching"));
+    const interactiveFast = !!((st.draft || st.clusterDrag || st.flowDrag));
+    const flowEditActive = st.mode === "flowEdit";
+    const profile = createProfile("overlay");
+    if (renderPipeline && typeof renderPipeline.renderOverlay === "function") {
+      renderPipeline.renderOverlay({
+        skipHeavyOverlays: !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive)),
+        profile
+      });
+    }
+    finishProfile(profile);
+    if (wrap) wrap.dataset.panning = st.pan ? "1" : "0";
   };
 
   const render = (immediate = false) => {
@@ -173,8 +213,30 @@ export const setupRenderRuntimeController = (deps = {}) => {
     });
   };
 
+  const renderOverlay = (immediate = false) => {
+    if (!overlayCtx && !overlayCanvas) {
+      render(immediate);
+      return;
+    }
+    if (immediate || typeof requestAnimationFrame !== "function") {
+      if (overlayRaf && typeof cancelAnimationFrame === "function") {
+        cancelAnimationFrame(overlayRaf);
+        overlayRaf = 0;
+      }
+      renderOverlayNow();
+      return;
+    }
+    if (overlayRaf || renderRaf) return;
+    overlayRaf = requestAnimationFrame(() => {
+      overlayRaf = 0;
+      renderOverlayNow();
+    });
+  };
+
   return {
     render,
+    renderOverlay,
+    renderOverlayNow,
     renderNow,
     drawGrid,
     drawGuides,

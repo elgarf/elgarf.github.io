@@ -22,6 +22,15 @@ export const createEditorDomRefs = (documentRef = document) => {
   const pickEls = ids => Object.fromEntries(ids.map(id => [id, $(id)]));
   const cv = $("editorCanvas");
   const wrap = $("canvasWrap");
+  let overlayCanvas = $("editorOverlayCanvas");
+  if (cv && cv.parentNode && !overlayCanvas) {
+    overlayCanvas = documentRef.createElement("canvas");
+    overlayCanvas.id = "editorOverlayCanvas";
+    overlayCanvas.className = "editor-overlay-canvas";
+    overlayCanvas.setAttribute("aria-hidden", "true");
+    overlayCanvas.tabIndex = -1;
+    cv.insertAdjacentElement("afterend", overlayCanvas);
+  }
   const el = {
     ...pickEls(EDITOR_ELEMENT_IDS),
     toolbar: $("toolbarMain"),
@@ -68,6 +77,8 @@ export const createEditorDomRefs = (documentRef = document) => {
   return {
     cv,
     ctx: cv.getContext("2d"),
+    overlayCanvas,
+    overlayCtx: overlayCanvas ? overlayCanvas.getContext("2d") : null,
     wrap,
     el,
     desktopToolButtons: [el.toolSelect, el.toolDraw, el.toolNote, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean),
@@ -77,6 +88,8 @@ export const createEditorDomRefs = (documentRef = document) => {
 
 export const createInitialEditorState = () => ({
   debugSnap: false,
+  renderProfiler: false,
+  renderProfile: null,
   rects: [],
   sel: null,
   selSet: new Set(),

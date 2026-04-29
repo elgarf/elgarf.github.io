@@ -13,6 +13,7 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
     mFmt,
     isNoteRect,
     parseScreenNameGroup,
+    listSignature = value => Array.isArray(value) ? value.join(",") : "",
     t = value => value
   } = deps;
 
@@ -24,6 +25,8 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
   let overlayEl = null;
   let changeBound = false;
   let changeHandler = null;
+  let summaryCacheKey = "";
+  let summaryCache = null;
 
   const ensureOverlayEl = () => {
     if (overlayEl && overlayEl.isConnected) return overlayEl;
@@ -77,6 +80,25 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
     return { groups, totalAreaM2, maxCabinetSide };
   };
 
+  const summaryKey = () => {
+    const lang = typeof document !== "undefined" ? String(document.documentElement.getAttribute("lang") || "") : "";
+    const rectKey = (Array.isArray(st && st.rects) ? st.rects : []).map(r => {
+      if (!r || (typeof isNoteRect === "function" && isNoteRect(r))) return "";
+      return [
+        r.id || 0,
+        r.name || "",
+        r.width || 0,
+        r.height || 0,
+        r.scale || 0,
+        drawCellX(r),
+        drawCellY(r),
+        listSignature(r.hiddenCells),
+        listSignature(r.cellLinks)
+      ].join(":");
+    }).join("|");
+    return [lang, st && st.fontFamily || "", rectKey].join("||");
+  };
+
   const appendCabinetIcon = (row, item, maxCabinetSide) => {
     const maxSide = Math.max(0, Number(maxCabinetSide) || 0);
     const w = Math.max(0, Number(item && item.w) || 0);
@@ -97,7 +119,12 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
       hideOverlay();
       return;
     }
-    const summary = collectSummary();
+    const key = summaryKey();
+    const summary = (summaryCacheKey === key && summaryCache) ? summaryCache : collectSummary();
+    if (summaryCacheKey !== key || !summaryCache) {
+      summaryCacheKey = key;
+      summaryCache = summary;
+    }
     if (!summary.totalAreaM2 && !summary.groups.length) {
       hideOverlay();
       return;
@@ -106,7 +133,10 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
     const rows = [{ title: true, text: t("Площадь экранов") }];
     for (const group of summary.groups) rows.push({ group });
     rows.push({ total: true, label: `${t("Итого")}:`, area: `${mFmt(summary.totalAreaM2)} ${t("м²")}` });
+    const domKey = key + "||" + rows.map(row => row.title ? row.text : row.total ? `${row.label}${row.area}` : `${row.group && row.group.name}:${row.group && row.group.areaM2}:${(row.group && row.group.cabinetAreaItems || []).map(it => `${it.size}:${it.areaM2}`).join(",")}`).join("|");
+    if (!node.hidden && node.dataset.summaryKey === domKey) return;
     node.hidden = false;
+    node.dataset.summaryKey = domKey;
     node.style.fontFamily = fontFamilyCss(st.fontFamily);
     node.textContent = "";
     rows.forEach(rowData => {

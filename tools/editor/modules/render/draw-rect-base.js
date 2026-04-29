@@ -49,7 +49,8 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const cellCount = (topo.cols || 1) * (topo.rows || 1), interactiveDetail = !!(sel || st.mode === "flowEdit" || isMaskMode() || isCellEditMode() || isClusterEditMode() || isRigEditMode()), lowDetail = !!((forceLowDetail && !flowEditingThisRect) || (!disableLod && designerRender && !interactiveDetail && cellCount > 3000));
       const clusterDraggingThisRect = !!(st.clusterDrag && Math.round(Number(st.clusterDrag.rectId) || 0) === Math.round(Number(r && r.id) || 0));
       const suppressCabinetLabels = !!(st.pan || (st.drag && st.drag.moved));
-      const showNumbers = !!(r.numberCells && !suppressCabinetLabels);
+      const cabinetLabelReadable = !!(flowEditingThisRect || Math.min(cellX, cellY) * Math.max(0.01, z) >= 24);
+      const showNumbers = !!(r.numberCells && !suppressCabinetLabels && cabinetLabelReadable);
       const cellEditActive = isCellEditMode(), rigEditActive = isRigEditMode(), clusterEditActive = isClusterEditMode(), flowEditActive = st.mode === "flowEdit";
       const installLayerState = options.ignoreInstallLayerToggles ? {} : (st.installLayers || {});
       const showInstallTextLayer = !!(!installView || installLayerState.text !== false);
@@ -95,7 +96,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
           return chooseTextLayout(localRect, ls, (t, fs) => { c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`; return c.measureText(t).width }, maxW, baseFs, hbs, freeRects);
         });
         const txtTheme = rectTextTheme(r);
-        return { layout, ls, maxW, txtTheme };
+        return { layout, ls, maxW, txtTheme, font: fontFamilyCss(st.fontFamily) };
       };
       if (installTextMode === "only") {
         if (showInstallTextLayer && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
@@ -108,6 +109,26 @@ export const setupDrawRectBaseController = (deps = {}) => {
         c.restore();
         c.restore();
         return;
+      }
+      if (
+        Array.isArray(options.collectInstallTextOverlays)
+        && installTextMode === "skip"
+        && installView
+        && showInstallTextLayer
+        && !skeleton
+        && !suppressFlowEditText
+        && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)
+      ) {
+        options.collectInstallTextOverlays.push({
+          r,
+          centerX: center.x,
+          centerY: center.y,
+          angle: a,
+          w,
+          h,
+          hiddenRects: maskRender && maskRender.hasMask ? maskRender.hiddenRects : null,
+          overlay: buildDeferredTextOverlay()
+        });
       }
       let drawContent = true, maskedClip = false;
       let deferredTextOverlay = null;
@@ -244,8 +265,21 @@ export const setupDrawRectBaseController = (deps = {}) => {
         suppressRigOverlay: !!((options && options.suppressRigOverlay) || !showInstallRigLayer)
       };
       drawRectOverlays(drawCtx);
-      drawRectInteractions(drawCtx);
+      const drawAfterClip = drawRectInteractions(drawCtx);
       c.restore();
+      if (typeof drawAfterClip === "function") {
+        if (Array.isArray(options.collectInteractionTooltips)) {
+          options.collectInteractionTooltips.push(() => {
+            c.save();
+            c.translate(center.x, center.y);
+            c.rotate(a);
+            drawAfterClip();
+            c.restore();
+          });
+        } else {
+          drawAfterClip();
+        }
+      }
       c.restore();
       if (installView && !cellEditActive && !clusterEditActive && !flowEditActive && !(options && options.suppressRigOverlay) && showInstallRigLayer) {
         const forceRigOverlay = !!(options && options.forceRigOverlay);

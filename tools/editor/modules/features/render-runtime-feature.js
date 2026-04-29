@@ -5,8 +5,10 @@ import { setupViewportResizeController } from "../render/viewport-resize-control
 export const setupRenderRuntimeFeature = (deps = {}) => {
   const {
     ctx,
+    overlayCtx,
     st,
     cv,
+    overlayCanvas,
     wrap,
     getViewMetrics,
     s2w,
@@ -35,7 +37,7 @@ export const setupRenderRuntimeFeature = (deps = {}) => {
   } = deps;
 
   const renderPipeline = setupRenderPipeline({
-    ctx, st, cv, wrap,
+    ctx, overlayCtx, st, cv, overlayCanvas, wrap,
     getViewMetrics,
     s2w,
     rectAABB,
@@ -58,10 +60,12 @@ export const setupRenderRuntimeFeature = (deps = {}) => {
     isClusterEditMode
   });
 
-  const { render, renderNow } = setupRenderRuntimeController({
+  const { render, renderNow, renderOverlay, renderOverlayNow } = setupRenderRuntimeController({
     ctx,
+    overlayCtx,
     st,
     cv,
+    overlayCanvas,
     wrap,
     s2w,
     w2s,
@@ -74,6 +78,7 @@ export const setupRenderRuntimeFeature = (deps = {}) => {
   const viewportResizeController = setupViewportResizeController({
     st,
     cv,
+    overlayCanvas,
     wrap,
     bindWindowEvent,
     bindEvent,
@@ -85,6 +90,8 @@ export const setupRenderRuntimeFeature = (deps = {}) => {
 
   return {
     render,
+    renderOverlay,
+    renderOverlayNow,
     renderNow,
     updateAppViewportHeight: viewportResizeController.updateAppViewportHeight,
     resize: viewportResizeController.resize,

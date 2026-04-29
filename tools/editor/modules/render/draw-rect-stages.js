@@ -70,8 +70,10 @@ export const setupDrawRectStagesController = (deps = {}) => {
     const { c, r, sel, w, h, cellX, cellY } = ctx;
     const drawFlowEditOverlay = getDrawFlowEditOverlay();
     const drawClusterEditOverlay = getDrawClusterEditOverlay();
-    if (st.mode === "flowEdit" && sel && r.id === st.sel) drawFlowEditOverlay(c, w, h);
+    let drawAfterClip = null;
+    if (st.mode === "flowEdit" && sel && r.id === st.sel) drawAfterClip = drawFlowEditOverlay(c, w, h, { deferTooltip: true }) || null;
     if (isClusterEditMode() && sel && r.id === st.sel) drawClusterEditOverlay(c, r, w, h, cellX, cellY);
+    return drawAfterClip;
   };
 
   return {

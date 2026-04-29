@@ -1,6 +1,6 @@
 export const setupRenderPipeline = (deps = {}) => {
   const {
-    ctx, st, cv, wrap,
+    ctx, overlayCtx, st, cv, overlayCanvas, wrap,
     getViewMetrics, s2w, rectAABB, getOrigin, isSelected,
     drawRect, drawInterScreenFlowLinks, drawMaskOverlay, drawCellEditOverlay, drawContentBounds, drawMultiSelectionActions,
     drawGrid, drawGuides, drawDistanceGuide, drawInstallSummaryOverlay, drawLayerButtons, updateNoteEditorOverlay,
@@ -21,7 +21,7 @@ export const setupRenderPipeline = (deps = {}) => {
     if (!isClusterEditMode()) resetClusterHoverTransient();
   };
 
-  const drawDraftOverlay = z => {
+  const drawDraftOverlay = (c, z) => {
     if (!st.draft) return;
     const d = st.draft;
     const scale = Math.max(1, Math.round(Number(st.globalScale) || 256));
@@ -31,41 +31,65 @@ export const setupRenderPipeline = (deps = {}) => {
     const fmt = v => Number.isInteger(v) ? String(v) : String(v).replace(".", ",");
     const meterUnit = (typeof document !== "undefined" && /^en\b/i.test(document.documentElement.getAttribute("lang") || "")) ? "m" : "м";
     const label = `${fmt(wm)} x ${fmt(hm)} ${meterUnit}`;
-    ctx.strokeStyle = "#7fd4f8";
-    ctx.lineWidth = 1 / z;
-    ctx.setLineDash([8 / z, 5 / z]);
-    ctx.strokeRect(d.x, d.y, d.width, d.height);
-    ctx.setLineDash([]);
-    ctx.save();
+    c.strokeStyle = "#7fd4f8";
+    c.lineWidth = 1 / z;
+    c.setLineDash([8 / z, 5 / z]);
+    c.strokeRect(d.x, d.y, d.width, d.height);
+    c.setLineDash([]);
+    c.save();
     const ui = 1 / Math.max(0.01, z);
-    ctx.font = `${12 * ui}px sans-serif`;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
+    c.font = `${12 * ui}px sans-serif`;
+    c.textAlign = "left";
+    c.textBaseline = "top";
     const pad = 5 * ui;
-    const tw = ctx.measureText(label).width;
+    const tw = c.measureText(label).width;
     const bx = (Number.isFinite(Number(d.pointerX)) ? Number(d.pointerX) : d.x) + 8 * ui;
     const by = (Number.isFinite(Number(d.pointerY)) ? Number(d.pointerY) : d.y) + 8 * ui;
-    ctx.fillStyle = "rgba(15,19,24,.82)";
-    ctx.fillRect(bx - pad, by - pad, tw + pad * 2, 16 * ui + pad * 2);
-    ctx.fillStyle = "rgba(255,255,255,.95)";
-    ctx.fillText(label, bx, by);
-    ctx.restore();
+    c.fillStyle = "rgba(15,19,24,.82)";
+    c.fillRect(bx - pad, by - pad, tw + pad * 2, 16 * ui + pad * 2);
+    c.fillStyle = "rgba(255,255,255,.95)";
+    c.fillText(label, bx, by);
+    c.restore();
   };
 
-  const drawSelectionBoxOverlay = z => {
+  const drawSelectionBoxOverlay = (c, z) => {
     if (!st.selBox) return;
     const b = selBoxBounds(st.selBox);
-    ctx.save();
-    ctx.strokeStyle = "rgba(125,208,255,.95)";
-    ctx.fillStyle = "rgba(125,208,255,.12)";
-    ctx.lineWidth = Math.max(1, 1.2 / z);
-    ctx.setLineDash([6 / z, 4 / z]);
-    ctx.fillRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY);
-    ctx.strokeRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY);
-    ctx.restore();
+    c.save();
+    c.strokeStyle = "rgba(125,208,255,.95)";
+    c.fillStyle = "rgba(125,208,255,.12)";
+    c.lineWidth = Math.max(1, 1.2 / z);
+    c.setLineDash([6 / z, 4 / z]);
+    c.fillRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY);
+    c.strokeRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY);
+    c.restore();
   };
 
-  const drawVisibleRects = (z, forceLowDetail, drawOptions = {}) => {
+  const drawDeferredTextJob = (c, job, z) => {
+    if (!job || !job.overlay) return;
+    const ov = job.overlay;
+    c.save();
+    c.translate(job.centerX, job.centerY);
+    c.rotate(job.angle || 0);
+    if (Array.isArray(job.hiddenRects) && job.hiddenRects.length) {
+      c.beginPath();
+      c.rect(-job.w / 2, -job.h / 2, job.w, job.h);
+      for (const rc of job.hiddenRects) c.rect(rc.x, rc.y, rc.w, rc.h);
+      c.clip("evenodd");
+    }
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.font = `${ov.layout.fs}px ${ov.font}`;
+    c.fillStyle = ov.txtTheme.bg;
+    c.fillRect(ov.layout.textLeft, ov.layout.textTop, ov.layout.tw, ov.layout.th);
+    c.fillStyle = ov.txtTheme.text;
+    for (let i = 0; i < ov.ls.length; i++) {
+      c.fillText(ov.ls[i], ov.layout.textX, ov.layout.sy + i * ov.layout.lh, ov.maxW);
+    }
+    c.restore();
+  };
+
+  const drawVisibleRects = (c, z, forceLowDetail, drawOptions = {}) => {
     const vm = getViewMetrics();
     const vw0 = s2w(0, 0);
     const vw1 = s2w(vm.viewWidth, vm.viewHeight);
@@ -79,50 +103,119 @@ export const setupRenderPipeline = (deps = {}) => {
       const rr = st.rects[i];
       const bb = rectAABB(rr);
       if (bb.maxX < viewMinX || bb.minX > viewMaxX || bb.maxY < viewMinY || bb.minY > viewMaxY) continue;
-      drawRect(ctx, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, ...drawOptions });
+      drawRect(c, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, ...drawOptions });
     }
+  };
+
+  const profilerEnabled = () => !!(st && (st.renderProfiler || (typeof location !== "undefined" && /(?:^|[?&])profile=1(?:&|$)/.test(location.search || ""))));
+  const profileSection = (profile, name, fn) => {
+    if (!profile) return fn();
+    const start = performance.now();
+    try {
+      return fn();
+    } finally {
+      profile.sections.push({ name, ms: performance.now() - start });
+    }
+  };
+  const drawRenderProfileOverlay = c => {
+    if (!profilerEnabled() || !st.renderProfile || !Array.isArray(st.renderProfile.sections)) return;
+    c.save();
+    const dpr = window.devicePixelRatio || 1;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.font = "12px monospace";
+    c.textAlign = "left";
+    c.textBaseline = "top";
+    const lines = [`render ${Number(st.renderProfile.totalMs || 0).toFixed(1)} ms`]
+      .concat(st.renderProfile.sections.map(it => `${it.name}: ${Number(it.ms || 0).toFixed(1)} ms`));
+    const width = Math.max(140, ...lines.map(line => c.measureText(line).width + 14));
+    const height = lines.length * 16 + 10;
+    c.fillStyle = "rgba(8,12,18,.82)";
+    c.fillRect(10, 10, width, height);
+    c.fillStyle = "rgba(255,255,255,.9)";
+    lines.forEach((line, i) => c.fillText(line, 17, 16 + i * 16));
+    c.restore();
+  };
+  const clearOverlayCanvas = dpr => {
+    if (!overlayCtx || !overlayCanvas) return false;
+    overlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    overlayCtx.clearRect(0, 0, overlayCanvas.clientWidth || cv.clientWidth, overlayCanvas.clientHeight || cv.clientHeight);
+    return true;
+  };
+
+  const renderOverlay = (renderState = {}) => {
+    const dpr = window.devicePixelRatio || 1;
+    const vm = getViewMetrics();
+    const z = st.zoom || 1;
+    const c = overlayCtx || ctx;
+    if (overlayCtx && !clearOverlayCanvas(dpr)) return;
+    if (!overlayCtx) c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.save();
+    c.translate(vm.centerX, vm.centerY);
+    c.scale(z, z);
+    c.translate(-st.camX, -st.camY);
+    const profile = renderState.profile || null;
+    profileSection(profile, "draft/selection", () => {
+      drawDraftOverlay(c, z);
+      drawSelectionBoxOverlay(c, z);
+    });
+    if (!renderState.skipHeavyOverlays) {
+      profileSection(profile, "edit overlays", () => {
+        drawMaskOverlay(c, z);
+        drawCellEditOverlay(c, z);
+      });
+    }
+    if (!renderState.skipHeavyOverlays || st.pan) {
+      profileSection(profile, "bounds", () => drawContentBounds(c, z));
+    }
+    if (!renderState.skipHeavyOverlays && typeof drawMultiSelectionActions === "function") {
+      profileSection(profile, "multi actions", () => drawMultiSelectionActions(c, z));
+    }
+    if (!renderState.skipHeavyOverlays && typeof drawLayerButtons === "function") {
+      profileSection(profile, "layer buttons", () => drawLayerButtons(c, z));
+    }
+    c.restore();
+    profileSection(profile, "guides", () => {
+      if (typeof drawGuidesFn === "function") drawGuidesFn(c);
+      if (typeof drawDistanceGuideFn === "function") drawDistanceGuideFn(c);
+    });
+    drawRenderProfileOverlay(c);
   };
 
   const renderScene = renderState => {
     const dpr = window.devicePixelRatio || 1;
-    const vm = getViewMetrics();
     const z = st.zoom || 1;
+    const profile = renderState && renderState.profile ? renderState.profile : null;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight);
-    if (typeof drawGridFn === "function") drawGridFn();
+    if (overlayCtx) clearOverlayCanvas(dpr);
+    profileSection(profile, "grid", () => { if (typeof drawGridFn === "function") drawGridFn(); });
+    const vm = getViewMetrics();
     ctx.save();
     ctx.translate(vm.centerX, vm.centerY);
     ctx.scale(z, z);
     ctx.translate(-st.camX, -st.camY);
     const installFlowLayering = String(st.viewMode || "") === "install";
+    const interactionTooltips = [];
     const showInstallFlowLayer = !(st.installLayers && st.installLayers.flow === false) || st.mode === "flowEdit";
     if (installFlowLayering) {
-      drawVisibleRects(z, !!renderState.forceLowDetail, { installTextMode: "skip" });
-      if (showInstallFlowLayer) drawInterScreenFlowLinks(ctx);
-      drawVisibleRects(z, !!renderState.forceLowDetail, { installTextMode: "only", includeFlow: false });
+      const installTextJobs = [];
+      profileSection(profile, "rects", () => drawVisibleRects(ctx, z, !!renderState.forceLowDetail, { installTextMode: "skip", collectInstallTextOverlays: installTextJobs, collectInteractionTooltips: interactionTooltips }));
+      if (showInstallFlowLayer) profileSection(profile, "screen links", () => drawInterScreenFlowLinks(ctx));
+      profileSection(profile, "screen text", () => { for (const job of installTextJobs) drawDeferredTextJob(ctx, job, z); });
     } else {
-      drawVisibleRects(z, !!renderState.forceLowDetail);
-      drawInterScreenFlowLinks(ctx);
+      profileSection(profile, "rects", () => drawVisibleRects(ctx, z, !!renderState.forceLowDetail, { collectInteractionTooltips: interactionTooltips }));
+      profileSection(profile, "screen links", () => drawInterScreenFlowLinks(ctx));
     }
-    drawDraftOverlay(z);
-    drawSelectionBoxOverlay(z);
-    if (!renderState.skipHeavyOverlays) {
-      drawMaskOverlay(ctx, z);
-      drawCellEditOverlay(ctx, z);
-    }
-    if (!renderState.skipHeavyOverlays || st.pan) {
-      drawContentBounds(ctx, z);
-    }
-    if (!renderState.skipHeavyOverlays && typeof drawMultiSelectionActions === "function") {
-      drawMultiSelectionActions(ctx, z);
-    }
-    if (!renderState.skipHeavyOverlays && typeof drawLayerButtons === "function") {
-      drawLayerButtons(ctx, z);
+    if (interactionTooltips.length) {
+      profileSection(profile, "tooltips", () => {
+        for (const drawTooltip of interactionTooltips) {
+          if (typeof drawTooltip === "function") drawTooltip();
+        }
+      });
     }
     ctx.restore();
-    if (typeof drawGuidesFn === "function") drawGuidesFn();
-    if (typeof drawDistanceGuideFn === "function") drawDistanceGuideFn();
-    if (typeof drawInstallSummaryOverlay === "function") drawInstallSummaryOverlay(ctx);
+    profileSection(profile, "overlay", () => renderOverlay(renderState));
+    if (typeof drawInstallSummaryOverlay === "function") profileSection(profile, "summary", () => drawInstallSummaryOverlay(ctx));
     if (wrap) wrap.dataset.panning = st.pan ? "1" : "0";
     updateNoteEditorOverlay();
   };
@@ -130,6 +223,7 @@ export const setupRenderPipeline = (deps = {}) => {
   return {
     resetFrameTransient,
     renderScene,
+    renderOverlay,
     setGridRenderer: fn => { drawGridFn = fn; },
     setGuidesRenderer: fn => { drawGuidesFn = fn; },
     setDistanceGuideRenderer: fn => { drawDistanceGuideFn = fn; }

@@ -39,8 +39,6 @@ export const setupFlowDrawController = (deps = {}) => {
 
   const flowDrawProgress = new Map();
   const flowGeomCache = new Map();
-  const flowDrawRefKey = new WeakMap();
-  let flowDrawRefSeq = 1;
   let flowDrawRaf = 0;
 
   const requestFlowDrawRender = () => {
@@ -64,13 +62,23 @@ export const setupFlowDrawController = (deps = {}) => {
   };
 
   const flowDrawKeyForGroups = groups => {
-    if (!groups || typeof groups !== "object") return "flow-empty";
-    let key = flowDrawRefKey.get(groups);
-    if (!key) {
-      key = `flow-${flowDrawRefSeq++}`;
-      flowDrawRefKey.set(groups, key);
-    }
-    return key;
+    if (!Array.isArray(groups) || !groups.length) return "flow-empty";
+    return groups.map(g => {
+      const pts = Array.isArray(g && g.points) ? g.points : [];
+      const pointKey = pts.map(p => [
+        Math.round(Number(p && p.cid) || 0),
+        Math.round((Number(p && p.u) || 0) * 100) / 100,
+        Math.round((Number(p && p.v) || 0) * 100) / 100,
+        Math.round(Number(p && p.spanCols) || 1),
+        Math.round(Number(p && p.spanRows) || 1)
+      ].join(",")).join(";");
+      return [
+        Math.round(Number(g && g.rid) || 0),
+        String(g && g.label || ""),
+        Array.isArray(g && g.rgb) ? g.rgb.join(",") : "",
+        pointKey
+      ].join(":");
+    }).join("|");
   };
 
   const getFlowDrawGeometry = (groups, w, h, skipCache = false) => {
@@ -229,6 +237,7 @@ export const setupFlowDrawController = (deps = {}) => {
     c.lineJoin = "round";
     const dotR = 16;
     const nodeR = 6;
+    const drawIntermediateNodes = Math.max(0.01, Number(z) || 1) >= 0.45 || st.mode === "flowEdit";
     c.font = `700 12px ${fontFamilyCss(st.fontFamily)}`;
     c.textAlign = "center";
     c.textBaseline = "middle";
@@ -294,7 +303,7 @@ export const setupFlowDrawController = (deps = {}) => {
         c.fill();
         c.restore();
       }
-      if (drewGroup && lastDrawnPointIndex > 1) {
+      if (drawIntermediateNodes && drewGroup && lastDrawnPointIndex > 1) {
         c.beginPath();
         const nodeEnd = Math.min(lastDrawnPointIndex, pts.length - 1);
         for (let i = 1; i < nodeEnd; i++) {
