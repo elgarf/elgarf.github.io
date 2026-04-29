@@ -85,10 +85,21 @@ export const setupRegionsFlowController = (deps = {}) => {
     return value;
   };
 
-  const getDataFlowGroups = (r, cx, cy, topo, hs, regions) => {
+  const getDataFlowGroups = (r, cx, cy, topo, hs, regions, opts = null) => {
+    const o = (opts && typeof opts === "object") ? opts : {};
     if (regions && regions._timedOut) {
       markCalcMetric("flow", 0, true);
       return [];
+    }
+    if (Object.keys(o).length) {
+      try {
+        const budget = makeCalcBudget();
+        budget.deadline = calcNow() + FLOW_WORKER_TIMEOUT_MS;
+        const value = getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget, o);
+        return Array.isArray(value) ? value : [];
+      } catch (_e) {
+        return [];
+      }
     }
     const manualRegionsActive = Array.isArray(r && r.manualClusters) && r.manualClusters.length > 0;
     const cache = getRectCalcCache(r);

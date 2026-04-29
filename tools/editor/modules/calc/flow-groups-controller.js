@@ -47,6 +47,7 @@ export const setupFlowGroupsController = (deps = {}) => {
     const zMode = !!(r && r.dataFlowZ);
     const onlyRidRaw = Number(opts && opts.onlyRid);
     const onlyRid = Number.isFinite(onlyRidRaw) ? toInt0(onlyRidRaw) : null;
+    const ignoreManualOrder = !!(opts && opts.ignoreManualOrder);
     if (mode === "none") return [];
     const manualRegionsActive = Array.isArray(r && r.manualClusters) && r.manualClusters.length > 0;
     let regionFlowCache = getDataFlowGroupsUncached._regionFlowCache;
@@ -213,6 +214,22 @@ export const setupFlowGroupsController = (deps = {}) => {
       }
       return ordered;
     };
+    const applyManualFlowOrder = (arr, manualOrder) => {
+      const items = Array.isArray(arr) ? arr : [];
+      const order = Array.isArray(manualOrder) ? manualOrder : [];
+      if (!items.length || !order.length) return [];
+      const byCid = new Map(items.map(it => [cidOf(it), it]));
+      const used = new Set();
+      const ordered = [];
+      for (const rawCid of order) {
+        const cid = toInt0(rawCid);
+        const it = byCid.get(cid);
+        if (!it || used.has(cid)) continue;
+        used.add(cid);
+        ordered.push(it);
+      }
+      return ordered;
+    };
     const orientEndpointsByMode = arr => (Array.isArray(arr) ? arr : []);
     const alignEndpointByMode = arr => (Array.isArray(arr) ? arr : []);
     const groupOf = it => {
@@ -261,13 +278,18 @@ export const setupFlowGroupsController = (deps = {}) => {
       const routing = getFlowStartRoutingRegion(r, rid);
       const localMode = resolveFlowModeFromStartAndDir(arr, routing, getFlowModeRegion(r, rid, mode));
       const regionLocks = getFlowLocksRegion(r, rid);
+      const manualOrder = Array.isArray(cfgRegion && cfgRegion.manualOrder) ? cfgRegion.manualOrder : [];
+      const manualFlow = !!(cfgRegion && cfgRegion.manual) && !ignoreManualOrder;
+      if (manualFlow && !manualOrder.length) continue;
       let baseOrderedRaw = orderByMode(arr, localMode, zMode);
       if (manualRegionsActive) baseOrderedRaw = buildManualRegionOrdered(arr, rid, localMode, zMode);
+      if (manualFlow) baseOrderedRaw = applyManualFlowOrder(baseOrderedRaw, manualOrder);
+      if (manualFlow && !baseOrderedRaw.length) continue;
       const baseAligned = alignEndpointByMode(baseOrderedRaw, localMode, routing);
       const baseOrdered = baseAligned.map((it, idx) => ({ ...it, baseIdx: idx }));
       const manualRoute = (routing && (((routing.startPinned && routing.startCid != null) || FLOW_DIR_SET.has(String(routing.startDir || "").toLowerCase()))));
       const hasLocks = Array.isArray(regionLocks) && regionLocks.length > 0;
-      const canUseRegionCache = !manualRegionsActive && !manualRoute && !hasLocks;
+      const canUseRegionCache = !manualRegionsActive && !manualRoute && !hasLocks && !manualFlow;
       const cachePrefix = `v2|${localMode}|${zMode ? 1 : 0}|`;
       const cacheKey = canUseRegionCache ? `${cachePrefix}${regionGeomKey(arr)}` : "";
       let zFallbackUsed = false;
@@ -309,7 +331,9 @@ export const setupFlowGroupsController = (deps = {}) => {
         }
       }
       if (!fromCache) {
-        if (!manualRoute && !hasLocks) {
+        if (manualFlow) {
+          ordered = baseOrdered;
+        } else if (!manualRoute && !hasLocks) {
           ordered = baseOrdered;
         } else if (!manualRoute) {
           ordered = (zMode ? baseOrdered : refineFlowOrder(baseOrdered));
@@ -326,9 +350,11 @@ export const setupFlowGroupsController = (deps = {}) => {
             if (baseCost + 1e-6 < optCost) ordered = baseOrdered;
           }
         }
-        ordered = applyFlowStartRouting(ordered, routing, budget);
-        ordered = applyFlowLocksToOrdered(ordered, regionLocks, budget);
-        if (pathSelfCrosses(ordered)) {
+        if (!manualFlow) {
+          ordered = applyFlowStartRouting(ordered, routing, budget);
+          ordered = applyFlowLocksToOrdered(ordered, regionLocks, budget);
+        }
+        if (!manualFlow && pathSelfCrosses(ordered)) {
           const head = ordered[0], rest = ordered.slice(1), base = (head && head.baseIdx != null) ? head.baseIdx : 0, strictState = { nodes: 0, limit: FLOW_SEARCH_NODE_LIMIT_STRICT, aborted: false };
           const strict = flowSearchOrder([head], rest, base, false, strictState);
           if (strict && !pathSelfCrosses(strict)) {
@@ -342,7 +368,7 @@ export const setupFlowGroupsController = (deps = {}) => {
             }
           }
         }
-        ordered = orientEndpointsByMode(ordered, localMode, routing);
+        if (!manualFlow) ordered = orientEndpointsByMode(ordered, localMode, routing);
         if (canUseRegionCache && cacheKey) {
           if (!pathSelfCrosses(ordered)) {
             const points = ordered.map(v => ({ cid: cidOf(v) }));
@@ -369,6 +395,8 @@ export const setupFlowGroupsController = (deps = {}) => {
         manualRegionsActive: !!manualRegionsActive,
         manualRoute: !!manualRoute,
         hasLocks: !!hasLocks,
+        manualFlow: !!manualFlow,
+        manualOrder: manualOrder.length,
         lockCount: Array.isArray(regionLocks) ? regionLocks.length : 0,
         fromCache: !!fromCache,
         zFallback: !!zFallbackUsed,

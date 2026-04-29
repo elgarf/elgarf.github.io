@@ -33,6 +33,18 @@ export const setupFlowEditHitTestController = (deps = {}) => {
     return null;
   };
 
+  const findFlowResetButton = (wx, wy, rid = null) => {
+    const pts = Array.isArray(st.flowResetButtons) ? st.flowResetButtons : [], maxDist = Math.min(14, Math.max(6, 9 / Math.max(0.2, st.zoom || 1)));
+    let best = null, bestD = Infinity;
+    for (const p of pts) {
+      if (rid != null && p.rid !== rid) continue;
+      const d = Math.hypot((+p.x || 0) - wx, (+p.y || 0) - wy);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    if (best && bestD <= maxDist) return best;
+    return null;
+  };
+
   const ensureFlowPointIndex = () => {
     const pts = Array.isArray(st.flowEditPoints) ? st.flowEditPoints : [];
     if (flowPointIndexSrc === pts && flowPointIndexMap) return;
@@ -86,8 +98,8 @@ export const setupFlowEditHitTestController = (deps = {}) => {
   return {
     findFlowStartHandle,
     findFlowDirectionButton,
+    findFlowResetButton,
     findFlowEditPoint,
     resetFlowPointIndexCache
   };
 };
-

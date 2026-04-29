@@ -2,6 +2,8 @@ export function setupFlowAnchorPointsController(deps = {}) {
   const {
     st,
     rectUVToWorld,
+    maskCellKey,
+    getFlowRegionConfig,
     getFlowStartRoutingRegion,
     FLOW_DIR_SET
   } = deps;
@@ -46,6 +48,8 @@ export function setupFlowAnchorPointsController(deps = {}) {
     for (const g of groups) {
       const rid = Math.max(0, Math.round(Number(g && g.rid) || 0));
       const pts = Array.isArray(g && g.points) ? g.points : [];
+      const regionCfg = typeof getFlowRegionConfig === "function" ? getFlowRegionConfig(r, rid) : null;
+      const manualOrder = Array.isArray(regionCfg && regionCfg.manualOrder) ? regionCfg.manualOrder : [];
       if (!pts.length) continue;
       const split = getSplitFlowMarkerWorldPositions(r, pts);
       const s0 = pts[0];
@@ -59,6 +63,7 @@ export function setupFlowAnchorPointsController(deps = {}) {
         seen.add(sk);
         st.flowLinkAnchors.push({ rectId: r.id, rid, cid: scid, kind: "start", x: sw.x, y: sw.y });
       }
+      if (regionCfg && regionCfg.manual && manualOrder.length < 2) continue;
       const e0 = pts[pts.length - 1];
       const eu = +e0.u || 0;
       const ev = +e0.v || 0;
@@ -73,20 +78,24 @@ export function setupFlowAnchorPointsController(deps = {}) {
     }
   };
 
-  const collectFlowEditPoints = (r, groups) => {
+  const collectFlowEditPoints = (r, groups, opts = null) => {
     if (!r || !Array.isArray(groups)) return;
+    const manualPickMode = !!(opts && opts.manualPickMode);
     for (const g of groups) {
       const rid = Math.max(0, Math.round(Number(g && g.rid) || 0));
       const pts = Array.isArray(g && g.points) ? g.points : [];
+      const regionCfg = typeof getFlowRegionConfig === "function" ? getFlowRegionConfig(r, rid) : null;
+      const manualOrder = Array.isArray(regionCfg && regionCfg.manualOrder) ? regionCfg.manualOrder.map(v => Math.max(0, Math.round(Number(v) || 0))) : [];
+      const manualIndexByCid = new Map(manualOrder.map((cid, index) => [cid, index]));
       if (pts.length) {
         const p0 = pts[0];
         const singleCabRegion = (pts.length === 1)
           && (Math.max(1, Math.round(Number(p0 && p0.spanCols) || 1)) === 1)
           && (Math.max(1, Math.round(Number(p0 && p0.spanRows) || 1)) === 1);
-        if (singleCabRegion) continue;
+        if (singleCabRegion && !manualPickMode) continue;
       }
       const split = getSplitFlowMarkerWorldPositions(r, pts);
-      if (pts.length) {
+      if (pts.length && !manualPickMode) {
         const s0 = pts[0];
         const su = +s0.u || 0;
         const sv = +s0.v || 0;
@@ -133,11 +142,109 @@ export function setupFlowAnchorPointsController(deps = {}) {
         const v = +p.v || 0;
         const cid = Math.max(0, Math.round(Number(p && p.cid) || 0));
         const wp0 = rectUVToWorld(r, u, v);
-        const wp = (split && i === 0 && split.start)
+        const wp = manualPickMode ? wp0 : ((split && i === 0 && split.start)
           ? split.start
-          : ((split && i === pts.length - 1 && split.end) ? split.end : wp0);
-        st.flowEditPoints.push({ rectId: r.id, rid, index: i, cid, u, v, x: wp.x, y: wp.y });
+          : ((split && i === pts.length - 1 && split.end) ? split.end : wp0));
+        const manualIndex = manualIndexByCid.has(cid) ? manualIndexByCid.get(cid) : -1;
+        st.flowEditPoints.push({ rectId: r.id, rid, index: i, cid, u, v, x: wp.x, y: wp.y, manualIndex, manualActive: manualIndex >= 0, manualMode: manualPickMode });
+        if (manualPickMode && manualIndex === 0) {
+          st.flowStartHandles.push({
+            rectId: r.id,
+            rid,
+            cid,
+            u,
+            v,
+            x: wp.x,
+            y: wp.y,
+            zFallback: !!(g && g.zFallback),
+            manualMode: true,
+            label: String((g && g.label) || "")
+          });
+          const resetWp = rectUVToWorld(r, u + 24, v - 24);
+          st.flowResetButtons.push({
+            rectId: r.id,
+            rid,
+            cid,
+            u: u + 24,
+            v: v - 24,
+            x: resetWp.x,
+            y: resetWp.y
+          });
+        }
       }
+    }
+  };
+
+  const collectFlowManualPickPoints = (r, cx, cy, topo, hs, regions) => {
+    if (!r || !topo || !regions || !Array.isArray(regions.cellToRegion)) return;
+    const cols = Math.max(1, Math.round(Number(topo.cols) || 1));
+    const rows = Math.max(1, Math.round(Number(topo.rows) || 1));
+    const comp = Array.isArray(topo.comp) ? topo.comp : [];
+    const manualRegionsActive = Array.isArray(r.manualClusters) && r.manualClusters.length > 0;
+    const stat = new Map();
+    const ridOfCell = (ix, iy) => {
+      const idx = iy * cols + ix;
+      const rid = Number(regions.cellToRegion[idx]);
+      return Number.isFinite(rid) && rid >= 0 ? Math.max(0, Math.round(rid || 0)) : -1;
+    };
+    for (let iy = 0; iy < rows; iy++) {
+      for (let ix = 0; ix < cols; ix++) {
+        if (hs && typeof maskCellKey === "function" && hs.has(maskCellKey(ix, iy))) continue;
+        const rid = ridOfCell(ix, iy);
+        if (rid < 0) continue;
+        const idx = iy * cols + ix;
+        const cid = Math.max(0, Math.round(Number(comp[idx]) || 0));
+        const cw = Math.min(cx, r.width - ix * cx);
+        const ch = Math.min(cy, r.height - iy * cy);
+        const u = ix * cx + cw / 2;
+        const v = iy * cy + ch / 2;
+        const key = manualRegionsActive ? `${rid}|${cid}` : `0|${cid}`;
+        let s = stat.get(key);
+        if (!s) {
+          s = { cid, rid: manualRegionsActive ? rid : 0, sumU: 0, sumV: 0, count: 0, ridCounts: {} };
+          stat.set(key, s);
+        }
+        s.sumU += u;
+        s.sumV += v;
+        s.count++;
+        if (!manualRegionsActive) s.ridCounts[String(rid)] = (s.ridCounts[String(rid)] | 0) + 1;
+      }
+    }
+    const existing = new Set((Array.isArray(st.flowEditPoints) ? st.flowEditPoints : []).map(p => `${p.rid}|${p.cid}`));
+    for (const s of stat.values()) {
+      if (!s || !(s.count > 0)) continue;
+      let rid = Math.max(0, Math.round(Number(s.rid) || 0));
+      if (!manualRegionsActive) {
+        let best = -1;
+        for (const [rk, rv] of Object.entries(s.ridCounts || {})) {
+          const count = rv | 0;
+          const id = Math.max(0, Math.round(Number(rk) || 0));
+          if (count > best) { best = count; rid = id; }
+        }
+      }
+      const cid = Math.max(0, Math.round(Number(s.cid) || 0));
+      const key = `${rid}|${cid}`;
+      if (existing.has(key)) continue;
+      const cfg = typeof getFlowRegionConfig === "function" ? getFlowRegionConfig(r, rid) : null;
+      const manualOrder = Array.isArray(cfg && cfg.manualOrder) ? cfg.manualOrder.map(v => Math.max(0, Math.round(Number(v) || 0))) : [];
+      const manualIndex = manualOrder.indexOf(cid);
+      const u = s.sumU / s.count;
+      const v = s.sumV / s.count;
+      const wp = rectUVToWorld(r, u, v);
+      st.flowEditPoints.push({
+        rectId: r.id,
+        rid,
+        index: 100000 + st.flowEditPoints.length,
+        cid,
+        u,
+        v,
+        x: wp.x,
+        y: wp.y,
+        manualIndex,
+        manualActive: manualIndex >= 0,
+        manualMode: true
+      });
+      existing.add(key);
     }
   };
 
@@ -145,6 +252,7 @@ export function setupFlowAnchorPointsController(deps = {}) {
     getSplitFlowMarkerOffset,
     getSplitFlowMarkerWorldPositions,
     collectFlowLinkAnchors,
-    collectFlowEditPoints
+    collectFlowEditPoints,
+    collectFlowManualPickPoints
   };
 }

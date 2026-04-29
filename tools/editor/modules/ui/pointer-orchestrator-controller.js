@@ -173,9 +173,9 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (!isRigEditMode()) return false;
     return !!handleRigPointerDown(p);
   };
-  const handlePointerDownFlow = p => {
+  const handlePointerDownFlow = (p, opts = null) => {
     if (st.mode !== "flowEdit") return false;
-    return !!handleFlowEditPointerDown(p);
+    return !!handleFlowEditPointerDown(p, opts);
   };
   const handlePointerDownSelect = (p, opts = null) => navigationController.handlePointerDownSelect(p, opts);
   const toggleInstallLayer = id => {
@@ -220,7 +220,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (handlePointerDownCell(p)) return;
     if (handlePointerDownCluster(p)) return;
     if (handlePointerDownRig(p)) return;
-    if (handlePointerDownFlow(p)) return;
+    if (handlePointerDownFlow(p, opts)) return;
     if (st.mode === "select") {
       const h = hit(p.x, p.y);
       if (h && isNoteRect(h) && !isRectLocked(h) && isNoteResizeHit(h, p)) {

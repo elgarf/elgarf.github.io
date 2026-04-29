@@ -1,3 +1,5 @@
+import { drawCanvasTooltip } from "../render/canvas-tooltip.js";
+
 export const setupMultiSelectionActionsController = (deps = {}) => {
   const {
     st,
@@ -12,14 +14,19 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     drawCellY,
     getCellTopologyCached,
     getHiddenSet,
-    buildVisibleCabinetSummary
+    buildVisibleCabinetSummary,
+    t = value => value
   } = deps;
 
   const ACTIONS = [
-    { id: "packX", title: "Расставить рядом по горизонтали", icon: "\uf07e", marker: "packX" },
-    { id: "packY", title: "Расставить рядом по вертикали", icon: "\uf07d", marker: "packY" },
-    { id: "distX", title: "Распределить по горизонтали", icon: "\uf337", marker: "distX" },
-    { id: "distY", title: "Распределить по вертикали", icon: "\uf338", marker: "distY" }
+    { id: "alignLeft", row: 0, col: 0, title: "Прижать к левому краю", icon: "\ue4b8", rotate: Math.PI / 2, marker: "alignLeft" },
+    { id: "alignRight", row: 0, col: 1, title: "Прижать к правому краю", icon: "\ue4b8", rotate: -Math.PI / 2, marker: "alignRight" },
+    { id: "alignTop", row: 0, col: 2, title: "Прижать к верхнему краю", icon: "\ue4b8", rotate: Math.PI, marker: "alignTop" },
+    { id: "alignBottom", row: 0, col: 3, title: "Прижать к нижнему краю", icon: "\ue4b8", rotate: 0, marker: "alignBottom" },
+    { id: "packX", row: 1, col: 0, title: "Расставить рядом по горизонтали", icon: "\uf07e", marker: "packX" },
+    { id: "packY", row: 1, col: 1, title: "Расставить рядом по вертикали", icon: "\uf07d", marker: "packY" },
+    { id: "distX", row: 1, col: 2, title: "Распределить по горизонтали", icon: "\uf337", marker: "distX" },
+    { id: "distY", row: 1, col: 3, title: "Распределить по вертикали", icon: "\uf338", marker: "distY" }
   ];
 
   const selectedItems = () => {
@@ -62,11 +69,11 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
     const size = Math.max(22, 28 / zoom);
     const gap = Math.max(4, 5 / zoom);
-    const y = b.minY - size - gap;
-    return ACTIONS.map((action, i) => ({
+    const y = b.minY - size * 2 - gap * 2;
+    return ACTIONS.map(action => ({
       ...action,
-      x: b.minX + i * (size + gap),
-      y,
+      x: b.minX + (Number(action.col) || 0) * (size + gap),
+      y: y + (Number(action.row) || 0) * (size + gap),
       size
     }));
   };
@@ -204,17 +211,16 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
   };
 
   const distribute = axis => {
-    const items = selectedItems().sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.rect.id - b.rect.id);
+    const items = selectedItems().sort((a, b) => {
+      const am = axis === "x" ? a.minX : a.minY;
+      const bm = axis === "x" ? b.minX : b.minY;
+      const as = axis === "x" ? a.minY : a.minX;
+      const bs = axis === "x" ? b.minY : b.minX;
+      return am - bm || as - bs || a.rect.id - b.rect.id;
+    });
     if (items.length < 3) return false;
-    if (axis === "y") {
-      const first = items[0];
-      const last = items[items.length - 1];
-      const step = (last.minY - first.minY) / Math.max(1, items.length - 1);
-      for (let i = 1; i < items.length - 1; i++) moveItemTo(items[i], "y", first.minY + step * i);
-      return true;
-    }
-    const start = items[0].minX;
-    const end = items[items.length - 1].maxX;
+    const start = axis === "x" ? items[0].minX : items[0].minY;
+    const end = axis === "x" ? items[items.length - 1].maxX : items[items.length - 1].maxY;
     const total = items.reduce((sum, it) => sum + (axis === "x" ? it.width : it.height), 0);
     const gap = (end - start - total) / Math.max(1, items.length - 1);
     let cursor = start;
@@ -225,9 +231,40 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     return true;
   };
 
+  const alignToEdge = edge => {
+    const items = selectedItems();
+    const b = itemsBounds(items);
+    if (!b) return false;
+    let changed = false;
+    for (const it of items) {
+      let axis = "x";
+      let target = it.minX;
+      if (edge === "left") target = b.minX;
+      else if (edge === "right") target = b.maxX - it.width;
+      else if (edge === "top") {
+        axis = "y";
+        target = b.minY;
+      } else if (edge === "bottom") {
+        axis = "y";
+        target = b.maxY - it.height;
+      } else {
+        continue;
+      }
+      const prev = axis === "x" ? it.minX : it.minY;
+      if (Math.abs(target - prev) <= 1e-6) continue;
+      moveItemTo(it, axis, target);
+      changed = true;
+    }
+    return changed;
+  };
+
   const applyAction = id => {
     let changed = false;
-    if (id === "packX") changed = pack("x");
+    if (id === "alignLeft") changed = alignToEdge("left");
+    else if (id === "alignRight") changed = alignToEdge("right");
+    else if (id === "alignTop") changed = alignToEdge("top");
+    else if (id === "alignBottom") changed = alignToEdge("bottom");
+    else if (id === "packX") changed = pack("x");
     else if (id === "packY") changed = pack("y");
     else if (id === "distX") changed = distribute("x");
     else if (id === "distY") changed = distribute("y");
@@ -472,7 +509,15 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillStyle = hover ? "rgba(255,255,255,1)" : "rgba(255,255,255,.95)";
-    c.fillText(btn.icon, btn.x + btn.size / 2, btn.y + btn.size / 2 + btn.size * 0.03);
+    const cx = btn.x + btn.size / 2;
+    const cy = btn.y + btn.size / 2 + btn.size * 0.03;
+    if (Number(btn.rotate)) {
+      c.translate(cx, cy);
+      c.rotate(Number(btn.rotate) || 0);
+      c.fillText(btn.icon, 0, 0);
+    } else {
+      c.fillText(btn.icon, cx, cy);
+    }
     if (btn.marker === "distX" || btn.marker === "distY") {
       c.strokeStyle = hover ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.72)";
       c.lineWidth = Math.max(1, btn.size * 0.055);
@@ -482,7 +527,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
         c.lineTo(btn.x + btn.size * 0.2, btn.y + btn.size * 0.78);
         c.moveTo(btn.x + btn.size * 0.8, btn.y + btn.size * 0.22);
         c.lineTo(btn.x + btn.size * 0.8, btn.y + btn.size * 0.78);
-      } else {
+      } else if (btn.marker === "distY") {
         c.moveTo(btn.x + btn.size * 0.22, btn.y + btn.size * 0.2);
         c.lineTo(btn.x + btn.size * 0.78, btn.y + btn.size * 0.2);
         c.moveTo(btn.x + btn.size * 0.22, btn.y + btn.size * 0.8);
@@ -568,6 +613,10 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
       c.stroke();
       c.fillStyle = "rgba(255,255,255,.95)";
       c.fillText(label, x + padX, y + h / 2);
+    }
+    const hoveredButton = buttons.find(btn => st.multiSelectionActionHover === btn.id);
+    if (hoveredButton) {
+      drawCanvasTooltip(c, t(hoveredButton.title), hoveredButton.x + hoveredButton.size / 2, hoveredButton.y + hoveredButton.size, z, { align: "below" });
     }
     c.restore();
   };

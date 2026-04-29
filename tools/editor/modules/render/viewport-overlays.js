@@ -1,3 +1,5 @@
+import { drawCanvasTooltip } from "./canvas-tooltip.js";
+
 export const setupViewportOverlays = (deps = {}) => {
   const {
     st,
@@ -420,6 +422,10 @@ export const setupViewportOverlays = (deps = {}) => {
       c.textBaseline = "middle";
       c.fillStyle = on ? "rgba(255,255,255,.98)" : "rgba(255,255,255,.62)";
       c.fillText(btn.icon, btn.x + btn.size / 2, btn.y + btn.size / 2 + btn.size * 0.02);
+    }
+    const hoveredButton = buttons.find(btn => st.installLayerButtonHover === btn.id);
+    if (hoveredButton) {
+      drawCanvasTooltip(c, t(hoveredButton.title), hoveredButton.x + hoveredButton.size, hoveredButton.y + hoveredButton.size / 2, z);
     }
     c.restore();
   };

@@ -14,6 +14,7 @@ export const setupTransientStateController = (deps = {}) => {
   const resetFlowHoverTransient = () => {
     st.flowHover = null;
     st.flowDirHover = null;
+    st.flowResetHover = null;
     st.flowLinkHover = null;
   };
 
@@ -74,8 +75,10 @@ export const setupTransientStateController = (deps = {}) => {
       st.cellHoverPos = null;
       st.flowHover = null;
       st.flowDirHover = null;
+      st.flowResetHover = null;
       st.flowRegionRid = null;
       st.flowDrag = null;
+      st.manualFlowDrag = null;
       st.flowDragPreview = null;
       st.flowLinkHover = null;
       st.flowLinkPending = null;

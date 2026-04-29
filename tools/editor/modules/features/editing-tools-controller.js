@@ -305,7 +305,9 @@ export const setupEditingToolsInput = (deps = {}) => {
     findFlowLinkAtPoint,
     findFlowStartHandle,
     findFlowDirectionButton,
+    findFlowResetButton,
     setFlowDirection,
+    resetFlowRegionOverrides,
     rebuildAndPatchFlowRegion,
     findFlowLinkAnchorAtPoint,
     updateFlowLinkDragTarget,
@@ -324,7 +326,49 @@ export const setupEditingToolsInput = (deps = {}) => {
     st.flowDragPreview = null;
   };
 
-  const handleFlowEditPointerDown = p => {
+  const handleFlowEditPointerDown = (p, _opts = null) => {
+    if (String(st.flowEditVariant || "auto") === "manual") {
+      const h = hit(p.x, p.y);
+      if (!h) {
+        clearFlowLinkInteractionState();
+        selRect(null);
+        render();
+        return true;
+      }
+      if (h.id !== st.sel) {
+        selRect(h.id);
+        render();
+        return true;
+      }
+      if (isRectLocked(h)) {
+        render();
+        return true;
+      }
+      const resetBtn = typeof findFlowResetButton === "function" ? findFlowResetButton(p.x, p.y) : null;
+      if (resetBtn && typeof resetFlowRegionOverrides === "function") {
+        const r = cur();
+        if (r) {
+          st.flowRegionRid = resetBtn.rid;
+          resetFlowRegionOverrides(r, resetBtn.rid);
+          if (typeof rebuildAndPatchFlowRegion === "function") rebuildAndPatchFlowRegion(r, resetBtn.rid, 5000);
+          schedulePersist("project");
+          syncProps();
+        }
+        st.flowResetHover = null;
+        render();
+        return true;
+      }
+      const fp = findFlowEditPoint(p.x, p.y);
+      if (fp) {
+        st.flowRegionRid = fp.rid;
+        st.manualFlowDrag = { rid: fp.rid, cid: fp.cid, lastCid: fp.cid, downX: p.x, downY: p.y, moved: false, appliedStart: false, changed: false };
+        syncProps();
+        render();
+        return true;
+      }
+      render();
+      return true;
+    }
     const linkHit = findFlowLinkAtPoint(p.x, p.y);
     if (linkHit && linkHit.link) {
       const killKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;

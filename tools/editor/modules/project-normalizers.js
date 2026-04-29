@@ -139,10 +139,14 @@ export const normalizeFlowLocks = raw => {
     let startDir = "";
     let mode = "";
     let startPinned = false;
+    let manual = false;
+    let manualOrderSrc = [];
     if (Array.isArray(val)) {
       locksSrc = val;
     } else if (val && typeof val === "object") {
       locksSrc = Array.isArray(val.locks) ? val.locks : [];
+      manual = !!val.manual;
+      manualOrderSrc = Array.isArray(val.manualOrder) ? val.manualOrder : [];
       if (val.startCid !== null && val.startCid !== undefined && String(val.startCid) !== "") {
         const parsedStartCid = Number(val.startCid);
         if (Number.isFinite(parsedStartCid)) startCid = Math.max(0, Math.round(parsedStartCid || 0));
@@ -152,6 +156,14 @@ export const normalizeFlowLocks = raw => {
       startPinned = !!val.startPinned;
       const m = String(val.mode || "");
       if (DATA_FLOW_MODES.has(m) && m !== "none") mode = m;
+    }
+    const manualOrder = [];
+    const seenManual = new Set();
+    for (const rawCid of manualOrderSrc) {
+      const cid = Math.max(0, Math.round(Number(rawCid) || 0));
+      if (seenManual.has(cid)) continue;
+      seenManual.add(cid);
+      manualOrder.push(cid);
     }
     const norm = [];
     const seen = new Set();
@@ -164,9 +176,9 @@ export const normalizeFlowLocks = raw => {
       norm.push({ index, cid });
     }
     norm.sort((a, b) => a.index - b.index);
-    if (!norm.length && startCid == null && !startDir) continue;
+    if (!norm.length && startCid == null && !startDir && !mode && !manual && !manualOrder.length) continue;
     if (startCid != null && startPinned !== true && FLOW_DIR_SET.has(startDir)) startPinned = true;
-    out[String(rid)] = { locks: norm, startCid, startDir, mode, startPinned: !!startPinned };
+    out[String(rid)] = { locks: norm, startCid, startDir, mode, startPinned: !!startPinned, manual: !!manual, manualOrder };
   }
   return out;
 };

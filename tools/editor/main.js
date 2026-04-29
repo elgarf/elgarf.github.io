@@ -430,10 +430,12 @@ const flowLocksSignature = r => {
   const locks = normalizeFlowLocks(r && r.flowLocks), parts = [];
   for (const key of Object.keys(locks).sort((a, b) => (+a) - (+b))) {
     const cfg = locks[key] || {}, arr = Array.isArray(cfg.locks) ? cfg.locks : [];
+    const manualOrder = Array.isArray(cfg.manualOrder) ? cfg.manualOrder : [];
     const startPart = ((cfg.startPinned && cfg.startCid != null) || cfg.startDir) ? `@${cfg.startPinned && cfg.startCid != null ? cfg.startCid : ""}:${cfg.startDir || ""}:${cfg.startPinned ? "1" : "0"}` : "";
     const modePart = (cfg.mode && cfg.mode !== "none") ? `#${cfg.mode}` : "";
-    if (!arr.length && !startPart && !modePart) continue;
-    parts.push(`${key}:${arr.map(it => `${it.index}-${it.cid}`).join(",")}${startPart}${modePart}`);
+    const manualPart = cfg.manual ? `!${manualOrder.join(",")}` : "";
+    if (!arr.length && !startPart && !modePart && !manualPart) continue;
+    parts.push(`${key}:${arr.map(it => `${it.index}-${it.cid}`).join(",")}${startPart}${modePart}${manualPart}`);
   }
   return parts.join("|");
 };
@@ -468,7 +470,10 @@ const {
   setFlowStart,
   setFlowDirection,
   setFlowRegionMode,
-  resetFlowRegionOverrides
+  resetFlowRegionOverrides,
+  setManualFlowOrder,
+  updateManualFlowPoint,
+  dragManualFlowPoint
 } = setupFlowRegionConfigController({
   normalizeFlowLocks,
   normalizeDataFlow,
@@ -518,10 +523,13 @@ const {
 const {
   getSplitFlowMarkerWorldPositions,
   collectFlowLinkAnchors,
-  collectFlowEditPoints
+  collectFlowEditPoints,
+  collectFlowManualPickPoints
 } = setupFlowAnchorPointsController({
   st,
   rectUVToWorld,
+  maskCellKey,
+  getFlowRegionConfig: (r, rid) => getFlowRegionConfig(r, rid),
   getFlowStartRoutingRegion,
   FLOW_DIR_SET
 });
@@ -559,10 +567,12 @@ const { drawInterScreenFlowLinks } = setupInterScreenLinksRender({
 });
 let findFlowStartHandle = (_wx, _wy, _rid = null) => null;
 let findFlowDirectionButton = (_wx, _wy, _rid = null) => null;
+let findFlowResetButton = (_wx, _wy, _rid = null) => null;
 let findFlowEditPoint = (_wx, _wy, _rid = null, _minIndex = 0) => null;
 ({
   findFlowStartHandle,
   findFlowDirectionButton,
+  findFlowResetButton,
   findFlowEditPoint,
   resetFlowPointIndexCache
 } = setupFlowEditHitTestController({
@@ -571,7 +581,8 @@ let findFlowEditPoint = (_wx, _wy, _rid = null, _minIndex = 0) => null;
 }));
 const { drawFlowEditOverlay } = setupFlowEditOverlayRender({
   st,
-  fontFamilyCss: value => fontFamilyCss(value)
+  fontFamilyCss: value => fontFamilyCss(value),
+  t: value => translateText(value)
 });
 const {
   collectClusterHandles,
@@ -1280,7 +1291,8 @@ const multiSelectionActions = setupMultiSelectionActionsController({
   drawCellY: r => drawCellY(r),
   getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
   getHiddenSet: r => getHiddenSet(r),
-  buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs)
+  buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
+  t: value => translateText(value)
 });
 let hit = (_x, _y) => null;
 let snapMaskNode = (_r, _wx, _wy) => null;
@@ -1363,9 +1375,10 @@ const { drawRectBase } = setupDrawRectBaseController({
   normalizeDataFlow,
   planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
   updateSplitVariantControl: r => updateSplitVariantControl(r),
-  getDataFlowGroups: (r, cx, cy, topo, hs, regions) => getDataFlowGroups(r, cx, cy, topo, hs, regions),
+  getDataFlowGroups: (r, cx, cy, topo, hs, regions, opts) => getDataFlowGroups(r, cx, cy, topo, hs, regions, opts),
   collectFlowLinkAnchors: (r, groups) => collectFlowLinkAnchors(r, groups),
-  collectFlowEditPoints: (r, groups) => collectFlowEditPoints(r, groups),
+  collectFlowEditPoints: (r, groups, opts) => collectFlowEditPoints(r, groups, opts),
+  collectFlowManualPickPoints: (r, cx, cy, topo, hs, regions) => collectFlowManualPickPoints(r, cx, cy, topo, hs, regions),
   getRectFillLayerCached: (r, cx, cy, topo, maskRender, lowDetail, z) => getRectFillLayerCached(r, cx, cy, topo, maskRender, lowDetail, z),
   getRectDecorLayerCached: (r, maskRender, z) => getRectDecorLayerCached(r, maskRender, z),
   getRectComponentRenderDataCached: (r, cx, cy, topo) => getRectComponentRenderDataCached(r, cx, cy, topo),
@@ -1590,7 +1603,11 @@ const {
   findFlowLinkAtPoint,
   findFlowStartHandle,
   findFlowDirectionButton,
+  findFlowResetButton,
   setFlowDirection,
+  updateManualFlowPoint,
+  dragManualFlowPoint,
+  resetFlowRegionOverrides,
   rebuildAndPatchFlowRegion,
   findFlowLinkAnchorAtPoint,
   updateFlowLinkDragTarget,
@@ -1795,9 +1812,9 @@ const inputWiringServices = {
   updateClusterHandleDragAtPoint, updateClusterEditCursor,
   findClusterHandle, findActiveClusterBorder, findClusterStartMarker, cellFromWorldPoint,
   updateFlowLinkDragTarget, resetFlowHoverTransient,
-  findFlowLinkAtPoint, findFlowStartHandle, findFlowDirectionButton, findFlowEditPoint,
+  findFlowLinkAtPoint, findFlowStartHandle, findFlowDirectionButton, findFlowResetButton, findFlowEditPoint,
   moveRectDrag, updateSelectionBox, finishSelectionBox,
-  endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock,
+  endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock, updateManualFlowPoint, dragManualFlowPoint,
   mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
   resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
   resetFlowRegionOverrides, syncProps,

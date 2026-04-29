@@ -14,6 +14,7 @@ export const setupRenderPipeline = (deps = {}) => {
     st.flowEditPoints = [];
     st.flowStartHandles = [];
     st.flowDirButtons = [];
+    st.flowResetButtons = [];
     st.flowLinkAnchors = [];
     st.flowLinkSegments = [];
     st.clusterHandles = [];

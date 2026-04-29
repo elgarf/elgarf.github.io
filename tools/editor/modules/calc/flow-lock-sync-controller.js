@@ -14,7 +14,9 @@ export const setupFlowLockSyncController = (deps = {}) => {
       startCid: (c.startCid != null && Number.isFinite(Number(c.startCid))) ? Math.max(0, Math.round(Number(c.startCid) || 0)) : null,
       startDir: FLOW_DIR_SET.has(String(c.startDir || "").toLowerCase()) ? String(c.startDir || "").toLowerCase() : "",
       mode: (DATA_FLOW_MODES.has(String(c.mode || "")) && String(c.mode || "") !== "none") ? String(c.mode || "") : "",
-      startPinned: !!c.startPinned
+      startPinned: !!c.startPinned,
+      manual: !!c.manual,
+      manualOrder: (Array.isArray(c.manualOrder) ? c.manualOrder : []).map(v => Math.max(0, Math.round(Number(v) || 0))).filter((v, i, arr) => arr.indexOf(v) === i)
     };
   };
 
@@ -114,6 +116,7 @@ export const setupFlowLockSyncController = (deps = {}) => {
     const remapFlowCfgToTopo = cfg => {
       const base = cloneFlowRegionConfig(cfg);
       if (base.startCid != null) base.startCid = remapCidToTopo(base.startCid);
+      base.manualOrder = (Array.isArray(base.manualOrder) ? base.manualOrder : []).map(cid => remapCidToTopo(cid)).filter((cid, i, arr) => cid != null && arr.indexOf(cid) === i);
       const seenIdx = new Set();
       const remappedLocks = [];
       for (const it of (Array.isArray(base.locks) ? base.locks : [])) {

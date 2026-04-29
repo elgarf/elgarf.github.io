@@ -1,5 +1,5 @@
 export const setupDrawRectBaseController = (deps = {}) => {
-  const { st, isNoteRect, drawNoteRect, drawCellX, drawCellY, getHiddenSet, rads, rectCenter, normalizeViewMode, getCellTopologyCached, getMaskRenderDataCached, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode, normalizeDataFlow, planNumberRegions, updateSplitVariantControl, getDataFlowGroups, collectFlowLinkAnchors, collectFlowEditPoints, getRectFillLayerCached, getRectDecorLayerCached, getRectComponentRenderDataCached, rectTextTheme, fontFamilyCss, toLetters, mFmt, pctFmt, fillPercent, getRectTextSizePx, buildVisibleCabinetSummary, listSignature, getRectTextLayoutCached, hiddenCellBoxes, computeFreeRects, chooseTextLayout, REGION_ZONE_COLORS, getVisibleBoundarySegmentsCached, drawRectOverlays, drawRectInteractions, drawRigOutsideOverlay, t = value => value } = deps;
+  const { st, isNoteRect, drawNoteRect, drawCellX, drawCellY, getHiddenSet, rads, rectCenter, normalizeViewMode, getCellTopologyCached, getMaskRenderDataCached, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode, normalizeDataFlow, planNumberRegions, updateSplitVariantControl, getDataFlowGroups, collectFlowLinkAnchors, collectFlowEditPoints, collectFlowManualPickPoints, getRectFillLayerCached, getRectDecorLayerCached, getRectComponentRenderDataCached, rectTextTheme, fontFamilyCss, toLetters, mFmt, pctFmt, fillPercent, getRectTextSizePx, buildVisibleCabinetSummary, listSignature, getRectTextLayoutCached, hiddenCellBoxes, computeFreeRects, chooseTextLayout, REGION_ZONE_COLORS, getVisibleBoundarySegmentsCached, drawRectOverlays, drawRectInteractions, drawRigOutsideOverlay, t = value => value } = deps;
 
   const computeRectRenderFlags = ({
     stMode,
@@ -72,13 +72,18 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const wantsFlowForNumbers = flowFlags.wantsFlowForNumbers;
       const suppressFlowEditText = !!(flowEditingThisRect && st.mode === "flowEdit" && sel && r.id === st.sel);
       const showRegionsOverlayRequested = !!(installView && designerRender && !clusterDraggingThisRect);
-      const needRegions = !!(!lowDetail && (showNumbers || wantsFlowDraw || showRegionsOverlayRequested || (installView && sel && !clusterDraggingThisRect)));
+      const needRegions = !!(!lowDetail && (showNumbers || wantsFlowDraw || flowEditingThisRect || showRegionsOverlayRequested || (installView && sel && !clusterDraggingThisRect)));
       const regions = (needRegions ? (hasRegionsOverride ? options.regionsOverride : (options.skipRegionCalc ? null : planNumberRegions(r, cellX, cellY, topo, hs, !options.noCachedRegions))) : null);
       const showRegionsOverlay = !!(regions && showRegionsOverlayRequested);
       if (sel && r.id === st.sel && !((st.drag && st.drag.moved) || st.clusterDrag || st.flowDrag || st.pan || st.draft)) updateSplitVariantControl(r);
       const flowGroups = (wantsFlowDraw || wantsFlowForNumbers) ? (flowGroupsOverride || (options.skipFlowCalc ? [] : getDataFlowGroups(r, cellX, cellY, topo, hs, regions))) : [];
       if (Array.isArray(flowGroups) && flowGroups.length) collectFlowLinkAnchors(r, flowGroups);
-      if (st.mode === "flowEdit" && sel && r.id === st.sel) collectFlowEditPoints(r, flowGroups);
+      if (st.mode === "flowEdit" && sel && r.id === st.sel) {
+        const manualPickMode = String(st.flowEditVariant || "auto") === "manual";
+        const editFlowGroups = manualPickMode ? getDataFlowGroups(r, cellX, cellY, topo, hs, regions, { ignoreManualOrder: true }) : flowGroups;
+        collectFlowEditPoints(r, editFlowGroups, { manualPickMode });
+        if (manualPickMode && typeof collectFlowManualPickPoints === "function") collectFlowManualPickPoints(r, cellX, cellY, topo, hs, regions);
+      }
       const buildDeferredTextOverlay = () => {
         const rx = Math.round(r.x - origin.x), ry = Math.round(r.y - origin.y), baseFs = getRectTextSizePx(r), wm = (r.widthM != null ? r.widthM : r.width / Math.max(1, r.scale || 256)), hm = (r.heightM != null ? r.heightM : r.height / Math.max(1, r.scale || 256)), pct = fillPercent(wm, hm, r.areaM2Px);
         const installExtra = installView ? buildVisibleCabinetSummary(r, cellX, cellY, topo, hs) : { areaM2: 0, groups: [] };
