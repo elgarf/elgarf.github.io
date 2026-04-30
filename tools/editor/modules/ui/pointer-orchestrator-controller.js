@@ -51,6 +51,9 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     drawCellX,
     drawCellY,
     shapePointHit,
+    shapePointHits,
+    shapeEditHits,
+    shapeControlHit,
     shapeSegmentHit,
     normalizeShapeBounds,
     hitLayerButton,
@@ -160,6 +163,41 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (st && st.selSet instanceof Set && st.selSet.has(n)) return true;
     return Math.round(Number(st && st.sel) || 0) === n;
   };
+  const chooseShapePointHitIndex = (r, wx, wy) => {
+    const hits = typeof shapePointHits === "function" ? shapePointHits(r, wx, wy, st.zoom) : [];
+    if (!Array.isArray(hits) || !hits.length) return typeof shapePointHit === "function" ? shapePointHit(r, wx, wy, st.zoom) : -1;
+    const sel = st && st.shapePointSel;
+    const sameRect = sel && Math.round(Number(sel.id) || 0) === Math.round(Number(r && r.id) || 0);
+    const current = sameRect ? Math.round(Number(sel.index) || 0) : null;
+    if (sameRect && hits.length > 1 && hits.includes(current)) {
+      const pos = hits.indexOf(current);
+      return hits[(pos + 1) % hits.length];
+    }
+    return hits[0];
+  };
+  const chooseShapeEditHit = (r, wx, wy) => {
+    const hits = typeof shapeEditHits === "function" ? shapeEditHits(r, wx, wy, st.zoom) : [];
+    if (!Array.isArray(hits) || !hits.length) {
+      const index = chooseShapePointHitIndex(r, wx, wy);
+      return index >= 0 ? { index, handle: "" } : null;
+    }
+    const sel = st && st.shapePointSel;
+    const drag = st && st.shapePointDrag;
+    const sameRect = sel && Math.round(Number(sel.id) || 0) === Math.round(Number(r && r.id) || 0);
+    const currentIndex = sameRect ? Math.round(Number(sel.index) || 0) : null;
+    const currentHandle = drag && Math.round(Number(drag.id) || 0) === Math.round(Number(r && r.id) || 0) && Math.round(Number(drag.index) || 0) === currentIndex
+      ? String(drag.handle || "")
+      : "";
+    const handleHits = hits.filter(hit => hit && String(hit.handle || ""));
+    if (handleHits.length) {
+      const currentHandlePos = handleHits.findIndex(hit => hit && hit.index === currentIndex && String(hit.handle || "") === currentHandle);
+      if (sameRect && currentHandle && handleHits.length > 1 && currentHandlePos >= 0) return handleHits[(currentHandlePos + 1) % handleHits.length];
+      return handleHits[0];
+    }
+    const currentPos = hits.findIndex(hit => hit && hit.index === currentIndex && String(hit.handle || "") === currentHandle);
+    if (sameRect && hits.length > 1 && currentPos >= 0) return hits[(currentPos + 1) % hits.length];
+    return hits[0];
+  };
   const setCanvasCursor = cursor => {
     if (!cv || !cv.style) return;
     const next = String(cursor || "");
@@ -183,6 +221,14 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (h && isNoteRect(h) && !isRectLocked(h) && isNoteResizeHit(h, p)) {
       setCanvasCursor(NOTE_RESIZE_CURSOR);
       return;
+    }
+    const selectedShape = cur();
+    if (selectedShape && typeof isShapeRect === "function" && isShapeRect(selectedShape) && !isRectLocked(selectedShape)) {
+      const selectedEditHit = chooseShapeEditHit(selectedShape, p.x, p.y);
+      if (selectedEditHit && selectedEditHit.handle) {
+        setCanvasCursor(MOVE_CURSOR);
+        return;
+      }
     }
     clearCursorIf(NOTE_RESIZE_CURSOR);
     if (!suppressMoveCursorUntilMouseUp && h && !isRectLocked(h) && isSelectedRectId(h.id)) setCanvasCursor(MOVE_CURSOR);
@@ -359,6 +405,17 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       }
     }
     if (st.mode === "select") {
+      const selectedShape = cur();
+      if (selectedShape && typeof isShapeRect === "function" && isShapeRect(selectedShape) && !isRectLocked(selectedShape)) {
+        const selectedEditHit = chooseShapeEditHit(selectedShape, p.x, p.y);
+        if (selectedEditHit) {
+          st.shapePointSel = { id: selectedShape.id, index: selectedEditHit.index };
+          st.shapePointDrag = { id: selectedShape.id, index: selectedEditHit.index, handle: selectedEditHit.handle || "", changed: false };
+          syncProps();
+          render();
+          return;
+        }
+      }
       const h = hit(p.x, p.y);
       suppressMoveCursorUntilMouseUp = !!(h && !isSelectedRectId(h.id));
     }
@@ -372,14 +429,32 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (st.mode === "select") {
       const h = hit(p.x, p.y);
       if (h && typeof isShapeRect === "function" && isShapeRect(h) && !isRectLocked(h) && typeof shapePointHit === "function") {
-        const pointIndex = shapePointHit(h, p.x, p.y, st.zoom);
+        if (!isSelectedRectId(h.id)) {
+          selRect(h.id);
+          syncProps();
+          render();
+          return;
+        }
+        const editHit = chooseShapeEditHit(h, p.x, p.y);
+        if (editHit && editHit.handle) {
+          st.shapePointSel = { id: h.id, index: editHit.index };
+          st.shapePointDrag = { id: h.id, index: editHit.index, handle: editHit.handle, changed: false };
+          syncProps();
+          render();
+          return;
+        }
+        const pointIndex = editHit ? editHit.index : chooseShapePointHitIndex(h, p.x, p.y);
         if (pointIndex >= 0) {
-          if (h.id !== st.sel) selRect(h.id);
           st.shapePointSel = { id: h.id, index: pointIndex };
           st.shapePointDrag = { id: h.id, index: pointIndex, changed: false };
           syncProps();
           render();
           return;
+        }
+        if (st.shapePointSel && Math.round(Number(st.shapePointSel.id) || 0) === Math.round(Number(h.id) || 0)) {
+          st.shapePointSel = null;
+          syncProps();
+          render();
         }
       }
       if (h && isNoteRect(h) && !isRectLocked(h) && isNoteResizeHit(h, p)) {
@@ -423,7 +498,16 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       const sp = snapShapePoint(p, o);
       const uv = worldToRectUV(r, sp.x, sp.y);
       const index = Math.max(0, Math.min(r.shapePoints.length - 1, Math.round(Number(drag.index) || 0)));
-      r.shapePoints[index] = { x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) };
+      const point = r.shapePoints[index] || {};
+      if (drag.handle === "in" || drag.handle === "out") {
+        const keyX = drag.handle === "in" ? "inX" : "outX";
+        const keyY = drag.handle === "in" ? "inY" : "outY";
+        point.type = "bezier";
+        point[keyX] = Math.round((Number(uv.u) || 0) - (Number(point.x) || 0));
+        point[keyY] = Math.round((Number(uv.v) || 0) - (Number(point.y) || 0));
+      } else {
+        r.shapePoints[index] = { ...point, x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) };
+      }
       if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
       drag.changed = true;
       if (typeof syncPropsSmart === "function") syncPropsSmart();

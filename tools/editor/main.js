@@ -1370,6 +1370,9 @@ const { drawNoteRect } = setupNoteRender({
 let normalizeShapeBounds = (_r) => false;
 let pointInShape = (_r, _wx, _wy) => false;
 let shapePointHit = (_r, _wx, _wy, _z) => -1;
+let shapePointHits = (_r, _wx, _wy, _z) => [];
+let shapeEditHits = (_r, _wx, _wy, _z) => [];
+let shapeControlHit = (_r, _wx, _wy, _z) => null;
 let shapeSegmentHit = (_r, _wx, _wy, _z) => -1;
 let drawShapeRect = () => { };
 ({
@@ -1377,6 +1380,9 @@ let drawShapeRect = () => { };
   normalizeShapeBounds,
   pointInShape,
   shapePointHit,
+  shapePointHits,
+  shapeEditHits,
+  shapeControlHit,
   shapeSegmentHit,
   drawShapeRect
 } = setupShapeRender({
@@ -1866,6 +1872,9 @@ const inputWiringServices = {
   endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock, updateManualFlowPoint, dragManualFlowPoint,
   mkNote, mk, mkShape, isNoteRect, isShapeRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
   shapePointHit: (r, wx, wy, z) => shapePointHit(r, wx, wy, z),
+  shapePointHits: (r, wx, wy, z) => shapePointHits(r, wx, wy, z),
+  shapeEditHits: (r, wx, wy, z) => shapeEditHits(r, wx, wy, z),
+  shapeControlHit: (r, wx, wy, z) => shapeControlHit(r, wx, wy, z),
   shapeSegmentHit: (r, wx, wy, z) => shapeSegmentHit(r, wx, wy, z),
   normalizeShapeBounds: r => normalizeShapeBounds(r),
   resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,

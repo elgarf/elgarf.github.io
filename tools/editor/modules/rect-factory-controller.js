@@ -61,6 +61,20 @@ export const setupRectFactoryController = (deps = {}) => {
     if (!Number.isFinite(n)) return 0.72;
     return Math.max(0, Math.min(1, n));
   };
+  const normalizeShapePoint = p => {
+    const x = Math.round(Number(p && p.x) || 0);
+    const y = Math.round(Number(p && p.y) || 0);
+    const num = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+    const out = { x, y };
+    if (String(p && p.type || "") === "bezier") {
+      out.type = "bezier";
+      out.inX = Math.round(num(p && p.inX, -48));
+      out.inY = Math.round(num(p && p.inY, 0));
+      out.outX = Math.round(num(p && p.outX, 48));
+      out.outY = Math.round(num(p && p.outY, 0));
+    }
+    return out;
+  };
 
   const parseProjectRect = (r, i, legacyAreaM2) => {
     const colorA = String(r.colorA || "#2fcaaf");
@@ -104,7 +118,7 @@ export const setupRectFactoryController = (deps = {}) => {
       shapeOpacity: normalizeShapeOpacity(r && Object.prototype.hasOwnProperty.call(r, "shapeOpacity") ? r.shapeOpacity : 0.72),
       shapePoints: Array.isArray(r && r.shapePoints)
         ? r.shapePoints
-          .map(p => ({ x: Math.round(Number(p && p.x) || 0), y: Math.round(Number(p && p.y) || 0) }))
+          .map(normalizeShapePoint)
           .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
           .slice(0, 512)
         : []

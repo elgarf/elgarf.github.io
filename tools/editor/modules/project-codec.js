@@ -10,7 +10,7 @@ export const createProjectCodec = (deps) => {
     installLayers: "il", text: "tx", flow: "fw",
     id: "i", name: "nm", rotation: "rt", width: "w", height: "h", scale: "sc", widthM: "wm", heightM: "hm", areaM2Px: "a2", colorA: "ca", autoContrastB: "ab", colorB: "cb",
     cellX: "cx", cellY: "cy", dataFlow: "df", dataFlowZ: "dz", numberCells: "nc", splitVariant: "sv", cellLinks: "cl", hiddenCells: "hc", flowLocks: "fk", flowLockRidToSig: "frs", flowLockCidToSeed: "fcs", manualClusters: "mc",
-    rig: "rg", locked: "lk", kind: "kd", noteText: "nt", shapeOpacity: "so", shapePoints: "shp", projectCache: "pc",
+    rig: "rg", locked: "lk", kind: "kd", noteText: "nt", shapeOpacity: "so", shapePoints: "shp", type: "tp", inX: "inx", inY: "iny", outX: "oux", outY: "ouy", projectCache: "pc",
     from: "f", to: "t", rectId: "ri", rid: "rd", cid: "cd", startCid: "sd", startDir: "sr", startPinned: "sp", mode: "md", locks: "ls", index: "ix",
     sx: "sx", sy: "sy", c0: "c0", c1: "c1", r0: "r0", r1: "r1",
     suspends: "su", suspendLinks: "sk", frames: "fr", loads: "ld"

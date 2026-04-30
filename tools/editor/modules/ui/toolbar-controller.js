@@ -91,7 +91,10 @@ export const setupToolbarController = (deps = {}) => {
   const hideButtonTooltip = btn => {
     if (!btn || !windowRef.bootstrap || !windowRef.bootstrap.Tooltip) return;
     const instance = windowRef.bootstrap.Tooltip.getInstance(btn);
-    if (instance) instance.hide();
+    if (instance) {
+      instance.hide();
+      instance.dispose();
+    }
     if (activeTooltipButton === btn) activeTooltipButton = null;
   };
   const clearTooltipTimers = () => {
@@ -131,6 +134,12 @@ export const setupToolbarController = (deps = {}) => {
       if (!hoveredTooltipButton) hideButtonTooltip(btn);
     }, 80);
   };
+  const hideAnyButtonTooltip = () => {
+    clearTooltipTimers();
+    const btn = activeTooltipButton || hoveredTooltipButton;
+    hoveredTooltipButton = null;
+    if (btn) hideButtonTooltip(btn);
+  };
   const setupButtonTooltips = () => {
     if (!documentRef || !windowRef.bootstrap || !windowRef.bootstrap.Tooltip) return;
     on(documentRef, "pointerdown", e => {
@@ -154,6 +163,10 @@ export const setupToolbarController = (deps = {}) => {
     });
     on(documentRef, "pointermove", e => {
       const btn = tooltipButtonFromEvent(e.target);
+      if (!btn) {
+        if (hoveredTooltipButton || activeTooltipButton) hideAnyButtonTooltip();
+        return;
+      }
       if (!isToolCycleMenuButton(btn) || btn === activeTooltipButton) return;
       scheduleTooltipShow(btn);
     });
@@ -167,6 +180,12 @@ export const setupToolbarController = (deps = {}) => {
       clearTooltipTimers();
       hoveredTooltipButton = null;
       hideButtonTooltip(tooltipButtonFromEvent(e.target));
+    });
+    on(documentRef, "mouseleave", hideAnyButtonTooltip);
+    on(windowRef, "blur", hideAnyButtonTooltip);
+    on(windowRef, "scroll", hideAnyButtonTooltip);
+    on(documentRef, "visibilitychange", () => {
+      if (documentRef.visibilityState !== "visible") hideAnyButtonTooltip();
     });
   };
 

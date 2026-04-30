@@ -160,9 +160,11 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (el.shapePointPanel) el.shapePointPanel.classList.toggle("d-none", !show);
     if (el.shapePointX) uiSetDisabled(el.shapePointX, !show || isRectLocked(r));
     if (el.shapePointY) uiSetDisabled(el.shapePointY, !show || isRectLocked(r));
+    if (el.shapePointType) uiSetDisabled(el.shapePointType, !show || isRectLocked(r));
     if (!show) {
       uiSetValue(el.shapePointX, "");
       uiSetValue(el.shapePointY, "");
+      uiSetValue(el.shapePointType, "line");
       return;
     }
     const wp = typeof rectUVToWorld === "function"
@@ -170,6 +172,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       : { x: (Number(r.x) || 0) + (Number(selected.point.x) || 0), y: (Number(r.y) || 0) + (Number(selected.point.y) || 0) };
     uiSetValue(el.shapePointX, Math.round(Number(wp.x) || 0));
     uiSetValue(el.shapePointY, Math.round(Number(wp.y) || 0));
+    uiSetValue(el.shapePointType, String(selected.point.type || "") === "bezier" ? "bezier" : "line");
   };
   const setPanelHidden = (node, hidden) => {
     if (!node || !node.classList) return;
@@ -317,9 +320,25 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (!targets.length) return;
     const multi = targets.length > 1;
     if (o.selectionKey && o.selectionKey !== selectionKey()) return;
-    if (!multi && (shouldApply("shapePointX") || shouldApply("shapePointY"))) {
+    if (!multi && (shouldApply("shapePointX") || shouldApply("shapePointY") || shouldApply("shapePointType"))) {
       const selectedPoint = getSelectedShapePoint(r);
       if (selectedPoint && typeof worldToRectUV === "function") {
+        const point = r.shapePoints[selectedPoint.index] || selectedPoint.point || {};
+        if (shouldApply("shapePointType")) {
+          if (String(el.shapePointType && el.shapePointType.value || "line") === "bezier") {
+            point.type = "bezier";
+            if (!Number.isFinite(Number(point.inX))) point.inX = -48;
+            if (!Number.isFinite(Number(point.inY))) point.inY = 0;
+            if (!Number.isFinite(Number(point.outX))) point.outX = 48;
+            if (!Number.isFinite(Number(point.outY))) point.outY = 0;
+          } else {
+            delete point.type;
+            delete point.inX;
+            delete point.inY;
+            delete point.outX;
+            delete point.outY;
+          }
+        }
         const currentWorld = typeof rectUVToWorld === "function"
           ? rectUVToWorld(r, Number(selectedPoint.point.x) || 0, Number(selectedPoint.point.y) || 0)
           : { x: (Number(r.x) || 0) + (Number(selectedPoint.point.x) || 0), y: (Number(r.y) || 0) + (Number(selectedPoint.point.y) || 0) };
@@ -328,7 +347,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
           y: shouldApply("shapePointY") ? Math.round(evalExpr(el.shapePointY && el.shapePointY.value, currentWorld.y)) : currentWorld.y
         };
         const uv = worldToRectUV(r, nextWorld.x, nextWorld.y);
-        r.shapePoints[selectedPoint.index] = { x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) };
+        r.shapePoints[selectedPoint.index] = { ...point, x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) };
         if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
       }
     }
@@ -349,7 +368,15 @@ export const setupPropsPanelFeature = (deps = {}) => {
         if (typeof isShapeRect === "function" && isShapeRect(r) && Array.isArray(r.shapePoints)) {
           const sx = Math.max(0.000001, (Number(r.width) || oldW) / oldW);
           const sy = Math.max(0.000001, (Number(r.height) || oldH) / oldH);
-          r.shapePoints = r.shapePoints.map(p => ({ x: Math.round((Number(p.x) || 0) * sx), y: Math.round((Number(p.y) || 0) * sy) }));
+          r.shapePoints = r.shapePoints.map(p => ({
+            ...p,
+            x: Math.round((Number(p.x) || 0) * sx),
+            y: Math.round((Number(p.y) || 0) * sy),
+            inX: p.inX == null ? p.inX : Math.round((Number(p.inX) || 0) * sx),
+            inY: p.inY == null ? p.inY : Math.round((Number(p.inY) || 0) * sy),
+            outX: p.outX == null ? p.outX : Math.round((Number(p.outX) || 0) * sx),
+            outY: p.outY == null ? p.outY : Math.round((Number(p.outY) || 0) * sy)
+          }));
           if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
         }
       }
@@ -722,6 +749,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (node === el.areaM2) return "areaM2Px";
     if (node === el.shapePointX) return "shapePointX";
     if (node === el.shapePointY) return "shapePointY";
+    if (node === el.shapePointType) return "shapePointType";
     return "";
   };
   const fieldForEvent = e => fieldForNode(e && e.currentTarget);
@@ -730,7 +758,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     applyProps({ ...opts, selectionKey: key });
     return true;
   };
-  const propInputs = [el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.a, el.b, el.shapeOpacity, el.cx, el.cy, el.areaM2, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant, el.rectTextSize];
+  const propInputs = [el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.shapePointType, el.a, el.b, el.shapeOpacity, el.cx, el.cy, el.areaM2, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant, el.rectTextSize];
   bindEvents(propInputs, "focusin", e => rememberSelectionKey(e.currentTarget));
   const scheduleApplyPropsInput = e => {
     const key = keyForEvent(e);
@@ -787,7 +815,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл";
   });
 
-  bindEvents([el.dataFlow, el.dataFlowZ, el.splitVariant], "change", e => applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) }));
+  bindEvents([el.dataFlow, el.dataFlowZ, el.splitVariant, el.shapePointType], "change", e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
   bindEvent(el.numCells, "change", e => {
     if (keyForEvent(e) !== selectionKey()) return;
     const checked = !!(el.numCells && el.numCells.checked);
