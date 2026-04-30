@@ -1,3 +1,23 @@
+import {
+  applyShapePointProps,
+  syncShapePointPanel
+} from "./props-shape-point-controller.js";
+import {
+  scaleShapePointsForRectResize,
+  shapeOpacityFromTransparencyInput,
+  shapeTransparencyPercent
+} from "./props-shape-style-controller.js";
+import {
+  changeApplyInputNodes,
+  commitApplyInputNodes,
+  fieldForPropNode,
+  liveApplyInputNodes,
+  setMainPropsDisabled,
+  setPanelHidden,
+  syncDynamicPanelVisibility,
+  trackedPropInputNodes
+} from "./props-panel-ui-schema.js";
+
 export const setupPropsPanelFeature = (deps = {}) => {
   const {
     st,
@@ -44,6 +64,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     getAreaM2PresetValues,
     updateAreaM2Badge,
     isShapeRect,
+    isNoteRect,
     rectUVToWorld,
     worldToRectUV,
     normalizeShapeBounds
@@ -145,78 +166,21 @@ export const setupPropsPanelFeature = (deps = {}) => {
     }
   };
   const getAreaM2BadgeEl = () => el.propAreaM2Badge || (typeof document !== "undefined" ? document.getElementById("propAreaM2Badge") : null);
-  const getSelectedShapePoint = r => {
-    if (!r || typeof isShapeRect !== "function" || !isShapeRect(r)) return null;
-    const sel = st && st.shapePointSel;
-    if (!sel || Math.round(Number(sel.id) || 0) !== Math.round(Number(r.id) || 0)) return null;
-    const points = Array.isArray(r.shapePoints) ? r.shapePoints : [];
-    const index = Math.round(Number(sel.index) || 0);
-    if (index < 0 || index >= points.length) return null;
-    return { index, point: points[index] };
-  };
-  const syncShapePointPanel = r => {
-    const selected = getSelectedShapePoint(r);
-    const show = !!selected;
-    if (el.shapePointPanel) el.shapePointPanel.classList.toggle("d-none", !show);
-    if (el.shapePointX) uiSetDisabled(el.shapePointX, !show || isRectLocked(r));
-    if (el.shapePointY) uiSetDisabled(el.shapePointY, !show || isRectLocked(r));
-    if (el.shapePointType) uiSetDisabled(el.shapePointType, !show || isRectLocked(r));
-    if (!show) {
-      uiSetValue(el.shapePointX, "");
-      uiSetValue(el.shapePointY, "");
-      uiSetChecked(el.shapePointType, false);
-      return;
-    }
-    const wp = typeof rectUVToWorld === "function"
-      ? rectUVToWorld(r, Number(selected.point.x) || 0, Number(selected.point.y) || 0)
-      : { x: (Number(r.x) || 0) + (Number(selected.point.x) || 0), y: (Number(r.y) || 0) + (Number(selected.point.y) || 0) };
-    uiSetValue(el.shapePointX, Math.round(Number(wp.x) || 0));
-    uiSetValue(el.shapePointY, Math.round(Number(wp.y) || 0));
-    uiSetChecked(el.shapePointType, String(selected.point.type || "") === "bezier");
-  };
-  const setPanelHidden = (node, hidden) => {
-    if (!node || !node.classList) return;
-    node.classList.toggle("d-none", !!hidden);
-  };
-  const shapeOpacityValue = r => {
-    const n = Number(r && r.shapeOpacity);
-    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.72;
-  };
-  const shapeTransparencyPercent = r => Math.round((1 - shapeOpacityValue(r)) * 100);
-  const shapeOpacityFromTransparencyInput = (inputValue, fallbackRect) => {
-    const fallback = shapeTransparencyPercent(fallbackRect);
-    const transparency = Math.max(0, Math.min(100, evalExpr(inputValue, fallback)));
-    return Math.max(0, Math.min(1, 1 - transparency / 100));
-  };
-  const syncDynamicPanelVisibility = (r, multi) => {
-    const hasSelection = !!r;
-    const isShape = !!(hasSelection && typeof isShapeRect === "function" && isShapeRect(r));
-    const isNote = !!(hasSelection && typeof deps.isNoteRect === "function" && deps.isNoteRect(r));
-    const isScreen = !!(hasSelection && !isShape && !isNote);
-    const isObject = !!(hasSelection || multi);
-    setPanelHidden(el.emptySelectionHint, isObject);
-    setPanelHidden(el.objectNameField, !isObject);
-    setPanelHidden(el.rectTextSizeField, !(isScreen || isNote));
-    setPanelHidden(el.quickGeoPanel, !isObject);
-    setPanelHidden(el.areaM2Field, !isScreen);
-    setPanelHidden(el.colorPanel, !isObject);
-    setPanelHidden(el.shapeOpacityField, !isShape);
-    setPanelHidden(el.autoContrastField, !isScreen);
-    setPanelHidden(el.randomColorField, !isObject);
-    setPanelHidden(el.cabinetSizePanel, !isScreen);
-    setPanelHidden(el.flowField, !isScreen);
-    setPanelHidden(el.numberCellsField, !isScreen);
-    setPanelHidden(el.splitVariantField, !isScreen);
-    setPanelHidden(el.screenActionsField, !isScreen);
-    setPanelHidden(el.convertRegionsField, !isScreen);
-    setPanelHidden(el.list, false);
-    if (!isShape) setPanelHidden(el.shapePointPanel, true);
-  };
-
+  const syncSelectedShapePointPanel = rect => syncShapePointPanel({
+    st,
+    el,
+    rect,
+    isShapeRect,
+    isRectLocked,
+    uiSetDisabled,
+    uiSetValue,
+    uiSetChecked,
+    rectUVToWorld
+  });
   const syncProps = () => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
-    syncDynamicPanelVisibility(r, multi);
-    [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.a, el.b, el.shapeOpacity, el.cx, el.cy, el.cUnit, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
+    syncDynamicPanelVisibility({ el, rect: r, multi, isShapeRect, isNoteRect });
+    setMainPropsDisabled({ el, disabled: !on, uiSetDisabled });
     if (el.multiEditBadge) {
       const show = !!r && (multi || locked);
       el.multiEditBadge.classList.toggle("d-none", !show);
@@ -246,7 +210,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       );
     }
     if (!r) {
-      syncShapePointPanel(null);
+      syncSelectedShapePointPanel(null);
       updateSplitVariantModeUi(null); updateModeBadges(null);
       uiSetValue(el.name, ""); uiSetValue(el.rectTextSize, "0"); updateRectTextSizeLabel(null);
       uiSetValue(el.x, ""); uiSetValue(el.y, ""); uiSetValue(el.wm, ""); uiSetValue(el.hm, "");
@@ -267,7 +231,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       uiSetValue(el.cx, "128"); uiSetValue(el.cy, "128");
       return;
     }
-    syncShapePointPanel(r);
+    syncSelectedShapePointPanel(r);
     metricFromPx(r); if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA);
     uiSetValue(el.name, r.name);
     uiSetValue(el.rectTextSize, String(Math.max(0, Math.min(128, Math.round(Number(r.textSize) || 0)))));
@@ -320,33 +284,17 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (!targets.length) return;
     const multi = targets.length > 1;
     if (o.selectionKey && o.selectionKey !== selectionKey()) return;
-    if (!multi && (shouldApply("shapePointX") || shouldApply("shapePointY") || shouldApply("shapePointType"))) {
-      const selectedPoint = getSelectedShapePoint(r);
-      if (selectedPoint && typeof worldToRectUV === "function") {
-        const point = r.shapePoints[selectedPoint.index] || selectedPoint.point || {};
-        if (shouldApply("shapePointType")) {
-          if (!!(el.shapePointType && el.shapePointType.checked)) {
-            point.type = "bezier";
-            if (!Number.isFinite(Number(point.inX))) point.inX = -48;
-            if (!Number.isFinite(Number(point.inY))) point.inY = 0;
-            if (!Number.isFinite(Number(point.outX))) point.outX = 48;
-            if (!Number.isFinite(Number(point.outY))) point.outY = 0;
-          } else {
-            delete point.type;
-          }
-        }
-        const currentWorld = typeof rectUVToWorld === "function"
-          ? rectUVToWorld(r, Number(selectedPoint.point.x) || 0, Number(selectedPoint.point.y) || 0)
-          : { x: (Number(r.x) || 0) + (Number(selectedPoint.point.x) || 0), y: (Number(r.y) || 0) + (Number(selectedPoint.point.y) || 0) };
-        const nextWorld = {
-          x: shouldApply("shapePointX") ? Math.round(evalExpr(el.shapePointX && el.shapePointX.value, currentWorld.x)) : currentWorld.x,
-          y: shouldApply("shapePointY") ? Math.round(evalExpr(el.shapePointY && el.shapePointY.value, currentWorld.y)) : currentWorld.y
-        };
-        const uv = worldToRectUV(r, nextWorld.x, nextWorld.y);
-        r.shapePoints[selectedPoint.index] = { ...point, x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) };
-        if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
-      }
-    }
+    if (!multi) applyShapePointProps({
+      st,
+      el,
+      rect: r,
+      shouldApply,
+      isShapeRect,
+      evalExpr,
+      rectUVToWorld,
+      worldToRectUV,
+      normalizeShapeBounds
+    });
     if (!multi && shouldApply("name")) r.name = el.name.value || `Rect ${r.id}`;
     if (!multi) {
       let metricChanged = false;
@@ -356,24 +304,15 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (shouldApply("widthM")) { r.widthM = Math.max(0.001, evalExpr(el.wm.value, r.widthM || 0.001)); metricChanged = true; }
       if (shouldApply("heightM")) { r.heightM = Math.max(0.001, evalExpr(el.hm.value, r.heightM || 0.001)); metricChanged = true; }
       if (shouldApply("areaM2Px")) r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
-      if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(r)) r.shapeOpacity = shapeOpacityFromTransparencyInput(el.shapeOpacity && el.shapeOpacity.value, r);
+      if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(r)) {
+        r.shapeOpacity = shapeOpacityFromTransparencyInput({ inputValue: el.shapeOpacity && el.shapeOpacity.value, fallbackRect: r, evalExpr });
+      }
       if (metricChanged) {
         const oldW = Math.max(1, Number(r.width) || 1);
         const oldH = Math.max(1, Number(r.height) || 1);
         pxFromMetric(r);
-        if (typeof isShapeRect === "function" && isShapeRect(r) && Array.isArray(r.shapePoints)) {
-          const sx = Math.max(0.000001, (Number(r.width) || oldW) / oldW);
-          const sy = Math.max(0.000001, (Number(r.height) || oldH) / oldH);
-          r.shapePoints = r.shapePoints.map(p => ({
-            ...p,
-            x: Math.round((Number(p.x) || 0) * sx),
-            y: Math.round((Number(p.y) || 0) * sy),
-            inX: p.inX == null ? p.inX : Math.round((Number(p.inX) || 0) * sx),
-            inY: p.inY == null ? p.inY : Math.round((Number(p.inY) || 0) * sy),
-            outX: p.outX == null ? p.outX : Math.round((Number(p.outX) || 0) * sx),
-            outY: p.outY == null ? p.outY : Math.round((Number(p.outY) || 0) * sy)
-          }));
-          if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
+        if (typeof isShapeRect === "function" && isShapeRect(r)) {
+          scaleShapePointsForRectResize({ rect: r, oldWidth: oldW, oldHeight: oldH, normalizeShapeBounds });
         }
       }
     } else {
@@ -485,7 +424,9 @@ export const setupPropsPanelFeature = (deps = {}) => {
         t.colorA = el.a.value || "#2fcaaf";
         if (t.autoContrastB !== false) t.colorB = autoContrast(t.colorA); else t.colorB = el.b.value || t.colorB;
       }
-      if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(t)) t.shapeOpacity = shapeOpacityFromTransparencyInput(el.shapeOpacity && el.shapeOpacity.value, t);
+      if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(t)) {
+        t.shapeOpacity = shapeOpacityFromTransparencyInput({ inputValue: el.shapeOpacity && el.shapeOpacity.value, fallbackRect: t, evalExpr });
+      }
       if (shouldApply("cellX")) t.cellX = cabinetUiToPx(el.cx && el.cx.value, el.cUnit && el.cUnit.value, t.cellX || 128, t);
       if (shouldApply("cellY")) t.cellY = cabinetUiToPx(el.cy && el.cy.value, el.cUnit && el.cUnit.value, t.cellY || 128, t);
       if (shouldApply("dataFlowZ")) t.dataFlowZ = !!el.dataFlowZ.checked;
@@ -727,35 +668,13 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (node && node.dataset) node.dataset.selectionKey = selectionKey();
   };
   const keyForEvent = e => (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.selectionKey) || selectionKey();
-  const fieldForNode = node => {
-    if (node === el.name) return "name";
-    if (node === el.x) return "x";
-    if (node === el.y) return "y";
-    if (node === el.rot) return "rotation";
-    if (node === el.wm) return "widthM";
-    if (node === el.hm) return "heightM";
-    if (node === el.a) return "colorA";
-    if (node === el.shapeOpacity) return "shapeOpacity";
-    if (node === el.cx) return "cellX";
-    if (node === el.cy) return "cellY";
-    if (node === el.dataFlow) return "dataFlow";
-    if (node === el.dataFlowZ) return "dataFlowZ";
-    if (node === el.numCells) return "numberCells";
-    if (node === el.splitVariant) return "splitVariant";
-    if (node === el.areaM2) return "areaM2Px";
-    if (node === el.shapePointX) return "shapePointX";
-    if (node === el.shapePointY) return "shapePointY";
-    if (node === el.shapePointType) return "shapePointType";
-    return "";
-  };
-  const fieldForEvent = e => fieldForNode(e && e.currentTarget);
+  const fieldForEvent = e => fieldForPropNode(el, e && e.currentTarget);
   const applyPropsForKey = (key, opts = {}) => {
     if (key && key !== selectionKey()) return false;
     applyProps({ ...opts, selectionKey: key });
     return true;
   };
-  const propInputs = [el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.shapePointType, el.a, el.b, el.shapeOpacity, el.cx, el.cy, el.areaM2, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant, el.rectTextSize];
-  bindEvents(propInputs, "focusin", e => rememberSelectionKey(e.currentTarget));
+  bindEvents(trackedPropInputNodes(el), "focusin", e => rememberSelectionKey(e.currentTarget));
   const scheduleApplyPropsInput = e => {
     const key = keyForEvent(e);
     const field = fieldForEvent(e);
@@ -765,7 +684,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
       applyPropsForKey(key, { list: false, persist: false, render: true, field });
     });
   };
-  bindEvents([el.name, el.x, el.y, el.rot, el.shapePointX, el.shapePointY, el.shapeOpacity, el.cx, el.cy], "input", scheduleApplyPropsInput);
+  bindEvents(liveApplyInputNodes(el), "input", scheduleApplyPropsInput);
   bindEvents([el.cUnit], "change", () => syncProps());
   if (el.a) {
     const scheduleApplyColorInput = e => {
@@ -811,7 +730,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл";
   });
 
-  bindEvents([el.dataFlow, el.dataFlowZ, el.splitVariant, el.shapePointType], "change", e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
+  bindEvents(changeApplyInputNodes(el), "change", e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
   bindEvent(el.numCells, "change", e => {
     if (keyForEvent(e) !== selectionKey()) return;
     const checked = !!(el.numCells && el.numCells.checked);
@@ -841,7 +760,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   });
   bindSplitVariantHandlers();
 
-  bindCommitInputs([el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.shapeOpacity, el.cx, el.cy], e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
+  bindCommitInputs(commitApplyInputNodes(el), e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
 
   let textSettingsRaf = 0;
   const textSettingsFontState = { timer: 0 };

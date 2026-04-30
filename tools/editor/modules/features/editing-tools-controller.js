@@ -1,3 +1,5 @@
+import { createEditorHitTest } from "../hit-test/editor-hit-test.js";
+
 export const setupEditingToolsCore = (deps = {}) => {
   const {
     st,
@@ -37,41 +39,19 @@ export const setupEditingToolsCore = (deps = {}) => {
     upsertManualCluster
   } = deps;
   const zoomSafe = z => Math.max(0.25, Number(z) || 1);
-  const scaleSafe = v => Math.max(1, Number(v) || 256);
-  const rigTopPadFor = r => (st.mode === "rigEdit") ? Math.max(8, 0.22 * scaleSafe(r && r.scale)) : 0;
   const nearEq = (a, b, eps = 0.001) => Math.abs((+a || 0) - (+b || 0)) < eps;
 
   const curFromState = () => getRectById(st.sel) || null;
-  const hit = (x, y) => {
-    for (let i = 0; i < st.rects.length; i++) {
-      const r = st.rects[i];
-      if (isRectLocked(r)) continue;
-      if (typeof isShapeRect === "function" && isShapeRect(r)) {
-        const shapePointUnderCursor = typeof shapePointHit === "function" && shapePointHit(r, x, y, st.zoom) >= 0;
-        if (shapePointUnderCursor) return r;
-        if (typeof pointInShape === "function" && pointInShape(r, x, y)) return r;
-        continue;
-      }
-      if (typeof rectAABBMasked === "function") {
-        const bb = rectAABBMasked(r);
-        const rigTopPad = rigTopPadFor(r);
-        const pad = rigTopPad;
-        if (x < bb.minX - pad || x > bb.maxX + pad || y < bb.minY - pad || y > bb.maxY + pad) continue;
-      }
-      const p = worldToRectUV(r, x, y);
-      const inRect = p.u >= 0 && p.u <= r.width && p.v >= 0 && p.v <= r.height;
-      const rigTopPad = rigTopPadFor(r);
-      const inRigTopPad = (st.mode === "rigEdit")
-        && p.u >= 0
-        && p.u <= r.width
-        && p.v >= -rigTopPad
-        && p.v < 0;
-      if (!inRect && !inRigTopPad) continue;
-      if (String(r?.type || "") !== "note" && inRect && !cellFromWorldPoint(r, x, y, true)) continue;
-      return r;
-    }
-    return null;
-  };
+  const { hit } = createEditorHitTest({
+    st,
+    isRectLocked,
+    isShapeRect,
+    shapePointHit,
+    pointInShape,
+    worldToRectUV,
+    rectAABBMasked,
+    cellFromWorldPoint
+  });
   const snapMaskNode = (r, wx, wy) => {
     if (!r) return null;
     const p = worldToRectUV(r, wx, wy);

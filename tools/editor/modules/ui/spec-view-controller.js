@@ -48,12 +48,18 @@ const parseSpecSections = text => {
 };
 
 const toDomId = (prefix, raw) => {
+  const source = String(raw || "");
   const base = String(raw || "")
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 64) || "item";
-  return `${prefix}-${base}`;
+  let hash = 2166136261 >>> 0;
+  for (let i = 0; i < source.length; i++) {
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return `${prefix}-${base}-${hash.toString(36)}`;
 };
 
 const groupSpecSections = sections => {
