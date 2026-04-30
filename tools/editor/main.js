@@ -1850,7 +1850,7 @@ const { scheduleSyncProps, syncPropsSmart } = setupPropertiesSyncController({
 });
 const inputWiringServices = {
   cv, st, el, render, renderOverlay, hit, s2w, zc, getViewMetrics,
-  getRectById, worldToRectUV,
+  getRectById, worldToRectUV, rectUVToWorld,
   isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
   cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
   beginClusterHandleDragAtPoint, handleClusterEditAtPoint,
@@ -1859,6 +1859,7 @@ const inputWiringServices = {
   setSelection, syncPropsSmart, snapMaskNode, getCellLinkCandidateAtPoint, getRigHitAtPoint,
   updateClusterHandleDragAtPoint, updateClusterEditCursor,
   findClusterHandle, findActiveClusterBorder, findClusterStartMarker, cellFromWorldPoint,
+  drawCellX, drawCellY,
   updateFlowLinkDragTarget, resetFlowHoverTransient,
   findFlowLinkAtPoint, findFlowStartHandle, findFlowDirectionButton, findFlowResetButton, findFlowEditPoint,
   moveRectDrag, updateSelectionBox, finishSelectionBox,

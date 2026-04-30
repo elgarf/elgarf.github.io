@@ -47,6 +47,9 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     syncPropsSmart,
     findFlowStartHandle,
     worldToRectUV,
+    rectUVToWorld,
+    drawCellX,
+    drawCellY,
     shapePointHit,
     shapeSegmentHit,
     normalizeShapeBounds,
@@ -107,6 +110,50 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       if (segmentIndex >= 0) return { rect: r, pointIndex: -1, segmentIndex };
     }
     return null;
+  };
+  const isScreenRect = r => {
+    if (!r) return false;
+    if (typeof isShapeRect === "function" && isShapeRect(r)) return false;
+    if (typeof isNoteRect === "function" && isNoteRect(r)) return false;
+    return true;
+  };
+  const nearestShapeSnapOnScreen = p => {
+    if (!p || typeof worldToRectUV !== "function" || typeof rectUVToWorld !== "function") return p;
+    if (!Array.isArray(st && st.rects)) return p;
+    const threshold = 10 / zoomSafe(st.zoom);
+    for (let i = 0; i < st.rects.length; i++) {
+      const r = st.rects[i];
+      if (!isScreenRect(r)) continue;
+      const uv = worldToRectUV(r, p.x, p.y);
+      if (!uv || uv.u < 0 || uv.u > r.width || uv.v < 0 || uv.v > r.height) continue;
+      const snapAxis = (value, max, step) => {
+        const candidates = [0, max];
+        const safeStep = Math.max(1, Number(step) || 1);
+        candidates.push(Math.max(0, Math.min(max, Math.round(value / safeStep) * safeStep)));
+        let best = Number(value) || 0;
+        let bestDist = Infinity;
+        for (const candidate of candidates) {
+          const d = Math.abs((Number(candidate) || 0) - value);
+          if (d < bestDist) {
+            bestDist = d;
+            best = Number(candidate) || 0;
+          }
+        }
+        return bestDist <= threshold ? best : value;
+      };
+      const stepX = Math.max(1, (typeof drawCellX === "function" ? drawCellX(r) : 128) / 4);
+      const stepY = Math.max(1, (typeof drawCellY === "function" ? drawCellY(r) : 128) / 4);
+      const u = snapAxis(Number(uv.u) || 0, Math.max(0, Number(r.width) || 0), stepX);
+      const v = snapAxis(Number(uv.v) || 0, Math.max(0, Number(r.height) || 0), stepY);
+      if (Math.abs(u - uv.u) <= 1e-6 && Math.abs(v - uv.v) <= 1e-6) return p;
+      return rectUVToWorld(r, u, v);
+    }
+    return p;
+  };
+  const snapShapePoint = (p, opts = null) => {
+    const o = (opts && typeof opts === "object") ? opts : {};
+    if (o.disableSnap || o.ctrlSnap || o.ctrlKey) return p;
+    return nearestShapeSnapOnScreen(p);
   };
   const isSelectedRectId = id => {
     const n = Math.round(Number(id) || 0);
@@ -202,6 +249,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
   const handlePointerDownShape = (p, opts = null) => {
     if (st.mode !== "shape") return false;
+    const sp = snapShapePoint(p, opts);
     if (st.shapeDraft && Math.round(Number(opts && opts.clickCount) || 1) > 1) {
       finalizeShapeDraft();
       st.shapeSuppressNextDoubleClick = true;
@@ -218,7 +266,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       if (editHit && editHit.rect) {
         const r = editHit.rect;
         if (editHit.segmentIndex >= 0 && Array.isArray(r.shapePoints)) {
-          const uv = worldToRectUV(r, p.x, p.y);
+          const uv = worldToRectUV(r, sp.x, sp.y);
           const insertAt = Math.max(0, Math.min(r.shapePoints.length, editHit.segmentIndex + 1));
           r.shapePoints.splice(insertAt, 0, { x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) });
           if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
@@ -241,11 +289,11 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       }
     }
     const last = pts[pts.length - 1];
-    if (!last || Math.hypot((Number(last.x) || 0) - p.x, (Number(last.y) || 0) - p.y) > 0.001) {
-      pts.push({ x: Math.round(p.x), y: Math.round(p.y) });
+    if (!last || Math.hypot((Number(last.x) || 0) - sp.x, (Number(last.y) || 0) - sp.y) > 0.001) {
+      pts.push({ x: Math.round(sp.x), y: Math.round(sp.y) });
     }
-    d.pointerX = p.x;
-    d.pointerY = p.y;
+    d.pointerX = sp.x;
+    d.pointerY = sp.y;
     render();
     return true;
   };
@@ -372,7 +420,8 @@ export const setupPointerOrchestratorController = (deps = {}) => {
         st.shapePointDrag = null;
         return false;
       }
-      const uv = worldToRectUV(r, p.x, p.y);
+      const sp = snapShapePoint(p, o);
+      const uv = worldToRectUV(r, sp.x, sp.y);
       const index = Math.max(0, Math.min(r.shapePoints.length - 1, Math.round(Number(drag.index) || 0)));
       r.shapePoints[index] = { x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) };
       if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
@@ -382,8 +431,9 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       return true;
     }
     if (st.mode === "shape" && st.shapeDraft) {
-      st.shapeDraft.pointerX = p.x;
-      st.shapeDraft.pointerY = p.y;
+      const sp = snapShapePoint(p, o);
+      st.shapeDraft.pointerX = sp.x;
+      st.shapeDraft.pointerY = sp.y;
       render();
       return true;
     }

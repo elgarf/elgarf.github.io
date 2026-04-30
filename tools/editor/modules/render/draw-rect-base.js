@@ -19,6 +19,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
   const buildRectOverlayLines = (r, opts = {}) => {
     const {
       installView = false,
+      hideScreenGroup = false,
       mFmt,
       pctFmt,
       wm = 0,
@@ -31,9 +32,12 @@ export const setupDrawRectBaseController = (deps = {}) => {
     const installCabText = Array.isArray(installExtra.groups) && installExtra.groups.length ? installExtra.groups.join("\n") : "—";
     const meterUnit = t("м");
     const areaUnit = t("м²");
+    const screenName = hideScreenGroup
+      ? String(r.name || "").split("@")[0].trim() || r.name
+      : r.name;
     const lsRaw = installView
-      ? [r.name, `${mFmt(wm)} x ${mFmt(hm)} ${meterUnit}`, `${pctFmt(pct)}%`, `${mFmt(installExtra.areaM2)} ${areaUnit}`, installCabText]
-      : [r.name, `(${rx}; ${ry}) px`, `${Math.round(r.width)} x ${Math.round(r.height)} px`, `${mFmt(wm)} x ${mFmt(hm)} ${meterUnit}`, `${pctFmt(pct)}%`];
+      ? [screenName, `${mFmt(wm)} x ${mFmt(hm)} ${meterUnit}`, `${pctFmt(pct)}%`, `${mFmt(installExtra.areaM2)} ${areaUnit}`, installCabText]
+      : [screenName, `(${rx}; ${ry}) px`, `${Math.round(r.width)} x ${Math.round(r.height)} px`, `${mFmt(wm)} x ${mFmt(hm)} ${meterUnit}`, `${pctFmt(pct)}%`];
     return lsRaw
       .flatMap(line => String(line == null ? "" : line).replace(/\r/g, "").split("\n"))
       .filter(line => line.length > 0);
@@ -93,7 +97,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const buildDeferredTextOverlay = () => {
         const rx = Math.round(r.x - origin.x), ry = Math.round(r.y - origin.y), baseFs = getRectTextSizePx(r), wm = (r.widthM != null ? r.widthM : r.width / Math.max(1, r.scale || 256)), hm = (r.heightM != null ? r.heightM : r.height / Math.max(1, r.scale || 256)), pct = fillPercent(wm, hm, r.areaM2Px);
         const installExtra = installView ? buildVisibleCabinetSummary(r, cellX, cellY, topo, hs) : { areaM2: 0, groups: [] };
-        const ls = buildRectOverlayLines(r, { installView, mFmt, pctFmt, wm, hm, pct, installExtra, rx, ry });
+        const ls = buildRectOverlayLines(r, { installView, hideScreenGroup: !!options.hideScreenGroupInText, mFmt, pctFmt, wm, hm, pct, installExtra, rx, ry });
         const maxW = Math.max(20, w - 6), localRect = { x: -w / 2, y: -h / 2, width: w, height: h };
         const layoutKey = ["canvas", w, h, cellX, cellY, listSignature(r.hiddenCells), baseFs, maxW, st.fontFamily, ls.join("|")].join("|");
         const layout = getRectTextLayoutCached(r, layoutKey, () => {

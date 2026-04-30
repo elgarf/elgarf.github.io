@@ -34,7 +34,8 @@ export const setupUiBinders = (deps = {}) => {
   };
   const applyProjectNameInput = (opts = {}) => {
     const source = opts && opts.source ? opts.source : el.project;
-    st.projectName = ((source && source.value) || "project").trim() || "project";
+    const raw = source ? String(source.value || "") : "";
+    st.projectName = opts.syncProps ? raw.trim() : raw;
     syncProjectNameInputs();
     syncActiveTabSnapshot();
     renderProjectTabs();

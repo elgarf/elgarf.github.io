@@ -125,6 +125,7 @@ export const createRenderExportPngBlob = (deps = {}) => {
             forceRigOverlay,
             suppressRigOverlay: !!flowOnly,
             viewModeOverride: (includeFlow || includeRig) ? "install" : "art",
+            hideScreenGroupInText: !(includeFlow || includeRig),
             shapeFrameId,
             ...(extraOpts || {})
           };

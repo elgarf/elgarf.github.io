@@ -71,7 +71,9 @@ export const createProjectCodec = (deps) => {
     const input = (raw && typeof raw === "object") ? raw : {};
     const out = (typeof d.cloneProjectData === "function") ? d.cloneProjectData(input) : JSON.parse(JSON.stringify(input || {}));
     if (!Number.isFinite(Number(out.version))) out.version = 1;
-    out.projectName = String(out.projectName || "project").trim() || "project";
+    out.projectName = Object.prototype.hasOwnProperty.call(out, "projectName")
+      ? String(out.projectName || "")
+      : "project";
     if (!isPlainObject(out.camera)) out.camera = { x: 0, y: 0, zoom: 1 };
     if (!isPlainObject(out.settings)) out.settings = {};
     if (!Number.isFinite(Number(out.settings.textSize))) out.settings.textSize = DEFAULT_TEXT_SIZE;

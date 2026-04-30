@@ -70,7 +70,9 @@ export const setupProjectStateController = (deps = {}) => {
       st.installLayers = { text: true, flow: true, rig: true };
       st.snap = { grid: false, objects: true, centers: true, gaps: true };
     }
-    st.projectName = String((d && d.projectName) || "project").trim() || "project";
+    st.projectName = (d && Object.prototype.hasOwnProperty.call(d, "projectName"))
+      ? String(d.projectName || "")
+      : "project";
     st.saveLocationId = setGlobalSaveLocationId((d && d.saveLocationId) || getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
   };
 
