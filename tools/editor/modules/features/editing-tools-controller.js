@@ -28,6 +28,9 @@ export const setupEditingToolsCore = (deps = {}) => {
     findClusterHandle,
     schedulePersist,
     cellFromWorldPoint,
+    isShapeRect,
+    pointInShape,
+    shapePointHit,
     findManualClusterAtCell,
     nextManualClusterId,
     clusterCanPlace,
@@ -46,7 +49,9 @@ export const setupEditingToolsCore = (deps = {}) => {
       if (typeof rectAABBMasked === "function") {
         const bb = rectAABBMasked(r);
         const rigTopPad = rigTopPadFor(r);
-        if (x < bb.minX - rigTopPad || x > bb.maxX + rigTopPad || y < bb.minY - rigTopPad || y > bb.maxY + rigTopPad) continue;
+        const shapePad = typeof isShapeRect === "function" && isShapeRect(r) ? 12 / zoomSafe(st.zoom) : 0;
+        const pad = Math.max(rigTopPad, shapePad);
+        if (x < bb.minX - pad || x > bb.maxX + pad || y < bb.minY - pad || y > bb.maxY + pad) continue;
       }
       const p = worldToRectUV(r, x, y);
       const inRect = p.u >= 0 && p.u <= r.width && p.v >= 0 && p.v <= r.height;
@@ -56,7 +61,18 @@ export const setupEditingToolsCore = (deps = {}) => {
         && p.u <= r.width
         && p.v >= -rigTopPad
         && p.v < 0;
-      if (!inRect && !inRigTopPad) continue;
+      const shapePointUnderCursor = typeof isShapeRect === "function"
+        && isShapeRect(r)
+        && typeof shapePointHit === "function"
+        && shapePointHit(r, x, y, st.zoom) >= 0;
+      if (!inRect && !inRigTopPad && !shapePointUnderCursor) continue;
+      if (typeof isShapeRect === "function" && isShapeRect(r)) {
+        if (shapePointUnderCursor) return r;
+        if (typeof pointInShape === "function" && pointInShape(r, x, y)) {
+          return r;
+        }
+        continue;
+      }
       if (String(r?.type || "") !== "note" && inRect && !cellFromWorldPoint(r, x, y, true)) continue;
       return r;
     }

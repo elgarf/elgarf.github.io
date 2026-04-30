@@ -102,10 +102,15 @@ export const createRenderExportPngBlob = (deps = {}) => {
       const c = out.getContext("2d");
       const shiftX = l;
       const shiftY = startY + t;
+      const exportOffsetX = -minX + shiftX;
+      const exportOffsetY = -minY + shiftY;
+      const shiftedRects = st.rects.map(rct => ({ ...rct, x: rct.x - minX + shiftX, y: rct.y - minY + shiftY }));
+      const shapeFrameId = `export:${shiftX}:${shiftY}:${out.width}:${out.height}:${includeFlow ? 1 : 0}:${rigOnly ? 1 : 0}:${flowOnly ? 1 : 0}`;
       const drawExportRects = extraOpts => {
         for (let i = st.rects.length - 1; i >= 0; i--) {
           const rct = st.rects[i];
-          const er = { ...rct, x: rct.x - minX + shiftX, y: rct.y - minY + shiftY };
+          const isShape = String((rct && rct.kind) || "").toLowerCase() === "shape";
+          const er = isShape ? rct : shiftedRects[i];
           const includeFlowRect = !!(includeFlow && normalizeDataFlow(rct && rct.dataFlow) !== "none");
           const flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(rct) : null;
           const regions = getExportRegionsFromCache(rct);
@@ -120,10 +125,18 @@ export const createRenderExportPngBlob = (deps = {}) => {
             forceRigOverlay,
             suppressRigOverlay: !!flowOnly,
             viewModeOverride: (includeFlow || includeRig) ? "install" : "art",
+            shapeFrameId,
             ...(extraOpts || {})
           };
           if (includeFlowRect) drawOpts.flowGroupsOverride = Array.isArray(flowGroups) ? flowGroups : [];
-          drawRect(c, er, false, 1, { x: 0, y: 0 }, drawOpts);
+          if (isShape) {
+            c.save();
+            c.translate(exportOffsetX, exportOffsetY);
+            drawRect(c, er, false, 1, { x: 0, y: 0 }, drawOpts);
+            c.restore();
+          } else {
+            drawRect(c, er, false, 1, { x: 0, y: 0 }, drawOpts);
+          }
         }
       };
       if (includeFlow) {

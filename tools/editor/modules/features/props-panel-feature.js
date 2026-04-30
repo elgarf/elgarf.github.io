@@ -42,7 +42,11 @@ export const setupPropsPanelFeature = (deps = {}) => {
     createRectPropSchema,
     getAreaM2BadgeLabel,
     getAreaM2PresetValues,
-    updateAreaM2Badge
+    updateAreaM2Badge,
+    isShapeRect,
+    rectUVToWorld,
+    worldToRectUV,
+    normalizeShapeBounds
   } = deps;
 
   const rectPropSchema = createRectPropSchema({
@@ -141,6 +145,32 @@ export const setupPropsPanelFeature = (deps = {}) => {
     }
   };
   const getAreaM2BadgeEl = () => el.propAreaM2Badge || (typeof document !== "undefined" ? document.getElementById("propAreaM2Badge") : null);
+  const getSelectedShapePoint = r => {
+    if (!r || typeof isShapeRect !== "function" || !isShapeRect(r)) return null;
+    const sel = st && st.shapePointSel;
+    if (!sel || Math.round(Number(sel.id) || 0) !== Math.round(Number(r.id) || 0)) return null;
+    const points = Array.isArray(r.shapePoints) ? r.shapePoints : [];
+    const index = Math.round(Number(sel.index) || 0);
+    if (index < 0 || index >= points.length) return null;
+    return { index, point: points[index] };
+  };
+  const syncShapePointPanel = r => {
+    const selected = getSelectedShapePoint(r);
+    const show = !!selected;
+    if (el.shapePointPanel) el.shapePointPanel.classList.toggle("d-none", !show);
+    if (el.shapePointX) uiSetDisabled(el.shapePointX, !show || isRectLocked(r));
+    if (el.shapePointY) uiSetDisabled(el.shapePointY, !show || isRectLocked(r));
+    if (!show) {
+      uiSetValue(el.shapePointX, "");
+      uiSetValue(el.shapePointY, "");
+      return;
+    }
+    const wp = typeof rectUVToWorld === "function"
+      ? rectUVToWorld(r, Number(selected.point.x) || 0, Number(selected.point.y) || 0)
+      : { x: (Number(r.x) || 0) + (Number(selected.point.x) || 0), y: (Number(r.y) || 0) + (Number(selected.point.y) || 0) };
+    uiSetValue(el.shapePointX, Math.round(Number(wp.x) || 0));
+    uiSetValue(el.shapePointY, Math.round(Number(wp.y) || 0));
+  };
 
   const syncProps = () => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
@@ -174,6 +204,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       );
     }
     if (!r) {
+      syncShapePointPanel(null);
       updateSplitVariantModeUi(null); updateModeBadges(null);
       uiSetValue(el.name, ""); uiSetValue(el.rectTextSize, "0"); updateRectTextSizeLabel(null);
       uiSetValue(el.x, ""); uiSetValue(el.y, ""); uiSetValue(el.wm, ""); uiSetValue(el.hm, "");
@@ -193,6 +224,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       uiSetValue(el.cx, "128"); uiSetValue(el.cy, "128");
       return;
     }
+    syncShapePointPanel(r);
     metricFromPx(r); if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA);
     uiSetValue(el.name, r.name);
     uiSetValue(el.rectTextSize, String(Math.max(0, Math.min(128, Math.round(Number(r.textSize) || 0)))));
@@ -244,6 +276,21 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (!targets.length) return;
     const multi = targets.length > 1;
     if (o.selectionKey && o.selectionKey !== selectionKey()) return;
+    if (!multi && (shouldApply("shapePointX") || shouldApply("shapePointY"))) {
+      const selectedPoint = getSelectedShapePoint(r);
+      if (selectedPoint && typeof worldToRectUV === "function") {
+        const currentWorld = typeof rectUVToWorld === "function"
+          ? rectUVToWorld(r, Number(selectedPoint.point.x) || 0, Number(selectedPoint.point.y) || 0)
+          : { x: (Number(r.x) || 0) + (Number(selectedPoint.point.x) || 0), y: (Number(r.y) || 0) + (Number(selectedPoint.point.y) || 0) };
+        const nextWorld = {
+          x: shouldApply("shapePointX") ? Math.round(evalExpr(el.shapePointX && el.shapePointX.value, currentWorld.x)) : currentWorld.x,
+          y: shouldApply("shapePointY") ? Math.round(evalExpr(el.shapePointY && el.shapePointY.value, currentWorld.y)) : currentWorld.y
+        };
+        const uv = worldToRectUV(r, nextWorld.x, nextWorld.y);
+        r.shapePoints[selectedPoint.index] = { x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) };
+        if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
+      }
+    }
     if (!multi && shouldApply("name")) r.name = el.name.value || `Rect ${r.id}`;
     if (!multi) {
       let metricChanged = false;
@@ -253,7 +300,17 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (shouldApply("widthM")) { r.widthM = Math.max(0.001, evalExpr(el.wm.value, r.widthM || 0.001)); metricChanged = true; }
       if (shouldApply("heightM")) { r.heightM = Math.max(0.001, evalExpr(el.hm.value, r.heightM || 0.001)); metricChanged = true; }
       if (shouldApply("areaM2Px")) r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
-      if (metricChanged) pxFromMetric(r);
+      if (metricChanged) {
+        const oldW = Math.max(1, Number(r.width) || 1);
+        const oldH = Math.max(1, Number(r.height) || 1);
+        pxFromMetric(r);
+        if (typeof isShapeRect === "function" && isShapeRect(r) && Array.isArray(r.shapePoints)) {
+          const sx = Math.max(0.000001, (Number(r.width) || oldW) / oldW);
+          const sy = Math.max(0.000001, (Number(r.height) || oldH) / oldH);
+          r.shapePoints = r.shapePoints.map(p => ({ x: Math.round((Number(p.x) || 0) * sx), y: Math.round((Number(p.y) || 0) * sy) }));
+          if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
+        }
+      }
     } else {
       const ids = [...st.selSet].sort((a, b) => a - b), idsKey = ids.join(",");
       if (!st.selMultiBase || st.selMultiBase.idsKey !== idsKey) refreshMultiSelectionBase();
@@ -619,6 +676,8 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (node === el.numCells) return "numberCells";
     if (node === el.splitVariant) return "splitVariant";
     if (node === el.areaM2) return "areaM2Px";
+    if (node === el.shapePointX) return "shapePointX";
+    if (node === el.shapePointY) return "shapePointY";
     return "";
   };
   const fieldForEvent = e => fieldForNode(e && e.currentTarget);
@@ -627,7 +686,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     applyProps({ ...opts, selectionKey: key });
     return true;
   };
-  const propInputs = [el.name, el.x, el.y, el.rot, el.wm, el.hm, el.a, el.b, el.cx, el.cy, el.areaM2, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant, el.rectTextSize];
+  const propInputs = [el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.a, el.b, el.cx, el.cy, el.areaM2, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant, el.rectTextSize];
   bindEvents(propInputs, "focusin", e => rememberSelectionKey(e.currentTarget));
   const scheduleApplyPropsInput = e => {
     const key = keyForEvent(e);
@@ -638,7 +697,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
       applyPropsForKey(key, { list: false, persist: false, render: true, field });
     });
   };
-  bindEvents([el.name, el.x, el.y, el.rot, el.cx, el.cy], "input", scheduleApplyPropsInput);
+  bindEvents([el.name, el.x, el.y, el.rot, el.shapePointX, el.shapePointY, el.cx, el.cy], "input", scheduleApplyPropsInput);
   bindEvents([el.cUnit], "change", () => syncProps());
   if (el.a) {
     const scheduleApplyColorInput = e => {
@@ -714,7 +773,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   });
   bindSplitVariantHandlers();
 
-  bindCommitInputs([el.name, el.x, el.y, el.rot, el.wm, el.hm, el.cx, el.cy], e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
+  bindCommitInputs([el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.cx, el.cy], e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
 
   let textSettingsRaf = 0;
   const textSettingsFontState = { timer: 0 };

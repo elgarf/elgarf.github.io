@@ -53,7 +53,8 @@ export const setupToolModeController = (deps = {}) => {
   };
   const CREATE_TOOL_META = {
     draw: { title: "Добавить экран", icon: "fa-regular fa-square-plus" },
-    note: { title: "Добавить примечание", icon: "fa-solid fa-note-sticky" }
+    note: { title: "Добавить примечание", icon: "fa-solid fa-note-sticky" },
+    shape: { title: "Добавить контур", icon: "fa-solid fa-draw-polygon" }
   };
   const ensureToolMenuMarker = btn => {
     if (!btn) return;
@@ -62,8 +63,8 @@ export const setupToolModeController = (deps = {}) => {
     btn.dataset.toolGroup = "create";
   };
   const updateCreateToolButtons = () => {
-    if (!["draw", "note"].includes(String(st.createToolMode || ""))) st.createToolMode = "draw";
-    const mode = (st.mode === "draw" || st.mode === "note") ? st.mode : st.createToolMode;
+    if (!["draw", "note", "shape"].includes(String(st.createToolMode || ""))) st.createToolMode = "draw";
+    const mode = (st.mode === "draw" || st.mode === "note" || st.mode === "shape") ? st.mode : st.createToolMode;
     const meta = CREATE_TOOL_META[mode] || CREATE_TOOL_META.draw;
     for (const b of [el.toolDraw, el.mToolDraw]) {
       if (!b) continue;
@@ -116,7 +117,7 @@ export const setupToolModeController = (deps = {}) => {
     const inactiveClass = getInactiveOutlineClass();
 
     for (const [mode, ...btns] of map) {
-      const on = mode === "create" ? (m === "draw" || m === "note") : m === mode;
+      const on = mode === "create" ? (m === "draw" || m === "note" || m === "shape") : m === mode;
       for (const b of btns) {
         if (!b) continue;
         b.classList.remove("btn-outline-light", "btn-outline-dark");
@@ -132,6 +133,8 @@ export const setupToolModeController = (deps = {}) => {
     if (el && el.side) el.side.classList.toggle("tool-auto-select-guard", AUTO_SELECTION_MODES.has(m));
     st.draft = null;
     st.draftPending = null;
+    if (m !== "shape") st.shapeDraft = null;
+    st.shapePointDrag = null;
     st.drag = null;
     updateToolbarOverflow();
     updateClusterEditCursor();
@@ -154,7 +157,7 @@ export const setupToolModeController = (deps = {}) => {
       }
       return;
     }
-    if (mode === "draw" || mode === "note") st.createToolMode = mode;
+    if (mode === "draw" || mode === "note" || mode === "shape") st.createToolMode = mode;
     setMode(toolFsm.nextOnToolClick(st.mode, mode));
   };
 

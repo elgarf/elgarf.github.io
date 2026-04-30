@@ -18,10 +18,38 @@ export const setupRenderPipeline = (deps = {}) => {
     st.flowLinkAnchors = [];
     st.flowLinkSegments = [];
     st.clusterHandles = [];
+    st.shapeRenderFrame = (Math.max(0, Math.round(Number(st.shapeRenderFrame) || 0)) + 1) % 1000000000;
     if (!isClusterEditMode()) resetClusterHoverTransient();
   };
 
   const drawDraftOverlay = (c, z) => {
+    if (st.shapeDraft && Array.isArray(st.shapeDraft.points) && st.shapeDraft.points.length) {
+      const d = st.shapeDraft;
+      const pts = d.points;
+      c.save();
+      c.strokeStyle = "rgba(13,110,253,.95)";
+      c.fillStyle = "rgba(13,110,253,.16)";
+      c.lineWidth = Math.max(1, 1.4 / Math.max(0.25, z));
+      c.setLineDash([6 / z, 4 / z]);
+      c.beginPath();
+      c.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y);
+      if (Number.isFinite(Number(d.pointerX)) && Number.isFinite(Number(d.pointerY))) c.lineTo(Number(d.pointerX), Number(d.pointerY));
+      if (pts.length >= 3) c.closePath();
+      c.stroke();
+      if (pts.length >= 3) c.fill();
+      c.setLineDash([]);
+      const radius = Math.max(4, 5 / Math.max(0.25, z));
+      for (let i = 0; i < pts.length; i++) {
+        c.beginPath();
+        c.arc(pts[i].x, pts[i].y, radius, 0, Math.PI * 2);
+        c.fillStyle = i === 0 ? "rgba(25,135,84,.95)" : "rgba(13,110,253,.95)";
+        c.strokeStyle = "rgba(255,255,255,.95)";
+        c.fill();
+        c.stroke();
+      }
+      c.restore();
+    }
     if (!st.draft) return;
     const d = st.draft;
     const scale = Math.max(1, Math.round(Number(st.globalScale) || 256));
@@ -103,7 +131,7 @@ export const setupRenderPipeline = (deps = {}) => {
       const rr = st.rects[i];
       const bb = rectAABB(rr);
       if (bb.maxX < viewMinX || bb.minX > viewMaxX || bb.maxY < viewMinY || bb.minY > viewMaxY) continue;
-      drawRect(c, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, ...drawOptions });
+      drawRect(c, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, shapeFrameId: st.shapeRenderFrame, ...drawOptions });
     }
   };
 

@@ -131,7 +131,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
 
   const selectedAreaM2 = () => selectedItems().reduce((sum, it) => {
     const r = it && it.rect;
-    if (!r || String(r.kind || "").toLowerCase() === "note") return sum;
+    if (!r || ["note", "shape"].includes(String(r.kind || "").toLowerCase())) return sum;
     if (
       typeof drawCellX === "function"
       && typeof drawCellY === "function"

@@ -20,7 +20,8 @@ export const setupInputController = (deps = {}) => {
     findFlowLinkAtPoint, findFlowStartHandle, findFlowDirectionButton, findFlowResetButton, findFlowEditPoint,
     moveRectDrag, updateSelectionBox, finishSelectionBox,
     endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock, updateManualFlowPoint, dragManualFlowPoint,
-    mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
+    mkNote, mk, mkShape, isNoteRect, isShapeRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
+    shapePointHit, shapeSegmentHit, normalizeShapeBounds,
     resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
     resetFlowRegionOverrides, syncProps,
     refreshMultiSelectionBase,
@@ -129,7 +130,9 @@ export const setupInputController = (deps = {}) => {
     finishSelectionBox,
     mkNote,
     mk,
+    mkShape,
     isNoteRect,
+    isShapeRect,
     openNoteEditor,
     setMode,
     refreshPanels,
@@ -143,6 +146,9 @@ export const setupInputController = (deps = {}) => {
     syncProps,
     findFlowStartHandle,
     worldToRectUV,
+    shapePointHit,
+    shapeSegmentHit,
+    normalizeShapeBounds,
     hitLayerButton,
     setLayerButtonHover,
     clearLayerButtonHover,
@@ -191,15 +197,16 @@ export const setupInputController = (deps = {}) => {
   bindEvent(cv, "mousedown", e => {
     invalidateCanvasRectCache();
     const { sx, sy, p } = getCanvasPoint(e);
+    const clickCount = Math.max(1, Math.round(Number(e.detail) || 1));
     if (e.button === 0 && typeof hitLayerButton === "function" && hitLayerButton(p.x, p.y)) {
-      handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false });
+      handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false, clickCount });
       return;
     }
     const panWithLeft = e.button === 0 && (st.keys.space || st.lockAll);
     const pan = e.button === 1 || e.button === 2 || panWithLeft;
     if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return; }
     if (e.button !== 0) return;
-    handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false });
+    handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false, clickCount });
   });
   bindWindowEvent("mousemove", e => {
     const { sx, sy, p } = getCanvasPoint(e);

@@ -32,7 +32,9 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     finishSelectionBox,
     mkNote,
     mk,
+    mkShape,
     isNoteRect,
+    isShapeRect,
     openNoteEditor,
     setMode,
     refreshPanels,
@@ -45,6 +47,9 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     syncPropsSmart,
     findFlowStartHandle,
     worldToRectUV,
+    shapePointHit,
+    shapeSegmentHit,
+    normalizeShapeBounds,
     hitLayerButton,
     setLayerButtonHover,
     clearLayerButtonHover,
@@ -68,6 +73,41 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   const noteResizePad = () => NOTE_RESIZE_HANDLE_PX / zoomSafe(st.zoom);
   const noteResizeMin = () => Math.max(24, 24 / zoomSafe(st.zoom));
   const draftMovePx = (dx, dy) => Math.hypot(dx, dy) * Math.max(0.1, Number(st.zoom) || 1);
+  const ensureShapeDraft = () => {
+    if (!st.shapeDraft || !Array.isArray(st.shapeDraft.points)) st.shapeDraft = { points: [] };
+    return st.shapeDraft;
+  };
+  const clearShapeDraft = () => {
+    st.shapeDraft = null;
+  };
+  const finalizeShapeDraft = () => {
+    const d = st.shapeDraft;
+    const pts = d && Array.isArray(d.points) ? d.points : [];
+    if (pts.length < 3) return false;
+    const created = typeof mkShape === "function" ? mkShape(pts) : null;
+    clearShapeDraft();
+    if (created) {
+      st.rects.unshift(created);
+      setMode("select");
+      selRect(created.id);
+      refreshPanels();
+      schedulePersist("project");
+    }
+    render();
+    return true;
+  };
+  const findShapeEditHit = p => {
+    if (!Array.isArray(st && st.rects)) return null;
+    for (let i = 0; i < st.rects.length; i++) {
+      const r = st.rects[i];
+      if (!r || typeof isShapeRect !== "function" || !isShapeRect(r) || isRectLocked(r)) continue;
+      const pointIndex = typeof shapePointHit === "function" ? shapePointHit(r, p.x, p.y, st.zoom) : -1;
+      if (pointIndex >= 0) return { rect: r, pointIndex, segmentIndex: -1 };
+      const segmentIndex = typeof shapeSegmentHit === "function" ? shapeSegmentHit(r, p.x, p.y, st.zoom) : -1;
+      if (segmentIndex >= 0) return { rect: r, pointIndex: -1, segmentIndex };
+    }
+    return null;
+  };
   const isSelectedRectId = id => {
     const n = Math.round(Number(id) || 0);
     if (st && st.selSet instanceof Set && st.selSet.has(n)) return true;
@@ -152,6 +192,63 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     };
     return true;
   };
+  const shapeDraftCloseHit = p => {
+    const d = st.shapeDraft;
+    const pts = d && Array.isArray(d.points) ? d.points : [];
+    if (pts.length < 3) return false;
+    const first = pts[0];
+    const radius = 11 / zoomSafe(st.zoom);
+    return Math.hypot((Number(first.x) || 0) - p.x, (Number(first.y) || 0) - p.y) <= radius;
+  };
+  const handlePointerDownShape = (p, opts = null) => {
+    if (st.mode !== "shape") return false;
+    if (st.shapeDraft && Math.round(Number(opts && opts.clickCount) || 1) > 1) {
+      finalizeShapeDraft();
+      st.shapeSuppressNextDoubleClick = true;
+      return true;
+    }
+    const d = ensureShapeDraft();
+    const pts = d.points;
+    if (shapeDraftCloseHit(p)) {
+      finalizeShapeDraft();
+      return true;
+    }
+    if (!pts.length) {
+      const editHit = findShapeEditHit(p);
+      if (editHit && editHit.rect) {
+        const r = editHit.rect;
+        if (editHit.segmentIndex >= 0 && Array.isArray(r.shapePoints)) {
+          const uv = worldToRectUV(r, p.x, p.y);
+          const insertAt = Math.max(0, Math.min(r.shapePoints.length, editHit.segmentIndex + 1));
+          r.shapePoints.splice(insertAt, 0, { x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) });
+          if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
+          st.shapePointSel = { id: r.id, index: insertAt };
+          setMode("select");
+          selRect(r.id);
+          refreshPanels();
+          schedulePersist("project");
+          render();
+          return true;
+        }
+        if (editHit.pointIndex >= 0) {
+          st.shapePointSel = { id: r.id, index: editHit.pointIndex };
+          setMode("select");
+          selRect(r.id);
+          syncProps();
+          render();
+          return true;
+        }
+      }
+    }
+    const last = pts[pts.length - 1];
+    if (!last || Math.hypot((Number(last.x) || 0) - p.x, (Number(last.y) || 0) - p.y) > 0.001) {
+      pts.push({ x: Math.round(p.x), y: Math.round(p.y) });
+    }
+    d.pointerX = p.x;
+    d.pointerY = p.y;
+    render();
+    return true;
+  };
   const handlePointerDownMask = p => {
     if (!isMaskMode()) return false;
     selectHitRectIfNeeded(hit(p.x, p.y));
@@ -217,6 +314,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       const h = hit(p.x, p.y);
       suppressMoveCursorUntilMouseUp = !!(h && !isSelectedRectId(h.id));
     }
+    if (handlePointerDownShape(p, opts)) return;
     if (handlePointerDownDrawOrNote(p)) return;
     if (handlePointerDownMask(p)) return;
     if (handlePointerDownCell(p)) return;
@@ -225,6 +323,17 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (handlePointerDownFlow(p, opts)) return;
     if (st.mode === "select") {
       const h = hit(p.x, p.y);
+      if (h && typeof isShapeRect === "function" && isShapeRect(h) && !isRectLocked(h) && typeof shapePointHit === "function") {
+        const pointIndex = shapePointHit(h, p.x, p.y, st.zoom);
+        if (pointIndex >= 0) {
+          if (h.id !== st.sel) selRect(h.id);
+          st.shapePointSel = { id: h.id, index: pointIndex };
+          st.shapePointDrag = { id: h.id, index: pointIndex, changed: false };
+          syncProps();
+          render();
+          return;
+        }
+      }
       if (h && isNoteRect(h) && !isRectLocked(h) && isNoteResizeHit(h, p)) {
         if (h.id !== st.sel) selRect(h.id);
         beginNoteResize(h, p);
@@ -256,6 +365,28 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     }
     if (st.noteResize) setNoteResizeCursor(true);
     if (handleNoteResizePointerMove(p)) return true;
+    if (st.shapePointDrag) {
+      const drag = st.shapePointDrag;
+      const r = getRectById(drag.id);
+      if (!r || !isShapeRect(r) || isRectLocked(r) || !Array.isArray(r.shapePoints)) {
+        st.shapePointDrag = null;
+        return false;
+      }
+      const uv = worldToRectUV(r, p.x, p.y);
+      const index = Math.max(0, Math.min(r.shapePoints.length - 1, Math.round(Number(drag.index) || 0)));
+      r.shapePoints[index] = { x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) };
+      if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
+      drag.changed = true;
+      if (typeof syncPropsSmart === "function") syncPropsSmart();
+      render();
+      return true;
+    }
+    if (st.mode === "shape" && st.shapeDraft) {
+      st.shapeDraft.pointerX = p.x;
+      st.shapeDraft.pointerY = p.y;
+      render();
+      return true;
+    }
     if (isMaskMode()) {
       setNoteResizeCursor(false);
       const r = getHoveredRect(p);
@@ -345,6 +476,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     const hadMovedDrag = !!(st.drag && st.drag.moved);
     const hadMultiSelectionResize = !!(st.multiSelectionResize && st.multiSelectionResize.changed);
     const hadNoteResize = !!(st.noteResize && st.noteResize.changed);
+    const hadShapePointDrag = !!(st.shapePointDrag && st.shapePointDrag.changed);
     if (st.pan) { st.pan = false; st.panS = null; }
     if (st.selBox) { finishSelectionBox(); return true; }
     if (handlePointerUpCluster()) return true;
@@ -372,6 +504,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     st.draftPending = null;
     st.drag = null;
     st.noteResize = null;
+    st.shapePointDrag = null;
     st.g.x = null;
     st.g.y = null;
     st.dg = null;
@@ -383,7 +516,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       if (isNoteRect(created)) openNoteEditor(created.id);
     }
     if (hadMovedDrag && typeof refreshMultiSelectionBase === "function") refreshMultiSelectionBase();
-    if (hadDrag || created || hadNoteResize || hadMultiSelectionResize) { refreshPanels(); schedulePersist("project"); }
+    if (hadDrag || created || hadNoteResize || hadMultiSelectionResize || hadShapePointDrag) { refreshPanels(); schedulePersist("project"); }
     if (!created && lastPointer && st.mode === "select") updateSelectHoverCursor(lastPointer);
     render();
     return true;
@@ -409,8 +542,31 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
 
   const handleCanvasDoubleClick = (p, preventDefault = () => { }) => {
+    if (st.shapeSuppressNextDoubleClick) {
+      st.shapeSuppressNextDoubleClick = false;
+      preventDefault();
+      return;
+    }
+    if (st.mode === "shape" && st.shapeDraft && finalizeShapeDraft()) {
+      preventDefault();
+      return;
+    }
     const h = hit(p.x, p.y);
     if (!h) return;
+    if (typeof isShapeRect === "function" && isShapeRect(h)) {
+      if (h.id !== st.sel) selRect(h.id);
+      const pointIndex = typeof shapePointHit === "function" ? shapePointHit(h, p.x, p.y, st.zoom) : -1;
+      if (pointIndex >= 0 && Array.isArray(h.shapePoints) && h.shapePoints.length > 3) {
+        h.shapePoints.splice(pointIndex, 1);
+        if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(h);
+        st.shapePointSel = null;
+        schedulePersist("project");
+        syncProps();
+        render();
+        preventDefault();
+      }
+      return;
+    }
     if (isNoteRect(h)) {
       if (h.id !== st.sel) selRect(h.id);
       openNoteEditor(h.id);

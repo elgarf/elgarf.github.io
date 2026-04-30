@@ -47,6 +47,7 @@ import { setupFlowEditOverlayRender } from "./modules/flow/flow-edit-overlay-ren
 import { setupFlowRegionRebuilder } from "./modules/flow/flow-region-rebuilder.js";
 import { setupVisibleRectGeometry } from "./modules/geometry/visible-rects.js";
 import { setupNoteRender } from "./modules/render/note-render.js";
+import { setupShapeRender } from "./modules/render/shape-render.js";
 import { setupDrawRectStagesController } from "./modules/render/draw-rect-stages.js";
 import { setupDrawRectBaseController } from "./modules/render/draw-rect-base.js";
 import { setupCellLinkUtilsController } from "./modules/render/cell-link-utils.js";
@@ -1092,12 +1093,14 @@ let pxFromMetric = (_r) => { };
 let parseProjectRect = (_r, _i, _legacy) => null;
 let mk = (_x, _y, _w, _h) => ({});
 let mkNote = (_x, _y, _w, _h) => ({});
+let mkShape = (_points) => null;
 ({
   metricFromPx,
   pxFromMetric,
   parseProjectRect,
   mk,
-  mkNote
+  mkNote,
+  mkShape
 } = setupRectFactoryController({
   st,
   mRound,
@@ -1157,6 +1160,7 @@ let mkNote = (_x, _y, _w, _h) => ({});
   evalExpr
 }));
 const isNoteRect = r => String((r && r.kind) || "").toLowerCase() === "note";
+let isShapeRect = r => String((r && r.kind) || "").toLowerCase() === "shape";
 const hasRect = id => st.rects.some(v => v.id === id);
 let setMode = (_m) => { };
 let activateToolOrSelect = (_mode) => { };
@@ -1346,6 +1350,9 @@ let handleClusterEditAtPoint = (_wx, _wy) => false;
   findClusterHandle,
   schedulePersist,
   cellFromWorldPoint,
+  isShapeRect: r => isShapeRect(r),
+  pointInShape: (r, wx, wy) => pointInShape(r, wx, wy),
+  shapePointHit: (r, wx, wy, z) => shapePointHit(r, wx, wy, z),
   findManualClusterAtCell,
   nextManualClusterId,
   clusterCanPlace,
@@ -1360,10 +1367,31 @@ const { drawNoteRect } = setupNoteRender({
   fontFamilyCss,
   t: value => translateText(value)
 });
+let normalizeShapeBounds = (_r) => false;
+let pointInShape = (_r, _wx, _wy) => false;
+let shapePointHit = (_r, _wx, _wy, _z) => -1;
+let shapeSegmentHit = (_r, _wx, _wy, _z) => -1;
+let drawShapeRect = () => { };
+({
+  isShapeRect,
+  normalizeShapeBounds,
+  pointInShape,
+  shapePointHit,
+  shapeSegmentHit,
+  drawShapeRect
+} = setupShapeRender({
+  st,
+  rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
+  worldToRectUV: (r, wx, wy) => worldToRectUV(r, wx, wy),
+  pointInPoly,
+  distToSegment
+}));
 const { drawRectBase } = setupDrawRectBaseController({
   st,
   isNoteRect: r => isNoteRect(r),
   drawNoteRect: (c, r, sel, z) => drawNoteRect(c, r, sel, z),
+  isShapeRect: r => isShapeRect(r),
+  drawShapeRect: (c, r, sel, z, opts) => drawShapeRect(c, r, sel, z, opts),
   drawCellX: r => drawCellX(r),
   drawCellY: r => drawCellY(r),
   getHiddenSet: r => getHiddenSet(r),
@@ -1480,7 +1508,7 @@ const { drawInstallSummaryOverlay } = setupInstallSummaryOverlay({
   buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
   fontFamilyCss,
   mFmt,
-  isNoteRect: r => isNoteRect(r),
+  isNoteRect: r => isNoteRect(r) || isShapeRect(r),
   parseScreenNameGroup,
   listSignature,
   t: value => translateText(value)
@@ -1766,6 +1794,11 @@ let applyProps = (_opts) => { };
   cur: () => cur(),
   isRectLocked: r => isRectLocked(r),
   isNoteRect: r => isNoteRect(r),
+  isShapeRect: r => isShapeRect(r),
+  rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
+  worldToRectUV: (r, wx, wy) => worldToRectUV(r, wx, wy),
+  normalizeShapeBounds: r => normalizeShapeBounds(r),
+  shapePointHit: (r, wx, wy, z) => shapePointHit(r, wx, wy, z),
   getSelectedRects: () => getSelectedRects(),
   uiSetDisabled,
   uiSetValue,
@@ -1830,7 +1863,10 @@ const inputWiringServices = {
   findFlowLinkAtPoint, findFlowStartHandle, findFlowDirectionButton, findFlowResetButton, findFlowEditPoint,
   moveRectDrag, updateSelectionBox, finishSelectionBox,
   endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock, updateManualFlowPoint, dragManualFlowPoint,
-  mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
+  mkNote, mk, mkShape, isNoteRect, isShapeRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
+  shapePointHit: (r, wx, wy, z) => shapePointHit(r, wx, wy, z),
+  shapeSegmentHit: (r, wx, wy, z) => shapeSegmentHit(r, wx, wy, z),
+  normalizeShapeBounds: r => normalizeShapeBounds(r),
   resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
   resetFlowRegionOverrides, syncProps,
   refreshMultiSelectionBase,
@@ -1970,7 +2006,7 @@ const {
     bindClick: (...args) => bindClick(...args),
     cur: () => cur(),
     isRectLocked: r => isRectLocked(r),
-    isNoteRect: r => isNoteRect(r),
+    isNoteRect: r => isNoteRect(r) || isShapeRect(r),
     drawCellX,
     drawCellY,
     getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
@@ -2028,7 +2064,7 @@ const {
       st,
       el,
       bindClick: (...args) => bindClick(...args),
-      isNoteRect,
+      isNoteRect: r => isNoteRect(r) || isShapeRect(r),
       getRectRigData,
       drawCellX,
       drawCellY,

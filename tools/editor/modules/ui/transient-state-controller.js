@@ -37,6 +37,8 @@ export const setupTransientStateController = (deps = {}) => {
     resetClusterHoverTransient();
     st.clusterDrag = null;
     st.selBox = null;
+    st.shapePointSel = null;
+    st.shapePointDrag = null;
   };
 
   const cancelActiveDrag = () => {
@@ -89,6 +91,9 @@ export const setupTransientStateController = (deps = {}) => {
       cancelActiveDrag();
       st.draft = null;
       st.draftPending = null;
+      st.shapeDraft = null;
+      st.shapePointSel = null;
+      st.shapePointDrag = null;
     }
   };
 

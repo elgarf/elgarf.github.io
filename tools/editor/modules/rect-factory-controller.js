@@ -44,7 +44,7 @@ export const setupRectFactoryController = (deps = {}) => {
     let minX = Infinity;
     let minY = Infinity;
     for (const r of rects) {
-      if (!r || String(r.kind || "").toLowerCase() === "note") continue;
+      if (!r || ["note", "shape"].includes(String(r.kind || "").toLowerCase())) continue;
       const s = Math.max(1, Math.round(Number(r.scale) || Number(scale) || 256));
       const cx = Number(r.cellX);
       const cy = Number(r.cellY);
@@ -95,7 +95,13 @@ export const setupRectFactoryController = (deps = {}) => {
       rig: normalizeRigData(r && r.rig),
       locked: !!(r && r.locked),
       kind: String((r && r.kind) || ""),
-      noteText: String((r && r.noteText) || "")
+      noteText: String((r && r.noteText) || ""),
+      shapePoints: Array.isArray(r && r.shapePoints)
+        ? r.shapePoints
+          .map(p => ({ x: Math.round(Number(p && p.x) || 0), y: Math.round(Number(p && p.y) || 0) }))
+          .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
+          .slice(0, 512)
+        : []
     };
 
     safeDefine(it, "_flowLockRidToSig", { ...it.flowLockRidToSig }, false);
@@ -142,7 +148,8 @@ export const setupRectFactoryController = (deps = {}) => {
       rig: normalizeRigData(null),
       locked: false,
       kind: "",
-      noteText: ""
+      noteText: "",
+      shapePoints: []
     };
     metricFromPx(r);
     return r;
@@ -160,11 +167,35 @@ export const setupRectFactoryController = (deps = {}) => {
     return r;
   };
 
+  const mkShape = points => {
+    const pts = (Array.isArray(points) ? points : [])
+      .map(p => ({ x: Math.round(Number(p && p.x) || 0), y: Math.round(Number(p && p.y) || 0) }))
+      .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+    if (pts.length < 3) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of pts) {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    }
+    const r = mk(minX, minY, Math.max(1, maxX - minX), Math.max(1, maxY - minY));
+    r.kind = "shape";
+    r.name = `Контур ${r.id}`;
+    r.shapePoints = pts.map(p => ({ x: p.x - minX, y: p.y - minY }));
+    r.rotation = 0;
+    r.colorA = randomColor();
+    r.autoContrastB = false;
+    r.colorB = r.colorA;
+    return r;
+  };
+
   return {
     metricFromPx,
     pxFromMetric,
     parseProjectRect,
     mk,
-    mkNote
+    mkNote,
+    mkShape
   };
 };

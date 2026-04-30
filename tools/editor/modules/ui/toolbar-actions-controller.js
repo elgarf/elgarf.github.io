@@ -46,7 +46,8 @@ export const setupToolbarActionsController = (deps = {}) => {
   };
   const CREATE_TOOL_ITEMS = [
     { mode: "draw", label: "Добавить экран", icon: "fa-regular fa-square-plus" },
-    { mode: "note", label: "Добавить примечание", icon: "fa-solid fa-note-sticky" }
+    { mode: "note", label: "Добавить примечание", icon: "fa-solid fa-note-sticky" },
+    { mode: "shape", label: "Добавить контур", icon: "fa-solid fa-draw-polygon" }
   ];
   const FLOW_TOOL_ITEMS = [
     { variant: "auto", label: "Правка автоматического потока", badge: "А", icon: "fa-solid fa-route" },
@@ -213,10 +214,10 @@ export const setupToolbarActionsController = (deps = {}) => {
     else activateToolOrSelect(next);
   };
   const cycleCreateTool = () => {
-    const current = st.mode === "draw" || st.mode === "note" ? st.mode : String(st.createToolMode || "draw");
+    const current = st.mode === "draw" || st.mode === "note" || st.mode === "shape" ? st.mode : String(st.createToolMode || "draw");
     const index = CREATE_TOOL_ITEMS.findIndex(it => it.mode === current);
     const next = CREATE_TOOL_ITEMS[(index + 1 + CREATE_TOOL_ITEMS.length) % CREATE_TOOL_ITEMS.length].mode;
-    chooseCreateTool(st.mode === "draw" || st.mode === "note" ? next : current);
+    chooseCreateTool(st.mode === "draw" || st.mode === "note" || st.mode === "shape" ? next : current);
   };
   const chooseFlowTool = variant => {
     st.flowEditVariant = FLOW_TOOL_ITEMS.some(it => it.variant === variant) ? variant : "auto";
