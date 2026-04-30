@@ -64,6 +64,19 @@ export const setupShapeRender = (deps = {}) => {
     }
     return null;
   };
+  let shapeHitCtx = null;
+  const getShapeHitCtx = () => {
+    if (shapeHitCtx) return shapeHitCtx;
+    const canvas = makeScratchCanvas(1, 1);
+    shapeHitCtx = canvas && typeof canvas.getContext === "function" ? canvas.getContext("2d") : null;
+    return shapeHitCtx;
+  };
+  const makeShapePath2D = pts => {
+    if (typeof Path2D === "undefined" || !pts || pts.length < 3) return null;
+    const path = new Path2D();
+    drawPath(path, pts);
+    return path;
+  };
 
   const normalizeShapeBounds = r => {
     if (!isShapeRect(r)) return false;
@@ -97,7 +110,10 @@ export const setupShapeRender = (deps = {}) => {
   const pointInShape = (r, wx, wy) => {
     if (!isShapeRect(r)) return false;
     const p = worldToRectUV(r, wx, wy);
-    return pointInPoly(p.u, p.v, shapeFlattenedUvPoints(r));
+    const ctx = getShapeHitCtx();
+    const path = ctx && makeShapePath2D(shapePoints(r));
+    if (path && typeof ctx.isPointInPath === "function") return !!ctx.isPointInPath(path, p.u, p.v);
+    return pointInPoly(p.u, p.v, shapeFlattenedUvPoints(r, 48));
   };
 
   const shapePointHit = (r, wx, wy, z = 1) => {

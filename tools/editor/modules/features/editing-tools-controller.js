@@ -46,11 +46,16 @@ export const setupEditingToolsCore = (deps = {}) => {
     for (let i = 0; i < st.rects.length; i++) {
       const r = st.rects[i];
       if (isRectLocked(r)) continue;
+      if (typeof isShapeRect === "function" && isShapeRect(r)) {
+        const shapePointUnderCursor = typeof shapePointHit === "function" && shapePointHit(r, x, y, st.zoom) >= 0;
+        if (shapePointUnderCursor) return r;
+        if (typeof pointInShape === "function" && pointInShape(r, x, y)) return r;
+        continue;
+      }
       if (typeof rectAABBMasked === "function") {
         const bb = rectAABBMasked(r);
         const rigTopPad = rigTopPadFor(r);
-        const shapePad = typeof isShapeRect === "function" && isShapeRect(r) ? 12 / zoomSafe(st.zoom) : 0;
-        const pad = Math.max(rigTopPad, shapePad);
+        const pad = rigTopPad;
         if (x < bb.minX - pad || x > bb.maxX + pad || y < bb.minY - pad || y > bb.maxY + pad) continue;
       }
       const p = worldToRectUV(r, x, y);
@@ -61,18 +66,7 @@ export const setupEditingToolsCore = (deps = {}) => {
         && p.u <= r.width
         && p.v >= -rigTopPad
         && p.v < 0;
-      const shapePointUnderCursor = typeof isShapeRect === "function"
-        && isShapeRect(r)
-        && typeof shapePointHit === "function"
-        && shapePointHit(r, x, y, st.zoom) >= 0;
-      if (!inRect && !inRigTopPad && !shapePointUnderCursor) continue;
-      if (typeof isShapeRect === "function" && isShapeRect(r)) {
-        if (shapePointUnderCursor) return r;
-        if (typeof pointInShape === "function" && pointInShape(r, x, y)) {
-          return r;
-        }
-        continue;
-      }
+      if (!inRect && !inRigTopPad) continue;
       if (String(r?.type || "") !== "note" && inRect && !cellFromWorldPoint(r, x, y, true)) continue;
       return r;
     }

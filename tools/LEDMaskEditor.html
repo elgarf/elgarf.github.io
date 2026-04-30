@@ -4,6 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Редактор масок LED экранов</title>
   <style>
     html,
@@ -538,7 +541,9 @@
   <script src="./vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="./vendor/qrcode-generator/qrcode.js"></script>
   <script src="./vendor/easymde/easymde.min.js"></script>
-  <script type="module" src="./editor/main.js"></script>
+  <script type="module">
+    import(`./editor/main.js?fresh=${Date.now()}`);
+  </script>
 </body>
 
 </html>

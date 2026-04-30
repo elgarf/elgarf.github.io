@@ -64,6 +64,7 @@ export const setupToolbarActionsController = (deps = {}) => {
     let menu = null;
     let pointer = null;
     let suppressClick = false;
+    let ignorePointerUntil = 0;
     const holdMs = 420;
     const attr = `data-${datasetKey}`;
     const boundAttr = `data-${datasetKey}-bound`;
@@ -87,7 +88,10 @@ export const setupToolbarActionsController = (deps = {}) => {
       return menu;
     };
     const hideMenu = () => {
-      if (menu) menu.classList.remove("show");
+      if (menu) {
+        for (const btn of menu.querySelectorAll(".tool-cycle-item.active")) btn.classList.remove("active");
+        menu.classList.remove("show");
+      }
     };
     const getMenuPlacement = anchor => {
       const dock = anchor && anchor.closest ? anchor.closest(".mobile-dock") : null;
@@ -135,6 +139,16 @@ export const setupToolbarActionsController = (deps = {}) => {
       const item = itemAtPoint(clientX, clientY);
       return item ? String(item.getAttribute(attr) || "") : "";
     };
+    const updateMenuHover = (clientX, clientY) => {
+      const node = ensureMenu();
+      if (!node || !node.classList.contains("show")) return "";
+      const item = itemAtPoint(clientX, clientY);
+      for (const btn of node.querySelectorAll(".tool-cycle-item.active")) {
+        if (btn !== item) btn.classList.remove("active");
+      }
+      if (item) item.classList.add("active");
+      return item ? String(item.getAttribute(attr) || "") : "";
+    };
     const clearHoldTimer = () => {
       if (pointer && pointer.timer) {
         windowRef.clearTimeout(pointer.timer);
@@ -149,47 +163,101 @@ export const setupToolbarActionsController = (deps = {}) => {
       pointer = null;
       hideMenu();
     };
-    const onPointerMove = _e => {};
-    const onPointerUp = e => {
-      if (!pointer || pointer.id !== e.pointerId) return;
+    const beginHold = (btn, id, clientX, clientY, source = "pointer") => {
+      cancelPointer();
+      pointer = {
+        id,
+        source,
+        button: btn,
+        sx: clientX,
+        sy: clientY,
+        x: clientX,
+        y: clientY,
+        hoverValue: "",
+        menu: false,
+        timer: windowRef.setTimeout(() => {
+          if (!pointer || pointer.id !== id || pointer.source !== source) return;
+          pointer.menu = true;
+          placeMenu(pointer.button);
+          pointer.hoverValue = updateMenuHover(pointer.x, pointer.y);
+        }, holdMs)
+      };
+    };
+    const finishHold = (id, clientX, clientY, source = "pointer") => {
+      if (!pointer || pointer.id !== id || pointer.source !== source) return false;
       const active = pointer;
       const wasMenu = active.menu;
       clearHoldTimer();
       pointer = null;
-      try { active.button.releasePointerCapture(e.pointerId); } catch (_err) { }
+      if (active.button && source === "pointer") {
+        try { active.button.releasePointerCapture(id); } catch (_err) { }
+      }
       if (wasMenu) {
-          const value = valueAtPoint(e.clientX, e.clientY);
-          hideMenu();
+        const value = valueAtPoint(clientX, clientY) || active.hoverValue || "";
+        hideMenu();
         suppressClick = true;
         if (value) choose(value);
-        e.preventDefault();
-        return;
+        return true;
       }
       cycle();
       suppressClick = true;
+      return true;
+    };
+    const onPointerMove = e => {
+      if (!pointer || pointer.source !== "pointer" || pointer.id !== e.pointerId) return;
+      pointer.x = e.clientX;
+      pointer.y = e.clientY;
+      if (!pointer.menu) return;
+      pointer.hoverValue = updateMenuHover(e.clientX, e.clientY);
       e.preventDefault();
+    };
+    const onPointerUp = e => {
+      if (finishHold(e.pointerId, e.clientX, e.clientY, "pointer")) e.preventDefault();
     };
     const bind = btn => {
       if (!btn || btn.getAttribute(boundAttr) === "1") return;
       btn.setAttribute(boundAttr, "1");
       const down = e => {
+        if (Date.now() < ignorePointerUntil) return;
         if (e.button != null && e.button !== 0) return;
-        cancelPointer();
-        pointer = {
-          id: e.pointerId,
-          button: btn,
-          sx: e.clientX,
-          sy: e.clientY,
-          menu: false,
-          timer: windowRef.setTimeout(() => {
-            if (!pointer || pointer.id !== e.pointerId) return;
-            pointer.menu = true;
-            placeMenu(pointer.button);
-            try { pointer.button.releasePointerCapture(pointer.id); } catch (_err) { }
-          }, holdMs)
-        };
+        beginHold(btn, e.pointerId, e.clientX, e.clientY, "pointer");
         try { btn.setPointerCapture(e.pointerId); } catch (_err) { }
+        if (e.pointerType === "touch") e.preventDefault();
       };
+      const touchId = touch => touch ? `touch:${touch.identifier}` : "touch";
+      const firstTouch = e => e.changedTouches && e.changedTouches.length ? e.changedTouches[0] : null;
+      bindEvent(btn, "touchstart", e => {
+        const touch = firstTouch(e);
+        if (!touch) return;
+        ignorePointerUntil = Date.now() + 900;
+        beginHold(btn, touchId(touch), touch.clientX, touch.clientY, "touch");
+        e.preventDefault();
+      }, { passive: false });
+      bindEvent(documentRef, "touchmove", e => {
+        if (!pointer || pointer.source !== "touch") return;
+        const touches = Array.from(e.changedTouches || []);
+        const touch = touches.find(t => touchId(t) === pointer.id);
+        if (!touch) return;
+        pointer.x = touch.clientX;
+        pointer.y = touch.clientY;
+        if (pointer.menu) pointer.hoverValue = updateMenuHover(touch.clientX, touch.clientY);
+        e.preventDefault();
+      }, { passive: false });
+      bindEvent(documentRef, "touchend", e => {
+        if (!pointer || pointer.source !== "touch") return;
+        const touches = Array.from(e.changedTouches || []);
+        const touch = touches.find(t => touchId(t) === pointer.id);
+        if (!touch) return;
+        finishHold(pointer.id, touch.clientX, touch.clientY, "touch");
+        e.preventDefault();
+      }, { passive: false });
+      bindEvent(documentRef, "touchcancel", e => {
+        if (!pointer || pointer.source !== "touch") return;
+        const touches = Array.from(e.changedTouches || []);
+        if (!touches.some(t => touchId(t) === pointer.id)) return;
+        cancelPointer();
+        e.preventDefault();
+      }, { passive: false });
       bindEvent(btn, "pointerdown", down);
       bindEvent(btn, "click", e => {
         if (suppressClick) {
