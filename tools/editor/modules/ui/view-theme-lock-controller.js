@@ -16,6 +16,7 @@ export const setupViewThemeLockController = (deps = {}) => {
     isInstallOnlyToolMode,
     lsSet,
     THEME_MODE_KEY,
+    listRects,
     render
   } = deps;
 
@@ -89,6 +90,7 @@ export const setupViewThemeLockController = (deps = {}) => {
     else st.selSet.clear();
     st.selMultiBase = null;
     updateLockAllUi();
+    if (typeof listRects === "function") listRects();
     if (typeof commitProjectChange === "function") {
       commitProjectChange({ syncProps: true, persist, persistKind: "project", render: true });
     }

@@ -146,7 +146,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
     [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.a, el.b, el.cx, el.cy, el.cUnit, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
     if (el.multiEditBadge) {
-      const show = multi && !!r;
+      const show = !!r && (multi || locked);
       el.multiEditBadge.classList.toggle("d-none", !show);
       if (show) el.multiEditBadge.textContent = locked ? "Текущий экран заблокирован. Разблокируйте слой для редактирования." : "Групповое редактирование: W/H масштабируют расстояния, поворот идёт вокруг центра группы";
     }
@@ -237,20 +237,23 @@ export const setupPropsPanelFeature = (deps = {}) => {
   const applyProps = opts => {
     const o = (opts && typeof opts === "object") ? opts : {}, needList = o.list !== false, needPersist = o.persist !== false, needRender = o.render !== false;
     const applyColor = !!o.applyColor;
+    const field = String(o.field || "");
+    const shouldApply = id => !field || field === id;
     const r = cur(); if (!r) return;
     const selected = getSelectedRects(), targetsRaw = selected.length > 1 ? selected : [r], targets = targetsRaw.filter(t => !isRectLocked(t));
     if (!targets.length) return;
     const multi = targets.length > 1;
     if (o.selectionKey && o.selectionKey !== selectionKey()) return;
-    if (!multi) r.name = el.name.value || `Rect ${r.id}`;
+    if (!multi && shouldApply("name")) r.name = el.name.value || `Rect ${r.id}`;
     if (!multi) {
-      r.x = Math.round(evalExpr(el.x.value, r.x));
-      r.y = Math.round(evalExpr(el.y.value, r.y));
-      r.rotation = evalExpr(el.rot.value, r.rotation || 0);
-      r.widthM = Math.max(0.001, evalExpr(el.wm.value, r.widthM || 0.001));
-      r.heightM = Math.max(0.001, evalExpr(el.hm.value, r.heightM || 0.001));
-      r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
-      pxFromMetric(r);
+      let metricChanged = false;
+      if (shouldApply("x")) r.x = Math.round(evalExpr(el.x.value, r.x));
+      if (shouldApply("y")) r.y = Math.round(evalExpr(el.y.value, r.y));
+      if (shouldApply("rotation")) r.rotation = evalExpr(el.rot.value, r.rotation || 0);
+      if (shouldApply("widthM")) { r.widthM = Math.max(0.001, evalExpr(el.wm.value, r.widthM || 0.001)); metricChanged = true; }
+      if (shouldApply("heightM")) { r.heightM = Math.max(0.001, evalExpr(el.hm.value, r.heightM || 0.001)); metricChanged = true; }
+      if (shouldApply("areaM2Px")) r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
+      if (metricChanged) pxFromMetric(r);
     } else {
       const ids = [...st.selSet].sort((a, b) => a - b), idsKey = ids.join(",");
       if (!st.selMultiBase || st.selMultiBase.idsKey !== idsKey) refreshMultiSelectionBase();
@@ -258,22 +261,26 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const curBb = getRectsBBox(targets) || { minX: r.x, minY: r.y, width: Math.max(1, r.width), height: Math.max(1, r.height), maxX: r.x + r.width, maxY: r.y + r.height };
       const baseBb = (base && base.bbox) ? base.bbox : curBb;
       const scaleForBox = Math.max(1, Number(r.scale) || Number(st.globalScale) || 256);
-      const curWm = curBb.width / scaleForBox, curHm = curBb.height / scaleForBox;
+      const transformFromBase = !!(base && (shouldApply("widthM") || shouldApply("heightM") || shouldApply("rotation")));
+      const boxForTransform = transformFromBase ? baseBb : curBb;
+      const curWm = boxForTransform.width / scaleForBox, curHm = boxForTransform.height / scaleForBox;
       const srcItems = (base && Array.isArray(base.items) && base.items.length) ? base.items.map(it => ({ ...it })) : targets.map(t => { const bb = rectAABB(t); return { id: t.id, x: t.x, y: t.y, rotation: Number(t.rotation) || 0, minX: bb.minX, maxX: bb.maxX, minY: bb.minY, maxY: bb.maxY, cx: (bb.minX + bb.maxX) / 2, cy: (bb.minY + bb.maxY) / 2 }; });
-      const desiredW = Math.max(axisCompactSpan(srcItems, "x"), Math.round(Math.max(0.001, evalExpr(el.wm.value, curWm)) * scaleForBox));
-      const desiredH = Math.max(axisCompactSpan(srcItems, "y"), Math.round(Math.max(0.001, evalExpr(el.hm.value, curHm)) * scaleForBox));
-      const inputMinX = Math.round(evalExpr(el.x.value, curBb.minX));
-      const inputMinY = Math.round(evalExpr(el.y.value, curBb.minY));
-      const widthChanged = Math.abs(desiredW - curBb.width) > 0.5;
-      const heightChanged = Math.abs(desiredH - curBb.height) > 0.5;
-      const nextMinX = widthChanged ? Math.round((curBb.minX + curBb.maxX - desiredW) / 2) : inputMinX;
-      const nextMinY = heightChanged ? Math.round((curBb.minY + curBb.maxY - desiredH) / 2) : inputMinY;
+      const desiredW = shouldApply("widthM") ? Math.max(axisCompactSpan(srcItems, "x"), Math.round(Math.max(0.001, evalExpr(el.wm.value, curWm)) * scaleForBox)) : boxForTransform.width;
+      const desiredH = shouldApply("heightM") ? Math.max(axisCompactSpan(srcItems, "y"), Math.round(Math.max(0.001, evalExpr(el.hm.value, curHm)) * scaleForBox)) : boxForTransform.height;
+      const inputMinX = shouldApply("x") ? Math.round(evalExpr(el.x.value, curBb.minX)) : boxForTransform.minX;
+      const inputMinY = shouldApply("y") ? Math.round(evalExpr(el.y.value, curBb.minY)) : boxForTransform.minY;
+      const widthChanged = Math.abs(desiredW - boxForTransform.width) > 0.5;
+      const heightChanged = Math.abs(desiredH - boxForTransform.height) > 0.5;
+      const transformCx = (boxForTransform.minX + boxForTransform.maxX) / 2;
+      const transformCy = (boxForTransform.minY + boxForTransform.maxY) / 2;
+      const nextMinX = widthChanged ? Math.round(transformCx - desiredW / 2) : inputMinX;
+      const nextMinY = heightChanged ? Math.round(transformCy - desiredH / 2) : inputMinY;
       const nameInputParts = parseNumberedBaseInput(el.name && el.name.value);
       const nextNameBase = nameInputParts.base || normalizeNumberedBaseInput(el.name && el.name.value);
       const storedStartNumber = el.name && el.name.dataset ? Math.max(1, Math.round(Number(el.name.dataset.multiStartNumber) || 0)) : 0;
       const startNumber = nameInputParts.startNumber || storedStartNumber || 1;
       const nextNameGroup = nameInputParts.group || null;
-      if (nextNameBase) {
+      if (shouldApply("name") && nextNameBase) {
         targets
           .slice()
           .sort((a, b) => (Number(a.x) || 0) - (Number(b.x) || 0) || (Number(a.y) || 0) - (Number(b.y) || 0) || (Number(a.id) || 0) - (Number(b.id) || 0))
@@ -319,17 +326,20 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const baseRot = base && Number.isFinite(Number(base.activeRotation))
         ? Number(base.activeRotation)
         : Number(r.rotation) || 0;
-      const desiredRot = evalExpr(el.rot && el.rot.value, baseRot);
+      const desiredRot = shouldApply("rotation") ? evalExpr(el.rot && el.rot.value, baseRot) : baseRot;
       const rotDelta = desiredRot - baseRot;
       const rotRad = rotDelta * Math.PI / 180;
       const rotCx = nextMinX + desiredW / 2;
       const rotCy = nextMinY + desiredH / 2;
       const itemById = new Map(srcItems.map(it => [it.id, it]));
-      for (const t of targets) {
+      const axisXActive = !!(shouldApply("x") || shouldApply("widthM"));
+      const axisYActive = !!(shouldApply("y") || shouldApply("heightM"));
+      const rotationActive = shouldApply("rotation");
+      if (axisXActive || axisYActive || rotationActive) for (const t of targets) {
         const item = itemById.get(t.id);
-        const nx = nextX.has(t.id) ? nextX.get(t.id) : t.x;
-        const ny = nextY.has(t.id) ? nextY.get(t.id) : t.y;
-        if (item) {
+        const nx = (axisXActive || rotationActive) && nextX.has(t.id) ? nextX.get(t.id) : t.x;
+        const ny = (axisYActive || rotationActive) && nextY.has(t.id) ? nextY.get(t.id) : t.y;
+        if (rotationActive && item) {
           const localCx = (Number(item.cx) || 0) - (Number(item.x) || 0);
           const localCy = (Number(item.cy) || 0) - (Number(item.y) || 0);
           const cx0 = nx + localCx;
@@ -342,30 +352,30 @@ export const setupPropsPanelFeature = (deps = {}) => {
           t.y = Math.round(cy1 - localCy);
           t.rotation = (Number(item.rotation) || 0) + rotDelta;
         } else {
-          if (nextX.has(t.id)) t.x = nx;
-          if (nextY.has(t.id)) t.y = ny;
+          if (axisXActive && nextX.has(t.id)) t.x = nx;
+          if (axisYActive && nextY.has(t.id)) t.y = ny;
         }
       }
     }
     for (const t of targets) {
       const prev = { cellX: t.cellX, cellY: t.cellY, colorA: t.colorA, colorB: t.colorB, dataFlow: t.dataFlow, dataFlowZ: !!t.dataFlowZ, areaM2Px: t.areaM2Px, splitVariant: t.splitVariant };
-      if (applyColor) {
+      if (applyColor || shouldApply("colorA")) {
         t.colorA = el.a.value || "#2fcaaf";
         if (t.autoContrastB !== false) t.colorB = autoContrast(t.colorA); else t.colorB = el.b.value || t.colorB;
       }
-      t.cellX = cabinetUiToPx(el.cx && el.cx.value, el.cUnit && el.cUnit.value, t.cellX || 128, t);
-      t.cellY = cabinetUiToPx(el.cy && el.cy.value, el.cUnit && el.cUnit.value, t.cellY || 128, t);
-      t.dataFlowZ = !!el.dataFlowZ.checked;
-      t.numberCells = !!el.numCells.checked;
-      t.areaM2Px = parseAreaM2PxInput(el.areaM2.value, t.areaM2Px || 65536);
+      if (shouldApply("cellX")) t.cellX = cabinetUiToPx(el.cx && el.cx.value, el.cUnit && el.cUnit.value, t.cellX || 128, t);
+      if (shouldApply("cellY")) t.cellY = cabinetUiToPx(el.cy && el.cy.value, el.cUnit && el.cUnit.value, t.cellY || 128, t);
+      if (shouldApply("dataFlowZ")) t.dataFlowZ = !!el.dataFlowZ.checked;
+      if (shouldApply("numberCells")) t.numberCells = !!el.numCells.checked;
+      if (shouldApply("areaM2Px")) t.areaM2Px = parseAreaM2PxInput(el.areaM2.value, t.areaM2Px || 65536);
       const selectedMode = normalizeDataFlow(el.dataFlow.value), rid = (st.mode === "flowEdit" && Number.isFinite(Number(st.flowRegionRid))) ? Math.max(0, Math.round(Number(st.flowRegionRid) || 0)) : null;
-      if (rid != null && t.id === r.id) {
+      if (shouldApply("dataFlow") && rid != null && t.id === r.id) {
         const cfg = getFlowRegionConfig(t, rid), curMode = normalizeDataFlow(cfg && cfg.mode || "none");
         if (curMode !== selectedMode) setFlowRegionMode(t, rid, selectedMode);
-      } else t.dataFlow = selectedMode;
+      } else if (shouldApply("dataFlow")) t.dataFlow = selectedMode;
       const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1))));
       const prevSplit = Math.max(0, Math.round(Number(t.splitVariant) || 0));
-      t.splitVariant = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, t.splitVariant || 0))));
+      if (shouldApply("splitVariant")) t.splitVariant = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, t.splitVariant || 0))));
       if (t.splitVariant !== prevSplit) { try { delete t._splitVariantCount; } catch (_e) { t._splitVariantCount = NaN; } }
       const topoChanged = (prev.cellX !== t.cellX || prev.cellY !== t.cellY);
       if (topoChanged) {
@@ -594,6 +604,24 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (node && node.dataset) node.dataset.selectionKey = selectionKey();
   };
   const keyForEvent = e => (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.selectionKey) || selectionKey();
+  const fieldForNode = node => {
+    if (node === el.name) return "name";
+    if (node === el.x) return "x";
+    if (node === el.y) return "y";
+    if (node === el.rot) return "rotation";
+    if (node === el.wm) return "widthM";
+    if (node === el.hm) return "heightM";
+    if (node === el.a) return "colorA";
+    if (node === el.cx) return "cellX";
+    if (node === el.cy) return "cellY";
+    if (node === el.dataFlow) return "dataFlow";
+    if (node === el.dataFlowZ) return "dataFlowZ";
+    if (node === el.numCells) return "numberCells";
+    if (node === el.splitVariant) return "splitVariant";
+    if (node === el.areaM2) return "areaM2Px";
+    return "";
+  };
+  const fieldForEvent = e => fieldForNode(e && e.currentTarget);
   const applyPropsForKey = (key, opts = {}) => {
     if (key && key !== selectionKey()) return false;
     applyProps({ ...opts, selectionKey: key });
@@ -603,10 +631,11 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   bindEvents(propInputs, "focusin", e => rememberSelectionKey(e.currentTarget));
   const scheduleApplyPropsInput = e => {
     const key = keyForEvent(e);
+    const field = fieldForEvent(e);
     if (propsInputRaf) return;
     propsInputRaf = requestAnimationFrame(() => {
       propsInputRaf = 0;
-      applyPropsForKey(key, { list: false, persist: false, render: true });
+      applyPropsForKey(key, { list: false, persist: false, render: true, field });
     });
   };
   bindEvents([el.name, el.x, el.y, el.rot, el.cx, el.cy], "input", scheduleApplyPropsInput);
@@ -614,14 +643,15 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   if (el.a) {
     const scheduleApplyColorInput = e => {
       const key = keyForEvent(e);
+      const field = fieldForEvent(e);
       if (propsInputRaf) return;
       propsInputRaf = requestAnimationFrame(() => {
         propsInputRaf = 0;
-        applyPropsForKey(key, { list: false, persist: false, render: true, applyColor: true });
+        applyPropsForKey(key, { list: false, persist: false, render: true, applyColor: true, field });
       });
     };
     bindEvent(el.a, "input", scheduleApplyColorInput);
-    bindEvent(el.a, "change", e => { if (applyPropsForKey(keyForEvent(e), { applyColor: true })) syncProps(); });
+    bindEvent(el.a, "change", e => { if (applyPropsForKey(keyForEvent(e), { applyColor: true, field: fieldForEvent(e) })) syncProps(); });
   }
 
   let colorBInputRaf = 0;
@@ -654,7 +684,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (el.btnAutoContrast) el.btnAutoContrast.textContent = "Авто дополнительный: выкл";
   });
 
-  bindEvents([el.dataFlow, el.dataFlowZ, el.splitVariant], "change", e => applyPropsForKey(keyForEvent(e)));
+  bindEvents([el.dataFlow, el.dataFlowZ, el.splitVariant], "change", e => applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) }));
   bindEvent(el.numCells, "change", e => {
     if (keyForEvent(e) !== selectionKey()) return;
     const checked = !!(el.numCells && el.numCells.checked);
@@ -684,7 +714,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   });
   bindSplitVariantHandlers();
 
-  bindCommitInputs([el.name, el.x, el.y, el.rot, el.wm, el.hm, el.cx, el.cy], e => { if (applyPropsForKey(keyForEvent(e))) syncProps(); });
+  bindCommitInputs([el.name, el.x, el.y, el.rot, el.wm, el.hm, el.cx, el.cy], e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
 
   let textSettingsRaf = 0;
   const textSettingsFontState = { timer: 0 };

@@ -944,6 +944,7 @@ const viewThemeLockController = setupViewThemeLockController({
   isInstallOnlyToolMode,
   lsSet,
   THEME_MODE_KEY,
+  listRects: () => listRects(),
   render: () => render()
 });
 const themeMedia = viewThemeLockController.themeMedia;
@@ -1221,9 +1222,9 @@ let toggleRectLockById = (_id) => false;
   normSelSet,
   resetMaskTransient,
   resetCellTransient,
-  syncProps,
-  listRects,
-  schedulePersist,
+  syncProps: () => syncProps(),
+  listRects: () => listRects(),
+  schedulePersist: kind => schedulePersist(kind),
   render: () => render()
 }));
 const rectHasManualRegions = r => !!(r && Array.isArray(r.manualClusters) && r.manualClusters.length > 0);

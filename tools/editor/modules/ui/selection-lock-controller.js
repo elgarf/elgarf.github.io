@@ -39,6 +39,12 @@ export const setupSelectionLockController = (deps = {}) => {
     if (nextLocked) {
       resetMaskTransient();
       resetCellTransient();
+      const lockedIds = new Set(targets.map(t => Math.round(Number(t && t.id) || 0)));
+      if (lockedIds.has(Math.round(Number(st.sel) || 0))) st.sel = null;
+      if (st.selSet instanceof Set) {
+        for (const lockedId of lockedIds) st.selSet.delete(lockedId);
+      }
+      st.selMultiBase = null;
     }
 
     normSelSet();
