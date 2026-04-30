@@ -6,6 +6,7 @@ export const setupViewportOverlays = (deps = {}) => {
     st,
     isMaskMode,
     isCellEditMode,
+    isCabinetEditMode,
     cur,
     getMaskNodeAxes,
     rectUVToWorld,
@@ -364,6 +365,61 @@ export const setupViewportOverlays = (deps = {}) => {
       for (let i = 0; i < lines.length; i++) c.fillText(lines[i], bx + pad, by + pad + i * lh);
     }
   };
+  const drawCabinetEditOverlay = (c, z) => {
+    const sel = st.cabinetCellSelection;
+    if (!sel || !Number.isFinite(Number(sel.rectId)) || !Number.isFinite(Number(sel.cid))) return;
+    const r = (Array.isArray(st.rects) ? st.rects : []).find(it => Math.round(Number(it && it.id) || 0) === Math.round(Number(sel.rectId) || 0));
+    if (!r) return;
+    const cx = drawCellX(r);
+    const cy = drawCellY(r);
+    const topo = getCellTopologyCached(r, cx, cy);
+    if (!topo || !Array.isArray(topo.comp)) return;
+    const cols = Math.max(1, Math.round(Number(topo.cols) || Math.ceil((Number(r.width) || 1) / cx)));
+    const rows = Math.max(1, Math.round(Number(topo.rows) || Math.ceil((Number(r.height) || 1) / cy)));
+    const targetCid = Math.round(Number(sel.cid) || 0);
+    const w = Math.max(1, Number(r.width) || 1);
+    const h = Math.max(1, Number(r.height) || 1);
+    c.save();
+    c.translate((Number(r.x) || 0) + w / 2, (Number(r.y) || 0) + h / 2);
+    c.rotate((Number(r.rotation) || 0) * Math.PI / 180);
+    const sc = Math.max(0, Math.round(Number(sel.col) || 0));
+    const sr = Math.max(0, Math.round(Number(sel.row) || 0));
+    const sx = -w / 2 + sc * cx;
+    const sy = -h / 2 + sr * cy;
+    const sw = Math.max(1, Math.min(cx, w - sc * cx));
+    const sh = Math.max(1, Math.min(cy, h - sr * cy));
+    if (sw > 0 && sh > 0) {
+      c.save();
+      c.fillStyle = "rgba(236,72,153,.24)";
+      c.fillRect(sx, sy, sw, sh);
+      c.restore();
+    }
+    c.fillStyle = "rgba(250,204,21,.32)";
+    c.beginPath();
+    let hasCells = false;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const idx = row * cols + col;
+        if ((topo.comp[idx] | 0) !== targetCid) continue;
+        const x = -w / 2 + col * cx;
+        const y = -h / 2 + row * cy;
+        const cw = Math.min(cx, w - col * cx);
+        const ch = Math.min(cy, h - row * cy);
+        if (!(cw > 0 && ch > 0)) continue;
+        hasCells = true;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + cw);
+        maxY = Math.max(maxY, y + ch);
+        c.rect(x, y, cw, ch);
+      }
+    }
+    if (hasCells) {
+      c.fill();
+    }
+    c.restore();
+  };
 
   const drawContentBounds = (c, z) => {
     const b = getContentBounds();
@@ -460,6 +516,7 @@ export const setupViewportOverlays = (deps = {}) => {
   return {
     drawMaskOverlay,
     drawCellEditOverlay,
+    drawCabinetEditOverlay,
     drawContentBounds,
     drawLayerButtons,
     hitLayerButton,

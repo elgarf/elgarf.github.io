@@ -239,6 +239,74 @@ export const setupDrawRectBaseController = (deps = {}) => {
         c.setLineDash([]);
         c.restore();
       }
+      const cabinetSel = st && st.cabinetCellSelection;
+      const selectedCabinetForRect = cabinetSel
+        && Math.round(Number(cabinetSel.rectId) || 0) === Math.round(Number(r && r.id) || 0)
+        && Number.isFinite(Number(cabinetSel.cid));
+      if (selectedCabinetForRect) {
+        const targetCid = Math.round(Number(cabinetSel.cid) || 0);
+        const comps = getRectComponentRenderDataCached(r, cellX, cellY, topo);
+        c.save();
+        c.beginPath();
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let hasCabinetCells = false;
+        const comp = Array.isArray(comps)
+          ? comps.find(it => {
+              const cidRaw = Number(it && it.cid);
+              if (!Number.isFinite(cidRaw)) return false;
+              return Math.round(cidRaw) === targetCid;
+            })
+          : null;
+        if (comp && Array.isArray(comp.cells)) {
+          for (const cell of comp.cells) {
+            const x = Number(cell && cell.x) || 0;
+            const y = Number(cell && cell.y) || 0;
+            const cw = Number(cell && cell.w) || 0;
+            const ch = Number(cell && cell.h) || 0;
+            if (!(cw > 0 && ch > 0)) continue;
+            hasCabinetCells = true;
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x + cw);
+            maxY = Math.max(maxY, y + ch);
+            c.rect(x, y, cw, ch);
+          }
+        }
+        if (hasCabinetCells) {
+          c.fillStyle = "rgba(250,204,21,.34)";
+          c.fill();
+          c.strokeStyle = "rgba(245,158,11,.98)";
+          c.lineWidth = Math.max(1.25, 1.9 / Math.max(0.25, z));
+          const cols = Math.max(1, Math.round(Number(topo && topo.cols) || Math.ceil(w / cellX)));
+          const rows = Math.max(1, Math.round(Number(topo && topo.rows) || Math.ceil(h / cellY)));
+          const compArr = Array.isArray(topo && topo.comp) ? topo.comp : [];
+          const hidden = hs && typeof hs.has === "function" ? hs : null;
+          const isTargetVisibleCell = (col, row) => {
+            if (col < 0 || row < 0 || col >= cols || row >= rows) return false;
+            if (hidden && hidden.has(`${col},${row}`)) return false;
+            const idx = row * cols + col;
+            const cidRaw = Number(compArr[idx]);
+            if (!Number.isFinite(cidRaw)) return false;
+            return Math.round(cidRaw) === targetCid;
+          };
+          c.beginPath();
+          for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+              if (!isTargetVisibleCell(col, row)) continue;
+              const x0 = -w / 2 + col * cellX;
+              const y0 = -h / 2 + row * cellY;
+              const x1 = -w / 2 + Math.min(w, (col + 1) * cellX);
+              const y1 = -h / 2 + Math.min(h, (row + 1) * cellY);
+              if (!isTargetVisibleCell(col, row - 1)) { c.moveTo(x0, y0); c.lineTo(x1, y0); }
+              if (!isTargetVisibleCell(col + 1, row)) { c.moveTo(x1, y0); c.lineTo(x1, y1); }
+              if (!isTargetVisibleCell(col, row + 1)) { c.moveTo(x0, y1); c.lineTo(x1, y1); }
+              if (!isTargetVisibleCell(col - 1, row)) { c.moveTo(x0, y0); c.lineTo(x0, y1); }
+            }
+          }
+          c.stroke();
+        }
+        c.restore();
+      }
       if (maskedClip) { c.restore(); maskedClip = false; }
       c.strokeStyle = sel ? "#ffe08a" : "rgba(255,255,255,.85)"; c.lineWidth = sel ? 7 / z : 1 / z;
       c.lineCap = "butt";

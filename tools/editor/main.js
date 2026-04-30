@@ -96,12 +96,7 @@ import {
   regionCalcKey as buildRegionCalcKey,
   flowCalcKey as buildFlowCalcKey
 } from "./modules/calc/cache-keys.js";
-import {
-  normalizeSaveLocationId, normalizeHiddenCells, normalizeManualClusters, normalizeRigData,
-  normalizeDataFlow, normalizeDataFlowZ, normalizeFlowLocks, normalizeFlowLockRidToSigMap,
-  normalizeFlowLockCidToSeedMap, normalizeFlowLinks, normalizeThemeMode, normalizeViewMode,
-  normalizeCabinetUnit
-} from "./modules/project-normalizers.js";
+import * as ProjectNormalizers from "./modules/project-normalizers.js";
 import { setupSpecExportFeature } from "./modules/features/spec-export-feature.js";
 import { embedProjectIntoPngBlob, extractProjectFromPngBytes } from "./modules/png-project-meta.js";
 import {
@@ -115,6 +110,38 @@ import {
   PROJECT_QUERY_PARAM, PROJECT_ID_PARAM, PROJECT_QUERY_VERSION, PROJECT_STORE_API_URL,
   PNG_PROJECT_META_KEY
 } from "./modules/constants.js";
+const {
+  normalizeSaveLocationId,
+  normalizeHiddenCells,
+  normalizeManualClusters,
+  normalizeRigData,
+  normalizeDataFlow,
+  normalizeDataFlowZ,
+  normalizeFlowLocks,
+  normalizeFlowLockRidToSigMap,
+  normalizeFlowLockCidToSeedMap,
+  normalizeFlowLinks,
+  normalizeThemeMode,
+  normalizeViewMode,
+  normalizeCabinetUnit
+} = ProjectNormalizers;
+const normalizeCabinetStyles = typeof ProjectNormalizers.normalizeCabinetStyles === "function"
+  ? ProjectNormalizers.normalizeCabinetStyles
+  : (raw => {
+      const src = (raw && typeof raw === "object") ? raw : {};
+      const out = {};
+      for (const [k, v] of Object.entries(src)) {
+        const cid = String(Math.max(0, Math.round(Number(k) || 0)));
+        const style = (v && typeof v === "object") ? v : {};
+        const diagRaw = String(style.diag || "auto");
+        const colorRaw = String(style.color || "auto");
+        const diag = ["auto", "right", "left", "rightSwap", "leftSwap"].includes(diagRaw) ? diagRaw : "auto";
+        const color = ["auto", "a", "b"].includes(colorRaw) ? colorRaw : "auto";
+        if (diag === "auto" && color === "auto") continue;
+        out[cid] = { diag, color };
+      }
+      return out;
+    });
 const { cv, ctx, overlayCanvas, overlayCtx, wrap, el, desktopToolButtons, mobileToolButtons } = createEditorDomRefs(document);
 let ensureMobileDock = () => { };
 let hideToolbarOverflowPopup = () => { };
@@ -303,6 +330,7 @@ let cellFromWorldPoint = (_r, _wx, _wy, _skipHidden = true) => null;
 const {
   isMaskMode,
   isCellEditMode,
+  isCabinetEditMode,
   isClusterEditMode,
   isRigEditMode,
   isNoteMode
@@ -1113,6 +1141,7 @@ let mkShape = (_points) => null;
   normalizeFlowLockRidToSigMap,
   normalizeFlowLockCidToSeedMap,
   normalizeManualClusters,
+  normalizeCabinetStyles,
   safeDefine,
   restorePersistedRectCache,
   SPLIT_VARIANT_MAX,
@@ -1186,6 +1215,7 @@ let toggleRectLockById = (_id) => false;
   cancelActiveDrag: () => cancelActiveDrag(),
   isMaskMode,
   isCellEditMode,
+  isCabinetEditMode,
   isRigEditMode,
   updateToolbarOverflow,
   updateClusterEditCursor,
@@ -1485,10 +1515,11 @@ const { drawRigOnRect, drawRigOutsideOverlay } = setupRigRenderController({
   rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
   RIG_DEFAULT_LOAD_KG
 });
-const { drawMaskOverlay, drawCellEditOverlay, drawContentBounds, drawLayerButtons, hitLayerButton, setLayerButtonHover, clearLayerButtonHover } = setupViewportOverlays({
+const { drawMaskOverlay, drawCellEditOverlay, drawCabinetEditOverlay, drawContentBounds, drawLayerButtons, hitLayerButton, setLayerButtonHover, clearLayerButtonHover } = setupViewportOverlays({
   st,
   isMaskMode: () => isMaskMode(),
   isCellEditMode: () => isCellEditMode(),
+  isCabinetEditMode: () => isCabinetEditMode(),
   cur: () => cur(),
   getMaskNodeAxes: r => getMaskNodeAxes(r),
   rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
@@ -1554,6 +1585,7 @@ let lastSpecAutoRefreshAt = 0;
   drawInterScreenFlowLinks,
   drawMaskOverlay,
   drawCellEditOverlay,
+  drawCabinetEditOverlay,
   drawContentBounds,
   drawLayerButtons,
   drawMultiSelectionActions: (c, z) => multiSelectionActions.drawActions(c, z),
@@ -1613,6 +1645,8 @@ let moveRectDrag = (_p, _disableSnap) => { };
   getEditableSelectedRects: () => getEditableSelectedRects()
 }));
 let handleFlowEditPointerDown = (_p) => false;
+let handleCabinetEditPointerDown = (_p) => false;
+let handleCabinetEditPointerMove = (_p) => false;
 const {
   buildRebuiltFlowPreview,
   rebuildAndPatchFlowRegion
@@ -1668,6 +1702,48 @@ const {
   resetRigHoverTransient,
   commitUiUpdate
 }));
+const getCabinetCellAtPoint = (r, wx, wy) => {
+  if (!r) return null;
+  const cell = cellFromWorldPoint(r, wx, wy, true);
+  if (!cell) return null;
+  const cx = drawCellX(r), cy = drawCellY(r), topo = getCellTopologyCached(r, cx, cy);
+  if (!topo) return null;
+  const idx = cell.row * topo.cols + cell.col;
+  const cid = Number(topo.comp && topo.comp[idx]);
+  if (!Number.isFinite(cid)) return null;
+  return { rectId: r.id, cid: cid | 0, col: cell.col, row: cell.row };
+};
+const normalizeCabinetStyleValue = style => {
+  const src = (style && typeof style === "object") ? style : {};
+  const diagRaw = String(src.diag || "auto");
+  const colorRaw = String(src.color || "auto");
+  const diag = ["auto", "right", "left", "rightSwap", "leftSwap"].includes(diagRaw) ? diagRaw : "auto";
+  const color = ["auto", "a", "b"].includes(colorRaw) ? colorRaw : "auto";
+  return { diag, color };
+};
+handleCabinetEditPointerDown = p => {
+  const h = hit(p.x, p.y);
+  if (!h) {
+    selRect(null);
+    st.cabinetCellSelection = null;
+    syncPropsSmart();
+    render();
+    return true;
+  }
+  if (h.id !== st.sel) selRect(h.id);
+  if (isRectLocked(h)) { render(); return true; }
+  const pick = getCabinetCellAtPoint(h, p.x, p.y);
+  st.cabinetCellSelection = pick;
+  syncPropsSmart();
+  render();
+  return true;
+};
+handleCabinetEditPointerMove = p => {
+  const h = hit(p.x, p.y);
+  st.cabinetCellHover = (h && !isRectLocked(h)) ? getCabinetCellAtPoint(h, p.x, p.y) : null;
+  render();
+  return true;
+};
 let delSel = () => { };
 let dupSel = () => { };
 let insertCloneAboveSource = (_sourceId, _clone) => { };
@@ -1854,13 +1930,70 @@ const { scheduleSyncProps, syncPropsSmart } = setupPropertiesSyncController({
   setDelay: (cb, ms) => setTimeout(cb, ms),
   clearDelay: id => clearTimeout(id)
 });
+const getCabinetSelectionRect = () => {
+  const sel = st.cabinetCellSelection;
+  if (!sel || !Number.isFinite(Number(sel.rectId))) return null;
+  return getRectById(sel.rectId) || null;
+};
+const syncCabinetToolPanel = () => {
+  if (!el.cabinetToolPanel) return;
+  const panelVisible = st.mode === "cabinetEdit";
+  el.cabinetToolPanel.classList.toggle("d-none", !panelVisible);
+  if (!panelVisible) return;
+  const rec = st.cabinetCellSelection;
+  const r = getCabinetSelectionRect();
+  if (!rec || !r) {
+    if (el.cabinetSelectionLabel) el.cabinetSelectionLabel.textContent = "Кабинет не выбран";
+    if (el.propCabinetDiag) el.propCabinetDiag.value = "auto";
+    if (el.propCabinetColor) el.propCabinetColor.value = "auto";
+    if (el.btnCabinetStyleReset) el.btnCabinetStyleReset.disabled = true;
+    return;
+  }
+  const styles = (r.cabinetStyles && typeof r.cabinetStyles === "object") ? r.cabinetStyles : {};
+  const style = normalizeCabinetStyleValue(styles[String(rec.cid)]);
+  if (el.cabinetSelectionLabel) el.cabinetSelectionLabel.textContent = `Кабинет: #${rec.cid + 1}`;
+  if (el.propCabinetDiag) el.propCabinetDiag.value = style.diag;
+  if (el.propCabinetColor) el.propCabinetColor.value = style.color;
+  if (el.btnCabinetStyleReset) el.btnCabinetStyleReset.disabled = !(style.diag !== "auto" || style.color !== "auto");
+};
+const updateSelectedCabinetStyle = () => {
+  const rec = st.cabinetCellSelection;
+  const r = getCabinetSelectionRect();
+  if (!rec || !r) return;
+  const diag = el.propCabinetDiag ? String(el.propCabinetDiag.value || "auto") : "auto";
+  const color = el.propCabinetColor ? String(el.propCabinetColor.value || "auto") : "auto";
+  const next = normalizeCabinetStyleValue({ diag, color });
+  const key = String(rec.cid);
+  const map = { ...((r.cabinetStyles && typeof r.cabinetStyles === "object") ? r.cabinetStyles : {}) };
+  if (next.diag === "auto" && next.color === "auto") delete map[key];
+  else map[key] = next;
+  r.cabinetStyles = normalizeCabinetStyles(map);
+  invalidateRectCache(r, "appearance");
+  schedulePersist("project");
+  syncCabinetToolPanel();
+  render();
+};
+if (el.propCabinetDiag) bindEvent(el.propCabinetDiag, "change", updateSelectedCabinetStyle);
+if (el.propCabinetColor) bindEvent(el.propCabinetColor, "change", updateSelectedCabinetStyle);
+if (el.btnCabinetStyleReset) {
+  bindClick(el.btnCabinetStyleReset, () => {
+    if (el.propCabinetDiag) el.propCabinetDiag.value = "auto";
+    if (el.propCabinetColor) el.propCabinetColor.value = "auto";
+    updateSelectedCabinetStyle();
+  });
+}
+const syncPropsBase = syncProps;
+syncProps = () => {
+  syncPropsBase();
+  syncCabinetToolPanel();
+};
 const inputWiringServices = {
   cv, st, el, render, renderOverlay, hit, s2w, zc, getViewMetrics,
   getRectById, worldToRectUV, rectUVToWorld,
-  isNoteMode, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode,
+  isNoteMode, isMaskMode, isCellEditMode, isCabinetEditMode, isClusterEditMode, isRigEditMode,
   cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
   beginClusterHandleDragAtPoint, handleClusterEditAtPoint,
-  handleRigPointerDown, handleRigPointerMove, handleRigPointerLeave, handleFlowEditPointerDown,
+  handleRigPointerDown, handleRigPointerMove, handleRigPointerLeave, handleFlowEditPointerDown, handleCabinetEditPointerDown, handleCabinetEditPointerMove,
   selRect, isSelected, beginRectDrag, beginSelectionBox,
   setSelection, syncPropsSmart, snapMaskNode, getCellLinkCandidateAtPoint, getRigHitAtPoint,
   updateClusterHandleDragAtPoint, updateClusterEditCursor,

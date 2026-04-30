@@ -22,6 +22,7 @@ export const setupUiBinders = (deps = {}) => {
   bindProxyClick(el.mToolSelect, el.toolSelect);
   bindProxyClick(el.mToolMaskAdd, el.toolMaskAdd);
   bindProxyClick(el.mToolCellEdit, el.toolCellEdit);
+  bindProxyClick(el.mToolCabinetEdit, el.toolCabinetEdit);
   bindProxyClick(el.mToolClusterEdit, el.toolClusterEdit);
   bindProxyClick(el.mToolRigEdit, el.toolRigEdit);
   bindProxyClick(el.mCopy, el.btnCopy);

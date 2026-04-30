@@ -53,6 +53,22 @@ export const normalizeManualClusters = raw => {
   return out;
 };
 
+export const normalizeCabinetStyles = raw => {
+  const src = (raw && typeof raw === "object") ? raw : {};
+  const out = {};
+  for (const [k, v] of Object.entries(src)) {
+    const cid = String(Math.max(0, Math.round(Number(k) || 0)));
+    const style = (v && typeof v === "object") ? v : {};
+    const diagRaw = String(style.diag || "auto");
+    const colorRaw = String(style.color || "auto");
+    const diag = ["auto", "right", "left", "rightSwap", "leftSwap"].includes(diagRaw) ? diagRaw : "auto";
+    const color = ["auto", "a", "b"].includes(colorRaw) ? colorRaw : "auto";
+    if (diag === "auto" && color === "auto") continue;
+    out[cid] = { diag, color };
+  }
+  return out;
+};
+
 export const normalizeRigData = raw => {
   const out = { frames: [], loads: {}, suspends: [], suspendLinks: [] };
   const src = (raw && typeof raw === "object") ? raw : {};

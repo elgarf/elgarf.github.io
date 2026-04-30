@@ -4,15 +4,16 @@ const EDITOR_ELEMENT_IDS = [
   "mobileMenu", "installApp", "installBanner", "installBannerText", "installBannerAction", "installBannerClose",
   "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkLoading", "projectLinkText", "projectLinkCopyBtn",
   "sidePanel", "sideClose", "multiEditBadge",
-  "mDockToggle", "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
+  "mDockToggle", "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolCabinetEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
   "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle",
-  "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
+  "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolCabinetEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
   "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
   "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
   "snapGrid", "snapObjects", "snapCenters", "snapGaps", "emptySelectionHint", "objectNameField", "rectTextSizeField", "quickGeoPanel", "propName", "propTextSize", "propTextSizeLabel", "propX", "propY", "propRot",
   "propWm", "propHm", "propScale", "shapePointPanel", "propShapePointX", "propShapePointY", "propShapePointType", "propAreaM2", "propAreaM2Badge", "propColorA", "propColorB", "shapeOpacityField", "propShapeOpacity", "btnAutoContrast", "btnRandomColor",
   "areaM2Field", "colorPanel", "autoContrastField", "randomColorField", "cabinetSizePanel", "propCellX", "propCellY", "propCellUnit", "flowField", "propDataFlow", "propDataFlowZ", "numberCellsField", "propNumberCells",
   "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
+  "cabinetToolPanel", "cabinetSelectionLabel", "propCabinetDiag", "propCabinetColor", "btnCabinetStyleReset",
   "propSplitVariantLabel", "screenActionsField", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "convertRegionsField", "btnConvertRegionsToScreens", "rectList",
   "specModePanel", "specAutoBlocks", "specModeClose"
 ];
@@ -86,8 +87,8 @@ export const createEditorDomRefs = (documentRef = document) => {
     overlayCtx: overlayCanvas ? overlayCanvas.getContext("2d") : null,
     wrap,
     el,
-    desktopToolButtons: [el.toolSelect, el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean),
-    mobileToolButtons: [el.mToolSelect, el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean)
+    desktopToolButtons: [el.toolSelect, el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolCabinetEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean),
+    mobileToolButtons: [el.mToolSelect, el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolCabinetEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean)
   };
 };
 
@@ -156,6 +157,9 @@ export const createInitialEditorState = () => ({
   maskHover: null,
   cellHover: null,
   cellHoverPos: null,
+  cabinetCellHover: null,
+  cabinetCellSelection: null,
+  cabinetPaint: { diag: "auto", color: "auto" },
   tabs: [],
   activeTabId: null,
   nextTabId: 1,

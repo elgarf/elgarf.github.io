@@ -339,6 +339,7 @@ export const setupToolbarActionsController = (deps = {}) => {
     [el.toolSelect, () => activateToolOrSelect("select")],
     [el.toolMaskAdd, () => activateToolOrSelect("maskEdit")],
     [el.toolCellEdit, () => activateToolOrSelect("cellEdit")],
+    [el.toolCabinetEdit, () => activateToolOrSelect("cabinetEdit")],
     [el.toolClusterEdit, () => activateToolOrSelect("clusterEdit")],
     [el.toolRigEdit, () => activateToolOrSelect("rigEdit")],
     [el.lockAllToggle, () => setLockAll(!st.lockAll, true)],

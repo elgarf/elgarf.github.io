@@ -124,6 +124,10 @@
           aria-label="Объединить или разделить кабинеты">
           <i class="fa-solid fa-link"></i>
         </button>
+        <button id="toolCabinetEdit" class="icon-btn" title="Свойства отдельных кабинетов"
+          aria-label="Свойства отдельных кабинетов">
+          <i class="fa-solid fa-vector-square"></i>
+        </button>
         <button id="toolFlowEdit" class="icon-btn tool-has-menu" title="Исправить поток" aria-label="Исправить поток">
           <i class="fa-solid fa-route"></i>
         </button>
@@ -351,6 +355,32 @@
           <div class="form-check"><input id="propNumberCells" class="form-check-input" type="checkbox"><label
               class="form-check-label" for="propNumberCells">Нумеровать кабинеты</label></div>
         </div>
+        <div id="cabinetToolPanel" class="shape-point-group d-none">
+          <div class="shape-point-group-title"><span id="cabinetSelectionLabel" class="hint mb-1">Кабинет не выбран</span></div>
+          <div class="field mb-0">
+            <div class="grid2">
+              <div class="field">
+                <label for="propCabinetDiag">Диагональ</label>
+                <select id="propCabinetDiag">
+                  <option value="auto">Авто</option>
+                  <option value="right">Справа</option>
+                  <option value="left">Слева</option>
+                  <option value="rightSwap">Справа (смена цветов)</option>
+                  <option value="leftSwap">Слева (смена цветов)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="propCabinetColor">Цвет</label>
+                <select id="propCabinetColor">
+                  <option value="auto">Авто</option>
+                  <option value="a">Основной</option>
+                  <option value="b">Дополнительный</option>
+                </select>
+              </div>
+            </div>
+            <button id="btnCabinetStyleReset" class="btn btn-outline-secondary btn-sm w-100" type="button">Сбросить стиль кабинета</button>
+          </div>
+        </div>
         <div id="splitVariantField" class="field"><label for="propSplitVariant">Вариант разделения по сигналам</label>
           <div id="splitVariantControl" class="input-group input-group-sm"><button id="propSplitVariantDec"
               class="btn btn-outline-secondary" type="button" aria-label="Предыдущий вариант">-</button><input
@@ -570,6 +600,8 @@
       aria-label="Скрыть или показать часть экрана"><i class="fa-solid fa-masks-theater"></i></button>
     <button id="mToolCellEdit" class="icon-btn" title="Объединить или разделить кабинеты"
       aria-label="Объединить или разделить кабинеты"><i class="fa-solid fa-link"></i></button>
+    <button id="mToolCabinetEdit" class="icon-btn" title="Свойства отдельных кабинетов"
+      aria-label="Свойства отдельных кабинетов"><i class="fa-solid fa-vector-square"></i></button>
     <button id="mToolFlowEdit" class="icon-btn tool-has-menu" title="Исправить поток" aria-label="Исправить поток"><i
         class="fa-solid fa-route"></i></button>
     <button id="mToolClusterEdit" class="icon-btn" title="Разделить на регионы вручную"

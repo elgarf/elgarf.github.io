@@ -803,7 +803,7 @@
     }
 
     .editor-overlay-canvas {
-      z-index: 2;
+      z-index: 24;
       pointer-events: none
     }
 

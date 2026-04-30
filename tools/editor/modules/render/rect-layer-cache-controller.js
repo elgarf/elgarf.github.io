@@ -13,6 +13,19 @@ export const setupRectLayerCacheController = (deps = {}) => {
 
   const MAX_LAYER_SCALE = 8;
   const MAX_LAYER_PIXELS = 32000000;
+  const normalizeCabinetStyle = raw => {
+    const src = (raw && typeof raw === "object") ? raw : {};
+    const diagRaw = String(src.diag || "auto");
+    const colorRaw = String(src.color || "auto");
+    const diag = ["auto", "right", "left", "rightSwap", "leftSwap"].includes(diagRaw) ? diagRaw : "auto";
+    const color = ["auto", "a", "b"].includes(colorRaw) ? colorRaw : "auto";
+    return (diag === "auto" && color === "auto") ? null : { diag, color };
+  };
+  const getCabinetStyle = (r, cid) => {
+    const styles = (r && r.cabinetStyles && typeof r.cabinetStyles === "object") ? r.cabinetStyles : null;
+    if (!styles) return null;
+    return normalizeCabinetStyle(styles[String(cid | 0)]);
+  };
 
   const createLayerCanvas = (w, h, scale = 1) => {
     const safeScale = Math.max(1, Number(scale) || 1);
@@ -96,7 +109,7 @@ export const setupRectLayerCacheController = (deps = {}) => {
   const getRectFillLayerCached = (r, cx, cy, topo, maskRender, lowDetail, z = 1) => {
     const cache = getRectCalcCache(r), w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1));
     const layerScale = getLayerScale(w, h, z);
-    const key = [w, h, layerScale, cx || 0, cy || 0, topoCalcKey(r, cx, cy), listSignature(r && r.hiddenCells), String(r && r.colorA || ""), String(r && r.colorB || ""), lowDetail ? "1" : "0"].join("|");
+    const key = [w, h, layerScale, cx || 0, cy || 0, topoCalcKey(r, cx, cy), listSignature(r && r.hiddenCells), String(r && r.colorA || ""), String(r && r.colorB || ""), JSON.stringify(r && r.cabinetStyles || {}), lowDetail ? "1" : "0"].join("|");
     if (cache.fillLayer && cache.fillLayer.key === key && cache.fillLayer.canvas) return cache.fillLayer.canvas;
     const layer = createLayerCanvas(w, h, layerScale), lc = layer.getContext("2d");
     if (!lc) return null;
@@ -152,7 +165,9 @@ export const setupRectLayerCacheController = (deps = {}) => {
       }
       for (const it of comps) {
         if (maskRender && maskRender.visibleCompSet && !maskRender.visibleCompSet.has(it.cid)) continue;
-        const base = (it.cc === 0) ? r.colorA : r.colorB, alt = (it.cc === 0) ? altA : altB;
+        const style = getCabinetStyle(r, it.cid | 0);
+        const cc = style && style.color === "a" ? 0 : style && style.color === "b" ? 1 : it.cc;
+        const base = (cc === 0) ? r.colorA : r.colorB, alt = (cc === 0) ? altA : altB;
         lc.save();
         lc.beginPath();
         for (const cl of it.cells) lc.rect(cl.x + w / 2, cl.y + h / 2, cl.w, cl.h);
@@ -160,7 +175,15 @@ export const setupRectLayerCacheController = (deps = {}) => {
         const bw = it.maxX - it.minX, bh = it.maxY - it.minY, ox = it.minX + w / 2, oy = it.minY + h / 2;
         lc.fillStyle = base; lc.fillRect(ox, oy, bw, bh);
         lc.fillStyle = alt;
-        const mirrorHoriz = sameColorNear.has(it.cid | 0);
+        const mirrorHoriz = style
+          ? (style.diag === "left" || style.diag === "leftSwap")
+          : sameColorNear.has(it.cid | 0);
+        const useSwap = style ? (style.diag === "rightSwap" || style.diag === "leftSwap") : false;
+        const bgFill = useSwap ? alt : base;
+        const diagFill = useSwap ? base : alt;
+        lc.fillStyle = bgFill;
+        lc.fillRect(ox, oy, bw, bh);
+        lc.fillStyle = diagFill;
         lc.beginPath();
         if (mirrorHoriz) {
           lc.moveTo(ox + bw, oy);

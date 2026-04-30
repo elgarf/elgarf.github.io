@@ -14,6 +14,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     isNoteMode,
     isMaskMode,
     isCellEditMode,
+    isCabinetEditMode,
     isClusterEditMode,
     isRigEditMode,
     addMaskPoint,
@@ -25,6 +26,8 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     handleRigPointerMove,
     handleRigPointerLeave,
     handleFlowEditPointerDown,
+    handleCabinetEditPointerDown,
+    handleCabinetEditPointerMove,
     navigationController,
     clusterController,
     flowController,
@@ -216,6 +219,10 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (!isClusterEditMode()) return false;
     return !!clusterController.handlePointerDownCluster(p);
   };
+  const handlePointerDownCabinet = p => {
+    if (!isCabinetEditMode()) return false;
+    return !!handleCabinetEditPointerDown(p);
+  };
   const handlePointerDownRig = p => {
     if (!isRigEditMode()) return false;
     return !!handleRigPointerDown(p);
@@ -267,6 +274,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (handlePointerDownDrawOrNote(p)) return;
     if (handlePointerDownMask(p)) return;
     if (handlePointerDownCell(p)) return;
+    if (handlePointerDownCabinet(p)) return;
     if (handlePointerDownCluster(p)) return;
     if (handlePointerDownRig(p)) return;
     if (handlePointerDownFlow(p, opts)) return;
@@ -326,6 +334,11 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       const r = getHoveredRect(p);
       st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null;
       render();
+      return true;
+    }
+    if (isCabinetEditMode()) {
+      setNoteResizeCursor(false);
+      if (typeof handleCabinetEditPointerMove === "function") return !!handleCabinetEditPointerMove(p);
       return true;
     }
     if (isClusterEditMode()) {

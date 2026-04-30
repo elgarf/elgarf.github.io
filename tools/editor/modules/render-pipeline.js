@@ -2,7 +2,7 @@ export const setupRenderPipeline = (deps = {}) => {
   const {
     ctx, overlayCtx, st, cv, overlayCanvas, wrap,
     getViewMetrics, s2w, rectAABB, getOrigin, isSelected,
-    drawRect, drawInterScreenFlowLinks, drawMaskOverlay, drawCellEditOverlay, drawContentBounds, drawMultiSelectionActions,
+    drawRect, drawInterScreenFlowLinks, drawMaskOverlay, drawCellEditOverlay, drawCabinetEditOverlay, drawContentBounds, drawMultiSelectionActions,
     drawGrid, drawGuides, drawDistanceGuide, drawInstallSummaryOverlay, drawLayerButtons, updateNoteEditorOverlay,
     selBoxBounds, resetClusterHoverTransient, isClusterEditMode
   } = deps;
@@ -186,6 +186,9 @@ export const setupRenderPipeline = (deps = {}) => {
       drawDraftOverlay(c, z);
       drawSelectionBoxOverlay(c, z);
     });
+    if (typeof drawCabinetEditOverlay === "function") {
+      profileSection(profile, "cabinet selection", () => drawCabinetEditOverlay(c, z));
+    }
     if (!renderState.skipHeavyOverlays) {
       profileSection(profile, "edit overlays", () => {
         drawMaskOverlay(c, z);

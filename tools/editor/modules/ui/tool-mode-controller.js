@@ -14,6 +14,7 @@ export const setupToolModeController = (deps = {}) => {
     cancelActiveDrag,
     isMaskMode,
     isCellEditMode,
+    isCabinetEditMode,
     isRigEditMode,
     updateToolbarOverflow,
     updateClusterEditCursor,
@@ -110,6 +111,7 @@ export const setupToolModeController = (deps = {}) => {
       ["create", el.toolDraw, el.mToolDraw],
       ["maskEdit", el.toolMaskAdd, el.mToolMaskAdd],
       ["cellEdit", el.toolCellEdit, el.mToolCellEdit],
+      ["cabinetEdit", el.toolCabinetEdit, el.mToolCabinetEdit],
       ["flowEdit", el.toolFlowEdit, el.mToolFlowEdit],
       ["clusterEdit", el.toolClusterEdit, el.mToolClusterEdit],
       ["rigEdit", el.toolRigEdit, el.mToolRigEdit]
@@ -128,6 +130,9 @@ export const setupToolModeController = (deps = {}) => {
 
     if (!isMaskMode()) resetMaskTransient();
     if (!isCellEditMode()) resetCellTransient();
+    if (!isCabinetEditMode()) st.cabinetCellHover = null;
+    if (m !== "cabinetEdit") st.cabinetCellSelection = null;
+    if (el && el.cabinetToolPanel) el.cabinetToolPanel.classList.toggle("d-none", m !== "cabinetEdit");
     if (!isRigEditMode()) resetRigHoverTransient();
     wrap.dataset.mode = m;
     if (el && el.side) el.side.classList.toggle("tool-auto-select-guard", AUTO_SELECTION_MODES.has(m));
