@@ -11,7 +11,7 @@ export const setupToolbarController = (deps = {}) => {
   } = deps;
 
   const overflowButtonIds = [
-    "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
+    "toolSelect", "toolDraw", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
     "btnCopy", "btnCopyMirror", "btnDelete", "zoomOut", "zoomIn", "zoomReset", "zoomFit", "newProject", "save", "saveLink", "load", "exp", "languageToggle", "themeToggle"
   ];
 
@@ -23,6 +23,129 @@ export const setupToolbarController = (deps = {}) => {
     if (!node || !type || !handler) return;
     if (bindEvent) bindEvent(node, type, handler);
     else node.addEventListener(type, handler);
+  };
+  const tooltipButtonSelector = ".toolbar button, .mobile-dock button, .toolbar-overflow-popup button, .tool-cycle-menu button";
+  let activeTooltipButton = null;
+  let hoveredTooltipButton = null;
+  let tooltipShowTimer = 0;
+  let tooltipHideTimer = 0;
+  const tooltipButtonFromEvent = target => {
+    const btn = target && target.closest ? target.closest(tooltipButtonSelector) : null;
+    if (!btn || btn.closest(".EasyMDEContainer") || btn.closest(".editor-toolbar")) return null;
+    return btn;
+  };
+  const tooltipLabel = btn => String(
+    btn && (
+      btn.getAttribute("title")
+      || btn.getAttribute("data-bs-title")
+      || btn.getAttribute("data-bs-original-title")
+      || btn.getAttribute("aria-label")
+    ) || ""
+  ).trim();
+  const tooltipPlacement = btn => {
+    if (!btn || !windowRef.getComputedStyle) return "auto";
+    const menu = btn.closest(".tool-cycle-menu");
+    if (menu) {
+      if (menu.classList.contains("tool-cycle-menu-bottom")) return "top";
+      if (menu.classList.contains("tool-cycle-menu-side")) return "right";
+      return "bottom";
+    }
+    const dock = btn.closest(".mobile-dock");
+    if (dock) {
+      const direction = String(windowRef.getComputedStyle(dock).flexDirection || "");
+      return direction.includes("column") ? "right" : "top";
+    }
+    if (btn.closest(".toolbar")) return "bottom";
+    if (btn.closest(".toolbar-overflow-popup")) return "bottom";
+    return "auto";
+  };
+  const showButtonTooltip = btn => {
+    if (!btn || !windowRef.bootstrap || !windowRef.bootstrap.Tooltip) return;
+    const label = tooltipLabel(btn);
+    if (!label) return;
+    if (activeTooltipButton && activeTooltipButton !== btn) hideButtonTooltip(activeTooltipButton);
+    activeTooltipButton = btn;
+    btn.setAttribute("data-bs-title", label);
+    btn.setAttribute("data-bs-toggle", "tooltip");
+    btn.removeAttribute("title");
+    const placement = tooltipPlacement(btn);
+    const existingPlacement = btn.getAttribute("data-tooltip-placement") || "";
+    if (existingPlacement && existingPlacement !== placement) {
+      const old = windowRef.bootstrap.Tooltip.getInstance(btn);
+      if (old) old.dispose();
+    }
+    btn.setAttribute("data-tooltip-placement", placement);
+    const instance = windowRef.bootstrap.Tooltip.getOrCreateInstance(btn, {
+      container: "body",
+      placement,
+      fallbackPlacements: [placement],
+      boundary: documentRef.body,
+      trigger: "manual"
+    });
+    if (typeof instance.setContent === "function") instance.setContent({ ".tooltip-inner": label });
+    instance.show();
+  };
+  const hideButtonTooltip = btn => {
+    if (!btn || !windowRef.bootstrap || !windowRef.bootstrap.Tooltip) return;
+    const instance = windowRef.bootstrap.Tooltip.getInstance(btn);
+    if (instance) instance.hide();
+    if (activeTooltipButton === btn) activeTooltipButton = null;
+  };
+  const clearTooltipTimers = () => {
+    if (tooltipShowTimer) {
+      windowRef.clearTimeout(tooltipShowTimer);
+      tooltipShowTimer = 0;
+    }
+    if (tooltipHideTimer) {
+      windowRef.clearTimeout(tooltipHideTimer);
+      tooltipHideTimer = 0;
+    }
+  };
+  const scheduleTooltipShow = btn => {
+    if (!btn) return;
+    hoveredTooltipButton = btn;
+    if (tooltipHideTimer) {
+      windowRef.clearTimeout(tooltipHideTimer);
+      tooltipHideTimer = 0;
+    }
+    if (activeTooltipButton === btn) return;
+    if (tooltipShowTimer) windowRef.clearTimeout(tooltipShowTimer);
+    tooltipShowTimer = windowRef.setTimeout(() => {
+      tooltipShowTimer = 0;
+      if (hoveredTooltipButton === btn) showButtonTooltip(btn);
+    }, 90);
+  };
+  const scheduleTooltipHide = btn => {
+    if (!btn) return;
+    if (hoveredTooltipButton === btn) hoveredTooltipButton = null;
+    if (tooltipShowTimer) {
+      windowRef.clearTimeout(tooltipShowTimer);
+      tooltipShowTimer = 0;
+    }
+    if (tooltipHideTimer) windowRef.clearTimeout(tooltipHideTimer);
+    tooltipHideTimer = windowRef.setTimeout(() => {
+      tooltipHideTimer = 0;
+      if (!hoveredTooltipButton) hideButtonTooltip(btn);
+    }, 80);
+  };
+  const setupButtonTooltips = () => {
+    if (!documentRef || !windowRef.bootstrap || !windowRef.bootstrap.Tooltip) return;
+    on(documentRef, "pointerover", e => {
+      const btn = tooltipButtonFromEvent(e.target);
+      if (!btn || btn === activeTooltipButton || btn.contains(e.relatedTarget)) return;
+      scheduleTooltipShow(btn);
+    });
+    on(documentRef, "pointerout", e => {
+      const btn = tooltipButtonFromEvent(e.target);
+      if (!btn || btn.contains(e.relatedTarget)) return;
+      scheduleTooltipHide(btn);
+    });
+    on(documentRef, "focusin", e => showButtonTooltip(tooltipButtonFromEvent(e.target)));
+    on(documentRef, "focusout", e => {
+      clearTooltipTimers();
+      hoveredTooltipButton = null;
+      hideButtonTooltip(tooltipButtonFromEvent(e.target));
+    });
   };
 
   const ensureMobileDock = () => {
@@ -165,6 +288,7 @@ export const setupToolbarController = (deps = {}) => {
       if (
         b.classList.contains("btn-close")
         || b.classList.contains("dropdown-item")
+        || b.closest(".tool-cycle-menu")
         || b.closest(".EasyMDEContainer")
         || b.closest(".editor-toolbar")
       ) continue;
@@ -190,6 +314,8 @@ export const setupToolbarController = (deps = {}) => {
     }
     for (const s of documentRef.querySelectorAll("select")) s.classList.add("form-select", "form-select-sm");
   };
+
+  setupButtonTooltips();
 
   const updateToolbarOverflow = () => {
     if (!el || !el.toolbar || !el.overflowGroup || !el.overflowPopup) return;

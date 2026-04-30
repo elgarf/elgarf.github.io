@@ -1915,6 +1915,7 @@ const {
     setViewMode: (mode, persist) => setViewMode(mode, persist),
     isInstallViewMode: () => isInstallViewMode(),
     activateToolOrSelect: mode => activateToolOrSelect(mode),
+    setMode: mode => setMode(mode),
     setLockAll: (next, persist) => setLockAll(next, persist),
     newProject: () => newProject(),
     dupSel: () => dupSel(),

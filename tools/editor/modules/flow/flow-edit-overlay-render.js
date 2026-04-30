@@ -1,4 +1,5 @@
 import { drawCanvasTooltip } from "../render/canvas-tooltip.js";
+import { drawCanvasUiButton, canvasUiTheme } from "../render/canvas-ui.js";
 
 export function setupFlowEditOverlayRender(deps = {}) {
   const { st, fontFamilyCss, t = value => value } = deps;
@@ -37,14 +38,7 @@ export function setupFlowEditOverlayRender(deps = {}) {
       const y = -h / 2 + (+b.v || 0);
       const hover = !!(st.flowDirHover && st.flowDirHover.rid === b.rid && st.flowDirHover.dir === b.dir);
       const on = !!b.active;
-      c.fillStyle = on ? "rgba(25,135,84,.98)" : "rgba(33,37,41,.75)";
-      if (hover) c.fillStyle = on ? "rgba(38,166,99,.98)" : "rgba(73,80,87,.92)";
-      c.strokeStyle = on ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.72)";
-      c.lineWidth = 1.1;
-      c.beginPath();
-      c.arc(x, y, 8.2, 0, Math.PI * 2);
-      c.fill();
-      c.stroke();
+      drawCanvasUiButton(c, { x: x - 8.2, y: y - 8.2, size: 16.4, z: 1, active: on, hover, success: on, icon: "" });
       drawDirGlyph(x, y, b.dir);
       if (hover) {
         const dirName = b.dir === "left" ? t("Влево") : b.dir === "right" ? t("Вправо") : b.dir === "up" ? t("Вверх") : t("Вниз");
@@ -55,13 +49,7 @@ export function setupFlowEditOverlayRender(deps = {}) {
       const x = -w / 2 + (+b.u || 0);
       const y = -h / 2 + (+b.v || 0);
       const hover = !!(st.flowResetHover && st.flowResetHover.rid === b.rid && st.flowResetHover.cid === b.cid);
-      c.fillStyle = hover ? "rgba(220,53,69,.98)" : "rgba(33,37,41,.82)";
-      c.strokeStyle = "rgba(255,255,255,.82)";
-      c.lineWidth = 1.2;
-      c.beginPath();
-      c.arc(x, y, 8.5, 0, Math.PI * 2);
-      c.fill();
-      c.stroke();
+      drawCanvasUiButton(c, { x: x - 8.5, y: y - 8.5, size: 17, z: 1, active: hover, hover, danger: hover, icon: "" });
       c.strokeStyle = "#fff";
       c.lineWidth = 1.8;
       c.lineCap = "round";
@@ -107,11 +95,12 @@ export function setupFlowEditOverlayRender(deps = {}) {
       const hover = !!(!st.flowDrag && st.flowHover && st.flowHover.rid === p.rid && st.flowHover.index === p.index);
       const manualActive = !!p.manualActive;
       const manualMode = !!p.manualMode;
-      c.fillStyle = active ? "rgba(255,209,102,.95)" : (manualActive ? "rgba(13,202,240,.96)" : "rgba(255,255,255,.9)");
-      c.strokeStyle = active ? "rgba(255,145,0,.98)" : (manualActive ? "rgba(0,55,75,.95)" : (manualMode ? "rgba(13,110,253,.9)" : "rgba(0,0,0,.72)"));
+      const ui = canvasUiTheme();
+      c.fillStyle = active ? ui.warning : (manualActive ? ui.primary : ui.surface);
+      c.strokeStyle = active ? ui.warning : (manualActive ? "rgba(255,255,255,.82)" : (manualMode ? ui.primary : ui.borderStrong));
       if (hover) {
-        c.fillStyle = manualActive ? "rgba(49,230,255,.98)" : "rgba(173,216,255,.95)";
-        c.strokeStyle = manualActive ? "rgba(0,86,112,.98)" : "rgba(51,125,255,.95)";
+        c.fillStyle = manualActive ? ui.primary : ui.surfaceHover;
+        c.strokeStyle = ui.primary;
       }
       c.lineWidth = manualMode && !manualActive ? 1.8 : 1.2;
       c.beginPath();
@@ -119,7 +108,7 @@ export function setupFlowEditOverlayRender(deps = {}) {
       c.fill();
       c.stroke();
       if (manualActive) {
-        c.fillStyle = "#052c36";
+        c.fillStyle = "rgba(255,255,255,.96)";
         c.font = `700 8.5px ${fontFamilyCss(st.fontFamily)}`;
         c.textAlign = "center";
         c.textBaseline = "middle";

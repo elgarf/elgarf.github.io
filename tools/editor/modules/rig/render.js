@@ -1,3 +1,5 @@
+import { drawCanvasUiButton } from "../render/canvas-ui.js";
+
 export const setupRigRenderController = (deps = {}) => {
   const {
     st,
@@ -81,13 +83,7 @@ export const setupRigRenderController = (deps = {}) => {
       c.fillStyle = "rgba(255,255,255,.98)"; c.font = `${Math.max(6.8, Math.min(loadSize * 0.45, 18))}px ${fontFamilyCss(st.fontFamily)}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(`${kg}`, x, y + Math.max(7, loadSize * 0.2));
       if (isRigEditMode() && sel) {
         const drawBtn = (bx, sym) => {
-          c.beginPath();
-          c.arc(bx, y, btnR, 0, Math.PI * 2);
-          c.fillStyle = dangerDelete ? "rgba(145,22,22,.96)" : "rgba(22,27,34,.96)";
-          c.fill();
-          c.strokeStyle = dangerDelete ? "rgba(255,200,200,.9)" : "rgba(255,255,255,.6)";
-          c.lineWidth = Math.max(.8, 1.1 * ui);
-          c.stroke();
+          drawCanvasUiButton(c, { x: bx - btnR, y: y - btnR, size: btnR * 2, z: 1, active: dangerDelete, hover: dangerDelete, danger: dangerDelete, icon: "" });
           c.strokeStyle = "rgba(255,255,255,.95)";
           c.lineWidth = Math.max(1.2, 1.6 * ui);
           c.lineCap = "round";

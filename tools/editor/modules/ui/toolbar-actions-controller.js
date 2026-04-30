@@ -6,6 +6,7 @@ export const setupToolbarActionsController = (deps = {}) => {
     bindEvent,
     setViewMode,
     activateToolOrSelect,
+    setMode,
     setLockAll,
     newProject,
     dupSel,
@@ -43,6 +44,207 @@ export const setupToolbarActionsController = (deps = {}) => {
     const isMobile = !!(windowRef.matchMedia && windowRef.matchMedia("(max-width:900px)").matches);
     setViewMode(isMobile ? "art" : previousCanvasViewMode(), true);
   };
+  const CREATE_TOOL_ITEMS = [
+    { mode: "draw", label: "Добавить экран", icon: "fa-regular fa-square-plus" },
+    { mode: "note", label: "Добавить примечание", icon: "fa-solid fa-note-sticky" }
+  ];
+  const FLOW_TOOL_ITEMS = [
+    { variant: "auto", label: "Правка автоматического потока", badge: "А", icon: "fa-solid fa-route" },
+    { variant: "manual", label: "Ручная расстановка потока", badge: "М", icon: "fa-solid fa-route" }
+  ];
+  const documentRef = windowRef.document || (typeof document !== "undefined" ? document : null);
+  const createToolMenuController = ({
+    items,
+    datasetKey,
+    renderItem,
+    choose,
+    cycle
+  }) => {
+    let menu = null;
+    let pointer = null;
+    let suppressClick = false;
+    const holdMs = 420;
+    const attr = `data-${datasetKey}`;
+    const boundAttr = `data-${datasetKey}-bound`;
+    const ensureMenu = () => {
+      if (menu || !documentRef) return menu;
+      menu = documentRef.createElement("div");
+      menu.className = "tool-cycle-menu dropdown-menu";
+      menu.setAttribute("role", "menu");
+      for (const item of items) {
+        const btn = documentRef.createElement("button");
+        btn.type = "button";
+        btn.className = "icon-btn tool-cycle-item";
+        btn.setAttribute(attr, item.value);
+        btn.setAttribute("role", "menuitem");
+        btn.title = item.label;
+        btn.setAttribute("aria-label", item.label);
+        btn.innerHTML = renderItem(item);
+        menu.appendChild(btn);
+      }
+      documentRef.body.appendChild(menu);
+      return menu;
+    };
+    const hideMenu = () => {
+      if (menu) menu.classList.remove("show");
+    };
+    const getMenuPlacement = anchor => {
+      const dock = anchor && anchor.closest ? anchor.closest(".mobile-dock") : null;
+      if (!dock || !windowRef.getComputedStyle) return "desktop";
+      const style = windowRef.getComputedStyle(dock);
+      const flexDirection = String(style.flexDirection || "");
+      return flexDirection.includes("column") ? "side-dock" : "bottom-dock";
+    };
+    const placeMenu = anchor => {
+      const node = ensureMenu();
+      if (!node || !anchor) return;
+      const r = anchor.getBoundingClientRect();
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const placement = getMenuPlacement(anchor);
+      node.classList.toggle("tool-cycle-menu-side", placement === "side-dock");
+      node.classList.toggle("tool-cycle-menu-bottom", placement === "bottom-dock");
+      node.classList.toggle("tool-cycle-menu-desktop", placement === "desktop");
+      node.style.minWidth = "";
+      node.style.width = "";
+      node.style.visibility = "hidden";
+      node.classList.add("show");
+      const vw = windowRef.innerWidth || documentRef.documentElement.clientWidth || 0;
+      const vh = windowRef.innerHeight || documentRef.documentElement.clientHeight || 0;
+      const maxLeft = Math.max(6, vw - node.offsetWidth - 6);
+      const maxTop = Math.max(6, vh - node.offsetHeight - 6);
+      if (placement === "side-dock") {
+        node.style.left = `${Math.round(clamp(r.right + 8, 6, maxLeft))}px`;
+        node.style.top = `${Math.round(clamp(r.top + (r.height - node.offsetHeight) / 2, 6, maxTop))}px`;
+      } else if (placement === "bottom-dock") {
+        node.style.left = `${Math.round(clamp(r.left + (r.width - node.offsetWidth) / 2, 6, maxLeft))}px`;
+        node.style.top = `${Math.round(clamp(r.top - node.offsetHeight - 8, 6, maxTop))}px`;
+      } else {
+        node.style.left = `${Math.round(clamp(r.left, 6, maxLeft))}px`;
+        node.style.top = `${Math.round(clamp(r.bottom + 6, 6, maxTop))}px`;
+      }
+      node.style.visibility = "";
+    };
+    const itemAtPoint = (clientX, clientY) => {
+      const node = ensureMenu();
+      if (!node || !node.classList.contains("show")) return null;
+      const elAtPoint = documentRef.elementFromPoint(clientX, clientY);
+      return elAtPoint && elAtPoint.closest ? elAtPoint.closest(`.tool-cycle-menu [${attr}]`) : null;
+    };
+    const valueAtPoint = (clientX, clientY) => {
+      const item = itemAtPoint(clientX, clientY);
+      return item ? String(item.getAttribute(attr) || "") : "";
+    };
+    const clearHoldTimer = () => {
+      if (pointer && pointer.timer) {
+        windowRef.clearTimeout(pointer.timer);
+        pointer.timer = 0;
+      }
+    };
+    const cancelPointer = () => {
+      clearHoldTimer();
+      if (pointer && pointer.button) {
+        try { pointer.button.releasePointerCapture(pointer.id); } catch (_err) { }
+      }
+      pointer = null;
+      hideMenu();
+    };
+    const onPointerMove = _e => {};
+    const onPointerUp = e => {
+      if (!pointer || pointer.id !== e.pointerId) return;
+      const active = pointer;
+      const wasMenu = active.menu;
+      clearHoldTimer();
+      pointer = null;
+      try { active.button.releasePointerCapture(e.pointerId); } catch (_err) { }
+      if (wasMenu) {
+          const value = valueAtPoint(e.clientX, e.clientY);
+          hideMenu();
+        suppressClick = true;
+        if (value) choose(value);
+        e.preventDefault();
+        return;
+      }
+      cycle();
+      suppressClick = true;
+      e.preventDefault();
+    };
+    const bind = btn => {
+      if (!btn || btn.getAttribute(boundAttr) === "1") return;
+      btn.setAttribute(boundAttr, "1");
+      const down = e => {
+        if (e.button != null && e.button !== 0) return;
+        cancelPointer();
+        pointer = {
+          id: e.pointerId,
+          button: btn,
+          sx: e.clientX,
+          sy: e.clientY,
+          menu: false,
+          timer: windowRef.setTimeout(() => {
+            if (!pointer || pointer.id !== e.pointerId) return;
+            pointer.menu = true;
+            placeMenu(pointer.button);
+            try { pointer.button.releasePointerCapture(pointer.id); } catch (_err) { }
+          }, holdMs)
+        };
+        try { btn.setPointerCapture(e.pointerId); } catch (_err) { }
+      };
+      bindEvent(btn, "pointerdown", down);
+      bindEvent(btn, "click", e => {
+        if (suppressClick) {
+          suppressClick = false;
+          e.preventDefault();
+          return;
+        }
+        cycle();
+      });
+    };
+    if (documentRef) {
+      bindEvent(documentRef, "pointermove", onPointerMove);
+      bindEvent(documentRef, "pointerup", onPointerUp);
+      bindEvent(documentRef, "pointercancel", cancelPointer);
+    }
+    return { bind, hide: hideMenu };
+  };
+  const chooseCreateTool = mode => {
+    const next = CREATE_TOOL_ITEMS.some(it => it.mode === mode) ? mode : "draw";
+    st.createToolMode = next;
+    if (typeof setMode === "function") setMode(next);
+    else activateToolOrSelect(next);
+  };
+  const cycleCreateTool = () => {
+    const current = st.mode === "draw" || st.mode === "note" ? st.mode : String(st.createToolMode || "draw");
+    const index = CREATE_TOOL_ITEMS.findIndex(it => it.mode === current);
+    const next = CREATE_TOOL_ITEMS[(index + 1 + CREATE_TOOL_ITEMS.length) % CREATE_TOOL_ITEMS.length].mode;
+    chooseCreateTool(st.mode === "draw" || st.mode === "note" ? next : current);
+  };
+  const chooseFlowTool = variant => {
+    st.flowEditVariant = FLOW_TOOL_ITEMS.some(it => it.variant === variant) ? variant : "auto";
+    if (typeof setMode === "function") setMode("flowEdit");
+    else activateToolOrSelect("flowEdit");
+  };
+  const cycleFlowTool = () => {
+    const current = String(st.flowEditVariant || "auto") === "manual" ? "manual" : "auto";
+    if (st.mode !== "flowEdit") {
+      chooseFlowTool(current);
+      return;
+    }
+    chooseFlowTool(current === "auto" ? "manual" : "auto");
+  };
+  const createToolGroup = createToolMenuController({
+    items: CREATE_TOOL_ITEMS.map(item => ({ ...item, value: item.mode })),
+    datasetKey: "tool-mode",
+    renderItem: item => `<i class="${item.icon}"></i>`,
+    choose: chooseCreateTool,
+    cycle: cycleCreateTool
+  });
+  const flowToolGroup = createToolMenuController({
+    items: FLOW_TOOL_ITEMS.map(item => ({ ...item, value: item.variant })),
+    datasetKey: "flow-variant",
+    renderItem: item => `<i class="${item.icon}"></i><span class="tool-cycle-badge">${item.badge}</span>`,
+    choose: chooseFlowTool,
+    cycle: cycleFlowTool
+  });
 
   bindClicks([
     [el.viewModeArt, () => setViewMode("art", true)],
@@ -51,11 +253,8 @@ export const setupToolbarActionsController = (deps = {}) => {
     [el.mViewModeToggle, () => setViewMode(nextMobileViewMode(), true)],
     [el.specModeClose, closeSpecViewMode],
     [el.toolSelect, () => activateToolOrSelect("select")],
-    [el.toolDraw, () => activateToolOrSelect("draw")],
-    [el.toolNote, () => activateToolOrSelect("note")],
     [el.toolMaskAdd, () => activateToolOrSelect("maskEdit")],
     [el.toolCellEdit, () => activateToolOrSelect("cellEdit")],
-    [el.toolFlowEdit, () => activateToolOrSelect("flowEdit")],
     [el.toolClusterEdit, () => activateToolOrSelect("clusterEdit")],
     [el.toolRigEdit, () => activateToolOrSelect("rigEdit")],
     [el.lockAllToggle, () => setLockAll(!st.lockAll, true)],
@@ -95,6 +294,12 @@ export const setupToolbarActionsController = (deps = {}) => {
       }, { syncProps: true, listRects: true, persist: true, render: true });
     }]
   ]);
+  createToolGroup.bind(el.toolDraw);
+  createToolGroup.bind(el.mToolDraw);
+  flowToolGroup.bind(el.toolFlowEdit);
+  flowToolGroup.bind(el.mToolFlowEdit);
+  if (el.toolNote) el.toolNote.classList.add("d-none");
+  if (el.mToolNote) el.mToolNote.classList.add("d-none");
 
   bindClick(el.undo, () => undoHistory());
   bindClick(el.redo, () => redoHistory());

@@ -1,3 +1,5 @@
+import { drawCanvasUiButton } from "../render/canvas-ui.js";
+
 export function setupClusterEditController(deps = {}) {
   const {
     st,
@@ -223,15 +225,7 @@ export function setupClusterEditController(deps = {}) {
           && String(st.clusterHandleHover.action || "expand") === String(hnd.action || "expand")
         );
         const isShrink = String(hnd.action || "expand") === "shrink";
-        c.fillStyle = hover
-          ? (isShrink ? "rgba(220,53,69,.96)" : "rgba(25,135,84,.96)")
-          : (isShrink ? "rgba(108,17,30,.82)" : "rgba(33,37,41,.78)");
-        c.strokeStyle = "rgba(255,255,255,.8)";
-        c.lineWidth = 1.1;
-        c.beginPath();
-        c.arc(x, y, 8, 0, Math.PI * 2);
-        c.fill();
-        c.stroke();
+        drawCanvasUiButton(c, { x: x - 8, y: y - 8, size: 16, z: 1, active: hover, hover, danger: hover && isShrink, success: hover && !isShrink, icon: "" });
         c.fillStyle = "#fff";
         c.font = `700 9px ${fontFamilyCss(st.fontFamily)}`;
         c.textAlign = "center";

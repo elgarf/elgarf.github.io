@@ -81,8 +81,8 @@ export const createEditorDomRefs = (documentRef = document) => {
     overlayCtx: overlayCanvas ? overlayCanvas.getContext("2d") : null,
     wrap,
     el,
-    desktopToolButtons: [el.toolSelect, el.toolDraw, el.toolNote, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean),
-    mobileToolButtons: [el.mToolSelect, el.mToolDraw, el.mToolNote, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean)
+    desktopToolButtons: [el.toolSelect, el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean),
+    mobileToolButtons: [el.mToolSelect, el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean)
   };
 };
 
@@ -95,6 +95,7 @@ export const createInitialEditorState = () => ({
   selSet: new Set(),
   selMultiBase: null,
   mode: "select",
+  createToolMode: "draw",
   viewMode: "art",
   camX: 0,
   camY: 0,

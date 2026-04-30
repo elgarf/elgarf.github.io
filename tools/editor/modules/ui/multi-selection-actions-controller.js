@@ -1,4 +1,5 @@
 import { drawCanvasTooltip } from "../render/canvas-tooltip.js";
+import { drawCanvasUiBadge, drawCanvasUiButton } from "../render/canvas-ui.js";
 
 export const setupMultiSelectionActionsController = (deps = {}) => {
   const {
@@ -149,14 +150,6 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     const hm = Number(r.heightM) > 0 ? Number(r.heightM) : Math.max(0, Number(r.height) || 0) / scale;
     return sum + Math.max(0, wm * hm);
   }, 0);
-
-  const bootstrapPrimary = () => {
-    if (typeof document !== "undefined" && typeof getComputedStyle === "function") {
-      const value = getComputedStyle(document.documentElement).getPropertyValue("--bs-primary").trim();
-      if (value) return value;
-    }
-    return "#0d6efd";
-  };
 
   const hitAction = (x, y, z = 1) => {
     for (const btn of getButtons(z)) {
@@ -542,22 +535,6 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     const buttons = getButtons(z);
     const bounds = getSelectionBounds();
     if (!buttons.length && !bounds) return;
-    const roundedRect = (x, y, w, h, r) => {
-      if (typeof c.roundRect === "function") {
-        c.roundRect(x, y, w, h, r);
-        return;
-      }
-      const rr = Math.max(0, Math.min(r, w / 2, h / 2));
-      c.moveTo(x + rr, y);
-      c.lineTo(x + w - rr, y);
-      c.quadraticCurveTo(x + w, y, x + w, y + rr);
-      c.lineTo(x + w, y + h - rr);
-      c.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
-      c.lineTo(x + rr, y + h);
-      c.quadraticCurveTo(x, y + h, x, y + h - rr);
-      c.lineTo(x, y + rr);
-      c.quadraticCurveTo(x, y, x + rr, y);
-    };
     c.save();
     if (bounds) {
       const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
@@ -568,26 +545,12 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
       c.setLineDash([]);
       for (const h of getResizeHandles(z)) {
         const hover = st.multiSelectionResizeHover === h.id || (st.multiSelectionResize && st.multiSelectionResize.handle === h.id);
-        const primary = bootstrapPrimary();
-        c.fillStyle = hover ? primary : "rgba(18,24,32,.92)";
-        c.strokeStyle = "rgba(255,255,255,.85)";
-        c.lineWidth = Math.max(1, 1.2 / zoom);
-        c.beginPath();
-        roundedRect(h.x, h.y, h.size, h.size, Math.max(2, 3 / zoom));
-        c.fill();
-        c.stroke();
+        drawCanvasUiButton(c, { x: h.x, y: h.y, size: h.size, z: zoom, hover, active: hover, icon: "" });
       }
     }
     for (const btn of buttons) {
       const hover = st.multiSelectionActionHover === btn.id;
-      const primary = bootstrapPrimary();
-      c.fillStyle = hover ? primary : "rgba(18,24,32,.88)";
-      c.strokeStyle = hover ? primary : "rgba(255,255,255,.45)";
-      c.lineWidth = Math.max(1, 1.2 / Math.max(0.5, Number(z) || 1));
-      c.beginPath();
-      roundedRect(btn.x, btn.y, btn.size, btn.size, Math.max(3, 5 / Math.max(0.5, Number(z) || 1)));
-      c.fill();
-      c.stroke();
+      drawCanvasUiButton(c, { x: btn.x, y: btn.y, size: btn.size, z, hover, active: hover });
       drawFontAwesomeIcon(c, btn);
     }
     if (buttons.length) {
@@ -599,20 +562,8 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
       const gap = 7 / zoom;
       const x = last.x + last.size + gap;
       const y = last.y + (last.size - 22 / zoom) / 2;
-      c.font = `600 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-      c.textAlign = "left";
-      c.textBaseline = "middle";
-      const tw = c.measureText(label).width;
       const h = 22 / zoom;
-      c.fillStyle = "rgba(18,24,32,.88)";
-      c.strokeStyle = "rgba(255,255,255,.35)";
-      c.lineWidth = Math.max(1, 1.1 / zoom);
-      c.beginPath();
-      roundedRect(x, y, tw + padX * 2, h, Math.max(3, 5 / zoom));
-      c.fill();
-      c.stroke();
-      c.fillStyle = "rgba(255,255,255,.95)";
-      c.fillText(label, x + padX, y + h / 2);
+      drawCanvasUiBadge(c, label, x, y, zoom, { fontSize, padX, height: h });
     }
     const hoveredButton = buttons.find(btn => st.multiSelectionActionHover === btn.id);
     if (hoveredButton) {
