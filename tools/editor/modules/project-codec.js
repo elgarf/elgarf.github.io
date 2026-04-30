@@ -10,7 +10,7 @@ export const createProjectCodec = (deps) => {
     installLayers: "il", text: "tx", flow: "fw",
     id: "i", name: "nm", rotation: "rt", width: "w", height: "h", scale: "sc", widthM: "wm", heightM: "hm", areaM2Px: "a2", colorA: "ca", autoContrastB: "ab", colorB: "cb",
     cellX: "cx", cellY: "cy", dataFlow: "df", dataFlowZ: "dz", numberCells: "nc", splitVariant: "sv", cellLinks: "cl", hiddenCells: "hc", flowLocks: "fk", flowLockRidToSig: "frs", flowLockCidToSeed: "fcs", manualClusters: "mc",
-    rig: "rg", locked: "lk", kind: "kd", noteText: "nt", shapePoints: "shp", projectCache: "pc",
+    rig: "rg", locked: "lk", kind: "kd", noteText: "nt", shapeOpacity: "so", shapePoints: "shp", projectCache: "pc",
     from: "f", to: "t", rectId: "ri", rid: "rd", cid: "cd", startCid: "sd", startDir: "sr", startPinned: "sp", mode: "md", locks: "ls", index: "ix",
     sx: "sx", sy: "sy", c0: "c0", c1: "c1", r0: "r0", r1: "r1",
     suspends: "su", suspendLinks: "sk", frames: "fr", loads: "ld"
@@ -145,6 +145,10 @@ export const createProjectCodec = (deps) => {
     if (!isPlainObject(r.flowLockCidToSeed) || !Object.keys((typeof d.normalizeFlowLockCidToSeedMap === "function" ? d.normalizeFlowLockCidToSeedMap(r.flowLockCidToSeed) : r.flowLockCidToSeed)).length) delete r.flowLockCidToSeed;
     if (!r.kind) delete r.kind;
     if (!r.noteText) delete r.noteText;
+    {
+      const op = Number(r.shapeOpacity);
+      if (!Number.isFinite(op) || op === 0.72) delete r.shapeOpacity;
+    }
     if (!Array.isArray(r.shapePoints) || !r.shapePoints.length) delete r.shapePoints;
     if (isPlainObject(r.rig)) {
       const rigNorm = (typeof d.normalizeRigData === "function") ? d.normalizeRigData(r.rig) : r.rig;

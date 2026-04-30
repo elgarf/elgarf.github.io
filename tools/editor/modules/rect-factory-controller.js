@@ -56,6 +56,11 @@ export const setupRectFactoryController = (deps = {}) => {
       y: Number.isFinite(minY) && minY > 0 ? minY : fallback.y
     };
   };
+  const normalizeShapeOpacity = value => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 0.72;
+    return Math.max(0, Math.min(1, n));
+  };
 
   const parseProjectRect = (r, i, legacyAreaM2) => {
     const colorA = String(r.colorA || "#2fcaaf");
@@ -96,6 +101,7 @@ export const setupRectFactoryController = (deps = {}) => {
       locked: !!(r && r.locked),
       kind: String((r && r.kind) || ""),
       noteText: String((r && r.noteText) || ""),
+      shapeOpacity: normalizeShapeOpacity(r && Object.prototype.hasOwnProperty.call(r, "shapeOpacity") ? r.shapeOpacity : 0.72),
       shapePoints: Array.isArray(r && r.shapePoints)
         ? r.shapePoints
           .map(p => ({ x: Math.round(Number(p && p.x) || 0), y: Math.round(Number(p && p.y) || 0) }))
@@ -149,6 +155,7 @@ export const setupRectFactoryController = (deps = {}) => {
       locked: false,
       kind: "",
       noteText: "",
+      shapeOpacity: 0.72,
       shapePoints: []
     };
     metricFromPx(r);
@@ -187,6 +194,7 @@ export const setupRectFactoryController = (deps = {}) => {
     r.colorA = randomColor();
     r.autoContrastB = false;
     r.colorB = r.colorA;
+    r.shapeOpacity = 0.72;
     return r;
   };
 

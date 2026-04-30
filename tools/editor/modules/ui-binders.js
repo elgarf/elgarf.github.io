@@ -27,6 +27,18 @@ export const setupUiBinders = (deps = {}) => {
   bindProxyClick(el.mCopy, el.btnCopy);
   bindProxyClick(el.mCopyMirror, el.btnCopyMirror);
   bindProxyClick(el.mDelete, el.btnDelete);
+  bindEvent(el.mobileMenu, "click", e => {
+    if (!el.side) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const bootstrapRef = globalThis && globalThis.bootstrap;
+    if (bootstrapRef && bootstrapRef.Offcanvas && typeof bootstrapRef.Offcanvas.getOrCreateInstance === "function") {
+      bootstrapRef.Offcanvas.getOrCreateInstance(el.side).show();
+      return;
+    }
+    el.side.classList.add("show");
+    el.side.style.visibility = "visible";
+  });
 
   const syncProjectNameInputs = () => {
     if (el.project) el.project.value = st.projectName;

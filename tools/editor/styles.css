@@ -1273,6 +1273,10 @@
     }
 
     @media (min-width:901px) {
+      #mobileMenu {
+        display: none !important
+      }
+
       .side.offcanvas {
         position: absolute;
         right: 0;
@@ -1300,6 +1304,20 @@
       color: var(--bs-secondary-color);
       font-size: 12px;
       line-height: 1.35
+    }
+
+    .empty-selection-hint {
+      width: min(100%, 280px);
+      margin: 22px auto 18px;
+      padding: 12px 14px;
+      border: 1px solid var(--bs-primary-border-subtle);
+      border-radius: 10px;
+      background: var(--bs-primary-bg-subtle);
+      color: var(--bs-primary-text-emphasis);
+      font-size: 13px;
+      line-height: 1.35;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .10)
     }
 
     .field {

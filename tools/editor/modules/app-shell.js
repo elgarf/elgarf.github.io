@@ -9,11 +9,11 @@ const EDITOR_ELEMENT_IDS = [
   "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
   "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
   "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
-  "snapGrid", "snapObjects", "snapCenters", "snapGaps", "propName", "propTextSize", "propTextSizeLabel", "propX", "propY", "propRot",
-  "propWm", "propHm", "propScale", "shapePointPanel", "propShapePointX", "propShapePointY", "propAreaM2", "propAreaM2Badge", "propColorA", "propColorB", "btnAutoContrast", "btnRandomColor",
-  "propCellX", "propCellY", "propCellUnit", "propDataFlow", "propDataFlowZ", "propNumberCells",
+  "snapGrid", "snapObjects", "snapCenters", "snapGaps", "emptySelectionHint", "objectNameField", "rectTextSizeField", "quickGeoPanel", "propName", "propTextSize", "propTextSizeLabel", "propX", "propY", "propRot",
+  "propWm", "propHm", "propScale", "shapePointPanel", "propShapePointX", "propShapePointY", "propAreaM2", "propAreaM2Badge", "propColorA", "propColorB", "shapeOpacityField", "propShapeOpacity", "btnAutoContrast", "btnRandomColor",
+  "areaM2Field", "colorPanel", "autoContrastField", "randomColorField", "cabinetSizePanel", "propCellX", "propCellY", "propCellUnit", "flowField", "propDataFlow", "propDataFlowZ", "numberCellsField", "propNumberCells",
   "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
-  "propSplitVariantLabel", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "btnConvertRegionsToScreens", "rectList",
+  "propSplitVariantLabel", "screenActionsField", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "convertRegionsField", "btnConvertRegionsToScreens", "rectList",
   "specModePanel", "specAutoBlocks", "specModeClose"
 ];
 
@@ -59,6 +59,7 @@ export const createEditorDomRefs = (documentRef = document) => {
     areaM2: $("propAreaM2"),
     a: $("propColorA"),
     b: $("propColorB"),
+    shapeOpacity: $("propShapeOpacity"),
     randColor: $("btnRandomColor"),
     cx: $("propCellX"),
     cy: $("propCellY"),

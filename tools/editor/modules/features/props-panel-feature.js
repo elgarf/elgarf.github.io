@@ -171,10 +171,49 @@ export const setupPropsPanelFeature = (deps = {}) => {
     uiSetValue(el.shapePointX, Math.round(Number(wp.x) || 0));
     uiSetValue(el.shapePointY, Math.round(Number(wp.y) || 0));
   };
+  const setPanelHidden = (node, hidden) => {
+    if (!node || !node.classList) return;
+    node.classList.toggle("d-none", !!hidden);
+  };
+  const shapeOpacityValue = r => {
+    const n = Number(r && r.shapeOpacity);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.72;
+  };
+  const shapeTransparencyPercent = r => Math.round((1 - shapeOpacityValue(r)) * 100);
+  const shapeOpacityFromTransparencyInput = (inputValue, fallbackRect) => {
+    const fallback = shapeTransparencyPercent(fallbackRect);
+    const transparency = Math.max(0, Math.min(100, evalExpr(inputValue, fallback)));
+    return Math.max(0, Math.min(1, 1 - transparency / 100));
+  };
+  const syncDynamicPanelVisibility = (r, multi) => {
+    const hasSelection = !!r;
+    const isShape = !!(hasSelection && typeof isShapeRect === "function" && isShapeRect(r));
+    const isNote = !!(hasSelection && typeof deps.isNoteRect === "function" && deps.isNoteRect(r));
+    const isScreen = !!(hasSelection && !isShape && !isNote);
+    const isObject = !!(hasSelection || multi);
+    setPanelHidden(el.emptySelectionHint, isObject);
+    setPanelHidden(el.objectNameField, !isObject);
+    setPanelHidden(el.rectTextSizeField, !(isScreen || isNote));
+    setPanelHidden(el.quickGeoPanel, !isObject);
+    setPanelHidden(el.areaM2Field, !isScreen);
+    setPanelHidden(el.colorPanel, !isObject);
+    setPanelHidden(el.shapeOpacityField, !isShape);
+    setPanelHidden(el.autoContrastField, !isScreen);
+    setPanelHidden(el.randomColorField, !isObject);
+    setPanelHidden(el.cabinetSizePanel, !isScreen);
+    setPanelHidden(el.flowField, !isScreen);
+    setPanelHidden(el.numberCellsField, !isScreen);
+    setPanelHidden(el.splitVariantField, !isScreen);
+    setPanelHidden(el.screenActionsField, !isScreen);
+    setPanelHidden(el.convertRegionsField, !isScreen);
+    setPanelHidden(el.list, false);
+    if (!isShape) setPanelHidden(el.shapePointPanel, true);
+  };
 
   const syncProps = () => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
-    [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.a, el.b, el.cx, el.cy, el.cUnit, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
+    syncDynamicPanelVisibility(r, multi);
+    [el.name, el.rectTextSize, el.x, el.y, el.rot, el.wm, el.hm, el.a, el.b, el.shapeOpacity, el.cx, el.cy, el.cUnit, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant].forEach(v => uiSetDisabled(v, !on));
     if (el.multiEditBadge) {
       const show = !!r && (multi || locked);
       el.multiEditBadge.classList.toggle("d-none", !show);
@@ -210,6 +249,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       uiSetValue(el.x, ""); uiSetValue(el.y, ""); uiSetValue(el.wm, ""); uiSetValue(el.hm, "");
       uiSetValue(el.rot, "0"); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
       uiSetValue(el.a, "#2fcaaf"); uiSetValue(el.b, autoContrast("#2fcaaf"));
+      uiSetValue(el.shapeOpacity, "28");
       uiSetValue(el.dataFlow, "none"); uiSetChecked(el.dataFlowZ, false); uiSetChecked(el.numCells, false);
       if (el.splitVariant) {
         const maxv = String(Math.max(0, SPLIT_VARIANT_MAX - 1));
@@ -232,6 +272,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     uiSetValue(el.x, r.x); uiSetValue(el.y, r.y); uiSetValue(el.rot, mFmt(r.rotation || 0));
     uiSetValue(el.wm, mFmt(r.widthM)); uiSetValue(el.hm, mFmt(r.heightM)); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
     uiSetValue(el.a, r.colorA); uiSetValue(el.b, r.colorB);
+    uiSetValue(el.shapeOpacity, mFmt(shapeTransparencyPercent(r)));
     {
       const globalMode = normalizeDataFlow(r.dataFlow), rid = (st.mode === "flowEdit" && Number.isFinite(Number(st.flowRegionRid))) ? Math.max(0, Math.round(Number(st.flowRegionRid) || 0)) : null, cfg = (rid != null) ? getFlowRegionConfig(r, rid) : null, pts = (rid != null) ? (st.flowEditPoints || []).filter(p => p.rid === rid) : [], computedMode = (rid != null) ? resolveFlowModeFromStartAndDir(pts, cfg, getFlowModeRegion(r, rid, globalMode)) : "none";
       uiSetValue(el.dataFlow, (computedMode !== "none") ? computedMode : globalMode);
@@ -300,6 +341,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (shouldApply("widthM")) { r.widthM = Math.max(0.001, evalExpr(el.wm.value, r.widthM || 0.001)); metricChanged = true; }
       if (shouldApply("heightM")) { r.heightM = Math.max(0.001, evalExpr(el.hm.value, r.heightM || 0.001)); metricChanged = true; }
       if (shouldApply("areaM2Px")) r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
+      if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(r)) r.shapeOpacity = shapeOpacityFromTransparencyInput(el.shapeOpacity && el.shapeOpacity.value, r);
       if (metricChanged) {
         const oldW = Math.max(1, Number(r.width) || 1);
         const oldH = Math.max(1, Number(r.height) || 1);
@@ -415,11 +457,12 @@ export const setupPropsPanelFeature = (deps = {}) => {
       }
     }
     for (const t of targets) {
-      const prev = { cellX: t.cellX, cellY: t.cellY, colorA: t.colorA, colorB: t.colorB, dataFlow: t.dataFlow, dataFlowZ: !!t.dataFlowZ, areaM2Px: t.areaM2Px, splitVariant: t.splitVariant };
+      const prev = { cellX: t.cellX, cellY: t.cellY, colorA: t.colorA, colorB: t.colorB, shapeOpacity: t.shapeOpacity, dataFlow: t.dataFlow, dataFlowZ: !!t.dataFlowZ, areaM2Px: t.areaM2Px, splitVariant: t.splitVariant };
       if (applyColor || shouldApply("colorA")) {
         t.colorA = el.a.value || "#2fcaaf";
         if (t.autoContrastB !== false) t.colorB = autoContrast(t.colorA); else t.colorB = el.b.value || t.colorB;
       }
+      if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(t)) t.shapeOpacity = shapeOpacityFromTransparencyInput(el.shapeOpacity && el.shapeOpacity.value, t);
       if (shouldApply("cellX")) t.cellX = cabinetUiToPx(el.cx && el.cx.value, el.cUnit && el.cUnit.value, t.cellX || 128, t);
       if (shouldApply("cellY")) t.cellY = cabinetUiToPx(el.cy && el.cy.value, el.cUnit && el.cUnit.value, t.cellY || 128, t);
       if (shouldApply("dataFlowZ")) t.dataFlowZ = !!el.dataFlowZ.checked;
@@ -439,7 +482,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
         if (prev.cellX !== t.cellX || prev.cellY !== t.cellY) remapRectRigLoadsToBottomSeams(t);
         invalidateRectCache(t, "topology");
       } else {
-        if (prev.colorA !== t.colorA || prev.colorB !== t.colorB) invalidateRectCache(t, "appearance");
+        if (prev.colorA !== t.colorA || prev.colorB !== t.colorB || prev.shapeOpacity !== t.shapeOpacity) invalidateRectCache(t, "appearance");
         if (prev.areaM2Px !== t.areaM2Px || prev.splitVariant !== t.splitVariant) invalidateRectCache(t, "regions");
         if (prev.dataFlow !== t.dataFlow || prev.dataFlowZ !== !!t.dataFlowZ) invalidateRectCache(t, "flow");
       }
@@ -669,6 +712,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (node === el.wm) return "widthM";
     if (node === el.hm) return "heightM";
     if (node === el.a) return "colorA";
+    if (node === el.shapeOpacity) return "shapeOpacity";
     if (node === el.cx) return "cellX";
     if (node === el.cy) return "cellY";
     if (node === el.dataFlow) return "dataFlow";
@@ -686,7 +730,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     applyProps({ ...opts, selectionKey: key });
     return true;
   };
-  const propInputs = [el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.a, el.b, el.cx, el.cy, el.areaM2, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant, el.rectTextSize];
+  const propInputs = [el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.a, el.b, el.shapeOpacity, el.cx, el.cy, el.areaM2, el.dataFlow, el.dataFlowZ, el.numCells, el.splitVariant, el.rectTextSize];
   bindEvents(propInputs, "focusin", e => rememberSelectionKey(e.currentTarget));
   const scheduleApplyPropsInput = e => {
     const key = keyForEvent(e);
@@ -697,7 +741,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
       applyPropsForKey(key, { list: false, persist: false, render: true, field });
     });
   };
-  bindEvents([el.name, el.x, el.y, el.rot, el.shapePointX, el.shapePointY, el.cx, el.cy], "input", scheduleApplyPropsInput);
+  bindEvents([el.name, el.x, el.y, el.rot, el.shapePointX, el.shapePointY, el.shapeOpacity, el.cx, el.cy], "input", scheduleApplyPropsInput);
   bindEvents([el.cUnit], "change", () => syncProps());
   if (el.a) {
     const scheduleApplyColorInput = e => {
@@ -773,7 +817,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   });
   bindSplitVariantHandlers();
 
-  bindCommitInputs([el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.cx, el.cy], e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
+  bindCommitInputs([el.name, el.x, el.y, el.rot, el.wm, el.hm, el.shapePointX, el.shapePointY, el.shapeOpacity, el.cx, el.cy], e => { if (applyPropsForKey(keyForEvent(e), { field: fieldForEvent(e) })) syncProps(); });
 
   let textSettingsRaf = 0;
   const textSettingsFontState = { timer: 0 };

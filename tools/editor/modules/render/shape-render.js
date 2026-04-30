@@ -10,6 +10,10 @@ export const setupShapeRender = (deps = {}) => {
   const isShapeRect = r => String((r && r.kind) || "").toLowerCase() === "shape";
   const shapePoints = r => Array.isArray(r && r.shapePoints) ? r.shapePoints : [];
   const shapeWorldPoints = r => shapePoints(r).map(p => rectUVToWorld(r, Number(p.x) || 0, Number(p.y) || 0));
+  const shapeOpacity = r => {
+    const n = Number(r && r.shapeOpacity);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.72;
+  };
   const makeScratchCanvas = (w, h) => {
     if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
     if (typeof document !== "undefined") {
@@ -119,10 +123,12 @@ export const setupShapeRender = (deps = {}) => {
       const pts = shapeWorldPoints(r);
       if (pts.length < 3) continue;
       colorCtx.fillStyle = String(r.colorA || "#2fcaaf");
+      colorCtx.globalAlpha = shapeOpacity(r);
       colorCtx.beginPath();
       drawPath(colorCtx, pts);
       colorCtx.fill();
     }
+    colorCtx.globalAlpha = 1;
     maskCtx.beginPath();
     for (let i = shapes.length - 1; i >= 0; i--) drawPath(maskCtx, shapeWorldPoints(shapes[i]));
     maskCtx.fillStyle = "#fff";
@@ -133,7 +139,6 @@ export const setupShapeRender = (deps = {}) => {
     colorCtx.globalCompositeOperation = "source-over";
     c.save();
     if (typeof c.setTransform === "function") c.setTransform(1, 0, 0, 1, 0, 0);
-    c.globalAlpha = 0.72;
     c.drawImage(colorLayer, 0, 0);
     c.restore();
   };

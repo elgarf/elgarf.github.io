@@ -254,8 +254,9 @@
             </div>
           </div>
         </details>
-        <div class="field"><label for="propName">Имя@Группа</label><input id="propName" type="text"></div>
-        <div class="field"><label for="propTextSize">Размер шрифта экрана (0 = глобальный)</label>
+        <div id="emptySelectionHint" class="empty-selection-hint d-none">Выделите объект для редактирования его свойств</div>
+        <div id="objectNameField" class="field"><label for="propName">Имя@Группа</label><input id="propName" type="text"></div>
+        <div id="rectTextSizeField" class="field"><label for="propTextSize">Размер шрифта экрана (0 = глобальный)</label>
           <div class="range-row"><input id="propTextSize" type="range" min="0" max="128" step="1" value="0">
             <div id="propTextSizeLabel" class="hint range-value" title="Глобальный размер"><i
                 class="fa-solid fa-globe"></i></div>
@@ -283,7 +284,7 @@
           <div class="field"><label for="propShapePointY">Точка Y (px)</label><input id="propShapePointY" type="text"
               inputmode="decimal" spellcheck="false"></div>
         </div>
-        <div class="field"><label for="propAreaM2">Количество пикселей в 1м² экрана</label>
+        <div id="areaM2Field" class="field"><label for="propAreaM2">Количество пикселей в 1м² экрана</label>
             <div class="input-group input-group-sm"><input id="propAreaM2" type="text" spellcheck="false"
                 value="256×256"><span id="propAreaM2Badge" class="area-m2-badge" aria-live="polite" hidden></span><button id="propAreaM2Toggle" type="button"
                 class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"
@@ -297,16 +298,18 @@
               </ul>
             </div>
         </div>
-        <div class="grid2">
+        <div id="colorPanel" class="grid2">
           <div class="field"><label for="propColorA">Основной</label><input id="propColorA" type="color"
               value="#2fcaaf"></div>
           <div class="field"><label for="propColorB">Дополнительный</label><input id="propColorB" type="color"
               value="#1f3f7e"></div>
         </div>
-        <div class="field"><button id="btnAutoContrast" type="button" style="width:100%">Авто дополнительный:
+        <div id="shapeOpacityField" class="field"><label for="propShapeOpacity">Прозрачность (%)</label><input
+            id="propShapeOpacity" type="text" inputmode="decimal" spellcheck="false" value="72"></div>
+        <div id="autoContrastField" class="field"><button id="btnAutoContrast" type="button" style="width:100%">Авто дополнительный:
             вкл</button></div>
-        <div class="field"><button id="btnRandomColor" type="button" style="width:100%">Случайный цвет</button></div>
-        <div class="cabinet-size-grid">
+        <div id="randomColorField" class="field"><button id="btnRandomColor" type="button" style="width:100%">Случайный цвет</button></div>
+        <div id="cabinetSizePanel" class="cabinet-size-grid">
           <div class="field"><label for="propCellX">Размер кабинета X</label><input id="propCellX" type="text"
               inputmode="decimal" spellcheck="false" value="128"></div>
           <div class="field"><label for="propCellY">Размер кабинета Y</label><input id="propCellY" type="text"
@@ -317,7 +320,7 @@
               <option value="m" selected>м</option>
             </select></div>
         </div>
-        <div class="field">
+        <div id="flowField" class="field">
           <label for="propDataFlow">Направление потока данных</label>
           <div class="flow-controls">
             <select id="propDataFlow">
@@ -334,7 +337,7 @@
             <div class="form-check flow-toggle d-none"><input id="propDataFlowZ" class="form-check-input" type="checkbox"><label class="form-check-label" for="propDataFlowZ">Z-snake</label></div>
           </div>
         </div>
-        <div class="field">
+        <div id="numberCellsField" class="field">
           <div class="form-check"><input id="propNumberCells" class="form-check-input" type="checkbox"><label
               class="form-check-label" for="propNumberCells">Нумеровать кабинеты</label></div>
         </div>
@@ -346,12 +349,12 @@
               aria-label="Следующий вариант">+</button></div>
           <div id="splitVariantManualBadge" class="form-control text-center d-none">Ручное разбиение</div>
         </div>
-        <div class="field d-flex flex-nowrap gap-2"><button id="btnClearMasks"
+        <div id="screenActionsField" class="field d-flex flex-nowrap gap-2"><button id="btnClearMasks"
             class="btn btn-outline-secondary btn-sm flex-fill" type="button">Удалить маски</button><button
             id="btnResetFlowLocks" class="btn btn-outline-secondary btn-sm flex-fill" type="button">Сброс
             потока</button><button id="btnResetManualClusters" class="btn btn-outline-secondary btn-sm flex-fill"
             type="button">Сброс регионов</button></div>
-        <div class="field"><button id="btnConvertRegionsToScreens" class="btn btn-outline-secondary btn-sm w-100"
+        <div id="convertRegionsField" class="field"><button id="btnConvertRegionsToScreens" class="btn btn-outline-secondary btn-sm w-100"
             type="button">Преобразовать регионы в экраны</button></div>
         <div class="rect-list" id="rectList"></div>
       </aside>
