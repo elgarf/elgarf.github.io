@@ -281,15 +281,18 @@
                 spellcheck="false"></div>
           </div>
         </div>
-        <div id="shapePointPanel" class="grid2 d-none">
-          <div class="field"><label for="propShapePointX">Точка X (px)</label><input id="propShapePointX" type="text"
-              inputmode="decimal" spellcheck="false"></div>
-          <div class="field"><label for="propShapePointY">Точка Y (px)</label><input id="propShapePointY" type="text"
-              inputmode="decimal" spellcheck="false"></div>
-          <div class="field"><label for="propShapePointType">Тип точки</label><select id="propShapePointType">
-              <option value="line">Линейная</option>
-              <option value="bezier">Безе</option>
-            </select></div>
+        <div id="shapePointPanel" class="shape-point-group d-none">
+          <div class="shape-point-group-title">Параметры опорной точки</div>
+          <div class="grid2">
+            <div class="field"><label for="propShapePointX">Опорная точка X (px)</label><input id="propShapePointX" type="text"
+                inputmode="decimal" spellcheck="false"></div>
+            <div class="field"><label for="propShapePointY">Опорная точка Y (px)</label><input id="propShapePointY" type="text"
+                inputmode="decimal" spellcheck="false"></div>
+            <div class="field shape-point-bezier-field">
+              <div class="form-check"><input id="propShapePointType" class="form-check-input" type="checkbox"><label
+                  class="form-check-label" for="propShapePointType">Сглаженная точка (кривая)</label></div>
+            </div>
+          </div>
         </div>
         <div id="areaM2Field" class="field"><label for="propAreaM2">Количество пикселей в 1м² экрана</label>
             <div class="input-group input-group-sm"><input id="propAreaM2" type="text" spellcheck="false"
@@ -413,10 +416,13 @@
               <div><b>Выделить</b><span>Выбор экрана и перетаскивание. Ctrl временно отключает снап.</span></div>
             </div>
             <div class="help-item"><i class="fa-regular fa-square-plus"></i>
-              <div><b>Добавить</b><span>Создание нового экрана протяжкой мыши или пальцем.</span></div>
+              <div><b>Добавить</b><span>Создание нового экрана протяжкой мыши или пальцем. Нажатие переключает экран, примечание и контур; удержание открывает подменю.</span></div>
             </div>
             <div class="help-item"><i class="fa-solid fa-note-sticky"></i>
               <div><b>Примечание</b><span>Создание текстового блока. Двойной клик по примечанию открывает редактирование прямо на холсте.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-draw-polygon"></i>
+              <div><b>Добавить контур</b><span>Кликами ставьте опорные точки замкнутой фигуры, двойной клик завершает контур. Точки можно редактировать, удалять двойным кликом и делать сглаженными: у такой точки появляются ручки изгиба.</span></div>
             </div>
             <div class="help-item"><i class="fa-solid fa-masks-theater"></i>
               <div><b>Скрыть или показать часть экрана</b><span>Клики по узлам сетки. Замкните контур, чтобы
@@ -427,10 +433,7 @@
                   склейку.</span></div>
             </div>
             <div class="help-item"><i class="fa-solid fa-route"></i>
-              <div><b>Исправить поток</b><span>Перетаскивайте точки потока внутри региона. Стартовую точку можно
-                  перенести, направление задаётся стрелками рядом со стартом, двойной клик по старту сбрасывает правки
-                  региона. Межэкранная связь: протяните от конечной точки потока одного экрана к стартовой точке
-                  другого. Превью красное, если связь недопустима. Клик по связи удаляет её.</span></div>
+              <div><b>Исправить поток</b><span>Кнопка имеет режимы А и М. А — правка автоматического потока: перенос старта, выбор направления и межэкранные связи. М — ручная расстановка потока по кабинетам кликами или протягиванием; кнопка сброса рядом со стартом возвращает регион к автоматике.</span></div>
             </div>
             <div class="help-item"><i class="fa-solid fa-table-cells-large"></i>
               <div><b>Разделить на регионы вручную</b><span>Клик по кабинету создаёт регион. Клик по метке региона
@@ -457,8 +460,56 @@
             <div class="help-item"><i class="fa-solid fa-magnifying-glass-plus"></i>
               <div><b>Приблизить</b><span>Увеличивает масштаб холста.</span></div>
             </div>
+            <div class="help-item"><span class="help-icon-text">100%</span>
+              <div><b>Сбросить масштаб</b><span>Возвращает масштаб холста к 100%.</span></div>
+            </div>
             <div class="help-item"><i class="fa-solid fa-expand"></i>
               <div><b>Вписать</b><span>Подгоняет камеру под все экраны на сцене.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-rotate-left"></i>
+              <div><b>Отменить</b><span>Отменяет последнее изменение проекта без отката позиции камеры.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-rotate-right"></i>
+              <div><b>Повторить</b><span>Возвращает отменённое изменение проекта без изменения позиции камеры.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-palette"></i>
+              <div><b>Для художников</b><span>Режим предпросмотра экрана для подготовки изображения.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-screwdriver-wrench"></i>
+              <div><b>Для монтажников</b><span>Монтажный режим с потоками, ригом, сеткой и рабочими оверлеями.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-file-lines"></i>
+              <div><b>Спецификация</b><span>Открывает список экранов, кабинетов, коммутации, рига и замечаний.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-file-circle-plus"></i>
+              <div><b>Новый проект</b><span>Очищает сцену и создаёт проект с настройками по умолчанию.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-floppy-disk"></i>
+              <div><b>Сохранить JSON</b><span>Сохраняет проект в файл JSON.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-share-nodes"></i>
+              <div><b>Сохранить проект в ссылку</b><span>Создаёт ссылку с данными проекта.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-folder-open"></i>
+              <div><b>Загрузить JSON</b><span>Загружает проект из файла JSON или PNG с сохранёнными данными.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-download"></i>
+              <div><b>Экспорт пакета</b><span>Экспортирует PNG-варианты, спецификацию и резервный JSON проекта.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-language"></i>
+              <div><b>Язык</b><span>Переключает язык интерфейса.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-circle-half-stroke"></i>
+              <div><b>Тема</b><span>Переключает светлую, тёмную или системную тему.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-layer-group"></i>
+              <div><b>Переключатели слоёв</b><span>Кнопки у общего bounding box в монтажном режиме скрывают или показывают текст, потоки и риг на холсте.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-object-group"></i>
+              <div><b>Действия массового выделения</b><span>Кнопки у bounding box выделения прижимают экраны к краям, расставляют рядом, распределяют между крайними и поворачивают группу.</span></div>
+            </div>
+            <div class="help-item"><i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+              <div><b>Масштабирование выделения</b><span>Маркеры по сторонам bounding box меняют ширину или высоту группы; Alt масштабирует от центра.</span></div>
             </div>
           </div>
         </div>

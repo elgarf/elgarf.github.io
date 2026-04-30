@@ -164,7 +164,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (!show) {
       uiSetValue(el.shapePointX, "");
       uiSetValue(el.shapePointY, "");
-      uiSetValue(el.shapePointType, "line");
+      uiSetChecked(el.shapePointType, false);
       return;
     }
     const wp = typeof rectUVToWorld === "function"
@@ -172,7 +172,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       : { x: (Number(r.x) || 0) + (Number(selected.point.x) || 0), y: (Number(r.y) || 0) + (Number(selected.point.y) || 0) };
     uiSetValue(el.shapePointX, Math.round(Number(wp.x) || 0));
     uiSetValue(el.shapePointY, Math.round(Number(wp.y) || 0));
-    uiSetValue(el.shapePointType, String(selected.point.type || "") === "bezier" ? "bezier" : "line");
+    uiSetChecked(el.shapePointType, String(selected.point.type || "") === "bezier");
   };
   const setPanelHidden = (node, hidden) => {
     if (!node || !node.classList) return;
@@ -325,7 +325,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (selectedPoint && typeof worldToRectUV === "function") {
         const point = r.shapePoints[selectedPoint.index] || selectedPoint.point || {};
         if (shouldApply("shapePointType")) {
-          if (String(el.shapePointType && el.shapePointType.value || "line") === "bezier") {
+          if (!!(el.shapePointType && el.shapePointType.checked)) {
             point.type = "bezier";
             if (!Number.isFinite(Number(point.inX))) point.inX = -48;
             if (!Number.isFinite(Number(point.inY))) point.inY = 0;
@@ -333,10 +333,6 @@ export const setupPropsPanelFeature = (deps = {}) => {
             if (!Number.isFinite(Number(point.outY))) point.outY = 0;
           } else {
             delete point.type;
-            delete point.inX;
-            delete point.inY;
-            delete point.outX;
-            delete point.outY;
           }
         }
         const currentWorld = typeof rectUVToWorld === "function"

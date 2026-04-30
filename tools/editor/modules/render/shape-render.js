@@ -1,3 +1,15 @@
+import {
+  controlIn,
+  controlOut,
+  drawShapePath,
+  flattenShapeSegment,
+  flattenShapePoints,
+  isBezierPoint,
+  makeShapePath2D,
+  num,
+  shapePoint
+} from "../shape/shape-path-utils.js";
+
 export const setupShapeRender = (deps = {}) => {
   const {
     st,
@@ -9,12 +21,6 @@ export const setupShapeRender = (deps = {}) => {
 
   const isShapeRect = r => String((r && r.kind) || "").toLowerCase() === "shape";
   const shapePoints = r => Array.isArray(r && r.shapePoints) ? r.shapePoints : [];
-  const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
-  const pxy = p => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 });
-  const isBezierPoint = p => String(p && p.type || "") === "bezier";
-  const controlIn = p => ({ x: (Number(p && p.x) || 0) + num(p && p.inX, -48), y: (Number(p && p.y) || 0) + num(p && p.inY, 0) });
-  const controlOut = p => ({ x: (Number(p && p.x) || 0) + num(p && p.outX, 48), y: (Number(p && p.y) || 0) + num(p && p.outY, 0) });
-  const shapeWorldPoints = r => shapePoints(r).map(p => rectUVToWorld(r, Number(p.x) || 0, Number(p.y) || 0));
   const shapeWorldPathPoints = r => shapePoints(r).map(p => {
     const x = Number(p.x) || 0;
     const y = Number(p.y) || 0;
@@ -24,32 +30,7 @@ export const setupShapeRender = (deps = {}) => {
     const co = rectUVToWorld(r, x + num(p.outX, 48), y + num(p.outY, 0));
     return { ...p, x: w.x, y: w.y, inX: ci.x - w.x, inY: ci.y - w.y, outX: co.x - w.x, outY: co.y - w.y };
   });
-  const shapeFlattenedUvPoints = (r, steps = 16) => {
-    const pts = shapePoints(r);
-    if (pts.length < 3) return pts.map(pxy);
-    const out = [pxy(pts[0])];
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      const b = pts[(i + 1) % pts.length];
-      const a0 = pxy(a);
-      const b0 = pxy(b);
-      if (isBezierPoint(a) || isBezierPoint(b)) {
-        const c1 = isBezierPoint(a) ? controlOut(a) : a0;
-        const c2 = isBezierPoint(b) ? controlIn(b) : b0;
-        for (let s = 1; s <= steps; s++) {
-          const t = s / steps;
-          const mt = 1 - t;
-          out.push({
-            x: mt * mt * mt * a0.x + 3 * mt * mt * t * c1.x + 3 * mt * t * t * c2.x + t * t * t * b0.x,
-            y: mt * mt * mt * a0.y + 3 * mt * mt * t * c1.y + 3 * mt * t * t * c2.y + t * t * t * b0.y
-          });
-        }
-      } else if (i < pts.length - 1) {
-        out.push(b0);
-      }
-    }
-    return out;
-  };
+  const shapeFlattenedUvPoints = (r, steps = 16) => flattenShapePoints(shapePoints(r), steps);
   const shapeOpacity = r => {
     const n = Number(r && r.shapeOpacity);
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.72;
@@ -70,12 +51,6 @@ export const setupShapeRender = (deps = {}) => {
     const canvas = makeScratchCanvas(1, 1);
     shapeHitCtx = canvas && typeof canvas.getContext === "function" ? canvas.getContext("2d") : null;
     return shapeHitCtx;
-  };
-  const makeShapePath2D = pts => {
-    if (typeof Path2D === "undefined" || !pts || pts.length < 3) return null;
-    const path = new Path2D();
-    drawPath(path, pts);
-    return path;
   };
 
   const normalizeShapeBounds = r => {
@@ -187,23 +162,7 @@ export const setupShapeRender = (deps = {}) => {
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i];
       const b = pts[(i + 1) % pts.length];
-      const flat = [pxy(a)];
-      if (isBezierPoint(a) || isBezierPoint(b)) {
-        const a0 = pxy(a);
-        const b0 = pxy(b);
-        const c1 = isBezierPoint(a) ? controlOut(a) : a0;
-        const c2 = isBezierPoint(b) ? controlIn(b) : b0;
-        for (let s = 1; s <= 14; s++) {
-          const t = s / 14;
-          const mt = 1 - t;
-          flat.push({
-            x: mt * mt * mt * a0.x + 3 * mt * mt * t * c1.x + 3 * mt * t * t * c2.x + t * t * t * b0.x,
-            y: mt * mt * mt * a0.y + 3 * mt * mt * t * c1.y + 3 * mt * t * t * c2.y + t * t * t * b0.y
-          });
-        }
-      } else {
-        flat.push(pxy(b));
-      }
+      const flat = flattenShapeSegment(a, b, 14);
       let dd = Infinity;
       for (let j = 0; j < flat.length - 1; j++) {
         const cur = typeof distToSegment === "function"
@@ -217,28 +176,6 @@ export const setupShapeRender = (deps = {}) => {
       }
     }
     return bestIndex;
-  };
-
-  const drawPath = (c, pts) => {
-    if (!pts || pts.length < 3) return false;
-    c.moveTo(Number(pts[0].x) || 0, Number(pts[0].y) || 0);
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      const b = pts[(i + 1) % pts.length];
-      if (i === pts.length - 1) {
-        // close below
-      }
-      const b0 = pxy(b);
-      if (isBezierPoint(a) || isBezierPoint(b)) {
-        const c1 = isBezierPoint(a) ? controlOut(a) : pxy(a);
-        const c2 = isBezierPoint(b) ? controlIn(b) : b0;
-        c.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b0.x, b0.y);
-      } else {
-        c.lineTo(b0.x, b0.y);
-      }
-    }
-    c.closePath();
-    return true;
   };
 
   let lastShapeFillFrame = null;
@@ -266,13 +203,13 @@ export const setupShapeRender = (deps = {}) => {
       colorCtx.fillStyle = String(r.colorA || "#2fcaaf");
       colorCtx.globalAlpha = shapeOpacity(r);
       colorCtx.beginPath();
-      drawPath(colorCtx, pts);
+      drawShapePath(colorCtx, pts);
       colorCtx.fill();
     }
     colorCtx.globalAlpha = 1;
     maskCtx.beginPath();
     for (let i = shapes.length - 1; i >= 0; i--) {
-      drawPath(maskCtx, shapeWorldPathPoints(shapes[i]));
+      drawShapePath(maskCtx, shapeWorldPathPoints(shapes[i]));
     }
     maskCtx.fillStyle = "#fff";
     maskCtx.fill("evenodd");
@@ -294,7 +231,7 @@ export const setupShapeRender = (deps = {}) => {
     c.strokeStyle = sel ? "rgba(13,110,253,.96)" : "rgba(31,41,55,.82)";
     c.lineWidth = Math.max(1, 1.4 / Math.max(0.25, Number(z) || 1));
     c.beginPath();
-    drawPath(c, pts);
+    drawShapePath(c, pts);
     c.stroke();
     if (sel) {
       const selectedIndex = Math.round(Number(st && st.shapePointSel && st.shapePointSel.id) || 0) === Math.round(Number(r.id) || 0)
