@@ -37,6 +37,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     setMode,
     refreshPanels,
     schedulePersist,
+    refreshMultiSelectionBase,
     resetCellTransient,
     resetRigHoverTransient,
     resetFlowRegionOverrides,
@@ -341,6 +342,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
   const handleCanvasPointerUp = () => {
     const hadDrag = !!st.drag;
+    const hadMovedDrag = !!(st.drag && st.drag.moved);
     const hadMultiSelectionResize = !!(st.multiSelectionResize && st.multiSelectionResize.changed);
     const hadNoteResize = !!(st.noteResize && st.noteResize.changed);
     if (st.pan) { st.pan = false; st.panS = null; }
@@ -380,6 +382,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       selRect(created.id);
       if (isNoteRect(created)) openNoteEditor(created.id);
     }
+    if (hadMovedDrag && typeof refreshMultiSelectionBase === "function") refreshMultiSelectionBase();
     if (hadDrag || created || hadNoteResize || hadMultiSelectionResize) { refreshPanels(); schedulePersist("project"); }
     if (!created && lastPointer && st.mode === "select") updateSelectHoverCursor(lastPointer);
     render();

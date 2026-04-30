@@ -392,7 +392,12 @@
 
     .tooltip {
       pointer-events: none;
-      z-index: 2300
+      z-index: 2300;
+      transition: none !important
+    }
+
+    .tooltip.fade {
+      transition: none !important
     }
 
     .toolbar .dropdown-menu {

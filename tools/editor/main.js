@@ -1833,6 +1833,7 @@ const inputWiringServices = {
   mkNote, mk, isNoteRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
   resetCellTransient, resetClusterHoverTransient, resetRigHoverTransient,
   resetFlowRegionOverrides, syncProps,
+  refreshMultiSelectionBase,
   buildRebuiltFlowPreview,
   rebuildAndPatchFlowRegion,
   hitLayerButton: (x, y) => hitLayerButton(x, y, st.zoom),

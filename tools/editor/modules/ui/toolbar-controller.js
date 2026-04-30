@@ -29,6 +29,7 @@ export const setupToolbarController = (deps = {}) => {
   let hoveredTooltipButton = null;
   let tooltipShowTimer = 0;
   let tooltipHideTimer = 0;
+  let tooltipSuppressUntilPointerUp = false;
   const tooltipButtonFromEvent = target => {
     const btn = target && target.closest ? target.closest(tooltipButtonSelector) : null;
     if (!btn || btn.closest(".EasyMDEContainer") || btn.closest(".editor-toolbar")) return null;
@@ -59,6 +60,7 @@ export const setupToolbarController = (deps = {}) => {
     if (btn.closest(".toolbar-overflow-popup")) return "bottom";
     return "auto";
   };
+  const isToolCycleMenuButton = btn => !!(btn && btn.closest && btn.closest(".tool-cycle-menu"));
   const showButtonTooltip = btn => {
     if (!btn || !windowRef.bootstrap || !windowRef.bootstrap.Tooltip) return;
     const label = tooltipLabel(btn);
@@ -76,6 +78,7 @@ export const setupToolbarController = (deps = {}) => {
     }
     btn.setAttribute("data-tooltip-placement", placement);
     const instance = windowRef.bootstrap.Tooltip.getOrCreateInstance(btn, {
+      animation: false,
       container: "body",
       placement,
       fallbackPlacements: [placement],
@@ -102,7 +105,7 @@ export const setupToolbarController = (deps = {}) => {
     }
   };
   const scheduleTooltipShow = btn => {
-    if (!btn) return;
+    if (!btn || (tooltipSuppressUntilPointerUp && !isToolCycleMenuButton(btn))) return;
     hoveredTooltipButton = btn;
     if (tooltipHideTimer) {
       windowRef.clearTimeout(tooltipHideTimer);
@@ -130,9 +133,28 @@ export const setupToolbarController = (deps = {}) => {
   };
   const setupButtonTooltips = () => {
     if (!documentRef || !windowRef.bootstrap || !windowRef.bootstrap.Tooltip) return;
+    on(documentRef, "pointerdown", e => {
+      const btn = tooltipButtonFromEvent(e.target);
+      if (!btn) return;
+      tooltipSuppressUntilPointerUp = true;
+      clearTooltipTimers();
+      hoveredTooltipButton = null;
+      if (activeTooltipButton) hideButtonTooltip(activeTooltipButton);
+      hideButtonTooltip(btn);
+    });
+    const releaseTooltipSuppress = () => {
+      tooltipSuppressUntilPointerUp = false;
+    };
+    on(documentRef, "pointerup", releaseTooltipSuppress);
+    on(documentRef, "pointercancel", releaseTooltipSuppress);
     on(documentRef, "pointerover", e => {
       const btn = tooltipButtonFromEvent(e.target);
       if (!btn || btn === activeTooltipButton || btn.contains(e.relatedTarget)) return;
+      scheduleTooltipShow(btn);
+    });
+    on(documentRef, "pointermove", e => {
+      const btn = tooltipButtonFromEvent(e.target);
+      if (!isToolCycleMenuButton(btn) || btn === activeTooltipButton) return;
       scheduleTooltipShow(btn);
     });
     on(documentRef, "pointerout", e => {
