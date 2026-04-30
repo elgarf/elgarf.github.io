@@ -406,7 +406,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     }
     if (st.mode === "select") {
       const selectedShape = cur();
-      if (selectedShape && typeof isShapeRect === "function" && isShapeRect(selectedShape) && !isRectLocked(selectedShape)) {
+      if (!opts?.shiftToggle && selectedShape && typeof isShapeRect === "function" && isShapeRect(selectedShape) && !isRectLocked(selectedShape)) {
         const selectedEditHit = chooseShapeEditHit(selectedShape, p.x, p.y);
         if (selectedEditHit) {
           st.shapePointSel = { id: selectedShape.id, index: selectedEditHit.index };
@@ -429,6 +429,13 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (st.mode === "select") {
       const h = hit(p.x, p.y);
       if (h && typeof isShapeRect === "function" && isShapeRect(h) && !isRectLocked(h) && typeof shapePointHit === "function") {
+        if (opts?.shiftToggle) {
+          selRect(h.id, { toggle: true });
+          st.shapePointSel = null;
+          syncProps();
+          render();
+          return;
+        }
         if (!isSelectedRectId(h.id)) {
           selRect(h.id);
           syncProps();

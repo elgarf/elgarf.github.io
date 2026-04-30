@@ -156,6 +156,20 @@ export const setupToolbarController = (deps = {}) => {
     };
     on(documentRef, "pointerup", releaseTooltipSuppress);
     on(documentRef, "pointercancel", releaseTooltipSuppress);
+    on(documentRef, "tool-cycle-menu-open", e => {
+      tooltipSuppressUntilPointerUp = false;
+      const btn = e && e.detail && e.detail.button;
+      clearTooltipTimers();
+      if (!btn) {
+        hideAnyButtonTooltip();
+        return;
+      }
+      hoveredTooltipButton = btn;
+      if (activeTooltipButton !== btn) {
+        if (activeTooltipButton) hideButtonTooltip(activeTooltipButton);
+        showButtonTooltip(btn);
+      }
+    });
     on(documentRef, "pointerover", e => {
       const btn = tooltipButtonFromEvent(e.target);
       if (!btn || btn === activeTooltipButton || btn.contains(e.relatedTarget)) return;
@@ -173,6 +187,10 @@ export const setupToolbarController = (deps = {}) => {
     on(documentRef, "pointerout", e => {
       const btn = tooltipButtonFromEvent(e.target);
       if (!btn || btn.contains(e.relatedTarget)) return;
+      if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest(".tool-cycle-menu")) {
+        hideButtonTooltip(btn);
+        return;
+      }
       scheduleTooltipHide(btn);
     });
     on(documentRef, "focusin", e => showButtonTooltip(tooltipButtonFromEvent(e.target)));

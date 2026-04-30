@@ -149,6 +149,13 @@ export const setupToolbarActionsController = (deps = {}) => {
       if (item) item.classList.add("active");
       return item ? String(item.getAttribute(attr) || "") : "";
     };
+    const notifyMenuOpen = button => {
+      if (!documentRef || typeof windowRef.CustomEvent !== "function") return;
+      documentRef.dispatchEvent(new windowRef.CustomEvent("tool-cycle-menu-open", {
+        detail: { button: button || null },
+        bubbles: false
+      }));
+    };
     const clearHoldTimer = () => {
       if (pointer && pointer.timer) {
         windowRef.clearTimeout(pointer.timer);
@@ -179,7 +186,11 @@ export const setupToolbarActionsController = (deps = {}) => {
           if (!pointer || pointer.id !== id || pointer.source !== source) return;
           pointer.menu = true;
           placeMenu(pointer.button);
+          if (source === "pointer" && pointer.button) {
+            try { pointer.button.releasePointerCapture(id); } catch (_err) { }
+          }
           pointer.hoverValue = updateMenuHover(pointer.x, pointer.y);
+          notifyMenuOpen(itemAtPoint(pointer.x, pointer.y));
         }, holdMs)
       };
     };
@@ -209,6 +220,7 @@ export const setupToolbarActionsController = (deps = {}) => {
       pointer.y = e.clientY;
       if (!pointer.menu) return;
       pointer.hoverValue = updateMenuHover(e.clientX, e.clientY);
+      notifyMenuOpen(itemAtPoint(e.clientX, e.clientY));
       e.preventDefault();
     };
     const onPointerUp = e => {
@@ -240,7 +252,10 @@ export const setupToolbarActionsController = (deps = {}) => {
         if (!touch) return;
         pointer.x = touch.clientX;
         pointer.y = touch.clientY;
-        if (pointer.menu) pointer.hoverValue = updateMenuHover(touch.clientX, touch.clientY);
+        if (pointer.menu) {
+          pointer.hoverValue = updateMenuHover(touch.clientX, touch.clientY);
+          notifyMenuOpen(itemAtPoint(touch.clientX, touch.clientY));
+        }
         e.preventDefault();
       }, { passive: false });
       bindEvent(documentRef, "touchend", e => {

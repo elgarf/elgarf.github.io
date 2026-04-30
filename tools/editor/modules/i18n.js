@@ -39,7 +39,7 @@ const EN = {
   "Сохранить проект в ссылку": "Save project to link",
   "Загрузить JSON": "Load JSON",
   "Экспорт пакета": "Export package",
-  "Экспорт пакета (PNG + PNG+F + спецификация)": "Export package (PNG + PNG+F + specification)",
+  "Экспорт пакета (PNG + PNG+F + спецификация)": "Export package",
   "Ещё": "More",
   "Панель свойств": "Properties panel",
   "Параметры": "Settings",
