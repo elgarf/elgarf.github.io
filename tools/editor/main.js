@@ -2132,7 +2132,7 @@ const {
   },
   modalDeps: {
     windowRef: window,
-    getById: id => $(id),
+    getById: id => document.getElementById(id),
     el,
     focusAndSelect,
     lsSet,

@@ -60,11 +60,35 @@ export const applyShapePointProps = ({
   const point = rect.shapePoints[selectedPoint.index] || selectedPoint.point || {};
   if (shouldApply("shapePointType")) {
     if (!!(el.shapePointType && el.shapePointType.checked)) {
+      const wasBezier = String(point.type || "") === "bezier";
       point.type = "bezier";
-      if (!Number.isFinite(Number(point.inX))) point.inX = -48;
-      if (!Number.isFinite(Number(point.inY))) point.inY = 0;
-      if (!Number.isFinite(Number(point.outX))) point.outX = 48;
-      if (!Number.isFinite(Number(point.outY))) point.outY = 0;
+      const hasStoredHandles =
+        Number.isFinite(Number(point.inX)) &&
+        Number.isFinite(Number(point.inY)) &&
+        Number.isFinite(Number(point.outX)) &&
+        Number.isFinite(Number(point.outY));
+      if (!wasBezier && !hasStoredHandles) {
+        const pts = Array.isArray(rect.shapePoints) ? rect.shapePoints : [];
+        const count = pts.length;
+        const idx = Math.max(0, Math.min(count - 1, Math.round(Number(selectedPoint.index) || 0)));
+        const prev = count > 1 ? pts[(idx - 1 + count) % count] : null;
+        const next = count > 1 ? pts[(idx + 1) % count] : null;
+        const px = Number(point.x) || 0;
+        const py = Number(point.y) || 0;
+        const inDx = prev ? ((Number(prev.x) || 0) - px) / 3 : 0;
+        const inDy = prev ? ((Number(prev.y) || 0) - py) / 3 : 0;
+        const outDx = next ? ((Number(next.x) || 0) - px) / 3 : 0;
+        const outDy = next ? ((Number(next.y) || 0) - py) / 3 : 0;
+        point.inX = Math.round(inDx);
+        point.inY = Math.round(inDy);
+        point.outX = Math.round(outDx);
+        point.outY = Math.round(outDy);
+      } else {
+        if (!Number.isFinite(Number(point.inX))) point.inX = 0;
+        if (!Number.isFinite(Number(point.inY))) point.inY = 0;
+        if (!Number.isFinite(Number(point.outX))) point.outX = 0;
+        if (!Number.isFinite(Number(point.outY))) point.outY = 0;
+      }
     } else {
       delete point.type;
     }
