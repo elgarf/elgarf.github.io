@@ -1,5 +1,5 @@
 export const setupDrawRectBaseController = (deps = {}) => {
-  const { st, isNoteRect, drawNoteRect, isShapeRect, drawShapeRect, drawCellX, drawCellY, getHiddenSet, rads, rectCenter, normalizeViewMode, getCellTopologyCached, getMaskRenderDataCached, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode, normalizeDataFlow, planNumberRegions, updateSplitVariantControl, getDataFlowGroups, collectFlowLinkAnchors, collectFlowEditPoints, collectFlowManualPickPoints, getRectFillLayerCached, getRectDecorLayerCached, getRectComponentRenderDataCached, rectTextTheme, fontFamilyCss, toLetters, mFmt, pctFmt, fillPercent, getRectTextSizePx, buildVisibleCabinetSummary, listSignature, getRectTextLayoutCached, hiddenCellBoxes, computeFreeRects, chooseTextLayout, REGION_ZONE_COLORS, getVisibleBoundarySegmentsCached, drawRectOverlays, drawRectInteractions, drawRigOutsideOverlay, t = value => value } = deps;
+  const { st, isNoteRect, drawNoteRect, isShapeRect, drawShapeRect, drawCellX, drawCellY, getHiddenSet, rads, rectCenter, rectUVToWorld, normalizeViewMode, getCellTopologyCached, getMaskRenderDataCached, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode, normalizeDataFlow, planNumberRegions, updateSplitVariantControl, getDataFlowGroups, collectFlowLinkAnchors, collectFlowEditPoints, collectFlowManualPickPoints, getRectFillLayerCached, getRectDecorLayerCached, getRectComponentRenderDataCached, rectTextTheme, fontFamilyCss, toLetters, mFmt, pctFmt, fillPercent, getRectTextSizePx, buildVisibleCabinetSummary, listSignature, getRectTextLayoutCached, hiddenCellBoxes, computeFreeRects, chooseTextLayout, REGION_ZONE_COLORS, getVisibleBoundarySegmentsCached, drawRectOverlays, drawRectInteractions, drawRigOutsideOverlay, t = value => value } = deps;
 
   const computeRectRenderFlags = ({
     stMode,
@@ -46,6 +46,129 @@ export const setupDrawRectBaseController = (deps = {}) => {
   function drawRectBase(c, r, sel, z, origin, opts) {
       const options = opts || {};
       if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
+      if (String((r && r.kind) || "").toLowerCase() === "device") {
+        if (String(options.installTextMode || "") === "only") return;
+        const center = rectCenter(r);
+        const a = rads(r.rotation || 0);
+        const w = Math.max(1, Number(r.width) || 1);
+        const h = Math.max(1, Number(r.height) || 1);
+        const exportLike = !!options.ignoreInstallLayerToggles;
+        const baseColor = String(r.colorA || "#2fcaaf");
+        const borderColor = sel ? "#ffe08a" : "rgba(255,255,255,.85)";
+        const inCount = Math.max(1, Math.min(64, Math.round(Number(r.deviceInCount) || 4)));
+        const outCount = Math.max(1, Math.min(64, Math.round(Number(r.deviceOutCount) || 4)));
+        const inLabels = Array.isArray(r.deviceInLabels) ? r.deviceInLabels : [];
+        const outLabels = Array.isArray(r.deviceOutLabels) ? r.deviceOutLabels : [];
+        const selectedPort = st && st.devicePortSelection
+          && Math.round(Number(st.devicePortSelection.rectId) || 0) === Math.round(Number(r.id) || 0)
+          ? {
+            kind: String(st.devicePortSelection.kind || "").toLowerCase() === "end" ? "end" : "start",
+            cid: Math.max(1, Math.round(Number(st.devicePortSelection.cid) || 1))
+          }
+          : null;
+        const title = String(r.name || `Устройство ${Math.round(Number(r.id) || 0)}`);
+        const typeRaw = String(r.deviceType || "controller").toLowerCase();
+        const typeLabel = typeRaw === "pc" ? "PC" : typeRaw === "mixer" ? "MIXER" : typeRaw === "camera" ? "CAMERA" : "CONTROLLER";
+        const outPurePalette = [
+          "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff",
+          "#ff8000", "#8000ff", "#00ff80", "#ff0080", "#ffffff"
+        ];
+        const outControllerColor = cid => outPurePalette[Math.max(0, Math.round(Number(cid) || 1) - 1) % outPurePalette.length];
+        c.save();
+        c.translate(center.x, center.y);
+        c.rotate(a);
+        c.fillStyle = baseColor;
+        c.fillRect(-w / 2, -h / 2, w, h);
+        c.strokeStyle = borderColor;
+        c.lineWidth = sel ? 2.5 / Math.max(0.25, z) : 1.2 / Math.max(0.25, z);
+        c.strokeRect(-w / 2, -h / 2, w, h);
+        const plateH = Math.max(18, Math.min(h * 0.28, 34));
+        c.fillStyle = "rgba(0,0,0,.42)";
+        c.fillRect(-w / 2, -h / 2, w, plateH);
+        c.fillStyle = "rgba(255,255,255,.96)";
+        const titleText = `${title} · ${typeLabel}`;
+        const titlePadX = Math.max(10, w * 0.04);
+        const titleMaxW = Math.max(20, w - titlePadX * 2);
+        const titleFsBase = Math.max(12, Math.min(h * 0.18, plateH * 0.72, 28));
+        c.font = `${titleFsBase}px ${fontFamilyCss(st.fontFamily)}`;
+        const measuredTitleW = Math.max(1, c.measureText(titleText).width);
+        const titleFs = Math.max(10, Math.min(titleFsBase, titleFsBase * (titleMaxW / measuredTitleW)));
+        c.font = `${titleFs}px ${fontFamilyCss(st.fontFamily)}`;
+        c.textBaseline = "middle";
+        c.textAlign = "center";
+        c.lineJoin = "round";
+        c.miterLimit = 2;
+        c.lineWidth = Math.max(2.4, titleFs * 0.22);
+        c.strokeStyle = "rgba(0,0,0,.8)";
+        c.strokeText(titleText, 0, -h / 2 + plateH / 2);
+        c.fillText(titleText, 0, -h / 2 + plateH / 2);
+        const workTop = -h / 2 + plateH;
+        const workH = Math.max(8, h - plateH);
+        const topY = workTop + workH * 0.25;
+        const botY = workTop + workH * 0.75;
+        const rDot = Math.max(4.6, Math.min(h * 0.065, 9.5));
+        const portFs = Math.max(11, Math.min(h * 0.14, 24));
+        c.font = `${portFs}px ${fontFamilyCss(st.fontFamily)}`;
+        c.fillStyle = "rgba(255,255,255,.95)";
+        c.textBaseline = "middle";
+        const drawOutlinedText = (text, x, y, align = "left") => {
+          c.textAlign = align;
+          c.lineJoin = "round";
+          c.miterLimit = 2;
+          c.lineWidth = Math.max(2.2, portFs * 0.24);
+          c.strokeStyle = "rgba(0,0,0,.78)";
+          c.strokeText(String(text || ""), x, y);
+          c.fillStyle = "rgba(255,255,255,.98)";
+          c.fillText(String(text || ""), x, y);
+        };
+        const gap = Math.max(8, Math.min(18, portFs * 0.9));
+        const laneLeft = -w * 0.45;
+        const laneRight = w * 0.45;
+        const laneW = Math.max(1, laneRight - laneLeft);
+        const drawPortRow = (prefix, labels, count, rowY, dotKind) => {
+          const vals = [];
+          for (let i = 0; i < count; i++) vals.push(String(labels[i] == null || labels[i] === "" ? (i + 1) : labels[i]));
+          const prefixW = c.measureText(prefix).width;
+          const portsLeft = Math.min(laneRight, laneLeft + prefixW + gap);
+          const portsW = Math.max(1, laneRight - portsLeft);
+          const valueCenters = [];
+          drawOutlinedText(prefix, laneLeft, rowY, "left");
+          for (let i = 0; i < vals.length; i++) {
+            const px = portsLeft + ((i + 0.5) * portsW) / Math.max(1, vals.length);
+            valueCenters.push(px);
+            drawOutlinedText(vals[i], px, rowY, "center");
+          }
+          const dotY = rowY + Math.max(12, portFs * 0.9);
+          for (let i = 0; i < valueCenters.length; i++) {
+            const px = valueCenters[i];
+            c.beginPath();
+            c.fillStyle = dotKind === "start"
+              ? "rgba(64,190,255,.95)"
+              : (typeRaw === "controller" ? outControllerColor(i + 1) : "rgba(255,170,64,.95)");
+            c.arc(px, dotY, rDot, 0, Math.PI * 2);
+            c.fill();
+            c.strokeStyle = "rgba(0,0,0,.78)";
+            c.lineWidth = Math.max(1.6, 2.4);
+            c.stroke();
+            if (selectedPort && selectedPort.kind === dotKind && selectedPort.cid === (i + 1)) {
+              c.strokeStyle = "#ffe08a";
+              c.lineWidth = Math.max(1.1, 1.8);
+              c.beginPath();
+              c.arc(px, dotY, rDot + Math.max(1.5, 2.2), 0, Math.PI * 2);
+              c.stroke();
+            }
+            if (String(options.installTextMode || "") !== "only" && Array.isArray(st.flowLinkAnchors)) {
+              const wp = rectUVToWorld(r, px + w / 2, dotY + h / 2);
+              st.flowLinkAnchors.push({ rectId: r.id, rid: 0, cid: i + 1, kind: dotKind, x: wp.x, y: wp.y });
+            }
+          }
+          c.fillStyle = "rgba(255,255,255,.95)";
+        };
+        drawPortRow("IN", inLabels, inCount, topY, "start");
+        drawPortRow("OUT", outLabels, outCount, botY, "end");
+        c.restore();
+        return;
+      }
       if (typeof isShapeRect === "function" && isShapeRect(r)) {
         const viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null;
         const installViewForShape = (viewModeOverride || normalizeViewMode(st.viewMode)) === "install";

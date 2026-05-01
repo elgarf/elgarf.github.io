@@ -13,6 +13,7 @@ const EDITOR_ELEMENT_IDS = [
   "propWm", "propHm", "propScale", "shapePointPanel", "propShapePointX", "propShapePointY", "propShapePointType", "propAreaM2", "propAreaM2Badge", "propColorA", "propColorB", "shapeOpacityField", "propShapeOpacity", "btnAutoContrast", "btnRandomColor",
   "areaM2Field", "colorPanel", "autoContrastField", "randomColorField", "cabinetSizePanel", "propCellX", "propCellY", "propCellUnit", "flowField", "propDataFlow", "propDataFlowZ", "numberCellsField", "propNumberCells",
   "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
+  "devicePropsPanel", "propDeviceType", "propDeviceInCount", "propDeviceOutCount", "devicePortLabelField", "propDevicePortLabel",
   "cabinetToolPanel", "cabinetSelectionLabel", "propCabinetDiag", "propCabinetColor", "btnCabinetStyleReset",
   "propSplitVariantLabel", "screenActionsField", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "convertRegionsField", "btnConvertRegionsToScreens", "rectList",
   "specModePanel", "specAutoBlocks", "specModeClose"
@@ -114,6 +115,7 @@ export const createInitialEditorState = () => ({
   flowDrag: null,
   manualFlowDrag: null,
   flowHover: null,
+  devicePortSelection: null,
   flowDirHover: null,
   flowResetHover: null,
   flowRegionRid: null,

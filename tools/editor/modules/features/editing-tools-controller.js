@@ -482,6 +482,22 @@ export const setupEditingToolsInput = (deps = {}) => {
   };
 
   const handleFlowEditPointerDown = (p, _opts = null) => {
+    const opts = (_opts && typeof _opts === "object") ? _opts : null;
+    const allowLinkOnly = !!(opts && opts.allowLinkOnly);
+    if (allowLinkOnly) {
+      const endAnchorHit = findFlowLinkAnchorAtPoint(p.x, p.y, "end");
+      if (!endAnchorHit) return false;
+      st.devicePortSelection = { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end" };
+      st.flowLinkPending = {
+        from: { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end", x: endAnchorHit.x, y: endAnchorHit.y },
+        downX: p.x,
+        downY: p.y
+      };
+      st.flowLinkDrag = null;
+      st.flowDragPreview = null;
+      render();
+      return true;
+    }
     if (String(st.flowEditVariant || "auto") === "manual") {
       const h = hit(p.x, p.y);
       if (!h) {
@@ -562,6 +578,14 @@ export const setupEditingToolsInput = (deps = {}) => {
     }
     const endAnchorHit = findFlowLinkAnchorAtPoint(p.x, p.y, "end");
     if (endAnchorHit) {
+      st.devicePortSelection = { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end" };
+      const fromKey = flowAnchorKey({
+        rectId: endAnchorHit.rectId,
+        rid: endAnchorHit.rid,
+        cid: endAnchorHit.cid,
+        kind: "end"
+      });
+      st.flowLinks = normalizeFlowLinks(st.flowLinks).filter(it => flowAnchorKey(it && it.from) !== fromKey);
       st.flowLinkDrag = { from: { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end", x: endAnchorHit.x, y: endAnchorHit.y }, x: p.x, y: p.y, target: null, canLink: false };
       updateFlowLinkDragTarget(p.x, p.y);
       st.flowLinkPending = null;

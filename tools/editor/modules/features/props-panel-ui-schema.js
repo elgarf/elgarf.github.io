@@ -5,13 +5,16 @@ export const setPanelHidden = (node, hidden) => {
 
 export const getSelectionPanelKind = ({ rect, multi = false, isShapeRect, isNoteRect } = {}) => {
   const hasSelection = !!rect;
+  const rectKind = String((rect && rect.kind) || "").toLowerCase();
   const isShape = !!(hasSelection && typeof isShapeRect === "function" && isShapeRect(rect));
   const isNote = !!(hasSelection && typeof isNoteRect === "function" && isNoteRect(rect));
+  const isDevice = !!(hasSelection && rectKind === "device");
   return {
     hasSelection,
     isShape,
     isNote,
-    isScreen: !!(hasSelection && !isShape && !isNote),
+    isDevice,
+    isScreen: !!(hasSelection && !isShape && !isNote && !isDevice),
     isObject: !!(hasSelection || multi)
   };
 };
@@ -28,6 +31,8 @@ export const syncDynamicPanelVisibility = ({ el, rect, multi = false, isShapeRec
   setPanelHidden(el.autoContrastField, !kind.isScreen);
   setPanelHidden(el.randomColorField, !kind.isObject);
   setPanelHidden(el.cabinetSizePanel, !kind.isScreen);
+  setPanelHidden(el.devicePropsPanel, !kind.isDevice);
+  setPanelHidden(el.devicePortLabelField, !kind.isDevice);
   setPanelHidden(el.flowField, !kind.isScreen);
   setPanelHidden(el.numberCellsField, !kind.isScreen);
   setPanelHidden(el.splitVariantField, !kind.isScreen);
@@ -56,6 +61,8 @@ export const mainPropNodes = el => [
   el.dataFlowZ,
   el.numCells,
   el.splitVariant
+  ,
+  el.propDeviceType
 ];
 
 export const trackedPropInputNodes = el => [
@@ -79,6 +86,11 @@ export const trackedPropInputNodes = el => [
   el.numCells,
   el.splitVariant,
   el.rectTextSize
+  ,
+  el.propDeviceType,
+  el.propDeviceInCount,
+  el.propDeviceOutCount,
+  el.propDevicePortLabel
 ];
 
 export const liveApplyInputNodes = el => [
@@ -91,6 +103,10 @@ export const liveApplyInputNodes = el => [
   el.shapeOpacity,
   el.cx,
   el.cy
+  ,
+  el.propDeviceInCount,
+  el.propDeviceOutCount,
+  el.propDevicePortLabel
 ];
 
 export const commitApplyInputNodes = el => [
@@ -105,6 +121,10 @@ export const commitApplyInputNodes = el => [
   el.shapeOpacity,
   el.cx,
   el.cy
+  ,
+  el.propDeviceInCount,
+  el.propDeviceOutCount,
+  el.propDevicePortLabel
 ];
 
 export const changeApplyInputNodes = el => [
@@ -112,6 +132,8 @@ export const changeApplyInputNodes = el => [
   el.dataFlowZ,
   el.splitVariant,
   el.shapePointType
+  ,
+  el.propDeviceType
 ];
 
 export const fieldForPropNode = (el, node) => {
@@ -133,6 +155,10 @@ export const fieldForPropNode = (el, node) => {
   if (node === el.shapePointX) return "shapePointX";
   if (node === el.shapePointY) return "shapePointY";
   if (node === el.shapePointType) return "shapePointType";
+  if (node === el.propDeviceType) return "deviceType";
+  if (node === el.propDeviceInCount) return "deviceInCount";
+  if (node === el.propDeviceOutCount) return "deviceOutCount";
+  if (node === el.propDevicePortLabel) return "devicePortLabel";
   return "";
 };
 

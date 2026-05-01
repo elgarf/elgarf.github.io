@@ -76,6 +76,29 @@ export const setupPropsPanelFeature = (deps = {}) => {
     cabinetUiToPx,
     normalizeDataFlow
   });
+  const isDeviceRect = rect => String((rect && rect.kind) || "").toLowerCase() === "device";
+  const normalizeDeviceType = value => {
+    const v = String(value || "").toLowerCase();
+    return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
+  };
+  const normalizePortCount = (value, fallback = 4) => Math.max(1, Math.min(64, Math.round(Number(value) || fallback)));
+  const parsePortLabels = (value, count) => {
+    const n = normalizePortCount(count, 4);
+    const src = String(value == null ? "" : value).split(",").map(s => s.trim()).filter(Boolean);
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(src[i] || String(i + 1));
+    return out;
+  };
+  const getSelectedDevicePort = rect => {
+    const sel = st && st.devicePortSelection;
+    if (!rect || !sel) return null;
+    const rectId = Math.max(1, Math.round(Number(rect.id) || 0));
+    const selRectId = Math.max(1, Math.round(Number(sel.rectId) || 0));
+    if (rectId !== selRectId) return null;
+    const kind = String(sel.kind || "").toLowerCase() === "end" ? "end" : "start";
+    const cid = Math.max(1, Math.round(Number(sel.cid) || 1));
+    return { rectId, kind, cid };
+  };
   const selectionKey = () => {
     const ids = getSelectedRects().map(r => Math.max(0, Math.round(Number(r && r.id) || 0))).sort((a, b) => a - b);
     return ids.length ? ids.join(",") : String(cur() && cur().id || "");
@@ -223,6 +246,11 @@ export const setupPropsPanelFeature = (deps = {}) => {
         if (el.splitVariant.max !== maxv) el.splitVariant.max = maxv;
       }
       uiSetValue(el.splitVariant, "0");
+      uiSetValue(el.propDeviceType, "controller");
+      uiSetValue(el.propDeviceInCount, "4");
+      uiSetValue(el.propDeviceOutCount, "4");
+      uiSetValue(el.propDevicePortLabel, "");
+      setPanelHidden(el.devicePortLabelField, true);
       if (el.splitVariantDec) uiSetDisabled(el.splitVariantDec, true);
       if (el.splitVariantInc) uiSetDisabled(el.splitVariantInc, true);
       if (typeof deps.updateSplitVariantLabel === "function") deps.updateSplitVariantLabel(null);
@@ -239,6 +267,23 @@ export const setupPropsPanelFeature = (deps = {}) => {
     uiSetValue(el.x, r.x); uiSetValue(el.y, r.y); uiSetValue(el.rot, mFmt(r.rotation || 0));
     uiSetValue(el.wm, mFmt(r.widthM)); uiSetValue(el.hm, mFmt(r.heightM)); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
     uiSetValue(el.a, r.colorA); uiSetValue(el.b, r.colorB);
+    if (isDeviceRect(r)) {
+      const inCount = normalizePortCount(r.deviceInCount, 4);
+      const outCount = normalizePortCount(r.deviceOutCount, 4);
+      uiSetValue(el.propDeviceType, normalizeDeviceType(r.deviceType));
+      uiSetValue(el.propDeviceInCount, String(inCount));
+      uiSetValue(el.propDeviceOutCount, String(outCount));
+      const selectedPort = getSelectedDevicePort(r);
+      if (selectedPort) {
+        const arr = selectedPort.kind === "end" ? (Array.isArray(r.deviceOutLabels) ? r.deviceOutLabels : []) : (Array.isArray(r.deviceInLabels) ? r.deviceInLabels : []);
+        const idx = Math.max(0, selectedPort.cid - 1);
+        uiSetValue(el.propDevicePortLabel, String(arr[idx] == null || arr[idx] === "" ? selectedPort.cid : arr[idx]));
+        setPanelHidden(el.devicePortLabelField, false);
+      } else {
+        uiSetValue(el.propDevicePortLabel, "");
+        setPanelHidden(el.devicePortLabelField, true);
+      }
+    }
     uiSetValue(el.shapeOpacity, mFmt(shapeTransparencyPercent(r)));
     {
       const globalMode = normalizeDataFlow(r.dataFlow), rid = (st.mode === "flowEdit" && Number.isFinite(Number(st.flowRegionRid))) ? Math.max(0, Math.round(Number(st.flowRegionRid) || 0)) : null, cfg = (rid != null) ? getFlowRegionConfig(r, rid) : null, pts = (rid != null) ? (st.flowEditPoints || []).filter(p => p.rid === rid) : [], computedMode = (rid != null) ? resolveFlowModeFromStartAndDir(pts, cfg, getFlowModeRegion(r, rid, globalMode)) : "none";
@@ -306,6 +351,26 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (shouldApply("areaM2Px")) r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
       if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(r)) {
         r.shapeOpacity = shapeOpacityFromTransparencyInput({ inputValue: el.shapeOpacity && el.shapeOpacity.value, fallbackRect: r, evalExpr });
+      }
+      if (isDeviceRect(r)) {
+        if (shouldApply("deviceType")) r.deviceType = normalizeDeviceType(el.propDeviceType && el.propDeviceType.value || "controller");
+        if (shouldApply("deviceInCount")) r.deviceInCount = normalizePortCount(el.propDeviceInCount && el.propDeviceInCount.value, r.deviceInCount || 4);
+        if (shouldApply("deviceOutCount")) r.deviceOutCount = normalizePortCount(el.propDeviceOutCount && el.propDeviceOutCount.value, r.deviceOutCount || 4);
+        r.deviceInLabels = parsePortLabels((Array.isArray(r.deviceInLabels) ? r.deviceInLabels : []).join(","), r.deviceInCount || 4);
+        r.deviceOutLabels = parsePortLabels((Array.isArray(r.deviceOutLabels) ? r.deviceOutLabels : []).join(","), r.deviceOutCount || 4);
+        if (shouldApply("devicePortLabel")) {
+          const selectedPort = getSelectedDevicePort(r);
+          if (selectedPort) {
+            const value = String(el.propDevicePortLabel && el.propDevicePortLabel.value || "").trim();
+            if (selectedPort.kind === "end") {
+              r.deviceOutLabels = parsePortLabels((Array.isArray(r.deviceOutLabels) ? r.deviceOutLabels : []).join(","), r.deviceOutCount || 4);
+              r.deviceOutLabels[Math.max(0, selectedPort.cid - 1)] = value || String(selectedPort.cid);
+            } else {
+              r.deviceInLabels = parsePortLabels((Array.isArray(r.deviceInLabels) ? r.deviceInLabels : []).join(","), r.deviceInCount || 4);
+              r.deviceInLabels[Math.max(0, selectedPort.cid - 1)] = value || String(selectedPort.cid);
+            }
+          }
+        }
       }
       if (metricChanged) {
         const oldW = Math.max(1, Number(r.width) || 1);

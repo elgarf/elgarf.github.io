@@ -1138,13 +1138,15 @@ let parseProjectRect = (_r, _i, _legacy) => null;
 let mk = (_x, _y, _w, _h) => ({});
 let mkNote = (_x, _y, _w, _h) => ({});
 let mkShape = (_points) => null;
+let mkDevice = (_x, _y, _w, _h) => ({});
 ({
   metricFromPx,
   pxFromMetric,
   parseProjectRect,
   mk,
   mkNote,
-  mkShape
+  mkShape,
+  mkDevice
 } = setupRectFactoryController({
   st,
   mRound,
@@ -1206,6 +1208,7 @@ let mkShape = (_points) => null;
 }));
 const isNoteRect = r => String((r && r.kind) || "").toLowerCase() === "note";
 let isShapeRect = r => String((r && r.kind) || "").toLowerCase() === "shape";
+const isDeviceRect = r => String((r && r.kind) || "").toLowerCase() === "device";
 const hasRect = id => st.rects.some(v => v.id === id);
 let setMode = (_m) => { };
 let activateToolOrSelect = (_mode) => { };
@@ -1456,6 +1459,7 @@ const { drawRectBase } = setupDrawRectBaseController({
   getHiddenSet: r => getHiddenSet(r),
   rads,
   rectCenter,
+  rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
   normalizeViewMode,
   getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
   getMaskRenderDataCached: (r, cx, cy, hs, topo) => getMaskRenderDataCached(r, cx, cy, hs, topo),
@@ -1568,7 +1572,7 @@ const { drawInstallSummaryOverlay } = setupInstallSummaryOverlay({
   buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
   fontFamilyCss,
   mFmt,
-  isNoteRect: r => isNoteRect(r) || isShapeRect(r),
+  isNoteRect: r => isNoteRect(r) || isShapeRect(r) || isDeviceRect(r),
   parseScreenNameGroup,
   listSignature,
   t: value => translateText(value)
@@ -2029,7 +2033,7 @@ const inputWiringServices = {
   findFlowLinkAtPoint, findFlowStartHandle, findFlowDirectionButton, findFlowResetButton, findFlowEditPoint,
   moveRectDrag, updateSelectionBox, finishSelectionBox,
   endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock, updateManualFlowPoint, dragManualFlowPoint,
-  mkNote, mk, mkShape, isNoteRect, isShapeRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
+  mkNote, mk, mkShape, mkDevice, isNoteRect, isShapeRect, openNoteEditor, setMode, refreshPanels, schedulePersist,
   shapePointHit: (r, wx, wy, z) => shapePointHit(r, wx, wy, z),
   shapePointHits: (r, wx, wy, z) => shapePointHits(r, wx, wy, z),
   shapeEditHits: (r, wx, wy, z) => shapeEditHits(r, wx, wy, z),
@@ -2175,7 +2179,7 @@ const {
     bindClick: (...args) => bindClick(...args),
     cur: () => cur(),
     isRectLocked: r => isRectLocked(r),
-    isNoteRect: r => isNoteRect(r) || isShapeRect(r),
+    isNoteRect: r => isNoteRect(r) || isShapeRect(r) || isDeviceRect(r),
     drawCellX,
     drawCellY,
     getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
@@ -2237,7 +2241,7 @@ const {
       st,
       el,
       bindClick: (...args) => bindClick(...args),
-      isNoteRect: r => isNoteRect(r) || isShapeRect(r),
+      isNoteRect: r => isNoteRect(r) || isShapeRect(r) || isDeviceRect(r),
       getRectRigData,
       drawCellX,
       drawCellY,

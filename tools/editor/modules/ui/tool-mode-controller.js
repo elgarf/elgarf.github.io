@@ -72,7 +72,8 @@ export const setupToolModeController = (deps = {}) => {
   const CREATE_TOOL_META = {
     draw: { title: "Добавить экран", icon: "fa-regular fa-square-plus" },
     note: { title: "Добавить примечание", icon: "fa-solid fa-note-sticky" },
-    shape: { title: "Добавить контур", icon: "fa-solid fa-draw-polygon" }
+    shape: { title: "Добавить контур", icon: "fa-solid fa-draw-polygon" },
+    device: { title: "Добавить устройство", icon: "fa-solid fa-microchip" }
   };
   const ensureToolMenuMarker = btn => {
     if (!btn) return;
@@ -81,8 +82,8 @@ export const setupToolModeController = (deps = {}) => {
     btn.dataset.toolGroup = "create";
   };
   const updateCreateToolButtons = () => {
-    if (!["draw", "note", "shape"].includes(String(st.createToolMode || ""))) st.createToolMode = "draw";
-    const mode = (st.mode === "draw" || st.mode === "note" || st.mode === "shape") ? st.mode : st.createToolMode;
+    if (!["draw", "note", "shape", "device"].includes(String(st.createToolMode || ""))) st.createToolMode = "draw";
+    const mode = (st.mode === "draw" || st.mode === "note" || st.mode === "shape" || st.mode === "device") ? st.mode : st.createToolMode;
     const meta = CREATE_TOOL_META[mode] || CREATE_TOOL_META.draw;
     for (const b of [el.toolDraw, el.mToolDraw]) {
       if (!b) continue;
@@ -137,7 +138,7 @@ export const setupToolModeController = (deps = {}) => {
 
     for (const [mode, ...btns] of map) {
       const on = mode === "create"
-        ? (m === "draw" || m === "note" || m === "shape")
+        ? (m === "draw" || m === "note" || m === "shape" || m === "device")
         : mode === "select"
           ? (m === "select" || m === "cabinetEdit")
           : m === mode;
@@ -199,7 +200,7 @@ export const setupToolModeController = (deps = {}) => {
       }
       return;
     }
-    if (mode === "draw" || mode === "note" || mode === "shape") st.createToolMode = mode;
+    if (mode === "draw" || mode === "note" || mode === "shape" || mode === "device") st.createToolMode = mode;
     setMode(toolFsm.nextOnToolClick(st.mode, mode));
   };
 

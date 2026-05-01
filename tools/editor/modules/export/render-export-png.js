@@ -35,14 +35,17 @@ export const createRenderExportPngBlob = (deps = {}) => {
     const includeRig = !!(mode.includeFlow || rigOnly);
     const includeScreenLabels = !(flowOnly || rigOnly);
     const forceRigOverlay = !!(includeRig && !flowOnly);
-    if (!st.rects.length) return null;
+    const isDeviceRect = r => String((r && r.kind) || "").toLowerCase() === "device";
+    const includeDevices = !!includeFlow && !rigOnly;
+    const exportRects = (Array.isArray(st.rects) ? st.rects : []).filter(r => includeDevices || !isDeviceRect(r));
+    if (!exportRects.length) return null;
     await ensureFontReady();
     let minX = 1e9;
     let minY = 1e9;
     let maxX = -1e9;
     let maxY = -1e9;
     let startY = 0;
-    for (const r of st.rects) {
+    for (const r of exportRects) {
       const bb = rectAABBMasked(r);
       minX = Math.min(minX, bb.minX);
       minY = Math.min(minY, bb.minY);
@@ -104,11 +107,11 @@ export const createRenderExportPngBlob = (deps = {}) => {
       const shiftY = startY + t;
       const exportOffsetX = -minX + shiftX;
       const exportOffsetY = -minY + shiftY;
-      const shiftedRects = st.rects.map(rct => ({ ...rct, x: rct.x - minX + shiftX, y: rct.y - minY + shiftY }));
+      const shiftedRects = exportRects.map(rct => ({ ...rct, x: rct.x - minX + shiftX, y: rct.y - minY + shiftY }));
       const shapeFrameId = `export:${shiftX}:${shiftY}:${out.width}:${out.height}:${includeFlow ? 1 : 0}:${rigOnly ? 1 : 0}:${flowOnly ? 1 : 0}`;
       const drawExportRects = extraOpts => {
-        for (let i = st.rects.length - 1; i >= 0; i--) {
-          const rct = st.rects[i];
+        for (let i = exportRects.length - 1; i >= 0; i--) {
+          const rct = exportRects[i];
           const isShape = String((rct && rct.kind) || "").toLowerCase() === "shape";
           const er = isShape ? rct : shiftedRects[i];
           const includeFlowRect = !!(includeFlow && normalizeDataFlow(rct && rct.dataFlow) !== "none");

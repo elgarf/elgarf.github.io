@@ -40,6 +40,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     mkNote,
     mk,
     mkShape,
+    mkDevice,
     isNoteRect,
     isShapeRect,
     openNoteEditor,
@@ -89,6 +90,35 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     const n = Math.round(Number(id) || 0);
     if (st && st.selSet instanceof Set && st.selSet.has(n)) return true;
     return Math.round(Number(st && st.sel) || 0) === n;
+  };
+  const pickFlowAnchorAtPoint = (wx, wy, kind = "") => {
+    const pts = Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : [];
+    const tol = Math.max(6, 9 / Math.max(0.35, st.zoom || 1));
+    const kindNorm = String(kind || "").toLowerCase();
+    let best = null;
+    let bestD = Infinity;
+    for (const p of pts) {
+      if (kindNorm && String(p && p.kind || "").toLowerCase() !== kindNorm) continue;
+      const d = Math.hypot((+p.x || 0) - (+wx || 0), (+p.y || 0) - (+wy || 0));
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return (best && bestD <= tol) ? best : null;
+  };
+  const selectDevicePortAtPoint = p => {
+    if (!p) return false;
+    const a = pickFlowAnchorAtPoint(p.x, p.y);
+    if (!a) return false;
+    const r = getRectById(a.rectId);
+    if (!r || String((r && r.kind) || "").toLowerCase() !== "device") return false;
+    st.devicePortSelection = {
+      rectId: Math.max(1, Math.round(Number(a.rectId) || 1)),
+      cid: Math.max(1, Math.round(Number(a.cid) || 1)),
+      kind: String(a.kind || "").toLowerCase() === "end" ? "end" : "start"
+    };
+    if (r.id !== st.sel) selRect(r.id);
+    if (typeof syncProps === "function") syncProps();
+    render();
+    return true;
   };
   const setCanvasCursor = cursor => {
     if (!cv || !cv.style) return;
@@ -193,12 +223,12 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     return h || null;
   };
   const handlePointerDownDrawOrNote = p => {
-    if (!(st.mode === "draw" || isNoteMode())) return false;
+    if (!(st.mode === "draw" || isNoteMode() || st.mode === "device")) return false;
     st.draft = null;
-    st.draftPending = {
+      st.draftPending = {
       sx: p.x,
       sy: p.y,
-      kind: (isNoteMode() ? "note" : "rect")
+      kind: (isNoteMode() ? "note" : (st.mode === "device" ? "device" : "rect"))
     };
     return true;
   };
@@ -234,8 +264,9 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     return !!handleRigPointerDown(p);
   };
   const handlePointerDownFlow = (p, opts = null) => {
-    if (st.mode !== "flowEdit") return false;
-    return !!handleFlowEditPointerDown(p, opts);
+    if (st.mode === "flowEdit") return !!handleFlowEditPointerDown(p, opts);
+    if (st.mode === "select") return !!handleFlowEditPointerDown(p, { ...(opts || {}), allowLinkOnly: true });
+    return false;
   };
   const handlePointerDownSelect = (p, opts = null) => navigationController.handlePointerDownSelect(p, opts);
   const toggleInstallLayer = id => {
@@ -272,6 +303,13 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       }
     }
     if (st.mode === "select") {
+      const pickedDevicePort = selectDevicePortAtPoint(p);
+      if (pickedDevicePort) {
+        const picked = st.devicePortSelection;
+        if (picked && picked.kind === "start") return;
+      } else if (st.devicePortSelection) {
+        st.devicePortSelection = null;
+      }
       if (shapeInput.handlePointerDownSelectedShape(p, opts)) return;
       const h = hit(p.x, p.y);
       suppressMoveCursorUntilMouseUp = !!(h && !isSelectedRectId(h.id));
@@ -385,7 +423,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       setNoteResizeCursor(false);
       if (!st.drag) clearCursorIf(MOVE_CURSOR);
     }
-    if (!st.draft && st.draftPending && (st.mode === "draw" || isNoteMode())) {
+    if (!st.draft && st.draftPending && (st.mode === "draw" || isNoteMode() || st.mode === "device")) {
       const ds = st.draftPending;
       const dx = (+p.x || 0) - (+ds.sx || 0);
       const dy = (+p.y || 0) - (+ds.sy || 0);
@@ -446,6 +484,8 @@ export const setupPointerOrchestratorController = (deps = {}) => {
         const height = roundDraftSizePx(d.height);
         created = (String(d.kind || "") === "note")
           ? mkNote(d.x, d.y, width, height)
+          : (String(d.kind || "") === "device")
+            ? mkDevice(d.x, d.y, width, height)
           : mk(d.x, d.y, width, height);
         st.rects.unshift(created);
       }

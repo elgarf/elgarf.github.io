@@ -1,4 +1,4 @@
-export const TOOL_MODE_LIST = Object.freeze(["select", "draw", "note", "shape", "maskEdit", "cellEdit", "cabinetEdit", "flowEdit", "clusterEdit", "rigEdit"]);
+export const TOOL_MODE_LIST = Object.freeze(["select", "draw", "note", "shape", "device", "maskEdit", "cellEdit", "cabinetEdit", "flowEdit", "clusterEdit", "rigEdit"]);
 
 export const createModePredicates = st => ({
   isMaskMode: () => st.mode === "maskEdit",

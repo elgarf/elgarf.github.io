@@ -45,7 +45,7 @@ export const setupRectFactoryController = (deps = {}) => {
     let minX = Infinity;
     let minY = Infinity;
     for (const r of rects) {
-      if (!r || ["note", "shape"].includes(String(r.kind || "").toLowerCase())) continue;
+      if (!r || ["note", "shape", "device"].includes(String(r.kind || "").toLowerCase())) continue;
       const s = Math.max(1, Math.round(Number(r.scale) || Number(scale) || 256));
       const cx = Number(r.cellX);
       const cy = Number(r.cellY);
@@ -73,6 +73,22 @@ export const setupRectFactoryController = (deps = {}) => {
       out.inY = Math.round(num(p && p.inY, 0));
       out.outX = Math.round(num(p && p.outX, 48));
       out.outY = Math.round(num(p && p.outY, 0));
+    }
+    return out;
+  };
+  const normalizeDeviceType = value => {
+    const v = String(value || "").toLowerCase();
+    if (v === "pc" || v === "mixer" || v === "camera") return v;
+    return "controller";
+  };
+  const normalizePortCount = (value, fallback = 4) => Math.max(1, Math.min(64, Math.round(Number(value) || fallback)));
+  const normalizePortLabels = (value, count) => {
+    const n = normalizePortCount(count, 4);
+    const src = Array.isArray(value) ? value : [];
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const label = String(src[i] == null ? "" : src[i]).trim();
+      out.push(label || String(i + 1));
     }
     return out;
   };
@@ -123,8 +139,15 @@ export const setupRectFactoryController = (deps = {}) => {
           .map(normalizeShapePoint)
           .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
           .slice(0, 512)
-        : []
+        : [],
+      deviceType: normalizeDeviceType(r && r.deviceType),
+      deviceInCount: normalizePortCount(r && r.deviceInCount, 4),
+      deviceOutCount: normalizePortCount(r && r.deviceOutCount, 4),
+      deviceInLabels: [],
+      deviceOutLabels: []
     };
+    it.deviceInLabels = normalizePortLabels(r && r.deviceInLabels, it.deviceInCount);
+    it.deviceOutLabels = normalizePortLabels(r && r.deviceOutLabels, it.deviceOutCount);
 
     safeDefine(it, "_flowLockRidToSig", { ...it.flowLockRidToSig }, false);
     safeDefine(it, "_flowLockCidToSeed", { ...it.flowLockCidToSeed }, false);
@@ -173,7 +196,12 @@ export const setupRectFactoryController = (deps = {}) => {
       kind: "",
       noteText: "",
       shapeOpacity: 0.72,
-      shapePoints: []
+      shapePoints: [],
+      deviceType: "controller",
+      deviceInCount: 4,
+      deviceOutCount: 4,
+      deviceInLabels: ["1", "2", "3", "4"],
+      deviceOutLabels: ["1", "2", "3", "4"]
     };
     metricFromPx(r);
     return r;
@@ -215,12 +243,29 @@ export const setupRectFactoryController = (deps = {}) => {
     return r;
   };
 
+  const mkDevice = (x, y, w, h) => {
+    const r = mk(x, y, w, h);
+    r.kind = "device";
+    r.name = `Устройство ${r.id}`;
+    r.rotation = 0;
+    r.colorA = "#2fcaaf";
+    r.autoContrastB = false;
+    r.colorB = "#0f172a";
+    r.deviceType = "controller";
+    r.deviceInCount = 4;
+    r.deviceOutCount = 4;
+    r.deviceInLabels = ["1", "2", "3", "4"];
+    r.deviceOutLabels = ["1", "2", "3", "4"];
+    return r;
+  };
+
   return {
     metricFromPx,
     pxFromMetric,
     parseProjectRect,
     mk,
     mkNote,
-    mkShape
+    mkShape,
+    mkDevice
   };
 };

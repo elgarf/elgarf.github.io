@@ -50,6 +50,23 @@ export const setupFlowInputController = (deps = {}) => {
   const clearDragPreview = () => {
     st.flowDragPreview = null;
   };
+  const removeLinksFromSameOut = from => {
+    if (!from) return;
+    const rectId = Math.max(1, Math.round(Number(from.rectId) || 0));
+    const rid = Math.max(0, Math.round(Number(from.rid) || 0));
+    const cid = Math.max(0, Math.round(Number(from.cid) || 0));
+    const list = Array.isArray(st.flowLinks) ? st.flowLinks : [];
+    st.flowLinks = list.filter(ln => {
+      const src = ln && ln.from;
+      if (!src) return false;
+      return !(
+        Math.max(1, Math.round(Number(src.rectId) || 0)) === rectId
+        && Math.max(0, Math.round(Number(src.rid) || 0)) === rid
+        && Math.max(0, Math.round(Number(src.cid) || 0)) === cid
+        && String(src.kind || "").toLowerCase() === "end"
+      );
+    });
+  };
   const localCursorForRect = (r, p) => {
     if (!r || !p || typeof worldToRectUV !== "function") return null;
     const uv = worldToRectUV(r, +p.x || 0, +p.y || 0);
@@ -58,8 +75,20 @@ export const setupFlowInputController = (deps = {}) => {
   };
 
   const handleFlowEditPointerMove = p => {
-    if (st.mode !== "flowEdit") return false;
-    if (String(st.flowEditVariant || "auto") === "manual") {
+    const modeFlowEdit = st.mode === "flowEdit";
+    if (!modeFlowEdit && !st.flowLinkDrag && !st.flowLinkPending) return false;
+    if (!modeFlowEdit && st.flowLinkPending && !st.flowLinkDrag) {
+      const pd = st.flowLinkPending;
+      const dx = (+p.x || 0) - (+pd.downX || 0);
+      const dy = (+p.y || 0) - (+pd.downY || 0);
+      if (Math.hypot(dx, dy) >= Math.max(4, 6 / Math.max(0.25, st.zoom || 1))) {
+        removeLinksFromSameOut(pd.from);
+        st.flowLinkDrag = { from: { ...pd.from }, x: p.x, y: p.y, target: null, canLink: false };
+        st.flowLinkPending = null;
+        updateFlowLinkDragTarget(p.x, p.y);
+      }
+    }
+    if (modeFlowEdit && String(st.flowEditVariant || "auto") === "manual") {
       if (st.manualFlowDrag) {
         const md = st.manualFlowDrag;
         const dx = (+p.x || 0) - (+md.downX || 0);
@@ -167,6 +196,12 @@ export const setupFlowInputController = (deps = {}) => {
   };
 
   const handlePointerUpFlowLink = () => {
+    if (!st.flowLinkDrag && st.flowLinkPending) {
+      st.flowLinkPending = null;
+      clearDragPreview();
+      finishPointerUp(false);
+      return true;
+    }
     if (!st.flowLinkDrag) return false;
     const fd = st.flowLinkDrag;
     st.flowLinkDrag = null;
@@ -219,8 +254,8 @@ export const setupFlowInputController = (deps = {}) => {
   };
 
   const handleFlowMouseLeave = () => {
-    if (st.mode !== "flowEdit") return false;
-    if (!(st.flowHover || st.flowDirHover || st.flowLinkHover)) return false;
+    if (st.mode !== "flowEdit" && !st.flowLinkDrag && !st.flowLinkHover) return false;
+    if (!(st.flowHover || st.flowDirHover || st.flowLinkHover || st.flowLinkDrag)) return false;
     resetFlowHoverTransient();
     clearDragPreview();
     render();

@@ -49,6 +49,30 @@ export const setupFlowAnchorResolver = (deps = {}) => {
     const kind = String(ep && ep.kind || "").toLowerCase() === "end" ? "end" : "start";
     const cid = Math.max(0, Math.round(Number(ep && ep.cid) || 0));
     const rec = getRectFlowGroups(rectId);
+    const rr = (rec && rec.rr) || ((Array.isArray(st && st.rects) ? st.rects : [])
+      .find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === rectId) || null);
+    const isDevice = rr && String((rr && rr.kind) || "").toLowerCase() === "device";
+    if (isDevice) {
+      const w = Math.max(1, Number(rr.width) || 1);
+      const h = Math.max(1, Number(rr.height) || 1);
+      const plateH = Math.max(18, Math.min(h * 0.28, 34));
+      const workTop = -h / 2 + plateH;
+      const workH = Math.max(8, h - plateH);
+      const rowY = kind === "end" ? (workTop + workH * 0.75) : (workTop + workH * 0.25);
+      const count = kind === "end"
+        ? Math.max(1, Math.min(64, Math.round(Number(rr.deviceOutCount) || 4)))
+        : Math.max(1, Math.min(64, Math.round(Number(rr.deviceInCount) || 4)));
+      if (rid !== 0 || cid < 1 || cid > count) {
+        computedByKey.set(k, null);
+        return null;
+      }
+      const x = -w * 0.45 + ((cid - 0.5) * (w * 0.9)) / Math.max(1, count);
+      const y = rowY + Math.max(12, Math.max(11, Math.min(h * 0.14, 24)) * 0.9);
+      const ww = rectUVToWorld(rr, x + w / 2, y + h / 2);
+      const out = { rectId, rid: 0, cid, kind, x: ww.x, y: ww.y };
+      computedByKey.set(k, out);
+      return out;
+    }
     if (!rec || !rec.rr || !Array.isArray(rec.groups)) {
       computedByKey.set(k, null);
       return null;

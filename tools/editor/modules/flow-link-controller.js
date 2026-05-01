@@ -17,6 +17,14 @@ export const setupFlowLinkController = (deps = {}) => {
   const toRectId = v => toIntMin(v, 1);
   const toRid = v => toIntMin(v, 0);
   const toCid = v => toIntMin(v, 0);
+  const rectKind = r => String((r && r.kind) || "").toLowerCase();
+  const isDeviceRect = r => rectKind(r) === "device";
+  const deviceType = r => {
+    const v = String((r && r.deviceType) || "controller").toLowerCase();
+    return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
+  };
+  const isPcLike = type => type === "pc" || type === "mixer" || type === "camera";
+  const isScreenLikeRect = r => !isDeviceRect(r);
   const posNum = (v, fallback = 1) => Math.max(1, Number(v) || fallback);
   const round3 = v => Math.round((Number(v) || 0) * 1000) / 1000;
   const sortNumAsc = (a, b) => a - b;
@@ -126,6 +134,24 @@ export const setupFlowLinkController = (deps = {}) => {
     const ra = byId.get(toRectId(a.rectId));
     const rb = byId.get(toRectId(b.rectId));
     if (!ra || !rb) { logCanLinkFlowAnchorsDebug(a, b, false, "rect_not_found"); return false; }
+    const aIsDevice = isDeviceRect(ra);
+    const bIsDevice = isDeviceRect(rb);
+    if (aIsDevice || bIsDevice) {
+      const aType = deviceType(ra);
+      const bType = deviceType(rb);
+      const allowControllerToScreen = aIsDevice && !bIsDevice && aType === "controller";
+      const allowPcLikeToController = aIsDevice && bIsDevice && isPcLike(aType) && bType === "controller";
+      const allowPcLikeToPcLike = aIsDevice && bIsDevice && isPcLike(aType) && isPcLike(bType);
+      if (!allowControllerToScreen && !allowPcLikeToController && !allowPcLikeToPcLike) {
+        logCanLinkFlowAnchorsDebug(a, b, false, "device_link_rule_violation", {
+          fromKind: rectKind(ra),
+          toKind: rectKind(rb),
+          fromDeviceType: aType,
+          toDeviceType: bType
+        });
+        return false;
+      }
+    }
     const linksRaw = normalizeFlowLinks(st.flowLinks);
     const groupsByRectId = new Map();
     const endpointLiveCache = new Map();
@@ -142,6 +168,11 @@ export const setupFlowLinkController = (deps = {}) => {
     const isEndpointLive = ep => {
       const key = flowAnchorKey(ep);
       if (endpointLiveCache.has(key)) return endpointLiveCache.get(key);
+      const directAnchor = (Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : []).find(a => flowAnchorKey(a) === key);
+      if (directAnchor) {
+        endpointLiveCache.set(key, true);
+        return true;
+      }
       const rectId = toRectId(ep && ep.rectId);
       const rid = toRid(ep && ep.rid);
       const cid = toCid(ep && ep.cid);
@@ -174,6 +205,7 @@ export const setupFlowLinkController = (deps = {}) => {
     const targetRectId = toRectId(b.rectId);
     const fromAnchorKey = flowAnchorKey(a);
     const toAnchorKey = flowAnchorKey(b);
+    const allowMultiOutFromController = aIsDevice && deviceType(ra) === "controller" && !bIsDevice;
     for (const ln of linkMeta) {
       const lkFrom = ln.fromAnchor;
       const lkTo = ln.toAnchor;
@@ -184,13 +216,22 @@ export const setupFlowLinkController = (deps = {}) => {
         });
         return false;
       }
-      if (lkFrom === fromAnchorKey && lkTo !== toAnchorKey) {
+      if (!allowMultiOutFromController && lkFrom === fromAnchorKey && lkTo !== toAnchorKey) {
         logCanLinkFlowAnchorsDebug(a, b, false, "end_already_linked", {
           existingFrom: endpointDebug(ln.from),
           existingTo: endpointDebug(ln.to)
         });
         return false;
       }
+    }
+    if (aIsDevice || bIsDevice) {
+      logCanLinkFlowAnchorsDebug(a, b, true, "ok_device_link_bypass_chain_checks", {
+        fromKind: rectKind(ra),
+        toKind: rectKind(rb),
+        fromDeviceType: deviceType(ra),
+        toDeviceType: deviceType(rb)
+      });
+      return true;
     }
     const edgeSet = new Set();
     const outAdj = new Map();
@@ -262,6 +303,8 @@ export const setupFlowLinkController = (deps = {}) => {
     const chainIds = new Set();
     for (const nk of chainNodeSet) {
       const m = nodeMetaMap.get(nk) || parseRegionNodeKey(nk);
+      const rr = byId.get(m.rectId);
+      if (!rr || !isScreenLikeRect(rr)) continue;
       const set = rectRidMap.get(m.rectId) || new Set();
       set.add(m.rid);
       rectRidMap.set(m.rectId, set);
@@ -345,7 +388,7 @@ export const setupFlowLinkController = (deps = {}) => {
     for (const nk of chainNodeSet) {
       const nm = nodeMetaMap.get(nk) || parseRegionNodeKey(nk);
       const rr = byId.get(nm.rectId);
-      if (!rr) continue;
+      if (!rr || !isScreenLikeRect(rr)) continue;
       let bb = getRegionBBoxLocalPx(rr, nm.rid);
       let source = "region";
       if (!bb && nm.cid != null) {
@@ -364,7 +407,14 @@ export const setupFlowLinkController = (deps = {}) => {
       const k = Math.sqrt(areaM2Px) / scalePx;
       normalizedRects.push({ id: nk, rectId: nm.rectId, rid: nm.rid, source, w: Math.max(1e-6, w * k), h: Math.max(1e-6, h * k) });
     }
-    if (!normalizedRects.length) { logCanLinkFlowAnchorsDebug(a, b, false, "empty_chain_area", { chainIds: [...chainIds] }); return false; }
+    if (!normalizedRects.length) {
+      logCanLinkFlowAnchorsDebug(a, b, true, "ok_no_screen_nodes", {
+        chainIds: [...chainIds],
+        chainNodeCount: chainNodeSet.size,
+        chainNodes: toSortedStrings(chainNodeSet)
+      });
+      return true;
+    }
     const packRectsCompact = rects => {
       const src = Array.isArray(rects) ? rects : [];
       if (!src.length) return { area: 0, width: 0, height: 0 };

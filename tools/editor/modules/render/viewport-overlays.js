@@ -121,8 +121,10 @@ export const setupViewportOverlays = (deps = {}) => {
   };
 
   const getContentBounds = () => {
-    if (!st.rects.length) return null;
-    const key = (Array.isArray(st.rects) ? st.rects : []).map(r => [
+    const isDeviceRect = r => String((r && r.kind) || "").toLowerCase() === "device";
+    const rects = (Array.isArray(st.rects) ? st.rects : []).filter(r => !isDeviceRect(r));
+    if (!rects.length) return null;
+    const key = rects.map(r => [
       toIntMin(r && r.id, 0),
       r && r.x || 0,
       r && r.y || 0,
@@ -138,7 +140,7 @@ export const setupViewportOverlays = (deps = {}) => {
     let minY = 1e9;
     let maxX = -1e9;
     let maxY = -1e9;
-    for (const r of st.rects) {
+    for (const r of rects) {
       const bb = rectAABBMasked(r);
       minX = Math.min(minX, bb.minX);
       minY = Math.min(minY, bb.minY);
