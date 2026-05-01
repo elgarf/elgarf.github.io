@@ -9,6 +9,7 @@ export const setupTransientStateController = (deps = {}) => {
   const resetCellTransient = () => {
     st.cellHover = null;
     st.cellHoverPos = null;
+    st.cellKnifeDrag = null;
   };
 
   const resetFlowHoverTransient = () => {

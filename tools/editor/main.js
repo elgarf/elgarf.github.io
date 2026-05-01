@@ -1337,6 +1337,8 @@ let snapMaskNode = (_r, _wx, _wy) => null;
 let addMaskPoint = (_wx, _wy) => { };
 let applyMaskPath = () => { };
 let toggleCellLinkAtPoint = (_r, _wx, _wy) => false;
+let beginCellKnifeDragAtPoint = (_r, _wx, _wy) => null;
+let updateCellKnifeDragAtPoint = (_r, _drag, _wx, _wy) => false;
 let beginClusterHandleDragAtPoint = (_wx, _wy) => false;
 let updateClusterHandleDragAtPoint = (_wx, _wy) => false;
 let endClusterHandleDrag = () => false;
@@ -1347,6 +1349,8 @@ let handleClusterEditAtPoint = (_wx, _wy) => false;
   addMaskPoint,
   applyMaskPath,
   toggleCellLinkAtPoint,
+  beginCellKnifeDragAtPoint,
+  updateCellKnifeDragAtPoint,
   beginClusterHandleDragAtPoint,
   updateClusterHandleDragAtPoint,
   endClusterHandleDrag,
@@ -1369,6 +1373,8 @@ let handleClusterEditAtPoint = (_wx, _wy) => false;
   persistProjectAndRender,
   render: () => render(),
   getCellLinkCandidateAtPoint,
+  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+  getCellTopology: (r, cx, cy) => getCellTopology(r, cx, cy),
   selRect,
   cur,
   findActiveClusterBorder,
@@ -1992,7 +1998,7 @@ const inputWiringServices = {
   cv, st, el, render, renderOverlay, hit, s2w, zc, getViewMetrics,
   getRectById, worldToRectUV, rectUVToWorld,
   isNoteMode, isMaskMode, isCellEditMode, isCabinetEditMode, isClusterEditMode, isRigEditMode,
-  cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint,
+  cur, isRectLocked, addMaskPoint, toggleCellLinkAtPoint, beginCellKnifeDragAtPoint, updateCellKnifeDragAtPoint,
   beginClusterHandleDragAtPoint, handleClusterEditAtPoint,
   handleRigPointerDown, handleRigPointerMove, handleRigPointerLeave, handleFlowEditPointerDown, handleCabinetEditPointerDown, handleCabinetEditPointerMove,
   selRect, isSelected, beginRectDrag, beginSelectionBox,

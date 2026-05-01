@@ -19,6 +19,8 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     isRigEditMode,
     addMaskPoint,
     toggleCellLinkAtPoint,
+    beginCellKnifeDragAtPoint,
+    updateCellKnifeDragAtPoint,
     snapMaskNode,
     getCellLinkCandidateAtPoint,
     getRigHitAtPoint,
@@ -212,7 +214,11 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     const h = selectHitRectIfNeeded(hit(p.x, p.y));
     if (!h) { selRect(null); return true; }
     if (isRectLocked(h)) return true;
-    toggleCellLinkAtPoint(h, p.x, p.y);
+    st.cellKnifeDrag = beginCellKnifeDragAtPoint ? beginCellKnifeDragAtPoint(h, p.x, p.y) : null;
+    if (!st.cellKnifeDrag) {
+      st.cellHover = h ? getCellLinkCandidateAtPoint(h, p.x, p.y) : null;
+      st.cellHoverPos = h ? { x: p.x, y: p.y } : null;
+    }
     return true;
   };
   const handlePointerDownCluster = p => {
@@ -323,6 +329,9 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (isCellEditMode()) {
       setNoteResizeCursor(false);
       const r = getHoveredRect(p);
+      if (st.cellKnifeDrag && r && Number(r.id) === Number(st.cellKnifeDrag.rectId) && typeof updateCellKnifeDragAtPoint === "function") {
+        if (updateCellKnifeDragAtPoint(r, st.cellKnifeDrag, p.x, p.y)) render();
+      }
       st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null;
       st.cellHoverPos = r ? { x: p.x, y: p.y } : null;
       render();
@@ -409,6 +418,16 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     const hadNoteResize = !!(st.noteResize && st.noteResize.changed);
     const hadShapePointDrag = !!(st.shapePointDrag && st.shapePointDrag.changed);
     if (st.pan) { st.pan = false; st.panS = null; }
+    if (isCellEditMode() && st.cellKnifeDrag) {
+      const d = st.cellKnifeDrag;
+      const r = getRectById(d.rectId);
+      let changed = !!d.changed;
+      if (r && !d.active) changed = !!toggleCellLinkAtPoint(r, d.startX, d.startY);
+      st.cellKnifeDrag = null;
+      if (changed) schedulePersist("project");
+      render();
+      return true;
+    }
     if (st.selBox) { finishSelectionBox(); return true; }
     if (handlePointerUpCluster()) return true;
     if (handlePointerUpFlowLink()) return true;

@@ -158,6 +158,7 @@ export const createInitialEditorState = () => ({
   maskHover: null,
   cellHover: null,
   cellHoverPos: null,
+  cellKnifeDrag: null,
   cabinetCellHover: null,
   cabinetCellSelection: null,
   cabinetPaint: { diag: "auto", color: "auto" },

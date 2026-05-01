@@ -19,6 +19,8 @@ export const setupEditingToolsCore = (deps = {}) => {
     persistProjectAndRender,
     render,
     getCellLinkCandidateAtPoint,
+    getCellTopologyCached,
+    getCellTopology,
     selRect,
     cur,
     findActiveClusterBorder,
@@ -128,6 +130,167 @@ export const setupEditingToolsCore = (deps = {}) => {
     r.cellLinks = [...next];
     persistProjectAndRender();
     return true;
+  };
+  const parseLinkKeyLocal = key => {
+    const p = String(key || "").split("-");
+    if (p.length !== 2) return null;
+    const a = Math.max(0, Math.round(Number(p[0]) || 0));
+    const b = Math.max(0, Math.round(Number(p[1]) || 0));
+    if (a === b) return null;
+    return a < b ? { a, b } : { a: b, b: a };
+  };
+  const componentsAreRectangles = topo => {
+    if (!topo || !Array.isArray(topo.comp) || !Number.isFinite(Number(topo.count))) return false;
+    const stat = new Map();
+    for (let i = 0; i < topo.count; i++) {
+      const cId = topo.comp[i];
+      const x = i % topo.cols;
+      const y = Math.floor(i / topo.cols);
+      let rec = stat.get(cId);
+      if (!rec) { rec = { minX: x, maxX: x, minY: y, maxY: y, count: 0 }; stat.set(cId, rec); }
+      rec.minX = Math.min(rec.minX, x);
+      rec.maxX = Math.max(rec.maxX, x);
+      rec.minY = Math.min(rec.minY, y);
+      rec.maxY = Math.max(rec.maxY, y);
+      rec.count++;
+    }
+    for (const rec of stat.values()) {
+      const area = (rec.maxX - rec.minX + 1) * (rec.maxY - rec.minY + 1);
+      if (rec.count !== area) return false;
+    }
+    return true;
+  };
+  const inferBoundaryFromKey = (key, cols) => {
+    const p = parseLinkKeyLocal(key);
+    if (!p || !(cols > 0)) return null;
+    const dx = Math.abs((p.a % cols) - (p.b % cols));
+    const dy = Math.abs(Math.floor(p.a / cols) - Math.floor(p.b / cols));
+    if (dx + dy !== 1) return null;
+    if (dx === 1) {
+      const x = Math.max(p.a % cols, p.b % cols);
+      const pos = Math.min(Math.floor(p.a / cols), Math.floor(p.b / cols));
+      return { orientation: "v", line: x, pos };
+    }
+    const y = Math.max(Math.floor(p.a / cols), Math.floor(p.b / cols));
+    const pos = Math.min(p.a % cols, p.b % cols);
+    return { orientation: "h", line: y, pos };
+  };
+  const buildLineKeys = (cols, rows, orientation, line) => {
+    const keys = [];
+    if (orientation === "h") {
+      if (!(line >= 1 && line <= rows - 1)) return keys;
+      for (let x = 0; x < cols; x++) {
+        const a = (line - 1) * cols + x, b = line * cols + x;
+        keys.push(a < b ? `${a}-${b}` : `${b}-${a}`);
+      }
+      return keys;
+    }
+    if (!(line >= 1 && line <= cols - 1)) return keys;
+    for (let y = 0; y < rows; y++) {
+      const a = y * cols + (line - 1), b = y * cols + line;
+      keys.push(a < b ? `${a}-${b}` : `${b}-${a}`);
+    }
+    return keys;
+  };
+  const buildBoundaryKeyAtPos = (cols, rows, orientation, line, pos) => {
+    if (orientation === "h") {
+      if (!(line >= 1 && line <= rows - 1) || !(pos >= 0 && pos <= cols - 1)) return "";
+      const a = (line - 1) * cols + pos, b = line * cols + pos;
+      return a < b ? `${a}-${b}` : `${b}-${a}`;
+    }
+    if (!(line >= 1 && line <= cols - 1) || !(pos >= 0 && pos <= rows - 1)) return "";
+    const a = pos * cols + (line - 1), b = pos * cols + line;
+    return a < b ? `${a}-${b}` : `${b}-${a}`;
+  };
+  const canAddLinkSafely = (r, key, currentSet, cx, cy) => {
+    if (currentSet.has(key)) return false;
+    if (typeof getCellTopology !== "function") return false;
+    const nextRect = { ...r, cellLinks: [...currentSet, key] };
+    const topoNext = getCellTopology(nextRect, cx, cy);
+    return componentsAreRectangles(topoNext);
+  };
+  const applyCellKnifeRange = (r, orientation, line, fromPos, toPos, op, appliedSet = null) => {
+    if (!r || isRectLocked(r)) return false;
+    const cx = drawCellX(r), cy = drawCellY(r);
+    const topo = typeof getCellTopologyCached === "function" ? getCellTopologyCached(r, cx, cy) : null;
+    if (!topo) return false;
+    const cols = Math.max(1, Math.round(Number(topo.cols) || 1));
+    const rows = Math.max(1, Math.round(Number(topo.rows) || 1));
+    const lineKeys = buildLineKeys(cols, rows, orientation, line);
+    if (!lineKeys.length) return false;
+    const set = new Set(Array.isArray(r.cellLinks) ? r.cellLinks : []);
+    let changed = false;
+    const lo = Math.min(fromPos, toPos);
+    const hi = Math.max(fromPos, toPos);
+    for (let pos = lo; pos <= hi; pos++) {
+      const key = buildBoundaryKeyAtPos(cols, rows, orientation, line, pos);
+      if (!key) continue;
+      const stepKey = `${orientation}:${line}:${pos}`;
+      if (appliedSet && appliedSet.has(stepKey)) continue;
+      if (op === "remove") {
+        if (!set.has(key)) continue;
+        set.delete(key);
+        changed = true;
+      } else {
+        if (!canAddLinkSafely(r, key, set, cx, cy)) continue;
+        set.add(key);
+        changed = true;
+      }
+      if (appliedSet) appliedSet.add(stepKey);
+    }
+    if (!changed) return false;
+    r.cellLinks = [...set];
+    return true;
+  };
+  const beginCellKnifeDragAtPoint = (r, wx, wy) => {
+    if (!r || isRectLocked(r)) return null;
+    const cand = getCellLinkCandidateAtPoint(r, wx, wy);
+    if (!cand || !Array.isArray(cand.keys) || !cand.keys.length) return null;
+    const cx = drawCellX(r), cy = drawCellY(r);
+    const topo = typeof getCellTopologyCached === "function" ? getCellTopologyCached(r, cx, cy) : null;
+    const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
+    const boundary = inferBoundaryFromKey(cand.keys[0], cols);
+    if (!boundary) return null;
+    return {
+      rectId: r.id,
+      startX: wx,
+      startY: wy,
+      orientation: boundary.orientation,
+      line: boundary.line,
+      startPos: boundary.pos,
+      lastPos: boundary.pos,
+      op: cand.exists ? "remove" : "add",
+      active: false,
+      changed: false,
+      applied: new Set()
+    };
+  };
+  const updateCellKnifeDragAtPoint = (r, drag, wx, wy) => {
+    if (!r || !drag || isRectLocked(r)) return false;
+    if (!drag.active) {
+      const dx = Math.abs((+wx || 0) - (+drag.startX || 0));
+      const dy = Math.abs((+wy || 0) - (+drag.startY || 0));
+      const parallel = drag.orientation === "h" ? dx : dy;
+      const perpendicular = drag.orientation === "h" ? dy : dx;
+      const moved = parallel >= Math.max(8, 12 / zoomSafe(st.zoom)) && parallel >= perpendicular;
+      if (!moved) return false;
+      drag.active = true;
+      if (applyCellKnifeRange(r, drag.orientation, drag.line, drag.startPos, drag.startPos, drag.op, drag.applied)) drag.changed = true;
+      return drag.changed;
+    }
+    const cand = getCellLinkCandidateAtPoint(r, wx, wy);
+    if (!cand || !Array.isArray(cand.keys) || !cand.keys.length) return drag.changed;
+    const cx = drawCellX(r), cy = drawCellY(r);
+    const topo = typeof getCellTopologyCached === "function" ? getCellTopologyCached(r, cx, cy) : null;
+    const cols = Math.max(1, Math.round(Number(topo && topo.cols) || 1));
+    const boundary = inferBoundaryFromKey(cand.keys[0], cols);
+    if (!boundary || boundary.orientation !== drag.orientation) return drag.changed;
+    if (boundary.line !== drag.line || !Number.isFinite(Number(boundary.pos))) return drag.changed;
+    const targetPos = Math.round(Number(boundary.pos) || 0);
+    if (targetPos === drag.lastPos) return drag.changed;
+    if (applyCellKnifeRange(r, boundary.orientation, boundary.line, drag.lastPos, targetPos, drag.op, drag.applied)) drag.changed = true;
+    drag.lastPos = targetPos;
+    return drag.changed;
   };
 
   const clusterDragProjection = (dir, dx, dy) => {
@@ -273,6 +436,8 @@ export const setupEditingToolsCore = (deps = {}) => {
     addMaskPoint,
     applyMaskPath,
     toggleCellLinkAtPoint,
+    beginCellKnifeDragAtPoint,
+    updateCellKnifeDragAtPoint,
     beginClusterHandleDragAtPoint,
     updateClusterHandleDragAtPoint,
     endClusterHandleDrag,
