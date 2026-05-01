@@ -74,7 +74,7 @@
           hardCss.id = "viewerHardHideCss";
           hardCss.textContent = `
             #projectTabs, #toolbarMain, #toolbarOverflowPopup, #themePopup,
-            #sidePanel, .offcanvas-backdrop, #mobileMenu, #installBanner, #saveIndicator { display:none !important; }
+            #sidePanel, .offcanvas-backdrop, #mobileMenu, #installBanner, #saveIndicator, .mobile-dock { display:none !important; }
             .main { position:fixed !important; inset:0 !important; margin:0 !important; padding:0 !important; }
             .app { position:fixed !important; inset:0 !important; margin:0 !important; padding:0 !important; }
             #canvasWrap { position:fixed !important; inset:0 !important; margin:0 !important; padding:0 !important; }
@@ -85,6 +85,11 @@
           const n = d.getElementById(id);
           if (n) n.style.display = "none";
         };
+        const hideAll = selector => {
+          for (const n of Array.from(d.querySelectorAll(selector))) {
+            n.style.setProperty("display", "none", "important");
+          }
+        };
         hide("projectTabs");
         hide("toolbarMain");
         hide("toolbarOverflowPopup");
@@ -92,6 +97,7 @@
         hide("sidePanel");
         hide("mobileMenu");
         hide("installBanner");
+        hideAll(".mobile-dock");
         const spec = d.getElementById("specModePanel");
         if (spec) spec.style.display = "none";
         const wrap = d.getElementById("canvasWrap");
