@@ -54,6 +54,8 @@
     (() => {
       const frame = document.getElementById("viewerFrame");
       const label = document.getElementById("zoomLabel");
+      let zoomPoll = 0;
+      let lastZoomText = "—";
       const q = new URLSearchParams(location.search || "");
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
       const packedProject = (q.get("project") || "").trim();
@@ -140,7 +142,9 @@
         try {
           const d = frame.contentDocument;
           const z = d && d.getElementById("zoomLabel");
-          if (z) label.textContent = String(z.textContent || "").trim() || "—";
+          const raw = z ? String(z.textContent || "").trim() : "";
+          if (raw) lastZoomText = raw;
+          label.textContent = lastZoomText;
           const pn = d && d.getElementById("projectName");
           const name = pn ? String(pn.value || "").trim() : "";
           if (name != "project") document.title = name;
@@ -148,6 +152,7 @@
       };
 
       frame.addEventListener("load", () => {
+        if (zoomPoll) window.clearInterval(zoomPoll);
         const boot = () => {
           hideEditorUi();
           forceViewerMode();
@@ -156,8 +161,7 @@
         boot();
         window.setTimeout(boot, 150);
         window.setTimeout(boot, 600);
-        const poll = window.setInterval(updateZoomLabel, 300);
-        window.setTimeout(() => window.clearInterval(poll), 10000);
+        zoomPoll = window.setInterval(updateZoomLabel, 250);
       });
     })();
   </script>
