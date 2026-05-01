@@ -132,10 +132,16 @@
           const n = d.getElementById(id);
           if (n) n.click();
         };
+        const forceSelectMode = () => {
+          try {
+            const ev = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+            d.dispatchEvent(ev);
+          } catch (_e) { }
+        };
         const lockBtn = d.getElementById("lockAllToggle");
         if (lockBtn && lockBtn.getAttribute("aria-pressed") !== "true") lockBtn.click();
         clickById("viewModeInstall");
-        clickById("toolSelect");
+        forceSelectMode();
       };
 
       const updateZoomLabel = () => {
