@@ -2,6 +2,7 @@ export const setupMirrorDuplicateFeature = (deps = {}) => {
   const {
     st,
     cur,
+    getSelectedRects,
     drawCellX,
     drawCellY,
     parseLinkKey,
@@ -18,13 +19,15 @@ export const setupMirrorDuplicateFeature = (deps = {}) => {
     RIG_DEFAULT_LOAD_KG,
     autoContrast,
     insertCloneAboveSource,
+    setSelection,
     selRect,
     setMode,
     schedulePersist
   } = deps;
 
-  const dupMirrorSel = () => {
-    const r = cur(); if (!r) return; const cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); const mapIndex = i => { const x = i % cols, y = Math.floor(i / cols); if (!(x >= 0 && x < cols && y >= 0 && y < rows)) return -1; const nx = (cols - 1) - x; return y * cols + nx; };
+  const makeMirroredClone = r => {
+    if (!r) return null;
+    const cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)); const mapIndex = i => { const x = i % cols, y = Math.floor(i / cols); if (!(x >= 0 && x < cols && y >= 0 && y < rows)) return -1; const nx = (cols - 1) - x; return y * cols + nx; };
     const hiddenSrc = Array.isArray(r.hiddenCells) ? r.hiddenCells : [], hiddenSet = new Set();
     for (const k of hiddenSrc) { const p = String(k).split(","); if (p.length !== 2) continue; const ix = +p[0], iy = +p[1]; if (!(ix >= 0 && ix < cols && iy >= 0 && iy < rows)) continue; hiddenSet.add(`${(cols - 1) - ix},${iy}`); }
     const linkSrc = Array.isArray(r.cellLinks) ? r.cellLinks : [], linkSet = new Set();
@@ -155,8 +158,55 @@ export const setupMirrorDuplicateFeature = (deps = {}) => {
       if (x === y) continue;
       mirRig.suspendLinks.push(`${x}-${y}`);
     }
-    const c = { ...r, id: st.next++, name: withNameSuffixBeforeGroup(r.name, "mirror"), x: r.x + 20, y: r.y + 20, rotation: r.rotation || 0, colorB: r.autoContrastB ? autoContrast(r.colorA) : r.colorB, autoContrastB: r.autoContrastB !== false, splitVariant: mirroredSplitVariant, cellLinks: [...linkSet], hiddenCells: [...hiddenSet], flowLocks: mirFlowLocks, manualClusters: [], rig: normalizeRigData(mirRig) };
-    insertCloneAboveSource(r.id, c); selRect(c.id); setMode("select"); schedulePersist("project");
+    const c = {
+      ...r,
+      id: st.next++,
+      name: withNameSuffixBeforeGroup(r.name, "mirror"),
+      x: r.x + 20,
+      y: r.y + 20,
+      rotation: r.rotation || 0,
+      colorB: r.autoContrastB ? autoContrast(r.colorA) : r.colorB,
+      autoContrastB: r.autoContrastB !== false,
+      splitVariant: mirroredSplitVariant,
+      cellLinks: [...linkSet],
+      hiddenCells: [...hiddenSet],
+      flowLocks: mirFlowLocks,
+      manualClusters: [],
+      rig: normalizeRigData(mirRig),
+      shapePoints: Array.isArray(r && r.shapePoints) ? r.shapePoints.map(p => ({ ...p })) : []
+    };
+    return c;
+  };
+
+  const dupMirrorSel = () => {
+    const selected = typeof getSelectedRects === "function" ? getSelectedRects() : [];
+    const src = (Array.isArray(selected) && selected.length ? selected : [cur()]).filter(Boolean);
+    if (!src.length) return;
+    const clones = src.map(r => ({ src: r, clone: makeMirroredClone(r) })).filter(it => it && it.clone);
+    if (!clones.length) return;
+    if (clones.length > 1) {
+      let minX = Infinity, maxX = -Infinity;
+      for (const it of clones) {
+        const r = it.src;
+        minX = Math.min(minX, Number(r.x) || 0);
+        maxX = Math.max(maxX, (Number(r.x) || 0) + Math.max(1, Number(r.width) || 1));
+      }
+      const centerSum = minX + maxX;
+      for (const it of clones) {
+        const r = it.src, c = it.clone;
+        c.x = Math.round(centerSum - ((Number(r.x) || 0) + Math.max(1, Number(r.width) || 1)) + 20);
+        c.y = Math.round((Number(r.y) || 0) + 20);
+      }
+    }
+    const created = [];
+    for (const it of clones) {
+      insertCloneAboveSource(it.src.id, it.clone);
+      created.push(it.clone.id);
+    }
+    if (created.length > 1 && typeof setSelection === "function") setSelection(created, created[created.length - 1] || null);
+    else selRect(created[0] || null);
+    setMode("select");
+    schedulePersist("project");
   };
 
   return { dupMirrorSel };

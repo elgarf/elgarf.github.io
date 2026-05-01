@@ -14,7 +14,15 @@ export const setupUiBinders = (deps = {}) => {
 
   if (!el || !bindEvent || !bindClick || !bindWindowEvent) return {};
 
-  if (!lsGet(HELP_SEEN_KEY, "")) openHelpModal();
+  const isViewerMode = (() => {
+    try {
+      const p = new URLSearchParams((globalThis.location && globalThis.location.search) || "");
+      return p.get("viewer") === "1";
+    } catch (_e) {
+      return false;
+    }
+  })();
+  if (!isViewerMode && !lsGet(HELP_SEEN_KEY, "")) openHelpModal();
   bindClick(el.helpOpen, openHelpModal);
   bindClick(el.helpClose, closeHelpModal);
   bindEvent(el.helpModal, "hidden.bs.modal", () => { lsSet(HELP_SEEN_KEY, "1"); });

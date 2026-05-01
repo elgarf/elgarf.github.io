@@ -83,16 +83,23 @@ export const setupProjectLinkActionsController = (deps = {}) => {
     currentProjectShareLink = "";
     await new Promise(resolve => setTimeout(resolve, 0));
     await withUiErrorBoundary("Ссылка проекта", async () => {
+      const viewerOnly = !(el && el.projectLinkViewerOnly) || !!el.projectLinkViewerOnly.checked;
       const value = await encodeProjectToQueryValue(buildPortableProject());
-      const url = new URL(location.href);
+      const url = new URL(viewerOnly ? "./LedMaskViewer.html" : "./LEDMaskEditor.html", location.href);
       let usedServerId = 0;
       try { usedServerId = await saveProjectToServer(getProjectName(), value); } catch (_e) { usedServerId = 0; }
       if (usedServerId > 0) {
         url.searchParams.delete(PROJECT_QUERY_PARAM);
-        url.searchParams.set(PROJECT_ID_PARAM, String(usedServerId));
+        if (viewerOnly) {
+          url.searchParams.delete(PROJECT_ID_PARAM);
+          url.searchParams.set("projectId", String(usedServerId));
+        } else {
+          url.searchParams.set(PROJECT_ID_PARAM, String(usedServerId));
+        }
       } else {
         url.searchParams.set(PROJECT_QUERY_PARAM, value);
         url.searchParams.delete(PROJECT_ID_PARAM);
+        url.searchParams.delete("projectId");
       }
       const link = url.toString();
       currentProjectShareLink = link;
@@ -117,6 +124,9 @@ export const setupProjectLinkActionsController = (deps = {}) => {
   const bindProjectLinkHandlers = () => {
     bindEvent(el && el.projectLinkCopyBtn, "click", onCopyProjectLinkClick);
     bindEvent(el && el.saveLink, "click", onSaveProjectLinkClick);
+    bindEvent(el && el.projectLinkViewerOnly, "change", () => {
+      onSaveProjectLinkClick();
+    });
     bindEvent(document, "click", e => {
       const btn = eventClosest(e, "#saveProjectLink");
       if (!btn) return;

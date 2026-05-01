@@ -23,6 +23,7 @@ export const setupProjectSerializationController = (deps = {}) => {
       specCustomSections: (st.specCustomSections && typeof st.specCustomSections === "object") ? { ...st.specCustomSections } : {},
       lockAll: !!st.lockAll,
       installLayers: {
+        contours: !(st.installLayers && st.installLayers.contours === false),
         text: !(st.installLayers && st.installLayers.text === false),
         flow: !(st.installLayers && st.installLayers.flow === false),
         rig: !(st.installLayers && st.installLayers.rig === false)
@@ -58,7 +59,7 @@ export const setupProjectSerializationController = (deps = {}) => {
       specCustomText: "",
       specCustomSections: {},
       lockAll: false,
-      installLayers: { text: true, flow: true, rig: true },
+      installLayers: { contours: true, text: true, flow: true, rig: true },
       snap: { grid: false, objects: true, centers: true, gaps: true }
     },
     nextId: 1,

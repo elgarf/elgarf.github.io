@@ -23,6 +23,7 @@ export const setupViewportOverlays = (deps = {}) => {
 
   const LAYER_BUTTONS = [
     { id: "text", icon: "\uf031", title: "Текст" },
+    { id: "contours", icon: "\uf5cb", title: "Контуры" },
     { id: "flow", icon: "\uf542", title: "Потоки" },
     { id: "rig", icon: "\uf0ad", title: "Риг" }
   ];
@@ -467,6 +468,7 @@ export const setupViewportOverlays = (deps = {}) => {
     if (!buttons.length) return;
     const layers = st.installLayers || {};
     const force = {
+      contours: false,
       text: false,
       flow: st.mode === "flowEdit",
       rig: st.mode === "rigEdit"

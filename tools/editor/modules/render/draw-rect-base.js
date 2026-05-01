@@ -47,7 +47,11 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const options = opts || {};
       if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
       if (typeof isShapeRect === "function" && isShapeRect(r)) {
-        if (String(options.installTextMode || "") !== "only") drawShapeRect(c, r, sel, z, options);
+        const viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null;
+        const installViewForShape = (viewModeOverride || normalizeViewMode(st.viewMode)) === "install";
+        const installLayerStateForShape = options.ignoreInstallLayerToggles ? {} : (st.installLayers || {});
+        const showShapeContoursLayer = !!(!installViewForShape || installLayerStateForShape.contours !== false);
+        if (String(options.installTextMode || "") !== "only" && showShapeContoursLayer && !options.suppressContoursOverlay) drawShapeRect(c, r, sel, z, options);
         return;
       }
       const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, installTextMode = String(options.installTextMode || "normal"), flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, hasRegionsOverride = Object.prototype.hasOwnProperty.call(options, "regionsOverride"), viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
@@ -308,31 +312,33 @@ export const setupDrawRectBaseController = (deps = {}) => {
         c.restore();
       }
       if (maskedClip) { c.restore(); maskedClip = false; }
-      c.strokeStyle = sel ? "#ffe08a" : "rgba(255,255,255,.85)"; c.lineWidth = sel ? 7 / z : 1 / z;
-      c.lineCap = "butt";
-      c.lineJoin = "miter";
-      const borderSegs = getVisibleBoundarySegmentsCached(r, cellX, cellY, hs);
-      if (borderSegs.length) {
-        if (sel) {
-          const eps = 0.001, outer = [], inner = [];
-          for (const s of borderSegs) {
-            const left = Math.abs(s.x1 + w / 2) < eps && Math.abs(s.x2 + w / 2) < eps, right = Math.abs(s.x1 - w / 2) < eps && Math.abs(s.x2 - w / 2) < eps, top = Math.abs(s.y1 + h / 2) < eps && Math.abs(s.y2 + h / 2) < eps, bottom = Math.abs(s.y1 - h / 2) < eps && Math.abs(s.y2 - h / 2) < eps;
-            (left || right || top || bottom ? outer : inner).push(s);
-          }
-          if (inner.length) {
-            c.save(); c.strokeStyle = "rgba(255,224,138,.95)"; c.lineWidth = (sel ? 7 / z : 1 / z) / 2; c.lineCap = "square"; c.lineJoin = "miter"; c.beginPath();
-            for (const s of inner) { c.moveTo(s.x1, s.y1); c.lineTo(s.x2, s.y2) }
-            c.stroke(); c.restore();
-          }
-          if (outer.length) {
+      {
+        c.strokeStyle = sel ? "#ffe08a" : "rgba(255,255,255,.85)"; c.lineWidth = sel ? 7 / z : 1 / z;
+        c.lineCap = "butt";
+        c.lineJoin = "miter";
+        const borderSegs = getVisibleBoundarySegmentsCached(r, cellX, cellY, hs);
+        if (borderSegs.length) {
+          if (sel) {
+            const eps = 0.001, outer = [], inner = [];
+            for (const s of borderSegs) {
+              const left = Math.abs(s.x1 + w / 2) < eps && Math.abs(s.x2 + w / 2) < eps, right = Math.abs(s.x1 - w / 2) < eps && Math.abs(s.x2 - w / 2) < eps, top = Math.abs(s.y1 + h / 2) < eps && Math.abs(s.y2 + h / 2) < eps, bottom = Math.abs(s.y1 - h / 2) < eps && Math.abs(s.y2 - h / 2) < eps;
+              (left || right || top || bottom ? outer : inner).push(s);
+            }
+            if (inner.length) {
+              c.save(); c.strokeStyle = "rgba(255,224,138,.95)"; c.lineWidth = (sel ? 7 / z : 1 / z) / 2; c.lineCap = "square"; c.lineJoin = "miter"; c.beginPath();
+              for (const s of inner) { c.moveTo(s.x1, s.y1); c.lineTo(s.x2, s.y2) }
+              c.stroke(); c.restore();
+            }
+            if (outer.length) {
+              c.beginPath();
+              for (const s of outer) { c.moveTo(s.x1, s.y1); c.lineTo(s.x2, s.y2) }
+              c.stroke();
+            }
+          } else {
             c.beginPath();
-            for (const s of outer) { c.moveTo(s.x1, s.y1); c.lineTo(s.x2, s.y2) }
+            for (const s of borderSegs) { c.moveTo(s.x1, s.y1); c.lineTo(s.x2, s.y2) }
             c.stroke();
           }
-        } else {
-          c.beginPath();
-          for (const s of borderSegs) { c.moveTo(s.x1, s.y1); c.lineTo(s.x2, s.y2) }
-          c.stroke();
         }
       }
       const drawCtx = {

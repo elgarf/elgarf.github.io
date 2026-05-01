@@ -630,6 +630,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      height: 684px;
       margin-bottom: 10px;
       padding: 12px;
       background: #000;
@@ -651,13 +652,17 @@
       resize: vertical
     }
 
+    .project-link-modal .project-link-viewer-only {
+      margin: 10px 0
+    }
+
     .project-link-modal .qr-loading {
       display: inline-flex;
       flex-direction: column;
       align-items: center;
       gap: 10px;
       color: #fff;
-      min-height: 120px;
+      min-height: 640px;
       justify-content: center
     }
 

@@ -124,6 +124,7 @@ export const createRenderExportPngBlob = (deps = {}) => {
             regionsOverride: regions,
             forceRigOverlay,
             suppressRigOverlay: !!flowOnly,
+            suppressContoursOverlay: !!(flowOnly || rigOnly),
             viewModeOverride: (includeFlow || includeRig) ? "install" : "art",
             hideScreenGroupInText: !(includeFlow || includeRig),
             shapeFrameId,

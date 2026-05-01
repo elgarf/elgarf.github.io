@@ -110,6 +110,22 @@ import {
   PROJECT_QUERY_PARAM, PROJECT_ID_PARAM, PROJECT_QUERY_VERSION, PROJECT_STORE_API_URL,
   PNG_PROJECT_META_KEY
 } from "./modules/constants.js";
+const VIEWER_MODE = (() => {
+  try {
+    const p = new URLSearchParams(location.search || "");
+    return p.get("viewer") === "1";
+  } catch (_e) {
+    return false;
+  }
+})();
+const lsGetSafe = (key, fallback = null) => {
+  if (VIEWER_MODE) return fallback;
+  return lsGet(key, fallback);
+};
+const lsSetSafe = (key, value) => {
+  if (VIEWER_MODE) return;
+  lsSet(key, value);
+};
 const {
   normalizeSaveLocationId,
   normalizeHiddenCells,
@@ -203,14 +219,14 @@ const genSaveLocationId = (seed = "project") => {
 };
 const getGlobalSaveLocationId = () => {
   try {
-    return normalizeSaveLocationId(lsGet(SAVE_LOCATION_ID_KEY, "") || "");
+    return normalizeSaveLocationId(lsGetSafe(SAVE_LOCATION_ID_KEY, "") || "");
   } catch (_e) {
     return "ledmask-default";
   }
 };
 const setGlobalSaveLocationId = id => {
   const norm = normalizeSaveLocationId(id);
-  lsSet(SAVE_LOCATION_ID_KEY, norm);
+  lsSetSafe(SAVE_LOCATION_ID_KEY, norm);
   return norm;
 };
 const projectFileBase = () => {
@@ -971,7 +987,7 @@ const viewThemeLockController = setupViewThemeLockController({
   setMode: m => setMode(m),
   cancelActiveDrag: () => cancelActiveDrag(),
   isInstallOnlyToolMode,
-  lsSet,
+  lsSet: lsSetSafe,
   THEME_MODE_KEY,
   listRects: () => listRects(),
   render: () => render()
@@ -1074,7 +1090,7 @@ const {
   },
   cancelActiveDrag: () => cancelActiveDrag(),
   schedulePersistRef: fn => { schedulePersist = fn; },
-  lsSet,
+  lsSet: lsSetSafe,
   TABS_SAVE_KEY,
   AUTO_SAVE_KEY,
   PERSIST_DEBOUNCE_MS,
@@ -1178,7 +1194,7 @@ let mkShape = (_points) => null;
   makeEmptyProjectData,
   getActiveTab,
   loadProjectIntoActiveState,
-  lsGet,
+  lsGet: lsGetSafe,
   TABS_SAVE_KEY,
   AUTO_SAVE_KEY,
   setGlobalSaveLocationId,
@@ -1806,6 +1822,7 @@ let newProject = () => { };
 const { dupMirrorSel } = setupMirrorDuplicateFeature({
   st,
   cur: () => cur(),
+  getSelectedRects: () => getSelectedRects(),
   drawCellX,
   drawCellY,
   parseLinkKey,
@@ -1822,6 +1839,7 @@ const { dupMirrorSel } = setupMirrorDuplicateFeature({
   RIG_DEFAULT_LOAD_KG,
   autoContrast,
   insertCloneAboveSource: (sourceId, clone) => insertCloneAboveSource(sourceId, clone),
+  setSelection: (ids, lead) => setSelection(ids, lead),
   selRect: id => selRect(id),
   setMode: mode => setMode(mode),
   schedulePersist: kind => schedulePersist(kind)
@@ -2135,7 +2153,7 @@ const {
     getById: id => document.getElementById(id),
     el,
     focusAndSelect,
-    lsSet,
+    lsSet: lsSetSafe,
     HELP_SEEN_KEY,
     setupProjectLinkModalController
   },
@@ -2187,8 +2205,8 @@ const {
     bindEvent: (...args) => bindEvent(...args),
     bindWindowEvent: (...args) => bindWindowEvent(...args),
     eventClosest: (...args) => eventClosest(...args),
-    lsGet,
-    lsSet,
+    lsGet: lsGetSafe,
+    lsSet: lsSetSafe,
     INSTALL_HINT_KEY,
     setGlobalSaveLocationId,
     getGlobalSaveLocationId,
@@ -2198,6 +2216,10 @@ const {
     syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
     renderProjectTabs: () => renderProjectTabs(),
     schedulePersist: kind => schedulePersist(kind),
+    syncProps: () => syncProps(),
+    listRects: () => listRects(),
+    refreshPanels: () => refreshPanels(),
+    render: () => render(),
     encodeProjectToQueryValue,
     buildPortableProject: () => buildPortableProject(),
     saveProjectToServer,
@@ -2261,8 +2283,8 @@ const appBootstrapDeps = {
   bindClick,
   bindWindowEvent,
   bindProxyClick,
-  lsGet,
-  lsSet,
+  lsGet: lsGetSafe,
+  lsSet: lsSetSafe,
   HELP_SEEN_KEY,
   openHelpModal,
   closeHelpModal,

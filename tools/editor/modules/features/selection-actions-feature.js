@@ -48,7 +48,10 @@ export const setupSelectionActionsFeature = (deps = {}) => {
       hiddenCells: Array.isArray(src.hiddenCells) ? [...src.hiddenCells] : [],
       flowLocks: normalizeFlowLocks(src && src.flowLocks),
       manualClusters: normalizeManualClusters(src && src.manualClusters),
-      rig: normalizeRigData(src && src.rig)
+      rig: normalizeRigData(src && src.rig),
+      shapePoints: Array.isArray(src && src.shapePoints)
+        ? src.shapePoints.map(p => ({ ...p }))
+        : []
     };
     return { ...base, ...o };
   };

@@ -52,6 +52,7 @@ export const setupProjectStateController = (deps = {}) => {
       {
         const layers = (d.settings && d.settings.installLayers && typeof d.settings.installLayers === "object") ? d.settings.installLayers : {};
         st.installLayers = {
+          contours: layers.contours !== false,
           text: layers.text !== false,
           flow: layers.flow !== false,
           rig: layers.rig !== false
@@ -67,7 +68,7 @@ export const setupProjectStateController = (deps = {}) => {
       st.specCustomText = "";
       st.specCustomSections = {};
       st.lockAll = false;
-      st.installLayers = { text: true, flow: true, rig: true };
+      st.installLayers = { contours: true, text: true, flow: true, rig: true };
       st.snap = { grid: false, objects: true, centers: true, gaps: true };
     }
     st.projectName = (d && Object.prototype.hasOwnProperty.call(d, "projectName"))

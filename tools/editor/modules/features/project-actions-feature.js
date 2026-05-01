@@ -22,6 +22,10 @@ export const setupProjectActionsFeature = (deps = {}) => {
     syncActiveTabSnapshot,
     renderProjectTabs,
     schedulePersist,
+    syncProps,
+    listRects,
+    refreshPanels,
+    render,
 
     bindEvent,
     eventClosest,
@@ -116,6 +120,10 @@ export const setupProjectActionsFeature = (deps = {}) => {
     loadProjectIntoActiveState(data);
     syncActiveTabSnapshot();
     renderProjectTabs();
+    if (typeof syncProps === "function") syncProps();
+    if (typeof listRects === "function") listRects();
+    if (typeof refreshPanels === "function") refreshPanels();
+    if (typeof render === "function") render();
     schedulePersist(persistKind);
   };
   const loadProjectFromFile = async f => {

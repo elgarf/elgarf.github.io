@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LED Mask Viewer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #111820;
+      overflow: hidden;
+      font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+    }
+    .viewer-root {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    .viewer-zoom {
+      position: absolute;
+      right: 12px;
+      bottom: 10px;
+      z-index: 5;
+      color: rgba(255, 255, 255, .9);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 8px;
+      border-radius: 8px;
+      background: rgba(9, 13, 18, .58);
+      border: 1px solid rgba(255, 255, 255, .14);
+      pointer-events: none;
+    }
+    .viewer-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #111820;
+    }
+  </style>
+</head>
+<body>
+  <div class="viewer-root">
+    <iframe id="viewerFrame" class="viewer-frame" title="LED project viewer"></iframe>
+    <div id="zoomLabel" class="viewer-zoom">—</div>
+  </div>
+
+  <script>
+    (() => {
+      const frame = document.getElementById("viewerFrame");
+      const label = document.getElementById("zoomLabel");
+      const q = new URLSearchParams(location.search || "");
+      const pid = (q.get("projectId") || q.get("projectid") || "").trim();
+      const packedProject = (q.get("project") || "").trim();
+      //if (pid) document.title = `LED Mask Viewer #${pid}`;
+      const src = new URL("./LEDMaskEditor.html", location.href);
+      src.searchParams.set("viewer", "1");
+      if (pid) src.searchParams.set("projectid", pid);
+      if (packedProject) src.searchParams.set("project", packedProject);
+      frame.src = src.toString();
+
+      const hideEditorUi = () => {
+        let d = null;
+        try { d = frame.contentDocument; } catch (_e) { d = null; }
+        if (!d) return;
+        let hardCss = d.getElementById("viewerHardHideCss");
+        if (!hardCss) {
+          hardCss = d.createElement("style");
+          hardCss.id = "viewerHardHideCss";
+          hardCss.textContent = `
+            #projectTabs, #toolbarMain, #toolbarOverflowPopup, #themePopup,
+            #sidePanel, .offcanvas-backdrop, #mobileMenu, #installBanner, #saveIndicator { display:none !important; }
+            .main { position:fixed !important; inset:0 !important; margin:0 !important; padding:0 !important; }
+            .app { position:fixed !important; inset:0 !important; margin:0 !important; padding:0 !important; }
+            #canvasWrap { position:fixed !important; inset:0 !important; margin:0 !important; padding:0 !important; }
+          `;
+          d.head.appendChild(hardCss);
+        }
+        const hide = id => {
+          const n = d.getElementById(id);
+          if (n) n.style.display = "none";
+        };
+        hide("projectTabs");
+        hide("toolbarMain");
+        hide("toolbarOverflowPopup");
+        hide("themePopup");
+        hide("sidePanel");
+        hide("mobileMenu");
+        hide("installBanner");
+        const spec = d.getElementById("specModePanel");
+        if (spec) spec.style.display = "none";
+        const wrap = d.getElementById("canvasWrap");
+        if (wrap) {
+          wrap.style.position = "fixed";
+          wrap.style.inset = "0";
+          wrap.style.margin = "0";
+        }
+        const main = d.querySelector(".main");
+        if (main) {
+          main.style.position = "fixed";
+          main.style.inset = "0";
+          main.style.margin = "0";
+          main.style.padding = "0";
+        }
+        const app = d.querySelector(".app");
+        if (app) {
+          app.style.position = "fixed";
+          app.style.inset = "0";
+          app.style.margin = "0";
+          app.style.padding = "0";
+        }
+      };
+
+      const forceViewerMode = () => {
+        let d = null;
+        try { d = frame.contentDocument; } catch (_e) { d = null; }
+        if (!d) return;
+        const clickById = id => {
+          const n = d.getElementById(id);
+          if (n) n.click();
+        };
+        const lockBtn = d.getElementById("lockAllToggle");
+        if (lockBtn && lockBtn.getAttribute("aria-pressed") !== "true") lockBtn.click();
+        clickById("viewModeInstall");
+        clickById("toolSelect");
+      };
+
+      const updateZoomLabel = () => {
+        try {
+          const d = frame.contentDocument;
+          const z = d && d.getElementById("zoomLabel");
+          if (z) label.textContent = String(z.textContent || "").trim() || "—";
+          const pn = d && d.getElementById("projectName");
+          const name = pn ? String(pn.value || "").trim() : "";
+          if (name != "project") document.title = name;
+        } catch (_e) { }
+      };
+
+      frame.addEventListener("load", () => {
+        const boot = () => {
+          hideEditorUi();
+          forceViewerMode();
+          updateZoomLabel();
+        };
+        boot();
+        window.setTimeout(boot, 150);
+        window.setTimeout(boot, 600);
+        const poll = window.setInterval(updateZoomLabel, 300);
+        window.setTimeout(() => window.clearInterval(poll), 10000);
+      });
+    })();
+  </script>
+</body>
+</html>
