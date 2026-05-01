@@ -53,6 +53,10 @@ export const setupToolbarActionsController = (deps = {}) => {
     { variant: "auto", label: "Правка автоматического потока", badge: "А", icon: "fa-solid fa-route" },
     { variant: "manual", label: "Ручная расстановка потока", badge: "М", icon: "fa-solid fa-route" }
   ];
+  const SELECT_TOOL_ITEMS = [
+    { mode: "select", label: "Выделение", icon: "fa-solid fa-arrow-pointer" },
+    { mode: "cabinetEdit", label: "Выделение кабинетов", icon: "fa-solid fa-vector-square" }
+  ];
   const documentRef = windowRef.document || (typeof document !== "undefined" ? document : null);
   const createToolMenuController = ({
     items,
@@ -315,6 +319,20 @@ export const setupToolbarActionsController = (deps = {}) => {
     }
     chooseFlowTool(current === "auto" ? "manual" : "auto");
   };
+  const chooseSelectTool = mode => {
+    const next = SELECT_TOOL_ITEMS.some(it => it.mode === mode) ? mode : "select";
+    st.selectToolMode = next;
+    if (typeof setMode === "function") setMode(next);
+    else activateToolOrSelect(next);
+  };
+  const cycleSelectTool = () => {
+    const current = (st.mode === "cabinetEdit") ? "cabinetEdit" : "select";
+    if (st.mode !== "select" && st.mode !== "cabinetEdit") {
+      chooseSelectTool(String(st.selectToolMode || "select"));
+      return;
+    }
+    chooseSelectTool(current === "select" ? "cabinetEdit" : "select");
+  };
   const createToolGroup = createToolMenuController({
     items: CREATE_TOOL_ITEMS.map(item => ({ ...item, value: item.mode })),
     datasetKey: "tool-mode",
@@ -329,6 +347,13 @@ export const setupToolbarActionsController = (deps = {}) => {
     choose: chooseFlowTool,
     cycle: cycleFlowTool
   });
+  const selectToolGroup = createToolMenuController({
+    items: SELECT_TOOL_ITEMS.map(item => ({ ...item, value: item.mode })),
+    datasetKey: "select-mode",
+    renderItem: item => `<i class="${item.icon}"></i>`,
+    choose: chooseSelectTool,
+    cycle: cycleSelectTool
+  });
 
   bindClicks([
     [el.viewModeArt, () => setViewMode("art", true)],
@@ -336,10 +361,8 @@ export const setupToolbarActionsController = (deps = {}) => {
     [el.viewModeSpec, () => setViewMode("spec", true)],
     [el.mViewModeToggle, () => setViewMode(nextMobileViewMode(), true)],
     [el.specModeClose, closeSpecViewMode],
-    [el.toolSelect, () => activateToolOrSelect("select")],
     [el.toolMaskAdd, () => activateToolOrSelect("maskEdit")],
     [el.toolCellEdit, () => activateToolOrSelect("cellEdit")],
-    [el.toolCabinetEdit, () => activateToolOrSelect("cabinetEdit")],
     [el.toolClusterEdit, () => activateToolOrSelect("clusterEdit")],
     [el.toolRigEdit, () => activateToolOrSelect("rigEdit")],
     [el.lockAllToggle, () => setLockAll(!st.lockAll, true)],
@@ -379,6 +402,8 @@ export const setupToolbarActionsController = (deps = {}) => {
       }, { syncProps: true, listRects: true, persist: true, render: true });
     }]
   ]);
+  selectToolGroup.bind(el.toolSelect);
+  selectToolGroup.bind(el.mToolSelect);
   createToolGroup.bind(el.toolDraw);
   createToolGroup.bind(el.mToolDraw);
   flowToolGroup.bind(el.toolFlowEdit);

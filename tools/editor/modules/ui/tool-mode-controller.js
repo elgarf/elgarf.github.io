@@ -38,6 +38,23 @@ export const setupToolModeController = (deps = {}) => {
     }
     return badge;
   };
+  const updateSelectToolButtons = () => {
+    if (!["select", "cabinetEdit"].includes(String(st.selectToolMode || ""))) st.selectToolMode = "select";
+    const mode = (st.mode === "cabinetEdit") ? "cabinetEdit" : "select";
+    const title = mode === "cabinetEdit" ? "Выделение кабинетов" : "Выделить";
+    const iconClass = mode === "cabinetEdit" ? "fa-solid fa-vector-square" : "fa-solid fa-arrow-pointer";
+    for (const b of [el.toolSelect, el.mToolSelect]) {
+      if (b) {
+        b.classList.add("tool-has-menu");
+        b.setAttribute("aria-haspopup", "menu");
+        b.dataset.selectVariant = mode;
+        b.title = title;
+        b.setAttribute("aria-label", title);
+        const icon = b.querySelector("i");
+        if (icon) icon.className = iconClass;
+      }
+    }
+  };
   const updateFlowVariantButtons = () => {
     const text = String(st.flowEditVariant || "auto") === "manual" ? "М" : "А";
     for (const b of [el.toolFlowEdit, el.mToolFlowEdit]) {
@@ -111,7 +128,6 @@ export const setupToolModeController = (deps = {}) => {
       ["create", el.toolDraw, el.mToolDraw],
       ["maskEdit", el.toolMaskAdd, el.mToolMaskAdd],
       ["cellEdit", el.toolCellEdit, el.mToolCellEdit],
-      ["cabinetEdit", el.toolCabinetEdit, el.mToolCabinetEdit],
       ["flowEdit", el.toolFlowEdit, el.mToolFlowEdit],
       ["clusterEdit", el.toolClusterEdit, el.mToolClusterEdit],
       ["rigEdit", el.toolRigEdit, el.mToolRigEdit]
@@ -119,7 +135,11 @@ export const setupToolModeController = (deps = {}) => {
     const inactiveClass = getInactiveOutlineClass();
 
     for (const [mode, ...btns] of map) {
-      const on = mode === "create" ? (m === "draw" || m === "note" || m === "shape") : m === mode;
+      const on = mode === "create"
+        ? (m === "draw" || m === "note" || m === "shape")
+        : mode === "select"
+          ? (m === "select" || m === "cabinetEdit")
+          : m === mode;
       for (const b of btns) {
         if (!b) continue;
         b.classList.remove("btn-outline-light", "btn-outline-dark");
@@ -132,7 +152,6 @@ export const setupToolModeController = (deps = {}) => {
     if (!isCellEditMode()) resetCellTransient();
     if (!isCabinetEditMode()) st.cabinetCellHover = null;
     if (m !== "cabinetEdit") st.cabinetCellSelection = null;
-    if (el && el.cabinetToolPanel) el.cabinetToolPanel.classList.toggle("d-none", m !== "cabinetEdit");
     if (!isRigEditMode()) resetRigHoverTransient();
     wrap.dataset.mode = m;
     if (el && el.side) el.side.classList.toggle("tool-auto-select-guard", AUTO_SELECTION_MODES.has(m));
@@ -144,6 +163,7 @@ export const setupToolModeController = (deps = {}) => {
     updateToolbarOverflow();
     updateClusterEditCursor();
     updateCreateToolButtons();
+    updateSelectToolButtons();
     updateFlowVariantButtons();
     render();
   };
@@ -167,12 +187,14 @@ export const setupToolModeController = (deps = {}) => {
   };
 
   updateCreateToolButtons();
+  updateSelectToolButtons();
   updateFlowVariantButtons();
 
   return {
     setMode,
     activateToolOrSelect,
     updateCreateToolButtons,
+    updateSelectToolButtons,
     updateModeBadges
   };
 };

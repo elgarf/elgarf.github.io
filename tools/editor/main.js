@@ -1937,10 +1937,11 @@ const getCabinetSelectionRect = () => {
 };
 const syncCabinetToolPanel = () => {
   if (!el.cabinetToolPanel) return;
-  const panelVisible = st.mode === "cabinetEdit";
+  const rec = st.cabinetCellSelection;
+  const hasSelection = !!(rec && Number.isFinite(Number(rec.rectId)) && Number.isFinite(Number(rec.cid)));
+  const panelVisible = st.mode === "cabinetEdit" && hasSelection;
   el.cabinetToolPanel.classList.toggle("d-none", !panelVisible);
   if (!panelVisible) return;
-  const rec = st.cabinetCellSelection;
   const r = getCabinetSelectionRect();
   if (!rec || !r) {
     if (el.cabinetSelectionLabel) el.cabinetSelectionLabel.textContent = "Кабинет не выбран";

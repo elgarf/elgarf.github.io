@@ -19,10 +19,8 @@ export const setupUiBinders = (deps = {}) => {
   bindClick(el.helpClose, closeHelpModal);
   bindEvent(el.helpModal, "hidden.bs.modal", () => { lsSet(HELP_SEEN_KEY, "1"); });
 
-  bindProxyClick(el.mToolSelect, el.toolSelect);
   bindProxyClick(el.mToolMaskAdd, el.toolMaskAdd);
   bindProxyClick(el.mToolCellEdit, el.toolCellEdit);
-  bindProxyClick(el.mToolCabinetEdit, el.toolCabinetEdit);
   bindProxyClick(el.mToolClusterEdit, el.toolClusterEdit);
   bindProxyClick(el.mToolRigEdit, el.toolRigEdit);
   bindProxyClick(el.mCopy, el.btnCopy);

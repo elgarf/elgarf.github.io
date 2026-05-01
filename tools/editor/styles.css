@@ -1322,7 +1322,6 @@
     }
 
     .empty-selection-hint {
-      width: min(100%, 280px);
       margin: 22px auto 18px;
       padding: 12px 14px;
       border: 1px solid var(--bs-primary-border-subtle);

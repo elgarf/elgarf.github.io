@@ -4,9 +4,9 @@ const EDITOR_ELEMENT_IDS = [
   "mobileMenu", "installApp", "installBanner", "installBannerText", "installBannerAction", "installBannerClose",
   "helpModal", "helpClose", "projectLinkModal", "projectLinkQr", "projectLinkLoading", "projectLinkText", "projectLinkCopyBtn",
   "sidePanel", "sideClose", "multiEditBadge",
-  "mDockToggle", "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolCabinetEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
+  "mDockToggle", "mToolSelect", "mToolDraw", "mToolNote", "mToolMaskAdd", "mToolCellEdit", "mToolFlowEdit", "mToolClusterEdit", "mToolRigEdit", "mLockAllToggle",
   "mCopy", "mCopyMirror", "mDelete", "mViewModeToggle",
-  "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolCabinetEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
+  "toolSelect", "toolDraw", "toolNote", "toolMaskAdd", "toolCellEdit", "toolFlowEdit", "toolClusterEdit", "toolRigEdit", "lockAllToggle",
   "btnCopy", "btnCopyMirror", "btnDelete", "zoomIn", "zoomOut", "zoomReset", "zoomFit", "zoomLabel", "undoAction", "redoAction",
   "newProject", "saveProject", "saveProjectLink", "loadProject", "exportPng", "fileInput", "globalTextSize", "globalFont",
   "snapGrid", "snapObjects", "snapCenters", "snapGaps", "emptySelectionHint", "objectNameField", "rectTextSizeField", "quickGeoPanel", "propName", "propTextSize", "propTextSizeLabel", "propX", "propY", "propRot",
@@ -87,8 +87,8 @@ export const createEditorDomRefs = (documentRef = document) => {
     overlayCtx: overlayCanvas ? overlayCanvas.getContext("2d") : null,
     wrap,
     el,
-    desktopToolButtons: [el.toolSelect, el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolCabinetEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean),
-    mobileToolButtons: [el.mToolSelect, el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolCabinetEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean)
+    desktopToolButtons: [el.toolSelect, el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit].filter(Boolean),
+    mobileToolButtons: [el.mToolSelect, el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit].filter(Boolean)
   };
 };
 
@@ -102,6 +102,7 @@ export const createInitialEditorState = () => ({
   selMultiBase: null,
   mode: "select",
   createToolMode: "draw",
+  selectToolMode: "select",
   viewMode: "art",
   camX: 0,
   camY: 0,
