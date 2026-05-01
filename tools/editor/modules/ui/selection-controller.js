@@ -3,7 +3,7 @@ export const setupSelectionController = (deps = {}) => {
     st,
     getRectById,
     isRectLocked,
-    rectAABB,
+    isShapeRect,
     rectAABBMasked,
     rectIntersectsSelectionBoxVisible,
     refreshPropsListRender
@@ -17,7 +17,7 @@ export const setupSelectionController = (deps = {}) => {
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const r of list) {
-      const bb = rectAABB(r);
+      const bb = rectAABBMasked(r);
       if (!bb) continue;
       if (bb.minX < minX) minX = bb.minX;
       if (bb.minY < minY) minY = bb.minY;
@@ -53,7 +53,7 @@ export const setupSelectionController = (deps = {}) => {
     const bbox = getRectsBBox(rects);
     if (!bbox) { st.selMultiBase = null; return; }
     const items = rects.map(r => {
-      const bb = rectAABB(r);
+      const bb = rectAABBMasked(r);
       return {
         id: r.id,
         x: r.x,
@@ -129,11 +129,19 @@ export const setupSelectionController = (deps = {}) => {
       refreshPropsListRender();
       return true;
     }
+    const shapeSelectableInCurrentView = rect => {
+      if (typeof isShapeRect !== "function" || !isShapeRect(rect)) return true;
+      if (String(st && st.mode || "") === "shape") return true;
+      const installView = String(st && st.viewMode || "") === "install";
+      if (!installView) return true;
+      const layers = (st && st.installLayers && typeof st.installLayers === "object") ? st.installLayers : {};
+      return layers.contours !== false;
+    };
     const intersects = typeof rectIntersectsSelectionBoxVisible === "function"
       ? rectIntersectsSelectionBoxVisible
       : ((r, boxBounds) => rectIntersectsBox(rectAABBMasked(r), boxBounds));
     const ids = st.rects
-      .filter(r => !isRectLocked(r) && intersects(r, b))
+      .filter(r => !isRectLocked(r) && shapeSelectableInCurrentView(r) && intersects(r, b))
       .map(r => r.id);
     if (box.append) {
       normSelSet();

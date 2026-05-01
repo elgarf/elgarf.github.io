@@ -1256,6 +1256,7 @@ let toggleRectLockById = (_id) => false;
   st,
   getRectById,
   isRectLocked,
+  isShapeRect: r => isShapeRect(r),
   rectAABB,
   rectAABBMasked,
   rectIntersectsSelectionBoxVisible,
@@ -1335,7 +1336,7 @@ const rectHasManualFlow = r => {
 const multiSelectionActions = setupMultiSelectionActionsController({
   st,
   getSelectedRects: () => getSelectedRects(),
-  rectAABB,
+  rectAABB: r => rectAABBMasked(r),
   refreshMultiSelectionBase: () => refreshMultiSelectionBase(),
   refreshPanels: () => refreshPanels(),
   schedulePersist: kind => schedulePersist(kind),

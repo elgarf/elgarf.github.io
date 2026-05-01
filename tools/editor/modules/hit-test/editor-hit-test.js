@@ -57,12 +57,20 @@ export const createEditorHitTest = ({
   rectAABBMasked,
   cellFromWorldPoint
 } = {}) => {
+  const shapeHitEnabled = () => {
+    const mode = String(st && st.mode || "");
+    if (mode === "shape") return true;
+    const installView = String(st && st.viewMode || "") === "install";
+    if (!installView) return true;
+    const layers = (st && st.installLayers && typeof st.installLayers === "object") ? st.installLayers : {};
+    return layers.contours !== false;
+  };
   const hit = (x, y) => {
     const rects = Array.isArray(st && st.rects) ? st.rects : [];
     for (let i = 0; i < rects.length; i++) {
       const rect = rects[i];
       if (typeof isRectLocked === "function" && isRectLocked(rect)) continue;
-      if (hitShapeRect({ rect, x, y, zoom: st && st.zoom, isShapeRect, shapePointHit, pointInShape })) return rect;
+      if (shapeHitEnabled() && hitShapeRect({ rect, x, y, zoom: st && st.zoom, isShapeRect, shapePointHit, pointInShape })) return rect;
       if (typeof isShapeRect === "function" && isShapeRect(rect)) continue;
       if (hitRectBody({ rect, x, y, mode: st && st.mode, worldToRectUV, rectAABBMasked, cellFromWorldPoint })) return rect;
     }

@@ -99,6 +99,7 @@ export const setupToolModeController = (deps = {}) => {
   };
 
   const setMode = m => {
+    const prevMode = String(st && st.mode || "");
     m = toolFsm.resolve(m);
     if (typeof cancelActiveDrag === "function") cancelActiveDrag();
     if (st.mode !== m && m !== "note") closeNoteEditor(true);
@@ -160,6 +161,22 @@ export const setupToolModeController = (deps = {}) => {
     if (m !== "shape") st.shapeDraft = null;
     st.shapePointDrag = null;
     st.drag = null;
+    if (m === "shape" && prevMode !== "shape") {
+      const layers = (st.installLayers && typeof st.installLayers === "object")
+        ? st.installLayers
+        : (st.installLayers = { contours: true, text: true, flow: true, rig: true });
+      if (layers.contours === false) {
+        st._contoursAutoShownForShape = true;
+        layers.contours = true;
+      } else {
+        st._contoursAutoShownForShape = false;
+      }
+    } else if (prevMode === "shape" && m !== "shape") {
+      if (st._contoursAutoShownForShape && st.installLayers && typeof st.installLayers === "object") {
+        st.installLayers.contours = false;
+      }
+      st._contoursAutoShownForShape = false;
+    }
     updateToolbarOverflow();
     updateClusterEditCursor();
     updateCreateToolButtons();
