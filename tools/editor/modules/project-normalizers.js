@@ -223,6 +223,28 @@ export const normalizeFlowLinks = raw => {
     cid: Math.max(0, Math.round(Number(e && e.cid) || 0)),
     kind: String(e && e.kind || "").toLowerCase() === "end" ? "end" : "start"
   });
+  const mkManualBezier = v => {
+    if (!v || typeof v !== "object") return null;
+    const c1 = v.c1 && typeof v.c1 === "object" ? v.c1 : null;
+    const c2 = v.c2 && typeof v.c2 === "object" ? v.c2 : null;
+    const x1 = Number(c1 && c1.x);
+    const y1 = Number(c1 && c1.y);
+    const x2 = Number(c2 && c2.x);
+    const y2 = Number(c2 && c2.y);
+    if (!(Number.isFinite(x1) && Number.isFinite(y1) && Number.isFinite(x2) && Number.isFinite(y2))) return null;
+    return { c1: { x: x1, y: y1 }, c2: { x: x2, y: y2 } };
+  };
+  const mkManualBezierRel = v => {
+    if (!v || typeof v !== "object") return null;
+    const c1 = v.c1 && typeof v.c1 === "object" ? v.c1 : null;
+    const c2 = v.c2 && typeof v.c2 === "object" ? v.c2 : null;
+    const x1 = Number(c1 && c1.x);
+    const y1 = Number(c1 && c1.y);
+    const x2 = Number(c2 && c2.x);
+    const y2 = Number(c2 && c2.y);
+    if (!(Number.isFinite(x1) && Number.isFinite(y1) && Number.isFinite(x2) && Number.isFinite(y2))) return null;
+    return { c1: { x: x1, y: y1 }, c2: { x: x2, y: y2 } };
+  };
   for (const it of list) {
     if (!it || typeof it !== "object") continue;
     const from = it.from && typeof it.from === "object" ? it.from : null;
@@ -236,7 +258,12 @@ export const normalizeFlowLinks = raw => {
     const key = `${a.rectId}:${a.rid}:${a.cid}:${a.kind}>${b.rectId}:${b.rid}:${b.cid}:${b.kind}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ from: a, to: b });
+    const manualBezier = mkManualBezier(it.manualBezier);
+    const manualBezierRel = mkManualBezierRel(it.manualBezierRel);
+    const rec = { from: a, to: b };
+    if (manualBezier) rec.manualBezier = manualBezier;
+    if (manualBezierRel) rec.manualBezierRel = manualBezierRel;
+    out.push(rec);
   }
   return out;
 };

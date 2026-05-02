@@ -13,6 +13,7 @@ export const setupFlowInputController = (deps = {}) => {
     findFlowResetButton,
     findFlowEditPoint,
     addFlowLinkBetween,
+    setFlowLinkManualBezierPoint,
     setFlowStart,
     setFlowLock,
     updateManualFlowPoint,
@@ -75,6 +76,14 @@ export const setupFlowInputController = (deps = {}) => {
   };
 
   const handleFlowEditPointerMove = p => {
+    if (st.flowCurveDrag) {
+      const d = st.flowCurveDrag;
+      if (d && d.key && typeof setFlowLinkManualBezierPoint === "function") {
+        setFlowLinkManualBezierPoint(d.key, d.handle, p.x, p.y, d.fallback || null);
+      }
+      render();
+      return true;
+    }
     const modeFlowEdit = st.mode === "flowEdit";
     if (!modeFlowEdit && !st.flowLinkDrag && !st.flowLinkPending) return false;
     if (!modeFlowEdit && st.flowLinkPending && !st.flowLinkDrag) {
@@ -215,6 +224,11 @@ export const setupFlowInputController = (deps = {}) => {
   };
 
   const handlePointerUpFlowDrag = () => {
+    if (st.flowCurveDrag) {
+      st.flowCurveDrag = null;
+      finishPointerUp(true);
+      return true;
+    }
     if (st.manualFlowDrag) {
       const r = cur();
       const md = st.manualFlowDrag;

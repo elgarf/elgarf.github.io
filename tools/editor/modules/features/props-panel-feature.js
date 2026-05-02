@@ -99,6 +99,27 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const cid = Math.max(1, Math.round(Number(sel.cid) || 1));
     return { rectId, kind, cid };
   };
+  const flowLinkKeyOf = ln => {
+    const from = ln && ln.from;
+    const to = ln && ln.to;
+    if (!from || !to) return "";
+    const fk = `${Math.max(1, Math.round(Number(from.rectId) || 0))}:${Math.max(0, Math.round(Number(from.rid) || 0))}:${Math.max(0, Math.round(Number(from.cid) || 0))}:end`;
+    const tk = `${Math.max(1, Math.round(Number(to.rectId) || 0))}:${Math.max(0, Math.round(Number(to.rid) || 0))}:${Math.max(0, Math.round(Number(to.cid) || 0))}:start`;
+    return `${fk}>${tk}`;
+  };
+  const selectedFlowLink = () => {
+    const key = String(st && st.flowLinkSelectedKey || "");
+    if (!key) return null;
+    const list = Array.isArray(st && st.flowLinks) ? st.flowLinks : [];
+    return list.find(it => flowLinkKeyOf(it) === key) || null;
+  };
+  const hasSelectedFlowLink = () => {
+    const key = String(st && st.flowLinkSelectedKey || "");
+    if (!key) return false;
+    if (selectedFlowLink()) return true;
+    const segs = Array.isArray(st && st.flowLinkSegments) ? st.flowLinkSegments : [];
+    return segs.some(s => String(s && s.key || "") === key);
+  };
   const selectionKey = () => {
     const ids = getSelectedRects().map(r => Math.max(0, Math.round(Number(r && r.id) || 0))).sort((a, b) => a - b);
     return ids.length ? ids.join(",") : String(cur() && cur().id || "");
@@ -250,6 +271,15 @@ export const setupPropsPanelFeature = (deps = {}) => {
       uiSetValue(el.propDeviceInCount, "4");
       uiSetValue(el.propDeviceOutCount, "4");
       uiSetValue(el.propDevicePortLabel, "");
+      const selLink0 = selectedFlowLink();
+      const showCurveField0 = !!hasSelectedFlowLink();
+      uiSetValue(el.propFlowLinkCurveMode, "manual");
+      setPanelHidden(el.flowLinkCurveField, !showCurveField0);
+      if (showCurveField0) {
+        const hasManual = !!(selLink0 && ((selLink0.manualBezierRel && selLink0.manualBezierRel.c1 && selLink0.manualBezierRel.c2) || (selLink0.manualBezier && selLink0.manualBezier.c1 && selLink0.manualBezier.c2)));
+        uiSetDisabled(el.btnFlowLinkCurveReset, !hasManual);
+        uiSetDisabled(el.propFlowLinkCurveMode, true);
+      }
       setPanelHidden(el.devicePortLabelField, true);
       if (el.splitVariantDec) uiSetDisabled(el.splitVariantDec, true);
       if (el.splitVariantInc) uiSetDisabled(el.splitVariantInc, true);
@@ -283,6 +313,15 @@ export const setupPropsPanelFeature = (deps = {}) => {
         uiSetValue(el.propDevicePortLabel, "");
         setPanelHidden(el.devicePortLabelField, true);
       }
+    }
+    const selLink = selectedFlowLink();
+    const showCurveField = !!hasSelectedFlowLink();
+    setPanelHidden(el.flowLinkCurveField, !showCurveField);
+    if (showCurveField) {
+      const isManual = !!(selLink && ((selLink.manualBezierRel && selLink.manualBezierRel.c1 && selLink.manualBezierRel.c2) || (selLink.manualBezier && selLink.manualBezier.c1 && selLink.manualBezier.c2)));
+      uiSetValue(el.propFlowLinkCurveMode, "manual");
+      uiSetDisabled(el.btnFlowLinkCurveReset, !isManual);
+      uiSetDisabled(el.propFlowLinkCurveMode, true);
     }
     uiSetValue(el.shapeOpacity, mFmt(shapeTransparencyPercent(r)));
     {

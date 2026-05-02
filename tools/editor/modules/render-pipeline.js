@@ -3,7 +3,7 @@ export const setupRenderPipeline = (deps = {}) => {
     ctx, overlayCtx, st, cv, overlayCanvas, wrap,
     getViewMetrics, s2w, rectAABB, getOrigin, isSelected,
     drawRect, drawInterScreenFlowLinks, drawMaskOverlay, drawCellEditOverlay, drawCabinetEditOverlay, drawContentBounds, drawMultiSelectionActions,
-    drawGrid, drawGuides, drawDistanceGuide, drawInstallSummaryOverlay, drawLayerButtons, updateNoteEditorOverlay,
+    drawGrid, drawGuides, drawDistanceGuide, drawInstallSummaryOverlay, drawLayerButtons, drawFlowLinkCurveHandlesOverlay, updateNoteEditorOverlay,
     selBoxBounds, resetClusterHoverTransient, isClusterEditMode
   } = deps;
   let drawGridFn = drawGrid;
@@ -208,6 +208,9 @@ export const setupRenderPipeline = (deps = {}) => {
     }
     if (!renderState.skipHeavyOverlays && typeof drawLayerButtons === "function") {
       profileSection(profile, "layer buttons", () => drawLayerButtons(c, z));
+    }
+    if (typeof drawFlowLinkCurveHandlesOverlay === "function") {
+      profileSection(profile, "flow curve handles", () => drawFlowLinkCurveHandlesOverlay(c));
     }
     c.restore();
     profileSection(profile, "guides", () => {

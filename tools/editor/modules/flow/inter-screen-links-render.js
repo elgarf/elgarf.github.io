@@ -63,42 +63,68 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     curveCache.set(key, value);
     return value;
   };
-  const deviceOutDownPoint = (a, b, cid = 1, sideDir = null) => {
+  const deviceOutTailPoint = (a, b, cid = 1, sideDir = null, aimPoint = null) => {
     const ax = toNum(a.x), ay = toNum(a.y);
-    const bx = toNum(b && b.x);
-    const dir = Number(sideDir) === -1 ? -1 : Number(sideDir) === 1 ? 1 : (bx >= ax ? 1 : -1);
+    const hasAim = !!(aimPoint && typeof aimPoint === "object");
+    const tx = hasAim && Number.isFinite(Number(aimPoint.x)) ? toNum(aimPoint.x) : toNum(b && b.x);
+    const ty = hasAim && Number.isFinite(Number(aimPoint.y)) ? toNum(aimPoint.y) : toNum(b && b.y);
+    const bx = toNum(b && b.x), by = toNum(b && b.y);
+    let dx = tx - ax;
+    let dy = ty - ay;
+    let d = Math.hypot(dx, dy);
+    if (d <= 1e-6) {
+      const dir = Number(sideDir) === -1 ? -1 : Number(sideDir) === 1 ? 1 : (bx >= ax ? 1 : -1);
+      dx = dir;
+      dy = 1;
+      d = Math.hypot(dx, dy);
+    }
+    const ux = dx / d;
+    const uy = dy / d;
     const idx = Math.max(0, Math.round(Number(cid) || 1) - 1);
     const len = 16 + idx * 7;
-    const slant = Math.min(16, 6 + idx * 2);
-    return { x: ax + dir * slant, y: ay + len };
+    return { x: ax + ux * len, y: ay + uy * len };
   };
-  const deviceInTailPoint = (a, b, cid = 1, sideDir = null) => {
-    const ax = toNum(a && a.x);
+  const deviceInTailPoint = (a, b, cid = 1, sideDir = null, aimPoint = null) => {
+    const hasAim = !!(aimPoint && typeof aimPoint === "object");
+    const ax = hasAim && Number.isFinite(Number(aimPoint.x)) ? toNum(aimPoint.x) : toNum(a && a.x);
+    const ay = hasAim && Number.isFinite(Number(aimPoint.y)) ? toNum(aimPoint.y) : toNum(a && a.y);
     const bx = toNum(b.x), by = toNum(b.y);
-    const dir = Number(sideDir) === -1 ? -1 : Number(sideDir) === 1 ? 1 : (bx >= ax ? 1 : -1);
+    let dx = ax - bx;
+    let dy = ay - by;
+    let d = Math.hypot(dx, dy);
+    if (d <= 1e-6) {
+      const dir = Number(sideDir) === -1 ? -1 : Number(sideDir) === 1 ? 1 : (bx >= ax ? 1 : -1);
+      dx = dir;
+      dy = -1;
+      d = Math.hypot(dx, dy);
+    }
+    const ux = dx / d;
+    const uy = dy / d;
     const idx = Math.max(0, Math.round(Number(cid) || 1) - 1);
     const len = 16 + idx * 7;
-    const slant = Math.min(16, 6 + idx * 2);
-    const fromBelow = toNum(a && a.y) > by;
-    const vy = fromBelow ? +len : -len;
-    return { x: bx + dir * slant, y: by + vy };
+    return { x: bx + ux * len, y: by + uy * len };
   };
-  const screenStartTailPoint = (fromPoint, toPoint, len = 16, sideDir = 1) => {
+  const screenStartTailPoint = (fromPoint, toPoint, len = 16, sideDir = 1, aimPoint = null) => {
     const fx = toNum(fromPoint && fromPoint.x);
     const fy = toNum(fromPoint && fromPoint.y);
     const tx = toNum(toPoint && toPoint.x);
     const ty = toNum(toPoint && toPoint.y);
-    const dx = tx - fx;
-    const dy = ty - fy;
+    const ax = (aimPoint && Number.isFinite(Number(aimPoint.x))) ? toNum(aimPoint.x) : fx;
+    const ay = (aimPoint && Number.isFinite(Number(aimPoint.y))) ? toNum(aimPoint.y) : fy;
+    const dx = ax - tx;
+    const dy = ay - ty;
     const d = Math.hypot(dx, dy);
     if (d <= 1e-6) return { x: tx, y: ty - len };
     const ux = dx / d;
     const uy = dy / d;
+    if (aimPoint && Number.isFinite(Number(aimPoint.x)) && Number.isFinite(Number(aimPoint.y))) {
+      return { x: tx + ux * len, y: ty + uy * len };
+    }
     const nx = -uy;
     const ny = ux;
     const dev = Math.max(6, Math.min(18, len * 0.45));
     const s = Number(sideDir) === -1 ? -1 : 1;
-    return { x: tx - ux * len + nx * dev * s, y: ty - uy * len + ny * dev * s };
+    return { x: tx + ux * len + nx * dev * s, y: ty + uy * len + ny * dev * s };
   };
   const getStemSmoothGeom = (pStart, pEnd, opts = {}, steps = 18) => {
     const {
@@ -171,6 +197,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     const links = normalizeFlowLinks(st.flowLinks);
     const exportPass = !!force;
     st.flowLinkSegments = [];
+    st.flowLinkCurveHandles = [];
     const strokeOutlinedPath = (path, outlineColor, outlineWidth, color, width) => {
       c.lineCap = "round";
       c.lineJoin = "round";
@@ -225,12 +252,46 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const baseW = exportPass ? strokeWidthForZoom(st.zoom, 0.85, 1.45) : strokeWidthForZoom(st.zoom, 1.2, 2.2);
       if (fromIsDevice || toIsDevice) {
         const sideDir = (toNum(b.x) - toNum(a.x)) >= 0 ? 1 : -1;
-        const pStart = fromIsDevice ? deviceOutDownPoint(a, b, fromCid, sideDir) : { x: a.x, y: a.y };
+        const legacyManualAbs = ln && ln.manualBezier && ln.manualBezier.c1 && ln.manualBezier.c2
+          ? { c1: { x: toNum(ln.manualBezier.c1.x), y: toNum(ln.manualBezier.c1.y) }, c2: { x: toNum(ln.manualBezier.c2.x), y: toNum(ln.manualBezier.c2.y) } }
+          : null;
+        const manualRelStored = (ln && ln.manualBezierRel && ln.manualBezierRel.c1 && ln.manualBezierRel.c2)
+          ? {
+            c1: { x: toNum(ln.manualBezierRel.c1.x), y: toNum(ln.manualBezierRel.c1.y) },
+            c2: { x: toNum(ln.manualBezierRel.c2.x), y: toNum(ln.manualBezierRel.c2.y) }
+          }
+          : null;
+        const manualRel = manualRelStored || (legacyManualAbs
+          ? {
+            c1: { x: legacyManualAbs.c1.x - toNum(a.x), y: legacyManualAbs.c1.y - toNum(a.y) },
+            c2: { x: legacyManualAbs.c2.x - toNum(b.x), y: legacyManualAbs.c2.y - toNum(b.y) }
+          }
+          : null);
+        const manualAbsByEndpoints = manualRel
+          ? {
+            c1: { x: a.x + manualRel.c1.x, y: a.y + manualRel.c1.y },
+            c2: { x: b.x + manualRel.c2.x, y: b.y + manualRel.c2.y }
+          }
+          : legacyManualAbs;
+        const pStart = fromIsDevice ? deviceOutTailPoint(a, b, fromCid, sideDir, manualAbsByEndpoints ? manualAbsByEndpoints.c1 : null) : { x: a.x, y: a.y };
+        let screenAim = null;
+        if (!toIsDevice && fromIsDevice) {
+          if (manualAbsByEndpoints && manualAbsByEndpoints.c2) screenAim = manualAbsByEndpoints.c2;
+          else {
+            const probe = getStemSmoothGeom(
+              pStart,
+              { x: b.x, y: b.y },
+              { stemStartAnchor: a, stemEndAnchor: null, radiusMul: 1.85 },
+              18
+            );
+            screenAim = probe && probe.c2 ? probe.c2 : null;
+          }
+        }
         const pEnd = toIsDevice
-          ? deviceInTailPoint(a, b, toCid, sideDir)
-          : (fromIsDevice ? screenStartTailPoint(pStart, b, 28, sideDir) : { x: b.x, y: b.y });
+          ? deviceInTailPoint(a, b, toCid, sideDir, manualAbsByEndpoints ? manualAbsByEndpoints.c2 : null)
+          : (fromIsDevice ? screenStartTailPoint(pStart, b, 28, sideDir, screenAim) : { x: b.x, y: b.y });
         if (fromIsDevice) st.flowLinkSegments.push({ key, a: { x: a.x, y: a.y }, b: { x: pStart.x, y: pStart.y }, link: ln });
-        const geom2 = getStemSmoothGeom(
+        const autoGeom = getStemSmoothGeom(
           pStart,
           pEnd,
           {
@@ -240,6 +301,20 @@ export const setupInterScreenLinksRender = (deps = {}) => {
           },
           18
         );
+        const manualAbs = manualAbsByEndpoints;
+        const geom2 = manualAbs
+          ? {
+            c1: manualAbs.c1,
+            c2: manualAbs.c2,
+            pts: (() => {
+              const pts = [];
+              for (let i = 1; i <= 18; i++) pts.push(sampleBezier(pStart, manualAbs.c1, manualAbs.c2, pEnd, i / 18));
+              return pts;
+            })(),
+            t0: sampleBezier(pStart, manualAbs.c1, manualAbs.c2, pEnd, 0.48),
+            t1: sampleBezier(pStart, manualAbs.c1, manualAbs.c2, pEnd, 0.52)
+          }
+          : autoGeom;
         let prev = { x: pStart.x, y: pStart.y };
         for (let i = 0; i < geom2.pts.length; i++) {
           const p = geom2.pts[i];
@@ -256,6 +331,21 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         if (fromIsDevice && toIsDevice) drawFlowLinkArrow(c, geom2.t0, geom2.t1, strokeColor, st.zoom || 1);
         else if (toIsDevice) drawFlowLinkArrow(c, pEnd, b, strokeColor, st.zoom || 1);
         else drawFlowLinkArrow(c, geom2.t0, geom2.t1, strokeColor, st.zoom || 1);
+        if (!exportPass && String(st.mode || "") === "select" && String(st.flowLinkSelectedKey || "") === key) {
+          const drawHandle = (pt, handle, anchor) => {
+            st.flowLinkCurveHandles.push({
+              key,
+              handle,
+              x: pt.x,
+              y: pt.y,
+              ax: anchor && Number.isFinite(Number(anchor.x)) ? Number(anchor.x) : null,
+              ay: anchor && Number.isFinite(Number(anchor.y)) ? Number(anchor.y) : null,
+              fallback: { c1: autoGeom.c1, c2: autoGeom.c2, start: a, end: b }
+            });
+          };
+          drawHandle(geom2.c1, "c1", pStart);
+          drawHandle(geom2.c2, "c2", pEnd);
+        }
       } else {
         const pts = geom.pts;
         let prev = { x: a.x, y: a.y };
@@ -307,7 +397,47 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     }
   };
 
+  const drawFlowLinkCurveHandlesOverlay = c => {
+    if (!c || String(st.mode || "") !== "select") return;
+    const handles = Array.isArray(st.flowLinkCurveHandles) ? st.flowLinkCurveHandles : [];
+    if (!handles.length) return;
+    const size = Math.max(5, 8 / zoomSafe(st.zoom, 0.35));
+    const drawDiamond = (x, y) => {
+      c.beginPath();
+      c.moveTo(x, y - size);
+      c.lineTo(x + size, y);
+      c.lineTo(x, y + size);
+      c.lineTo(x - size, y);
+      c.closePath();
+    };
+    c.save();
+    for (const h of handles) {
+      const x = toNum(h && h.x);
+      const y = toNum(h && h.y);
+      const ax = Number.isFinite(Number(h && h.ax)) ? Number(h.ax) : null;
+      const ay = Number.isFinite(Number(h && h.ay)) ? Number(h.ay) : null;
+      if (ax != null && ay != null) {
+        c.strokeStyle = "rgba(150,220,255,.82)";
+        c.lineWidth = Math.max(1, 1.15 / zoomSafe(st.zoom, 0.35));
+        c.setLineDash([5 / zoomSafe(st.zoom, 0.35), 4 / zoomSafe(st.zoom, 0.35)]);
+        c.beginPath();
+        c.moveTo(ax, ay);
+        c.lineTo(x, y);
+        c.stroke();
+        c.setLineDash([]);
+      }
+      c.fillStyle = "rgba(80,220,180,.97)";
+      c.strokeStyle = "rgba(0,0,0,.9)";
+      c.lineWidth = Math.max(1, 1.35 / zoomSafe(st.zoom, 0.35));
+      drawDiamond(x, y);
+      c.fill();
+      c.stroke();
+    }
+    c.restore();
+  };
+
   return {
-    drawInterScreenFlowLinks
+    drawInterScreenFlowLinks,
+    drawFlowLinkCurveHandlesOverlay
   };
 };

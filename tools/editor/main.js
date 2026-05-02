@@ -587,6 +587,9 @@ const {
   addFlowLinkBetween,
   findFlowLinkAtPoint,
   findFlowLinkAnchorAtPoint,
+  findFlowCurveHandleAtPoint,
+  setFlowLinkManualBezierPoint,
+  clearFlowLinkManualBezier,
   updateFlowLinkDragTarget
 } = setupFlowLinkFeature({
   st,
@@ -601,7 +604,7 @@ const {
   getSplitFlowMarkerWorldPositions: (r, pts) => getSplitFlowMarkerWorldPositions(r, pts),
   rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v)
 });
-const { drawInterScreenFlowLinks } = setupInterScreenLinksRender({
+const { drawInterScreenFlowLinks, drawFlowLinkCurveHandlesOverlay } = setupInterScreenLinksRender({
   st,
   isCellEditMode: () => isCellEditMode(),
   isRigEditMode: () => isRigEditMode(),
@@ -1610,6 +1613,7 @@ let lastSpecAutoRefreshAt = 0;
   isSelected,
   drawRect,
   drawInterScreenFlowLinks,
+  drawFlowLinkCurveHandlesOverlay,
   drawMaskOverlay,
   drawCellEditOverlay,
   drawCabinetEditOverlay,
@@ -1720,6 +1724,9 @@ const {
   resetFlowRegionOverrides,
   rebuildAndPatchFlowRegion,
   findFlowLinkAnchorAtPoint,
+  findFlowCurveHandleAtPoint,
+  setFlowLinkManualBezierPoint,
+  clearFlowLinkManualBezier,
   updateFlowLinkDragTarget,
   findFlowEditPoint,
   setSelection,
@@ -2012,6 +2019,41 @@ if (el.btnCabinetStyleReset) {
     updateSelectedCabinetStyle();
   });
 }
+const getSelectedFlowLinkByKey = () => {
+  const key = String(st.flowLinkSelectedKey || "");
+  if (!key) return null;
+  const list = Array.isArray(st.flowLinks) ? st.flowLinks : [];
+  const mkKey = ln => {
+    const from = ln && ln.from;
+    const to = ln && ln.to;
+    if (!from || !to) return "";
+    return `${Math.max(1, Math.round(Number(from.rectId) || 0))}:${Math.max(0, Math.round(Number(from.rid) || 0))}:${Math.max(0, Math.round(Number(from.cid) || 0))}:end>${Math.max(1, Math.round(Number(to.rectId) || 0))}:${Math.max(0, Math.round(Number(to.rid) || 0))}:${Math.max(0, Math.round(Number(to.cid) || 0))}:start`;
+  };
+  return list.find(it => mkKey(it) === key) || null;
+};
+const ensureSelectedFlowLinkManual = () => {
+  const key = String(st.flowLinkSelectedKey || "");
+  if (!key) return false;
+  const ln = getSelectedFlowLinkByKey();
+  if (!ln) return false;
+  if ((ln.manualBezierRel && ln.manualBezierRel.c1 && ln.manualBezierRel.c2) || (ln.manualBezier && ln.manualBezier.c1 && ln.manualBezier.c2)) return false;
+  const handles = (Array.isArray(st.flowLinkCurveHandles) ? st.flowLinkCurveHandles : []).filter(h => String(h && h.key || "") === key);
+  const c1 = handles.find(h => String(h && h.handle || "") === "c1");
+  const c2 = handles.find(h => String(h && h.handle || "") === "c2");
+  if (!c1 || !c2) return false;
+  const fallback = c1.fallback || c2.fallback || null;
+  const ok1 = setFlowLinkManualBezierPoint(key, "c1", c1.x, c1.y, fallback);
+  const ok2 = setFlowLinkManualBezierPoint(key, "c2", c2.x, c2.y, fallback);
+  return !!(ok1 || ok2);
+};
+if (el.propFlowLinkCurveMode) {
+  bindEvent(el.propFlowLinkCurveMode, "change", () => {
+    const changed = !!ensureSelectedFlowLinkManual();
+    if (changed) schedulePersist("project");
+    syncProps();
+    render();
+  });
+}
 const syncPropsBase = syncProps;
 syncProps = () => {
   syncPropsBase();
@@ -2031,6 +2073,7 @@ const inputWiringServices = {
   drawCellX, drawCellY,
   updateFlowLinkDragTarget, resetFlowHoverTransient,
   findFlowLinkAtPoint, findFlowStartHandle, findFlowDirectionButton, findFlowResetButton, findFlowEditPoint,
+  setFlowLinkManualBezierPoint,
   moveRectDrag, updateSelectionBox, finishSelectionBox,
   endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock, updateManualFlowPoint, dragManualFlowPoint,
   mkNote, mk, mkShape, mkDevice, isNoteRect, isShapeRect, openNoteEditor, setMode, refreshPanels, schedulePersist,

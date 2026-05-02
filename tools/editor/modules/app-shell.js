@@ -14,6 +14,7 @@ const EDITOR_ELEMENT_IDS = [
   "areaM2Field", "colorPanel", "autoContrastField", "randomColorField", "cabinetSizePanel", "propCellX", "propCellY", "propCellUnit", "flowField", "propDataFlow", "propDataFlowZ", "numberCellsField", "propNumberCells",
   "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
   "devicePropsPanel", "propDeviceType", "propDeviceInCount", "propDeviceOutCount", "devicePortLabelField", "propDevicePortLabel",
+  "flowLinkCurveField", "propFlowLinkCurveMode",
   "cabinetToolPanel", "cabinetSelectionLabel", "propCabinetDiag", "propCabinetColor", "btnCabinetStyleReset",
   "propSplitVariantLabel", "screenActionsField", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "convertRegionsField", "btnConvertRegionsToScreens", "rectList",
   "specModePanel", "specAutoBlocks", "specModeClose"
@@ -127,6 +128,9 @@ export const createInitialEditorState = () => ({
   flowLinkAnchors: [],
   flowLinkSegments: [],
   flowLinkHover: null,
+  flowLinkSelectedKey: "",
+  flowLinkCurveHandles: [],
+  flowCurveDrag: null,
   flowLinkPending: null,
   flowLinkDrag: null,
   flowLinks: [],

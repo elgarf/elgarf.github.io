@@ -555,6 +555,69 @@ export const setupFlowLinkController = (deps = {}) => {
     return (best && bestD <= tol) ? best : null;
   };
 
+  const findFlowCurveHandleAtPoint = (wx, wy) => {
+    const pts = Array.isArray(st.flowLinkCurveHandles) ? st.flowLinkCurveHandles : [];
+    const tol = Math.max(7, 11 / Math.max(0.35, st.zoom || 1));
+    let best = null;
+    let bestD = Infinity;
+    for (const p of pts) {
+      const d = Math.hypot((+p.x || 0) - wx, (+p.y || 0) - wy);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return (best && bestD <= tol) ? best : null;
+  };
+
+  const setFlowLinkManualBezierPoint = (key, handle, x, y, fallback = null) => {
+    const targetKey = String(key || "");
+    if (!targetKey) return false;
+    const h = String(handle || "") === "c2" ? "c2" : "c1";
+    const nx = Number(x);
+    const ny = Number(y);
+    if (!(Number.isFinite(nx) && Number.isFinite(ny))) return false;
+    const list = normalizeFlowLinks(st.flowLinks);
+    const idx = list.findIndex(it => flowLinkKey(it) === targetKey);
+    if (idx < 0) return false;
+    const cur = list[idx];
+    const fb = (fallback && typeof fallback === "object") ? fallback : {};
+    const anchorStart = fb.start && typeof fb.start === "object" ? fb.start : null;
+    const anchorEnd = fb.end && typeof fb.end === "object" ? fb.end : null;
+    const c1AbsFallback = fb.c1 && typeof fb.c1 === "object" ? fb.c1 : null;
+    const c2AbsFallback = fb.c2 && typeof fb.c2 === "object" ? fb.c2 : null;
+    const curRel = (cur && cur.manualBezierRel && cur.manualBezierRel.c1 && cur.manualBezierRel.c2) ? cur.manualBezierRel : null;
+    const curAbs = (cur && cur.manualBezier && cur.manualBezier.c1 && cur.manualBezier.c2) ? cur.manualBezier : null;
+    const c1Abs = curAbs ? curAbs.c1 : c1AbsFallback || { x: nx, y: ny };
+    const c2Abs = curAbs ? curAbs.c2 : c2AbsFallback || { x: nx, y: ny };
+    const c1Rel = curRel ? curRel.c1 : ((anchorStart && Number.isFinite(Number(anchorStart.x)) && Number.isFinite(Number(anchorStart.y)))
+      ? { x: (Number(c1Abs.x) || 0) - (Number(anchorStart.x) || 0), y: (Number(c1Abs.y) || 0) - (Number(anchorStart.y) || 0) }
+      : { x: 0, y: 0 });
+    const c2Rel = curRel ? curRel.c2 : ((anchorEnd && Number.isFinite(Number(anchorEnd.x)) && Number.isFinite(Number(anchorEnd.y)))
+      ? { x: (Number(c2Abs.x) || 0) - (Number(anchorEnd.x) || 0), y: (Number(c2Abs.y) || 0) - (Number(anchorEnd.y) || 0) }
+      : { x: 0, y: 0 });
+    const next = { from: cur.from, to: cur.to, manualBezierRel: { c1: { x: Number(c1Rel.x) || 0, y: Number(c1Rel.y) || 0 }, c2: { x: Number(c2Rel.x) || 0, y: Number(c2Rel.y) || 0 } } };
+    if (h === "c1") {
+      if (anchorStart && Number.isFinite(Number(anchorStart.x)) && Number.isFinite(Number(anchorStart.y))) next.manualBezierRel.c1 = { x: nx - Number(anchorStart.x), y: ny - Number(anchorStart.y) };
+    } else if (anchorEnd && Number.isFinite(Number(anchorEnd.x)) && Number.isFinite(Number(anchorEnd.y))) {
+      next.manualBezierRel.c2 = { x: nx - Number(anchorEnd.x), y: ny - Number(anchorEnd.y) };
+    }
+    list[idx] = next;
+    st.flowLinks = list;
+    return true;
+  };
+
+  const clearFlowLinkManualBezier = key => {
+    const targetKey = String(key || "");
+    if (!targetKey) return false;
+    const list = normalizeFlowLinks(st.flowLinks);
+    const idx = list.findIndex(it => flowLinkKey(it) === targetKey);
+    if (idx < 0) return false;
+    const cur = list[idx];
+    if (!cur || (!cur.manualBezier && !cur.manualBezierRel)) return false;
+    const next = { from: cur.from, to: cur.to, manualBezierRel: { c1: { x: 0, y: 0 }, c2: { x: 0, y: 0 } } };
+    list[idx] = next;
+    st.flowLinks = list;
+    return true;
+  };
+
   const updateFlowLinkDragTarget = (wx, wy) => {
     const drag = st.flowLinkDrag;
     if (!drag || !drag.from) return;
@@ -592,6 +655,9 @@ export const setupFlowLinkController = (deps = {}) => {
     addFlowLinkBetween,
     findFlowLinkAtPoint,
     findFlowLinkAnchorAtPoint,
+    findFlowCurveHandleAtPoint,
+    setFlowLinkManualBezierPoint,
+    clearFlowLinkManualBezier,
     updateFlowLinkDragTarget
   };
 };

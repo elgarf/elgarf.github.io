@@ -322,6 +322,11 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (handlePointerDownCluster(p)) return;
     if (handlePointerDownRig(p)) return;
     if (handlePointerDownFlow(p, opts)) return;
+    if (st.mode === "select" && st.flowLinkSelectedKey) {
+      st.flowLinkSelectedKey = "";
+      st.flowCurveDrag = null;
+      if (typeof syncProps === "function") syncProps();
+    }
     if (st.mode === "select") {
       const h = hit(p.x, p.y);
       if (shapeInput.handlePointerDownHitShape(h, p, opts, isSelectedRectId)) return;

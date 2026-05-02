@@ -465,6 +465,9 @@ export const setupEditingToolsInput = (deps = {}) => {
     resetFlowRegionOverrides,
     rebuildAndPatchFlowRegion,
     findFlowLinkAnchorAtPoint,
+    findFlowCurveHandleAtPoint,
+    setFlowLinkManualBezierPoint,
+    clearFlowLinkManualBezier,
     updateFlowLinkDragTarget,
     findFlowEditPoint,
     setSelection,
@@ -485,18 +488,50 @@ export const setupEditingToolsInput = (deps = {}) => {
     const opts = (_opts && typeof _opts === "object") ? _opts : null;
     const allowLinkOnly = !!(opts && opts.allowLinkOnly);
     if (allowLinkOnly) {
+      const curveHandleHit = typeof findFlowCurveHandleAtPoint === "function" ? findFlowCurveHandleAtPoint(p.x, p.y) : null;
+      if (curveHandleHit) {
+        st.flowLinkSelectedKey = String(curveHandleHit.key || "");
+        st.flowCurveDrag = {
+          key: String(curveHandleHit.key || ""),
+          handle: String(curveHandleHit.handle || "") === "c2" ? "c2" : "c1",
+          fallback: curveHandleHit.fallback || null
+        };
+        st.flowLinkPending = null;
+        st.flowLinkDrag = null;
+        st.flowDragPreview = null;
+        syncProps();
+        render();
+        return true;
+      }
       const endAnchorHit = findFlowLinkAnchorAtPoint(p.x, p.y, "end");
-      if (!endAnchorHit) return false;
-      st.devicePortSelection = { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end" };
-      st.flowLinkPending = {
-        from: { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end", x: endAnchorHit.x, y: endAnchorHit.y },
-        downX: p.x,
-        downY: p.y
-      };
-      st.flowLinkDrag = null;
-      st.flowDragPreview = null;
-      render();
-      return true;
+      if (endAnchorHit) {
+        st.flowLinkSelectedKey = "";
+        st.devicePortSelection = { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end" };
+        st.flowLinkPending = {
+          from: { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end", x: endAnchorHit.x, y: endAnchorHit.y },
+          downX: p.x,
+          downY: p.y
+        };
+        st.flowLinkDrag = null;
+        st.flowDragPreview = null;
+        syncProps();
+        render();
+        return true;
+      }
+      const linkHit = findFlowLinkAtPoint(p.x, p.y);
+      if (linkHit && linkHit.link) {
+        st.flowLinkSelectedKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
+        if (opts && opts.altKey && typeof clearFlowLinkManualBezier === "function") {
+          if (clearFlowLinkManualBezier(st.flowLinkSelectedKey)) schedulePersist("project");
+        }
+        st.flowLinkPending = null;
+        st.flowLinkDrag = null;
+        st.flowDragPreview = null;
+        syncProps();
+        render();
+        return true;
+      }
+      return false;
     }
     if (String(st.flowEditVariant || "auto") === "manual") {
       const h = hit(p.x, p.y);
@@ -542,10 +577,12 @@ export const setupEditingToolsInput = (deps = {}) => {
     }
     const linkHit = findFlowLinkAtPoint(p.x, p.y);
     if (linkHit && linkHit.link) {
+      st.flowLinkSelectedKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
       const killKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
       st.flowLinks = normalizeFlowLinks(st.flowLinks).filter(it => `${flowAnchorKey(it.from)}>${flowAnchorKey(it.to)}` !== killKey);
       clearFlowLinkInteractionState();
       schedulePersist("project");
+      syncProps();
       render();
       return true;
     }
