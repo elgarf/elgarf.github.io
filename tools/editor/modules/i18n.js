@@ -43,6 +43,7 @@ const EN = {
   "Экспорт пакета (PNG + PNG+F + спецификация)": "Export package",
   "Ещё": "More",
   "Переключатели слоёв": "Layer toggles",
+  "Устройства": "Devices",
   "Действия массового выделения": "Multi-selection actions",
   "Масштабирование выделения": "Selection resizing",
   "Панель свойств": "Properties panel",

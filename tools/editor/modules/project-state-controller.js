@@ -55,6 +55,7 @@ export const setupProjectStateController = (deps = {}) => {
           contours: layers.contours !== false,
           text: layers.text !== false,
           flow: layers.flow !== false,
+          devices: layers.devices !== false,
           rig: layers.rig !== false
         };
       }
@@ -68,7 +69,7 @@ export const setupProjectStateController = (deps = {}) => {
       st.specCustomText = "";
       st.specCustomSections = {};
       st.lockAll = false;
-      st.installLayers = { contours: true, text: true, flow: true, rig: true };
+      st.installLayers = { contours: true, text: true, flow: true, devices: true, rig: true };
       st.snap = { grid: false, objects: true, centers: true, gaps: true };
     }
     st.projectName = (d && Object.prototype.hasOwnProperty.call(d, "projectName"))

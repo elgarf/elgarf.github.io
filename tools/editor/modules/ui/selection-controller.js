@@ -140,8 +140,16 @@ export const setupSelectionController = (deps = {}) => {
     const intersects = typeof rectIntersectsSelectionBoxVisible === "function"
       ? rectIntersectsSelectionBoxVisible
       : ((r, boxBounds) => rectIntersectsBox(rectAABBMasked(r), boxBounds));
+    const deviceSelectableInCurrentView = rect => {
+      const installView = String(st && st.viewMode || "") === "install";
+      if (!installView) return true;
+      const isDeviceRect = String((rect && rect.kind) || "").toLowerCase() === "device";
+      if (!isDeviceRect) return true;
+      const layers = (st && st.installLayers && typeof st.installLayers === "object") ? st.installLayers : {};
+      return layers.devices !== false;
+    };
     const ids = st.rects
-      .filter(r => !isRectLocked(r) && shapeSelectableInCurrentView(r) && intersects(r, b))
+      .filter(r => !isRectLocked(r) && shapeSelectableInCurrentView(r) && deviceSelectableInCurrentView(r) && intersects(r, b))
       .map(r => r.id);
     if (box.append) {
       normSelSet();

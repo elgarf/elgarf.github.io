@@ -63,6 +63,80 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     curveCache.set(key, value);
     return value;
   };
+  const deviceOutDownPoint = (a, b, cid = 1, sideDir = null) => {
+    const ax = toNum(a.x), ay = toNum(a.y);
+    const bx = toNum(b && b.x);
+    const dir = Number(sideDir) === -1 ? -1 : Number(sideDir) === 1 ? 1 : (bx >= ax ? 1 : -1);
+    const idx = Math.max(0, Math.round(Number(cid) || 1) - 1);
+    const len = 16 + idx * 7;
+    const slant = Math.min(16, 6 + idx * 2);
+    return { x: ax + dir * slant, y: ay + len };
+  };
+  const deviceInTailPoint = (a, b, cid = 1, sideDir = null) => {
+    const ax = toNum(a && a.x);
+    const bx = toNum(b.x), by = toNum(b.y);
+    const dir = Number(sideDir) === -1 ? -1 : Number(sideDir) === 1 ? 1 : (bx >= ax ? 1 : -1);
+    const idx = Math.max(0, Math.round(Number(cid) || 1) - 1);
+    const len = 16 + idx * 7;
+    const slant = Math.min(16, 6 + idx * 2);
+    const fromBelow = toNum(a && a.y) > by;
+    const vy = fromBelow ? +len : -len;
+    return { x: bx + dir * slant, y: by + vy };
+  };
+  const screenStartTailPoint = (fromPoint, toPoint, len = 16, sideDir = 1) => {
+    const fx = toNum(fromPoint && fromPoint.x);
+    const fy = toNum(fromPoint && fromPoint.y);
+    const tx = toNum(toPoint && toPoint.x);
+    const ty = toNum(toPoint && toPoint.y);
+    const dx = tx - fx;
+    const dy = ty - fy;
+    const d = Math.hypot(dx, dy);
+    if (d <= 1e-6) return { x: tx, y: ty - len };
+    const ux = dx / d;
+    const uy = dy / d;
+    const nx = -uy;
+    const ny = ux;
+    const dev = Math.max(6, Math.min(18, len * 0.45));
+    const s = Number(sideDir) === -1 ? -1 : 1;
+    return { x: tx - ux * len + nx * dev * s, y: ty - uy * len + ny * dev * s };
+  };
+  const getStemSmoothGeom = (pStart, pEnd, opts = {}, steps = 18) => {
+    const {
+      stemStartAnchor = null, // point before pStart (for tangent direction at start)
+      stemEndAnchor = null,   // point after pEnd (for tangent direction at end)
+      radiusMul = 1
+    } = (opts && typeof opts === "object") ? opts : {};
+    const dx = toNum(pEnd.x) - toNum(pStart.x);
+    const dy = toNum(pEnd.y) - toNum(pStart.y);
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const rm = Math.max(0.5, Number(radiusMul) || 1);
+    const lead = Math.max(26 * rm, Math.min(dist * (0.78 * rm), 162 * rm));
+    const norm = (vx, vy) => {
+      const len = Math.hypot(vx, vy);
+      if (len <= 1e-6) return { x: 0, y: 1 };
+      return { x: vx / len, y: vy / len };
+    };
+    const tStart = stemStartAnchor
+      ? norm(toNum(pStart.x) - toNum(stemStartAnchor.x), toNum(pStart.y) - toNum(stemStartAnchor.y))
+      : norm(dx, dy);
+    const tEnd = stemEndAnchor
+      ? norm(toNum(stemEndAnchor.x) - toNum(pEnd.x), toNum(stemEndAnchor.y) - toNum(pEnd.y))
+      : norm(dx, dy);
+    const nearX = Math.abs(dx) <= Math.max(18, dist * 0.08);
+    const nearY = Math.abs(dy) <= Math.max(18, dist * 0.08);
+    const sideSign = dx >= 0 ? 1 : -1;
+    const swayX = nearX ? sideSign * Math.max(14, Math.min(42, dist * 0.22)) : 0;
+    const swayY = nearY ? Math.max(10, Math.min(30, dist * 0.16)) : 0;
+    const c1 = { x: toNum(pStart.x) + tStart.x * lead + swayX, y: toNum(pStart.y) + tStart.y * lead + swayY };
+    const c2 = { x: toNum(pEnd.x) - tEnd.x * lead + swayX, y: toNum(pEnd.y) - tEnd.y * lead + swayY };
+    const pts = [];
+    for (let i = 1; i <= steps; i++) pts.push(sampleBezier(pStart, c1, c2, pEnd, i / steps));
+    return {
+      c1, c2, pts,
+      t0: sampleBezier(pStart, c1, c2, pEnd, 0.48),
+      t1: sampleBezier(pStart, c1, c2, pEnd, 0.52)
+    };
+  };
 
   const drawFlowLinkArrow = (c, tail, head, color, z = 1) => {
     const dx = toNum(head.x) - toNum(tail.x);
@@ -98,6 +172,8 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     const exportPass = !!force;
     st.flowLinkSegments = [];
     const strokeOutlinedPath = (path, outlineColor, outlineWidth, color, width) => {
+      c.lineCap = "round";
+      c.lineJoin = "round";
       c.strokeStyle = outlineColor;
       c.lineWidth = outlineWidth;
       c.stroke(path);
@@ -128,6 +204,11 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const fromType = deviceType(fromRect);
       const toType = deviceType(toRect);
       const fromCid = Math.max(1, Math.round(Number(ln && ln.from && ln.from.cid) || 1));
+      const toCid = Math.max(1, Math.round(Number(ln && ln.to && ln.to.cid) || 1));
+      const fromIsDevice = isDevice(fromRect);
+      const toIsDevice = isDevice(toRect);
+      const devicesLayerOn = !(st.installLayers && st.installLayers.devices === false);
+      if (!force && !devicesLayerOn && (fromIsDevice || toIsDevice)) continue;
       const isPcLikeToController = isDevice(fromRect) && isPcLike(fromType) && isDevice(toRect) && toType === "controller";
       const isPcLikeToPcLike = isDevice(fromRect) && isPcLike(fromType) && isDevice(toRect) && isPcLike(toType);
       const isControllerOut = isDevice(fromRect) && fromType === "controller";
@@ -139,22 +220,57 @@ export const setupInterScreenLinksRender = (deps = {}) => {
           ? "rgba(80,220,180,.95)"
           : "rgba(255,193,7,.95)";
       const strokeColorRaw = (key === hoverSegKey) ? "rgba(255,99,99,.98)" : baseColor;
-      const strokeColor = isDevice(fromRect) ? withAlpha(strokeColorRaw, 0.56) : strokeColorRaw;
-      const pts = geom.pts;
-      let prev = { x: a.x, y: a.y };
-      for (let i = 0; i < pts.length; i++) {
-        const p = pts[i];
-        st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
-        prev = p;
-      }
+      const strokeColor = fromIsDevice ? withAlpha(strokeColorRaw, 0.56) : strokeColorRaw;
       c.save();
       const baseW = exportPass ? strokeWidthForZoom(st.zoom, 0.85, 1.45) : strokeWidthForZoom(st.zoom, 1.2, 2.2);
-      const path = new Path2D();
-      path.moveTo(a.x, a.y);
-      for (const p of pts) path.lineTo(p.x, p.y);
-      drawLinkPath(path, strokeColor, baseW);
+      if (fromIsDevice || toIsDevice) {
+        const sideDir = (toNum(b.x) - toNum(a.x)) >= 0 ? 1 : -1;
+        const pStart = fromIsDevice ? deviceOutDownPoint(a, b, fromCid, sideDir) : { x: a.x, y: a.y };
+        const pEnd = toIsDevice
+          ? deviceInTailPoint(a, b, toCid, sideDir)
+          : (fromIsDevice ? screenStartTailPoint(pStart, b, 28, sideDir) : { x: b.x, y: b.y });
+        if (fromIsDevice) st.flowLinkSegments.push({ key, a: { x: a.x, y: a.y }, b: { x: pStart.x, y: pStart.y }, link: ln });
+        const geom2 = getStemSmoothGeom(
+          pStart,
+          pEnd,
+          {
+            stemStartAnchor: fromIsDevice ? a : null,
+            stemEndAnchor: (toIsDevice || fromIsDevice) ? b : null,
+            radiusMul: (fromIsDevice && !toIsDevice) ? 1.85 : 1
+          },
+          18
+        );
+        let prev = { x: pStart.x, y: pStart.y };
+        for (let i = 0; i < geom2.pts.length; i++) {
+          const p = geom2.pts[i];
+          st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
+          prev = p;
+        }
+        if (toIsDevice || fromIsDevice) st.flowLinkSegments.push({ key, a: { x: pEnd.x, y: pEnd.y }, b: { x: b.x, y: b.y }, link: ln });
+        const path = new Path2D();
+        path.moveTo(a.x, a.y);
+        if (fromIsDevice) path.lineTo(pStart.x, pStart.y);
+        path.bezierCurveTo(geom2.c1.x, geom2.c1.y, geom2.c2.x, geom2.c2.y, pEnd.x, pEnd.y);
+        if (toIsDevice || fromIsDevice) path.lineTo(b.x, b.y);
+        drawLinkPath(path, strokeColor, baseW);
+        if (fromIsDevice && toIsDevice) drawFlowLinkArrow(c, geom2.t0, geom2.t1, strokeColor, st.zoom || 1);
+        else if (toIsDevice) drawFlowLinkArrow(c, pEnd, b, strokeColor, st.zoom || 1);
+        else drawFlowLinkArrow(c, geom2.t0, geom2.t1, strokeColor, st.zoom || 1);
+      } else {
+        const pts = geom.pts;
+        let prev = { x: a.x, y: a.y };
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i];
+          st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
+          prev = p;
+        }
+        const path = new Path2D();
+        path.moveTo(a.x, a.y);
+        for (const p of pts) path.lineTo(p.x, p.y);
+        drawLinkPath(path, strokeColor, baseW);
+        drawFlowLinkArrow(c, geom.t0, geom.t1, strokeColor, st.zoom || 1);
+      }
       c.restore();
-      drawFlowLinkArrow(c, geom.t0, geom.t1, strokeColor, st.zoom || 1);
     }
     if (linkDrag && linkDrag.from) {
       const a = linkDrag.from;

@@ -25,6 +25,7 @@ export const setupViewportOverlays = (deps = {}) => {
     { id: "text", icon: "\uf031", title: "Текст" },
     { id: "contours", icon: "\uf5cb", title: "Контуры" },
     { id: "flow", icon: "\uf542", title: "Потоки" },
+    { id: "devices", icon: "\uf2db", title: "Устройства" },
     { id: "rig", icon: "\uf0ad", title: "Риг" }
   ];
 
@@ -473,6 +474,7 @@ export const setupViewportOverlays = (deps = {}) => {
       contours: false,
       text: false,
       flow: st.mode === "flowEdit",
+      devices: false,
       rig: st.mode === "rigEdit"
     };
     c.save();

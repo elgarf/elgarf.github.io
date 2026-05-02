@@ -31,7 +31,7 @@ export const setupProjectLifecycleController = (deps = {}) => {
     st.textSize = 32;
     st.fontFamily = "Roboto";
     st.globalScale = 256;
-    st.installLayers = { contours: true, text: true, flow: true, rig: true };
+    st.installLayers = { contours: true, text: true, flow: true, devices: true, rig: true };
     if (el.cUnit) el.cUnit.value = "m";
     setSelection([], null);
     resetTransientState(true);

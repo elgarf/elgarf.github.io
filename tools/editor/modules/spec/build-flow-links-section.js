@@ -77,6 +77,29 @@ const screenSeriesName = meta => {
   const m = name.match(/^(.*?)\s+\d+$/);
   return String(m ? m[1] : name).trim() || name || "Экран";
 };
+const isDeviceRect = r => String((r && r.kind) || "").toLowerCase() === "device";
+const rectKind = r => String((r && r.kind) || "").toLowerCase();
+const isSpecRect = r => {
+  const k = rectKind(r);
+  return k !== "note" && k !== "shape";
+};
+const normalizeDeviceType = v => {
+  const t = String(v || "controller").toLowerCase();
+  if (t === "pc" || t === "mixer" || t === "camera" || t === "controller") return t;
+  return "controller";
+};
+const deviceTypeLabel = v => {
+  if (v === "pc") return "PC";
+  if (v === "mixer") return "Mixer";
+  if (v === "camera") return "Camera";
+  return "Controller";
+};
+const baseNameWithoutTrailingNumber = name => {
+  const s = String(name || "").trim();
+  if (!s) return "Устройство";
+  const m = s.match(/^(.*?)(?:\s+[#№]?\s*\d+)?$/);
+  return String((m && m[1]) || s).trim() || s;
+};
 
 const createScreenSpecRecord = (deps = {}) => {
   const {
@@ -199,7 +222,9 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     includeManual = false
   } = deps;
 
-  const specRects = (Array.isArray(rects) ? rects : []).filter(r => !isNoteRect(r));
+  const allSpecRects = (Array.isArray(rects) ? rects : []).filter(r => isSpecRect(r));
+  const screenRects = allSpecRects.filter(r => !isDeviceRect(r));
+  const deviceRects = allSpecRects.filter(r => isDeviceRect(r));
   const interSpec = buildInterScreenSpecData();
   const manualResolver = includeManual
     ? createManualSectionResolver((specCustomSections && typeof specCustomSections === "object") ? specCustomSections : {})
@@ -209,7 +234,7 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     : "";
   const TOTAL_PARENT = "Итоговая сумма";
   const byScreenSeries = new Map();
-  for (const r of specRects) {
+  for (const r of screenRects) {
     const meta = parseScreenNameGroup(r);
     const series = screenSeriesName(meta);
     if (!byScreenSeries.has(series)) byScreenSeries.set(series, []);
@@ -253,9 +278,30 @@ export const buildFlowLinksSpecText = (deps = {}) => {
       return [`##### ${series}`, ...blocks].join("\n\n");
     })
     .join("\n\n");
+  const deviceTypeGroups = new Map();
+  for (const r of deviceRects) {
+    const type = normalizeDeviceType(r && r.deviceType);
+    const name = baseNameWithoutTrailingNumber(r && r.name);
+    let byName = deviceTypeGroups.get(type);
+    if (!byName) {
+      byName = new Map();
+      deviceTypeGroups.set(type, byName);
+    }
+    byName.set(name, (byName.get(name) || 0) + 1);
+  }
+  const deviceBlocks = [...deviceTypeGroups.entries()]
+    .sort((a, b) => deviceTypeLabel(a[0]).localeCompare(deviceTypeLabel(b[0]), "ru"))
+    .map(([type, byName]) => {
+      const lines = [`###### ${deviceTypeLabel(type)}`];
+      const list = mapToNamedCountList(byName);
+      for (const item of list) lines.push(`* ${item}`);
+      return lines.join("\n");
+    })
+    .join("\n\n");
+  const devicesSection = deviceBlocks ? ["##### Устройства", "", deviceBlocks].join("\n") : "";
 
   const byGroup = new Map();
-  for (const r of specRects) {
+  for (const r of screenRects) {
     const { group } = parseScreenNameGroup(r);
     const data = buildRectSpecData(r);
     const rigData = buildRectRigSpecData(r);
@@ -297,6 +343,7 @@ export const buildFlowLinksSpecText = (deps = {}) => {
   return [
     ...(globalManual ? ["##### Спецификация", "", globalManual, ""] : []),
     screenBlocks,
+    ...(devicesSection ? ["", devicesSection] : []),
     "",
     "##### Итоговая сумма",
     "",

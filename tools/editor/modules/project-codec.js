@@ -7,7 +7,7 @@ export const createProjectCodec = (deps) => {
   const PROJECT_QUERY_KEY_MAP = Object.freeze({
     version: "v", projectName: "pn", saveLocationId: "sl", camera: "c", settings: "s", nextId: "n", flowLinks: "fl", rectangles: "r",
     x: "x", y: "y", zoom: "z", textSize: "ts", fontFamily: "ff", viewMode: "vm", specCustomText: "sct", specCustomSections: "scs", lockAll: "la", snap: "sn", grid: "g", objects: "o", centers: "ct", gaps: "gp",
-    installLayers: "il", contours: "cn", text: "tx", flow: "fw",
+    installLayers: "il", contours: "cn", text: "tx", flow: "fw", devices: "dv",
     id: "i", name: "nm", rotation: "rt", width: "w", height: "h", scale: "sc", widthM: "wm", heightM: "hm", areaM2Px: "a2", colorA: "ca", autoContrastB: "ab", colorB: "cb",
     cellX: "cx", cellY: "cy", dataFlow: "df", dataFlowZ: "dz", numberCells: "nc", splitVariant: "sv", cellLinks: "cl", hiddenCells: "hc", flowLocks: "fk", flowLockRidToSig: "frs", flowLockCidToSeed: "fcs", manualClusters: "mc",
     rig: "rg", locked: "lk", kind: "kd", noteText: "nt", shapeOpacity: "so", shapePoints: "shp", type: "tp", inX: "inx", inY: "iny", outX: "oux", outY: "ouy", projectCache: "pc",
@@ -90,6 +90,7 @@ export const createProjectCodec = (deps) => {
       contours: out.settings.installLayers.contours !== false,
       text: out.settings.installLayers.text !== false,
       flow: out.settings.installLayers.flow !== false,
+      devices: out.settings.installLayers.devices !== false,
       rig: out.settings.installLayers.rig !== false
     };
     if (!isPlainObject(out.settings.snap)) out.settings.snap = {};
@@ -184,6 +185,7 @@ export const createProjectCodec = (deps) => {
         if (il.contours === true) delete il.contours;
         if (il.text === true) delete il.text;
         if (il.flow === true) delete il.flow;
+        if (il.devices === true) delete il.devices;
         if (il.rig === true) delete il.rig;
         if (isEmptyObject(il)) delete out.settings.installLayers;
       } else delete out.settings.installLayers;

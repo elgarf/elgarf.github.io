@@ -1015,9 +1015,9 @@ const serializeRectForProject = r => {
   if (pc) out.projectCache = pc; else delete out.projectCache;
   return out;
 };
-let buildProject = () => ({ version: 1, projectName: "Новый проект", saveLocationId: "", camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: 32, fontFamily: "Roboto", scale: 256, viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: false, installLayers: { text: true, flow: true, rig: true }, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
+let buildProject = () => ({ version: 1, projectName: "Новый проект", saveLocationId: "", camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: 32, fontFamily: "Roboto", scale: 256, viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: false, installLayers: { contours: true, text: true, flow: true, devices: true, rig: true }, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
 let cloneProjectData = data => cloneJson(data, () => buildProject());
-let makeEmptyProjectData = (name = translateText("Новый проект")) => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: 32, fontFamily: "Roboto", scale: 256, viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: false, installLayers: { text: true, flow: true, rig: true }, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
+let makeEmptyProjectData = (name = translateText("Новый проект")) => ({ version: 1, projectName: name, saveLocationId: genSaveLocationId(name), camera: { x: 0, y: 0, zoom: 1 }, settings: { textSize: 32, fontFamily: "Roboto", scale: 256, viewMode: "art", specCustomText: "", specCustomSections: {}, lockAll: false, installLayers: { contours: true, text: true, flow: true, devices: true, rig: true }, snap: { grid: false, objects: true, centers: true, gaps: true } }, nextId: 1, flowLinks: [], rectangles: [] });
 let buildPortableProjectBase = (_strip) => _strip(buildProject());
 let buildPortableProject = () => buildPortableProjectBase(stripProjectCaches);
 ({

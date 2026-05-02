@@ -272,7 +272,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   const toggleInstallLayer = id => {
     const key = String(id || "");
     if (!key) return false;
-    if (!st.installLayers || typeof st.installLayers !== "object") st.installLayers = { contours: true, text: true, flow: true, rig: true };
+    if (!st.installLayers || typeof st.installLayers !== "object") st.installLayers = { contours: true, text: true, flow: true, devices: true, rig: true };
     st.installLayers[key] = st.installLayers[key] === false;
     schedulePersist("project");
     render();

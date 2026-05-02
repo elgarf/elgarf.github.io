@@ -165,7 +165,7 @@ export const setupToolModeController = (deps = {}) => {
     if (m === "shape" && prevMode !== "shape") {
       const layers = (st.installLayers && typeof st.installLayers === "object")
         ? st.installLayers
-        : (st.installLayers = { contours: true, text: true, flow: true, rig: true });
+        : (st.installLayers = { contours: true, text: true, flow: true, devices: true, rig: true });
       if (layers.contours === false) {
         st._contoursAutoShownForShape = true;
         layers.contours = true;

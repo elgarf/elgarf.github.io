@@ -70,6 +70,11 @@ export const createEditorHitTest = ({
     for (let i = 0; i < rects.length; i++) {
       const rect = rects[i];
       if (typeof isRectLocked === "function" && isRectLocked(rect)) continue;
+      if (String(st && st.viewMode || "") === "install") {
+        const isDeviceRect = String((rect && rect.kind) || "").toLowerCase() === "device";
+        const layers = (st && st.installLayers && typeof st.installLayers === "object") ? st.installLayers : {};
+        if (isDeviceRect && layers.devices === false) continue;
+      }
       if (shapeHitEnabled() && hitShapeRect({ rect, x, y, zoom: st && st.zoom, isShapeRect, shapePointHit, pointInShape })) return rect;
       if (typeof isShapeRect === "function" && isShapeRect(rect)) continue;
       if (hitRectBody({ rect, x, y, mode: st && st.mode, worldToRectUV, rectAABBMasked, cellFromWorldPoint })) return rect;
