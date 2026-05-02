@@ -113,7 +113,10 @@ import {
 const VIEWER_MODE = (() => {
   try {
     const p = new URLSearchParams(location.search || "");
-    return p.get("viewer") === "1";
+    const byParam = p.get("viewer") === "1";
+    const path = String((location && location.pathname) || "").toLowerCase();
+    const byPath = path.endsWith("/ledmaskviewer.html") || path.endsWith("ledmaskviewer.html");
+    return byParam || byPath;
   } catch (_e) {
     return false;
   }
@@ -1114,6 +1117,14 @@ const {
 }));
 const loadProjectIntoActiveState = data => {
   applyProjectData(data || makeEmptyProjectData("Новый проект"), { syncTabSnapshot: false, renderTabs: false });
+  if (VIEWER_MODE) {
+    setLockAll(true, false);
+    setMode("select");
+    st.selSet = new Set();
+    st.sel = null;
+    syncProps();
+    render();
+  }
 };
 const ensureFontReady = async () => {
   if (st.fontReady) return;

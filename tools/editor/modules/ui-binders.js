@@ -17,7 +17,10 @@ export const setupUiBinders = (deps = {}) => {
   const isViewerMode = (() => {
     try {
       const p = new URLSearchParams((globalThis.location && globalThis.location.search) || "");
-      return p.get("viewer") === "1";
+      const byParam = p.get("viewer") === "1";
+      const path = String((globalThis.location && globalThis.location.pathname) || "").toLowerCase();
+      const byPath = path.endsWith("/ledmaskviewer.html") || path.endsWith("ledmaskviewer.html");
+      return byParam || byPath;
     } catch (_e) {
       return false;
     }
