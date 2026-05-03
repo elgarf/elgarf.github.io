@@ -48,6 +48,8 @@ export const setupCabinetSummaryUtils = (deps = {}) => {
       r && r.scale || 0,
       cx || 0,
       cy || 0,
+      t("м"),
+      t("шт."),
       topoCalcKey(r, cx, cy),
       listSignature(r && r.hiddenCells)
     ].join("|");

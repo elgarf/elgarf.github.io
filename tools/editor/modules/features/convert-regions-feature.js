@@ -23,7 +23,8 @@ export const setupConvertRegionsFeature = (deps = {}) => {
     syncProps,
     listRects,
     render,
-    schedulePersist
+    schedulePersist,
+    t = value => value
   } = deps;
 
   bindClick(el.btnConvertRegionsToScreens, () => {
@@ -113,7 +114,7 @@ export const setupConvertRegionsFeature = (deps = {}) => {
       createdAll.push(...created);
     }
     if (!createdAll.length) {
-      if (skippedNoRegions > 0) showMessageModal("Недостаточно регионов для преобразования");
+      if (skippedNoRegions > 0) showMessageModal(t("Недостаточно регионов для преобразования"));
       return;
     }
     setSelection(createdAll.map(it => it.id), createdAll[createdAll.length - 1].id);

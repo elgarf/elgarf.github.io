@@ -269,7 +269,7 @@ export const setupSpecExportFeature = (deps = {}) => {
     return { cabinetBySize, cableByLen, visibleAreaM2 };
   };
 
-  const buildFlowSpecText = (options = {}) => t(buildFlowLinksSpecText({
+  const buildFlowSpecText = (options = {}) => buildFlowLinksSpecText({
     projectName: String(st.projectName || "Проект"),
     viewerUrl: (() => {
       try {
@@ -295,8 +295,9 @@ export const setupSpecExportFeature = (deps = {}) => {
     fmtMeters,
     specCustomSections: st.specCustomSections,
     specCustomText: st.specCustomText,
-    includeManual: !!(options && options.includeManual)
-  }));
+    includeManual: !!(options && options.includeManual),
+    t
+  });
 
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   const waitForCacheReady = async (r, kind, timeoutMs = 45000) => {
@@ -367,7 +368,8 @@ export const setupSpecExportFeature = (deps = {}) => {
     saveBlobWithSystemDialog,
     buildFlowSpecText: () => buildFlowSpecText({ includeManual: true, cachedOnly: true }),
     ensureExportCaches,
-    showMessageModal
+    showMessageModal,
+    t
   });
 
   const bindExportHandlers = () => {

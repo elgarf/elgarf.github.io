@@ -217,6 +217,8 @@ const EN = {
   "Блок": "Block",
   "Секция": "Section",
   "Экран": "Screen",
+  "Кабинет": "Cabinet",
+  "Кабинет не выбран": "Cabinet not selected",
   "Нет данных для спецификации": "No specification data",
   "Общее дополнение": "General addition",
   "Общие замечания": "General notes",
@@ -224,7 +226,9 @@ const EN = {
   "Перенесено": "Moved",
   "Итоговая сумма": "Grand total",
   "Группа": "Group",
+  "Группы": "Groups",
   "Общая": "General",
+  "Количество экранов": "Screen count",
   "Кабинеты": "Cabinets",
   "Коммутация": "Wiring",
   "Межэкранные связи": "Inter-screen links",
@@ -257,6 +261,7 @@ const EN = {
   "Распределить по вертикали": "Distribute vertically",
   "Текст": "Text",
   "Потоки": "Flows",
+  "Нет устройств": "No devices",
   "Риг": "Rig",
   "Направление потока": "Flow direction",
   "Влево": "Left",
@@ -311,16 +316,7 @@ export const translateText = (value, lang = getCurrentLanguage()) => {
   if (dict[core]) return `${leading}${dict[core]}${trailing}`;
   const compactCore = core.replace(/\s+/g, " ");
   if (dict[compactCore]) return `${leading}${dict[compactCore]}${trailing}`;
-  let out = core;
-  const entries = Object.entries(dict).sort((a, b) => b[0].length - a[0].length);
-  for (const [ru, en] of entries) out = out.replaceAll(ru, en);
-  out = out
-    .replace(/(\d+(?:[.,]\d+)?)\s*экранов/g, "$1 screens")
-    .replace(/(\d+(?:[.,]\d+)?)\s*шт\./g, "$1 pcs")
-    .replace(/(\d+(?:[.,]\d+)?)\s*м²/g, "$1 m²")
-    .replace(/(\d+(?:[.,]\d+)?)\s*м\b/g, "$1 m")
-    .replace(/(\d+(?:[.,]\d+)?)\s*кг/g, "$1 kg");
-  return `${leading}${out}${trailing}`;
+  return text;
 };
 
 export const setupI18n = (deps = {}) => {

@@ -21,7 +21,8 @@ export const setupExportPackageController = (deps = {}) => {
     saveBlobWithSystemDialog,
     buildFlowSpecText,
     ensureExportCaches,
-    showMessageModal
+    showMessageModal,
+    t = value => value
   } = deps;
 
   const renderExportPngBlob = createRenderExportPngBlob({
@@ -43,13 +44,14 @@ export const setupExportPackageController = (deps = {}) => {
     getGlobalSaveLocationId,
     saveStatus,
     saveBlobWithSystemDialog,
-    projectFileBase
+    projectFileBase,
+    t
   });
 
-  const showExportPackageMessage = text => showMessageModal(text, "Экспорт пакета");
+  const showExportPackageMessage = text => showMessageModal(text, t("Экспорт пакета"));
 
   const exportPackage = async () => {
-    if (!st.rects.length) { showExportPackageMessage("Нечего экспортировать"); return; }
+    if (!st.rects.length) { showExportPackageMessage(t("Нечего экспортировать")); return; }
     if (typeof ensureExportCaches === "function") await ensureExportCaches();
     const [pngArt, pngFlow, pngRig, pngFlowOnly] = await Promise.all([
       renderExportPngBlob(false),
@@ -57,7 +59,7 @@ export const setupExportPackageController = (deps = {}) => {
       renderExportPngBlob({ rigOnly: true }),
       renderExportPngBlob({ flowOnly: true })
     ]);
-    if (!pngArt || !pngFlow || !pngRig || !pngFlowOnly) { showExportPackageMessage("Ошибка экспорта"); return; }
+    if (!pngArt || !pngFlow || !pngRig || !pngFlowOnly) { showExportPackageMessage(t("Ошибка экспорта")); return; }
     const specBlob = new Blob([buildFlowSpecText()], { type: "text/markdown;charset=utf-8" });
     const projectBlob = new Blob([JSON.stringify(buildProject(), null, 2)], { type: "application/json;charset=utf-8" });
     await writePackageFiles({ pngArt, pngFlow, pngRig, pngFlowOnly, specBlob, projectBlob });

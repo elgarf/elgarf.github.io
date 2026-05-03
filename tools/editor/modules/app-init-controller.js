@@ -7,7 +7,8 @@ export const setupAppInitController = (deps = {}) => {
     getProjectDataFromQueryParam, showMessageModal, restoreAutoSave,
     mk, autoContrast, selRect, resize, refreshPanels, fit,
     cloneProjectData, buildProject, loadProjectIntoActiveState, syncActiveTabSnapshot, renderProjectTabs,
-    clearProjectQueryParamFromUrl, initHistoryCurrent, ensureFontReady, render, hideStartupLoader
+    clearProjectQueryParamFromUrl, initHistoryCurrent, ensureFontReady, render, hideStartupLoader,
+    t = value => value
   } = deps;
 
   const initializeAppUi = () => {
@@ -26,7 +27,7 @@ export const setupAppInitController = (deps = {}) => {
     try {
       queryProjectData = await getProjectDataFromQueryParam();
     } catch (_e) {
-      showMessageModal("Параметр проекта в URL повреждён или не поддерживается");
+      showMessageModal(t("Параметр проекта в URL повреждён или не поддерживается"));
       queryProjectData = null;
     }
     const loaded = restoreAutoSave();
@@ -47,12 +48,12 @@ export const setupAppInitController = (deps = {}) => {
       refreshPanels();
     }
     if (!st.tabs.length) {
-      st.tabs = [{ id: 1, title: (st.projectName || "Новый проект"), data: cloneProjectData(buildProject()) }];
+      st.tabs = [{ id: 1, title: (st.projectName || t("Новый проект")), data: cloneProjectData(buildProject()) }];
       st.activeTabId = 1;
       st.nextTabId = 2;
     }
     if (queryProjectData && typeof queryProjectData === "object") {
-      const tabTitle = String((queryProjectData && queryProjectData.projectName) || "Новый проект").trim() || "Новый проект";
+      const tabTitle = String((queryProjectData && queryProjectData.projectName) || t("Новый проект")).trim() || t("Новый проект");
       const nextTabId = Math.max((+st.nextTabId || 1), st.tabs.reduce((m, t) => Math.max(m, Number(t && t.id) || 0), 0) + 1);
       st.nextTabId = nextTabId + 1;
       st.tabs.push({ id: nextTabId, title: tabTitle, data: cloneProjectData(queryProjectData) });

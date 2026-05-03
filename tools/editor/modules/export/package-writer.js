@@ -5,7 +5,8 @@ export const createExportPackageWriter = (deps = {}) => {
     getGlobalSaveLocationId,
     saveStatus,
     saveBlobWithSystemDialog,
-    projectFileBase
+    projectFileBase,
+    t = value => value
   } = deps;
 
   const writeFileToDirectory = async (dirHandle, fileName, blob) => {
@@ -32,7 +33,7 @@ export const createExportPackageWriter = (deps = {}) => {
         if (pngFlowOnly) await writeFileToDirectory(dirHandle, fileFlowOnly, pngFlowOnly);
         await writeFileToDirectory(dirHandle, fileSpec, specBlob);
         if (projectBlob) await writeFileToDirectory(dirHandle, fileProject, projectBlob);
-        saveStatus.saved("Пакет экспортирован");
+        saveStatus.saved(t("Пакет экспортирован"));
         return;
       } catch (err) {
         if (err && err.name === "AbortError") return;

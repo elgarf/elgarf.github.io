@@ -362,7 +362,7 @@ export const setupSpecViewController = (deps = {}) => {
         `<div class="accordion-item spec-mode-sub ${hasManual ? "has-manual" : ""}" data-section-key="${escapeHtml(s.key)}">`
         + `<h2 class="accordion-header" id="${escapeHtml(headingId)}">`
         + `<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${escapeHtml(collapseId)}" aria-expanded="false" aria-controls="${escapeHtml(collapseId)}">`
-        + `${escapeHtml(t(s.title || "Блок"))}`
+        + `${escapeHtml(String(s.title || "Блок"))}`
         + `</button>`
         + `</h2>`
         + `<div id="${escapeHtml(collapseId)}" class="accordion-collapse collapse" aria-labelledby="${escapeHtml(headingId)}" data-bs-parent="#${escapeHtml(parentAccordionId)}">`
@@ -404,7 +404,7 @@ export const setupSpecViewController = (deps = {}) => {
       const accordion = children ? `<div id="${escapeHtml(parentAccordionId)}" class="accordion spec-mode-accordion">${children}</div>` : "";
       return (
         `<section class="spec-mode-block spec-mode-parent ${parentHasManual ? "has-manual" : ""}" data-section-key="${escapeHtml(parent.key || "")}">`
-        + `<header>${escapeHtml(t(parent.title || "Секция"))}</header>`
+        + `<header>${escapeHtml(String(parent.title || "Секция"))}</header>`
         + parentPre
         + parentManual
         + accordion

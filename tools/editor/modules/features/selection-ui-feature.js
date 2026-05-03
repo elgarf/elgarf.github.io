@@ -23,7 +23,8 @@ export const setupSelectionUiFeature = (deps = {}) => {
     isSelected,
     toggleRectLockById,
     persistProjectAndRender,
-    syncPropsSmart
+    syncPropsSmart,
+    t = value => value
   } = deps;
 
   const syncSelectionProps = () => {
@@ -71,7 +72,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
     if (!st.rects.length) {
       listCtrl.listNodeCache.clear();
       listCtrl.clearListDropMarker();
-      el.list.innerHTML = "<p class='hint' style='margin:0'>Экранов пока нет.</p>";
+      el.list.innerHTML = `<p class='hint' style='margin:0'>${t("Экранов пока нет.")}</p>`;
       return;
     }
     const fragment = document.createDocumentFragment();
@@ -93,8 +94,8 @@ export const setupSelectionUiFeature = (deps = {}) => {
         const lockBtn = document.createElement("button");
         lockBtn.type = "button";
         lockBtn.className = "btn btn-outline-secondary btn-sm rect-item-lock";
-        lockBtn.title = "Блокировка экрана";
-        lockBtn.setAttribute("aria-label", "Блокировка экрана");
+        lockBtn.title = t("Блокировка экрана");
+        lockBtn.setAttribute("aria-label", t("Блокировка экрана"));
         const meta = document.createElement("div");
         meta.className = "text-secondary";
         head.appendChild(title);
@@ -114,7 +115,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
         if (node._lock.innerHTML !== `<i class="${ic}"></i>`) node._lock.innerHTML = `<i class="${ic}"></i>`;
         node._lock.classList.toggle("btn-primary", on);
         node._lock.classList.toggle("btn-outline-secondary", !on);
-        node._lock.title = on ? "Разблокировать экран" : "Заблокировать экран";
+        node._lock.title = on ? t("Разблокировать экран") : t("Заблокировать экран");
         node._lock.setAttribute("aria-label", node._lock.title);
       }
       const titleText = String(r.name || `Rect ${id}`);

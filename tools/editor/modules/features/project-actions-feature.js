@@ -40,11 +40,12 @@ export const setupProjectActionsFeature = (deps = {}) => {
     saveButton,
     buildProject,
     projectFileBase,
-    getSaveLocationId
+    getSaveLocationId,
+    t = value => value
   } = deps;
 
   const askFileName = (def, ext) => {
-    const raw = promptFn("Имя файла:", def);
+    const raw = promptFn(t("Имя файла:"), def);
     if (raw == null) return null;
     let name = String(raw).trim();
     if (!name) name = def;
@@ -86,7 +87,7 @@ export const setupProjectActionsFeature = (deps = {}) => {
         await tauriInvoke("save_file_dialog", { suggestedName, dataBase64 });
         return;
       } catch (err) {
-        if (typeof showErrorModal === "function") showErrorModal("Ошибка сохранения", err, "Ошибка нативного сохранения (Tauri)");
+        if (typeof showErrorModal === "function") showErrorModal(t("Ошибка сохранения"), err, t("Ошибка нативного сохранения (Tauri)"));
         return;
       }
     }
@@ -134,20 +135,20 @@ export const setupProjectActionsFeature = (deps = {}) => {
       const bytes = new Uint8Array(await f.arrayBuffer());
       const text = extractProjectFromPngBytes(bytes, PNG_PROJECT_META_KEY);
       if (!text) {
-        showMessageModal("Данное изображение не содержит данных проекта", "Импорт PNG");
+        showMessageModal(t("Данное изображение не содержит данных проекта"), t("Импорт PNG"));
         return;
       }
       try {
         applyLoadedProjectData(JSON.parse(text), "all");
       } catch (err) {
-        showErrorModal("Ошибка импорта", err, "Ошибка данных проекта в PNG");
+        showErrorModal(t("Ошибка импорта"), err, t("Ошибка данных проекта в PNG"));
       }
       return;
     }
     try {
       applyLoadedProjectData(JSON.parse(String(await f.text() || "{}")), "all");
     } catch (err) {
-      showErrorModal("Ошибка импорта", err, "Ошибка JSON");
+      showErrorModal(t("Ошибка импорта"), err, t("Ошибка JSON"));
     }
   };
   const bindProjectLoadHandlers = () => {
@@ -157,7 +158,7 @@ export const setupProjectActionsFeature = (deps = {}) => {
       const f = el.file.files && el.file.files[0];
       if (!f) return;
       try {
-        await withUiErrorBoundary("Ошибка загрузки", async () => await loadProjectFromFile(f), "Ошибка загрузки файла");
+        await withUiErrorBoundary(t("Ошибка загрузки"), async () => await loadProjectFromFile(f), t("Ошибка загрузки файла"));
       } finally {
         el.file.value = "";
       }

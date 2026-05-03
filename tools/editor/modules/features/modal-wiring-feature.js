@@ -6,7 +6,8 @@ export const setupModalWiringFeature = (deps = {}) => {
     focusAndSelect,
     lsSet,
     HELP_SEEN_KEY,
-    setupProjectLinkModalController
+    setupProjectLinkModalController,
+    t = value => value
   } = deps;
 
   const modalCache = {
@@ -31,24 +32,24 @@ export const setupModalWiringFeature = (deps = {}) => {
     getProjectLinkModal: () => getOrCreateBootstrapModal(el.projectLinkModal || getById("projectLinkModal"), "projectLink")
   };
   const modalHelpers = {
-    showMessageModal: (text, title = "Сообщение") => {
+    showMessageModal: (text, title = t("Сообщение")) => {
       const modal = bootstrapModalFactory.getMessageModal();
       const titleEl = getById("messageModalTitle");
       const bodyEl = getById("messageModalBody");
       const msg = String(text == null ? "" : text);
       if (modal && titleEl && bodyEl) {
-        titleEl.textContent = String(title || "Сообщение");
+        titleEl.textContent = String(title || t("Сообщение"));
         bodyEl.textContent = msg;
         modal.show();
         return;
       }
       console.warn(`[modal-fallback] ${title}: ${msg}`);
     },
-    showErrorModal: (title, err, prefix = "Ошибка") => {
+    showErrorModal: (title, err, prefix = t("Ошибка")) => {
       const msg = (err && err.message ? err.message : String(err));
       modalHelpers.showMessageModal(`${prefix}: ${msg}`, title);
     },
-    withUiErrorBoundary: async (title, task, prefix = "Ошибка") => {
+    withUiErrorBoundary: async (title, task, prefix = t("Ошибка")) => {
       try {
         return await task();
       } catch (err) {

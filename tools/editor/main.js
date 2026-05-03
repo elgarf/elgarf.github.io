@@ -1348,7 +1348,8 @@ const rectHasManualFlow = r => {
   render: () => render(),
   isSelected,
   toggleRectLockById,
-  persistProjectAndRender
+  persistProjectAndRender,
+  t: value => translateText(value)
 }));
 const multiSelectionActions = setupMultiSelectionActionsController({
   st,
@@ -1876,13 +1877,13 @@ const updateRectTextSizeLabel = r => {
   const lv = Math.max(0, Math.min(128, Math.round(Number(r && r.textSize) || 0)));
   if (lv > 0) {
     el.rectTextSizeLabel.textContent = `${lv}px`;
-    el.rectTextSizeLabel.title = `Локальный размер: ${lv}px`;
-    el.rectTextSizeLabel.setAttribute("aria-label", `Локальный размер: ${lv}px`);
+    el.rectTextSizeLabel.title = `${translateText("Локальный размер")}: ${lv}px`;
+    el.rectTextSizeLabel.setAttribute("aria-label", `${translateText("Локальный размер")}: ${lv}px`);
   } else {
     const gv = Math.round(st.textSize || 12);
     el.rectTextSizeLabel.innerHTML = '<i class="fa-solid fa-globe"></i>';
-    el.rectTextSizeLabel.title = `Глобальный размер: ${gv}px`;
-    el.rectTextSizeLabel.setAttribute("aria-label", `Глобальный размер: ${gv}px`);
+    el.rectTextSizeLabel.title = `${translateText("Глобальный размер")}: ${gv}px`;
+    el.rectTextSizeLabel.setAttribute("aria-label", `${translateText("Глобальный размер")}: ${gv}px`);
   }
 };
 const {
@@ -1991,7 +1992,7 @@ const syncCabinetToolPanel = () => {
   if (!panelVisible) return;
   const r = getCabinetSelectionRect();
   if (!rec || !r) {
-    if (el.cabinetSelectionLabel) el.cabinetSelectionLabel.textContent = "Кабинет не выбран";
+    if (el.cabinetSelectionLabel) el.cabinetSelectionLabel.textContent = translateText("Кабинет не выбран");
     if (el.propCabinetDiag) el.propCabinetDiag.value = "auto";
     if (el.propCabinetColor) el.propCabinetColor.value = "auto";
     if (el.btnCabinetStyleReset) el.btnCabinetStyleReset.disabled = true;
@@ -1999,7 +2000,7 @@ const syncCabinetToolPanel = () => {
   }
   const styles = (r.cabinetStyles && typeof r.cabinetStyles === "object") ? r.cabinetStyles : {};
   const style = normalizeCabinetStyleValue(styles[String(rec.cid)]);
-  if (el.cabinetSelectionLabel) el.cabinetSelectionLabel.textContent = `Кабинет: #${rec.cid + 1}`;
+  if (el.cabinetSelectionLabel) el.cabinetSelectionLabel.textContent = `${translateText("Кабинет")}: #${rec.cid + 1}`;
   if (el.propCabinetDiag) el.propCabinetDiag.value = style.diag;
   if (el.propCabinetColor) el.propCabinetColor.value = style.color;
   if (el.btnCabinetStyleReset) el.btnCabinetStyleReset.disabled = !(style.diag !== "auto" || style.color !== "auto");
@@ -2214,7 +2215,8 @@ const {
     focusAndSelect,
     lsSet: lsSetSafe,
     HELP_SEEN_KEY,
-    setupProjectLinkModalController
+    setupProjectLinkModalController,
+    t: value => translateText(value)
   },
   resetDeps: {
     el,
@@ -2250,7 +2252,8 @@ const {
     syncProps: () => syncProps(),
     listRects: () => listRects(),
     render: () => render(),
-    schedulePersist: kind => schedulePersist(kind)
+    schedulePersist: kind => schedulePersist(kind),
+    t: value => translateText(value)
   },
   postSetupDeps: {
     windowRef: window,
@@ -2288,6 +2291,7 @@ const {
     buildProject: () => buildProject(),
     projectFileBase: () => projectFileBase(),
     getSaveLocationId: () => st.saveLocationId,
+    t: value => translateText(value),
     setupInstallBannerController,
     setupProjectActionsFeature,
     setupSpecExportFeature,
