@@ -82,7 +82,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
   };
   const normalizeDeviceOrientation = value => String(value || "").toLowerCase() === "vertical" ? "vertical" : "horizontal";
-  const normalizeFlowLinkControlPointCount = value => Math.max(2, Math.min(4, Math.round(Number(value) || 2)));
+  const normalizeFlowLinkControlPointCount = value => Math.max(2, Math.min(6, Math.round(Number(value) || 2)));
   const normalizeFlowLinkColorMode = value => String(value || "").toLowerCase() === "custom" ? "custom" : "auto";
   const normalizeFlowLinkColor = value => /^#[0-9a-f]{6}$/i.test(String(value || "").trim()) ? String(value).toLowerCase() : "#ffc107";
   const normalizeFlowLinkWidth = value => Math.max(0.5, Math.min(20, Number(value) || 2.2));

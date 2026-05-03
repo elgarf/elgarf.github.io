@@ -314,7 +314,7 @@ export const normalizeFlowLinks = raw => {
     seen.add(key);
     const manualBezier = mkManualBezier(it.manualBezier);
     const manualBezierRel = mkManualBezierRel(it.manualBezierRel);
-    const controlPointCount = Math.round(clamp(it.controlPointCount, 2, 4, 2));
+    const controlPointCount = Math.round(clamp(it.controlPointCount, 2, 6, 2));
     const controlOffsets = normControlOffsets(it.controlOffsets, controlPointCount);
     const hasBendOffsets = Array.isArray(it.bendOffsets);
     const bendOffsets = hasBendOffsets ? normBendOffsets(it.bendOffsets, controlPointCount) : null;

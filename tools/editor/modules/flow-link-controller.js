@@ -674,7 +674,7 @@ export const setupFlowLinkController = (deps = {}) => {
     }
     if (isBendHandle) {
       const segIndex = Math.max(0, Math.round(Number(hRaw.slice(1)) || 1) - 1);
-      const pointCount = Math.max(2, Math.min(4, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2)));
+      const pointCount = Math.max(2, Math.min(6, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2)));
       const segCount = Math.max(1, pointCount - 1);
       if (segIndex >= segCount) return false;
       const old = Array.isArray(cur && cur.bendOffsets) ? cur.bendOffsets : [];
@@ -693,7 +693,7 @@ export const setupFlowLinkController = (deps = {}) => {
     }
     if (isPointHandle) {
       const pointIndex = Math.max(1, Math.round(Number(hRaw.slice(1)) || 1));
-      const pointCount = Math.max(2, Math.min(4, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2)));
+      const pointCount = Math.max(2, Math.min(6, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2)));
       const start = fallback && fallback.start && typeof fallback.start === "object" ? fallback.start : null;
       const end = fallback && fallback.end && typeof fallback.end === "object" ? fallback.end : null;
       if (!start || !end || pointIndex >= pointCount) return false;
