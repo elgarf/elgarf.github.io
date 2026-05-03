@@ -270,6 +270,22 @@ export const setupSpecExportFeature = (deps = {}) => {
   };
 
   const buildFlowSpecText = (options = {}) => t(buildFlowLinksSpecText({
+    projectName: String(st.projectName || "Проект"),
+    viewerUrl: (() => {
+      try {
+        const url = new URL((globalThis.location && globalThis.location.href) || "");
+        const viewer = new URL("./LedMaskViewer.html", url);
+        const p = new URLSearchParams(url.search || "");
+        const idParam = p.get("id") || p.get("projectId");
+        if (idParam) viewer.searchParams.set("id", idParam);
+        if (p.get("project")) viewer.searchParams.set("project", p.get("project"));
+        viewer.searchParams.delete("projectId");
+        if (p.get("viewer") === "1") viewer.searchParams.delete("viewer");
+        return viewer.toString();
+      } catch (_e) {
+        return "";
+      }
+    })(),
     rects: st.rects,
     isNoteRect,
     buildInterScreenSpecData: () => buildInterScreenSpecData({ cachedOnly: !!(options && options.cachedOnly) }),

@@ -83,7 +83,9 @@ export const setupToolModeController = (deps = {}) => {
   };
   const updateCreateToolButtons = () => {
     if (!["draw", "note", "shape", "device"].includes(String(st.createToolMode || ""))) st.createToolMode = "draw";
-    const mode = (st.mode === "draw" || st.mode === "note" || st.mode === "shape" || st.mode === "device") ? st.mode : st.createToolMode;
+    const installView = String(st && st.viewMode || "") === "install";
+    const rawMode = (st.mode === "draw" || st.mode === "note" || st.mode === "shape" || st.mode === "device") ? st.mode : st.createToolMode;
+    const mode = (!installView && rawMode === "device") ? "draw" : rawMode;
     const meta = CREATE_TOOL_META[mode] || CREATE_TOOL_META.draw;
     for (const b of [el.toolDraw, el.mToolDraw]) {
       if (!b) continue;
@@ -102,6 +104,7 @@ export const setupToolModeController = (deps = {}) => {
   const setMode = m => {
     const prevMode = String(st && st.mode || "");
     m = toolFsm.resolve(m);
+    if (m === "device" && String(st && st.viewMode || "") !== "install") m = "draw";
     if (typeof cancelActiveDrag === "function") cancelActiveDrag();
     if (st.mode !== m && m !== "note") closeNoteEditor(true);
     st.mode = m;
@@ -200,7 +203,10 @@ export const setupToolModeController = (deps = {}) => {
       }
       return;
     }
-    if (mode === "draw" || mode === "note" || mode === "shape" || mode === "device") st.createToolMode = mode;
+    if (mode === "draw" || mode === "note" || mode === "shape" || mode === "device") {
+      const installView = String(st && st.viewMode || "") === "install";
+      st.createToolMode = (!installView && mode === "device") ? "draw" : mode;
+    }
     setMode(toolFsm.nextOnToolClick(st.mode, mode));
   };
 

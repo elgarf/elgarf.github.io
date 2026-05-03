@@ -57,6 +57,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
         const borderColor = sel ? "#ffe08a" : "rgba(255,255,255,.85)";
         const inCount = Math.max(1, Math.min(64, Math.round(Number(r.deviceInCount) || 4)));
         const outCount = Math.max(1, Math.min(64, Math.round(Number(r.deviceOutCount) || 4)));
+        const orientation = String(r.deviceOrientation || "").toLowerCase() === "vertical" ? "vertical" : "horizontal";
         const inLabels = Array.isArray(r.deviceInLabels) ? r.deviceInLabels : [];
         const outLabels = Array.isArray(r.deviceOutLabels) ? r.deviceOutLabels : [];
         const selectedPort = st && st.devicePortSelection
@@ -82,31 +83,8 @@ export const setupDrawRectBaseController = (deps = {}) => {
         c.strokeStyle = borderColor;
         c.lineWidth = sel ? 2.5 / Math.max(0.25, z) : 1.2 / Math.max(0.25, z);
         c.strokeRect(-w / 2, -h / 2, w, h);
-        const plateH = Math.max(18, Math.min(h * 0.28, 34));
-        c.fillStyle = "rgba(0,0,0,.42)";
-        c.fillRect(-w / 2, -h / 2, w, plateH);
-        c.fillStyle = "rgba(255,255,255,.96)";
         const titleText = `${title} · ${typeLabel}`;
-        const titlePadX = Math.max(10, w * 0.04);
-        const titleMaxW = Math.max(20, w - titlePadX * 2);
-        const titleFsBase = Math.max(12, Math.min(h * 0.18, plateH * 0.72, 28));
-        c.font = `${titleFsBase}px ${fontFamilyCss(st.fontFamily)}`;
-        const measuredTitleW = Math.max(1, c.measureText(titleText).width);
-        const titleFs = Math.max(10, Math.min(titleFsBase, titleFsBase * (titleMaxW / measuredTitleW)));
-        c.font = `${titleFs}px ${fontFamilyCss(st.fontFamily)}`;
-        c.textBaseline = "middle";
-        c.textAlign = "center";
-        c.lineJoin = "round";
-        c.miterLimit = 2;
-        c.lineWidth = Math.max(2.4, titleFs * 0.22);
-        c.strokeStyle = "rgba(0,0,0,.8)";
-        c.strokeText(titleText, 0, -h / 2 + plateH / 2);
-        c.fillText(titleText, 0, -h / 2 + plateH / 2);
-        const workTop = -h / 2 + plateH;
-        const workH = Math.max(8, h - plateH);
-        const topY = workTop + workH * 0.25;
-        const botY = workTop + workH * 0.75;
-        const rDot = Math.max(4.6, Math.min(h * 0.065, 9.5));
+        const rDot = Math.max(4.6, Math.min(Math.min(w, h) * 0.085, 9.5));
         const portFs = Math.max(11, Math.min(h * 0.14, 24));
         c.font = `${portFs}px ${fontFamilyCss(st.fontFamily)}`;
         c.fillStyle = "rgba(255,255,255,.95)";
@@ -121,14 +99,35 @@ export const setupDrawRectBaseController = (deps = {}) => {
           c.fillStyle = "rgba(255,255,255,.98)";
           c.fillText(String(text || ""), x, y);
         };
-        const gap = Math.max(8, Math.min(18, portFs * 0.9));
-        const laneLeft = -w * 0.45;
-        const laneRight = w * 0.45;
-        const laneW = Math.max(1, laneRight - laneLeft);
-        const drawPortRow = (prefix, labels, count, rowY, dotKind) => {
+        const pushAnchor = (px, py, dotKind, idx) => {
+          if (String(options.installTextMode || "") === "only" || !Array.isArray(st.flowLinkAnchors)) return;
+          const wp = rectUVToWorld(r, px + w / 2, py + h / 2);
+          st.flowLinkAnchors.push({ rectId: r.id, rid: 0, cid: idx + 1, kind: dotKind, x: wp.x, y: wp.y });
+        };
+        const drawPortDot = (px, py, dotKind, idx) => {
+          c.beginPath();
+          c.fillStyle = dotKind === "start"
+            ? "rgba(64,190,255,.95)"
+            : (typeRaw === "controller" ? outControllerColor(idx + 1) : "rgba(255,170,64,.95)");
+          c.arc(px, py, rDot, 0, Math.PI * 2);
+          c.fill();
+          c.strokeStyle = "rgba(0,0,0,.78)";
+          c.lineWidth = Math.max(1.6, 2.4);
+          c.stroke();
+          if (selectedPort && selectedPort.kind === dotKind && selectedPort.cid === (idx + 1)) {
+            c.strokeStyle = "#ffe08a";
+            c.lineWidth = Math.max(1.1, 1.8);
+            c.beginPath();
+            c.arc(px, py, rDot + Math.max(1.5, 2.2), 0, Math.PI * 2);
+            c.stroke();
+          }
+          pushAnchor(px, py, dotKind, idx);
+        };
+        const drawPortRow = (prefix, labels, count, rowY, dotKind, laneLeft, laneRight) => {
           const vals = [];
           for (let i = 0; i < count; i++) vals.push(String(labels[i] == null || labels[i] === "" ? (i + 1) : labels[i]));
           const prefixW = c.measureText(prefix).width;
+          const gap = Math.max(8, Math.min(18, portFs * 0.9));
           const portsLeft = Math.min(laneRight, laneLeft + prefixW + gap);
           const portsW = Math.max(1, laneRight - portsLeft);
           const valueCenters = [];
@@ -141,31 +140,91 @@ export const setupDrawRectBaseController = (deps = {}) => {
           const dotY = rowY + Math.max(12, portFs * 0.9);
           for (let i = 0; i < valueCenters.length; i++) {
             const px = valueCenters[i];
-            c.beginPath();
-            c.fillStyle = dotKind === "start"
-              ? "rgba(64,190,255,.95)"
-              : (typeRaw === "controller" ? outControllerColor(i + 1) : "rgba(255,170,64,.95)");
-            c.arc(px, dotY, rDot, 0, Math.PI * 2);
-            c.fill();
-            c.strokeStyle = "rgba(0,0,0,.78)";
-            c.lineWidth = Math.max(1.6, 2.4);
-            c.stroke();
-            if (selectedPort && selectedPort.kind === dotKind && selectedPort.cid === (i + 1)) {
-              c.strokeStyle = "#ffe08a";
-              c.lineWidth = Math.max(1.1, 1.8);
-              c.beginPath();
-              c.arc(px, dotY, rDot + Math.max(1.5, 2.2), 0, Math.PI * 2);
-              c.stroke();
-            }
-            if (String(options.installTextMode || "") !== "only" && Array.isArray(st.flowLinkAnchors)) {
-              const wp = rectUVToWorld(r, px + w / 2, dotY + h / 2);
-              st.flowLinkAnchors.push({ rectId: r.id, rid: 0, cid: i + 1, kind: dotKind, x: wp.x, y: wp.y });
-            }
+            drawPortDot(px, dotY, dotKind, i);
           }
           c.fillStyle = "rgba(255,255,255,.95)";
         };
-        drawPortRow("IN", inLabels, inCount, topY, "start");
-        drawPortRow("OUT", outLabels, outCount, botY, "end");
+        if (orientation === "vertical") {
+          const plateW = Math.max(18, Math.min(w * 0.3, 36));
+          c.fillStyle = "rgba(0,0,0,.42)";
+          c.fillRect(-w / 2, -h / 2, plateW, h);
+          const titlePadY = Math.max(10, h * 0.04);
+          const titleMaxH = Math.max(20, h - titlePadY * 2);
+          const titleFsBase = Math.max(12, Math.min(w * 0.18, plateW * 0.72, 24));
+          c.font = `${titleFsBase}px ${fontFamilyCss(st.fontFamily)}`;
+          const measuredTitleW = Math.max(1, c.measureText(titleText).width);
+          const titleFs = Math.max(10, Math.min(titleFsBase, titleFsBase * (titleMaxH / measuredTitleW)));
+          c.font = `${titleFs}px ${fontFamilyCss(st.fontFamily)}`;
+          c.textBaseline = "middle";
+          c.textAlign = "center";
+          c.lineJoin = "round";
+          c.miterLimit = 2;
+          c.lineWidth = Math.max(2.4, titleFs * 0.22);
+          c.strokeStyle = "rgba(0,0,0,.8)";
+          c.fillStyle = "rgba(255,255,255,.98)";
+          c.save();
+          c.translate(-w / 2 + plateW / 2, 0);
+          c.rotate(-Math.PI / 2);
+          c.strokeText(titleText, 0, 0);
+          c.fillText(titleText, 0, 0);
+          c.restore();
+          const workLeft = -w / 2 + plateW;
+          const workW = Math.max(12, w - plateW);
+          const xIn = workLeft + workW * 0.32;
+          const xOut = workLeft + workW * 0.72;
+          const hdrY = -h / 2 + Math.max(12, portFs * 1.1);
+          drawOutlinedText("IN", xIn, hdrY, "center");
+          drawOutlinedText("OUT", xOut, hdrY, "center");
+          const firstLabelLift = Math.max(rDot + 8, portFs * 0.95);
+          const headerToFirstLabelGap = rDot * 2;
+          const portsStartY = hdrY + firstLabelLift + portFs + headerToFirstLabelGap;
+          const topPad = Math.max(22, portsStartY + h / 2);
+          const bottomPad = Math.max(10, Math.max(portFs * 0.9, rDot * 1.8));
+          const inStep = Math.max(10, (h - topPad - bottomPad) / Math.max(1, inCount - 1));
+          const outStep = Math.max(10, (h - topPad - bottomPad) / Math.max(1, outCount - 1));
+          const inVals = [];
+          for (let i = 0; i < inCount; i++) inVals.push(String(inLabels[i] == null || inLabels[i] === "" ? (i + 1) : inLabels[i]));
+          const outVals = [];
+          for (let i = 0; i < outCount; i++) outVals.push(String(outLabels[i] == null || outLabels[i] === "" ? (i + 1) : outLabels[i]));
+          for (let i = 0; i < inVals.length; i++) {
+            const py = -h / 2 + topPad + i * inStep;
+            drawOutlinedText(inVals[i], xIn, py - firstLabelLift, "center");
+            drawPortDot(xIn, py, "start", i);
+          }
+          for (let i = 0; i < outVals.length; i++) {
+            const py = -h / 2 + topPad + i * outStep;
+            drawOutlinedText(outVals[i], xOut, py - firstLabelLift, "center");
+            drawPortDot(xOut, py, "end", i);
+          }
+        } else {
+          const plateH = Math.max(18, Math.min(h * 0.28, 34));
+          c.fillStyle = "rgba(0,0,0,.42)";
+          c.fillRect(-w / 2, -h / 2, w, plateH);
+          const titlePadX = Math.max(10, w * 0.04);
+          const titleMaxW = Math.max(20, w - titlePadX * 2);
+          const titleFsBase = Math.max(12, Math.min(h * 0.18, plateH * 0.72, 28));
+          c.font = `${titleFsBase}px ${fontFamilyCss(st.fontFamily)}`;
+          const measuredTitleW = Math.max(1, c.measureText(titleText).width);
+          const titleFs = Math.max(10, Math.min(titleFsBase, titleFsBase * (titleMaxW / measuredTitleW)));
+          c.font = `${titleFs}px ${fontFamilyCss(st.fontFamily)}`;
+          c.textBaseline = "middle";
+          c.textAlign = "center";
+          c.lineJoin = "round";
+          c.miterLimit = 2;
+          c.lineWidth = Math.max(2.4, titleFs * 0.22);
+          c.strokeStyle = "rgba(0,0,0,.8)";
+          c.fillStyle = "rgba(255,255,255,.98)";
+          c.strokeText(titleText, 0, -h / 2 + plateH / 2);
+          c.fillText(titleText, 0, -h / 2 + plateH / 2);
+          const workTop = -h / 2 + plateH;
+          const workH = Math.max(8, h - plateH);
+          const topY = workTop + workH * 0.25;
+          const botY = workTop + workH * 0.75;
+          const laneLeft = -w * 0.45;
+          const laneRight = w * 0.45;
+          drawPortRow("IN", inLabels, inCount, topY, "start", laneLeft, laneRight);
+          drawPortRow("OUT", outLabels, outCount, botY, "end", laneLeft, laneRight);
+        }
         c.restore();
         return;
       }

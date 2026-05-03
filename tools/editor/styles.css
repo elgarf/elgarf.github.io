@@ -1029,6 +1029,37 @@
       text-wrap: auto;
     }
 
+    .spec-mode-markdown {
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--spec-text);
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      padding: 8px;
+    }
+    .spec-mode-markdown h1 { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+    .spec-mode-markdown h2 { margin: 0 0 8px; font-size: 16px; font-weight: 700; }
+    .spec-mode-markdown h3 { margin: 0 0 7px; font-size: 15px; font-weight: 700; }
+    .spec-mode-markdown h4 { margin: 0 0 7px; font-size: 14px; font-weight: 700; }
+    .spec-mode-markdown h5 { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
+    .spec-mode-markdown h6 { margin: 0 0 6px; font-size: 12px; font-weight: 700; }
+    .spec-mode-markdown p,
+    .spec-mode-markdown ul {
+      margin: 0 0 6px;
+      padding: 0;
+    }
+    .spec-mode-markdown ul {
+      padding-left: 22px;
+    }
+    .spec-mode-markdown a {
+      color: var(--bs-link-color);
+      text-decoration: underline;
+      word-break: break-all;
+    }
+    .spec-mode-markdown-empty {
+      color: var(--spec-muted);
+    }
+
     .spec-mode-parent>header,
     .spec-mode-parent>pre {
       margin-right: -10px;

@@ -34,6 +34,11 @@ const pushSpecCountLine = (out, label, count, suffix = "шт.") => {
   const n = Math.max(0, Math.round(Number(count) || 0));
   if (n > 0) out.push(`* ${label}: ${n} ${suffix}`);
 };
+const joinSpecLine = (label, items) => {
+  const arr = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (!arr.length) return "";
+  return `* ${label}: ${arr.join("; ")}`;
+};
 export const addCountToMap = (map, key, count = 1) => {
   if (key == null || !Number.isFinite(Number(key))) return;
   map.set(key, (map.get(key) || 0) + count);
@@ -82,17 +87,6 @@ const rectKind = r => String((r && r.kind) || "").toLowerCase();
 const isSpecRect = r => {
   const k = rectKind(r);
   return k !== "note" && k !== "shape";
-};
-const normalizeDeviceType = v => {
-  const t = String(v || "controller").toLowerCase();
-  if (t === "pc" || t === "mixer" || t === "camera" || t === "controller") return t;
-  return "controller";
-};
-const deviceTypeLabel = v => {
-  if (v === "pc") return "PC";
-  if (v === "mixer") return "Mixer";
-  if (v === "camera") return "Camera";
-  return "Controller";
 };
 const baseNameWithoutTrailingNumber = name => {
   const s = String(name || "").trim();
@@ -219,6 +213,8 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     fmtMeters,
     specCustomSections,
     specCustomText,
+    projectName = "Проект",
+    viewerUrl = "",
     includeManual = false
   } = deps;
 
@@ -278,26 +274,19 @@ export const buildFlowLinksSpecText = (deps = {}) => {
       return [`##### ${series}`, ...blocks].join("\n\n");
     })
     .join("\n\n");
-  const deviceTypeGroups = new Map();
-  for (const r of deviceRects) {
-    const type = normalizeDeviceType(r && r.deviceType);
-    const name = baseNameWithoutTrailingNumber(r && r.name);
-    let byName = deviceTypeGroups.get(type);
-    if (!byName) {
-      byName = new Map();
-      deviceTypeGroups.set(type, byName);
-    }
-    byName.set(name, (byName.get(name) || 0) + 1);
+  const screenListLines = [];
+  for (const r of screenRects.slice().sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0))) {
+    const meta = parseScreenNameGroup(r);
+    const wM = fmtMeters((+r.width || 0) / Math.max(1, +r.scale || 256));
+    const hM = fmtMeters((+r.height || 0) / Math.max(1, +r.scale || 256));
+    screenListLines.push(`* ${meta.name} (${wM} x ${hM} м, ${meta.group})`);
   }
-  const deviceBlocks = [...deviceTypeGroups.entries()]
-    .sort((a, b) => deviceTypeLabel(a[0]).localeCompare(deviceTypeLabel(b[0]), "ru"))
-    .map(([type, byName]) => {
-      const lines = [`###### ${deviceTypeLabel(type)}`];
-      const list = mapToNamedCountList(byName);
-      for (const item of list) lines.push(`* ${item}`);
-      return lines.join("\n");
-    })
-    .join("\n\n");
+  const deviceNameGroups = new Map();
+  for (const r of deviceRects) {
+    const name = baseNameWithoutTrailingNumber(r && r.name);
+    deviceNameGroups.set(name, (deviceNameGroups.get(name) || 0) + 1);
+  }
+  const deviceBlocks = mapToNamedCountList(deviceNameGroups).map(item => `* ${item}`).join("\n");
   const devicesSection = deviceBlocks ? ["##### Устройства", "", deviceBlocks].join("\n") : "";
 
   const byGroup = new Map();
@@ -330,23 +319,47 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     rec.visibleAreaM2 += Number(data.visibleAreaM2) || 0;
   }
 
-  const totalBlocks = [...byGroup.entries()]
+  const groupBlocks = [...byGroup.entries()]
     .sort((a, b) => a[0].localeCompare(b[0], "ru"))
-    .map(([group, rec]) => buildSummarySection({
-      group,
-      rec,
-      interSpec,
-      manualText: manualResolver.getSectionManual(6, TOTAL_PARENT, `Группа: ${group}`)
-    }))
+    .map(([group, rec]) => {
+      const cab = mapToCabinetList(rec.cabinetBySize);
+      const cbl = mapToCableList(rec.cableByLen);
+      const interGroup = interSpec && interSpec.byGroupOut ? interSpec.byGroupOut.get(group) : null;
+      const icbl = interGroup ? mapToCableList(interGroup.cableByLen) : [];
+      const irts = interGroup ? mapToNamedCountList(interGroup.routes) : [];
+      const sup = mapToRigSizeList(rec.supportBySize);
+      const btm = mapToRigWeightList(rec.bottomLoadByKg);
+      const manualText = manualResolver.getSectionManual(6, TOTAL_PARENT, `Группа: ${group}`);
+      const bulletLines = [
+        `* Площадь экранов: ${fmtAreaM2(rec.visibleAreaM2)} м²`,
+        joinSpecLine("Кабинеты", cab),
+        joinSpecLine("Коммутация", cbl),
+        joinSpecLine("Межэкранные связи", irts),
+        joinSpecLine("Межэкранная коммутация", icbl),
+        joinSpecLine("Подвесы", sup),
+        rec.frameCount > 0 ? `* Рамы: ${rec.frameCount} шт.` : "",
+        joinSpecLine("Грузы", btm),
+        String(manualText || "").trim()
+      ].filter(Boolean);
+      return [`###### ${group}`, ...bulletLines].join("\n");
+    })
     .join("\n\n");
+  const commutationHeader = "##### Сигнальная и силовая коммутация";
+  const commutationText = [globalManual, String(specCustomText || "").trim()].filter(Boolean).join("\n\n").trim();
 
   return [
-    ...(globalManual ? ["##### Спецификация", "", globalManual, ""] : []),
-    screenBlocks,
-    ...(devicesSection ? ["", devicesSection] : []),
+    `### ${String(projectName || "Проект").trim() || "Проект"}`,
     "",
-    "##### Итоговая сумма",
+    String(viewerUrl || "").trim(),
     "",
-    totalBlocks
+    ...screenListLines,
+    "",
+    groupBlocks,
+    "",
+    commutationHeader,
+    ...(commutationText ? ["", commutationText] : []),
+    "",
+    "##### Устройства",
+    ...(deviceBlocks ? [deviceBlocks] : ["* Нет устройств"])
   ].join("\n");
 };

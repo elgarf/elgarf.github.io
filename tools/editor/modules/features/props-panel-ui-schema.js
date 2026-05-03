@@ -62,7 +62,8 @@ export const mainPropNodes = el => [
   el.numCells,
   el.splitVariant
   ,
-  el.propDeviceType
+  el.propDeviceType,
+  el.propDeviceOrientation
 ];
 
 export const trackedPropInputNodes = el => [
@@ -88,6 +89,7 @@ export const trackedPropInputNodes = el => [
   el.rectTextSize
   ,
   el.propDeviceType,
+  el.propDeviceOrientation,
   el.propDeviceInCount,
   el.propDeviceOutCount,
   el.propDevicePortLabel
@@ -104,6 +106,7 @@ export const liveApplyInputNodes = el => [
   el.cx,
   el.cy
   ,
+  el.propDeviceOrientation,
   el.propDeviceInCount,
   el.propDeviceOutCount,
   el.propDevicePortLabel
@@ -122,6 +125,8 @@ export const commitApplyInputNodes = el => [
   el.cx,
   el.cy
   ,
+  el.propDeviceType,
+  el.propDeviceOrientation,
   el.propDeviceInCount,
   el.propDeviceOutCount,
   el.propDevicePortLabel
@@ -133,7 +138,8 @@ export const changeApplyInputNodes = el => [
   el.splitVariant,
   el.shapePointType
   ,
-  el.propDeviceType
+  el.propDeviceType,
+  el.propDeviceOrientation
 ];
 
 export const fieldForPropNode = (el, node) => {
@@ -156,6 +162,7 @@ export const fieldForPropNode = (el, node) => {
   if (node === el.shapePointY) return "shapePointY";
   if (node === el.shapePointType) return "shapePointType";
   if (node === el.propDeviceType) return "deviceType";
+  if (node === el.propDeviceOrientation) return "deviceOrientation";
   if (node === el.propDeviceInCount) return "deviceInCount";
   if (node === el.propDeviceOutCount) return "deviceOutCount";
   if (node === el.propDevicePortLabel) return "devicePortLabel";

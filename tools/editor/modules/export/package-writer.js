@@ -21,7 +21,7 @@ export const createExportPackageWriter = (deps = {}) => {
     const fileFlow = `${baseName}-flow.png`;
     const fileRig = `${baseName}-rig.png`;
     const fileFlowOnly = `${baseName}-flow-only.png`;
-    const fileSpec = `${baseName}-flow.md`;
+    const fileSpec = `${baseName}.md`;
     const fileProject = `${baseName}.json`;
     if (window.showDirectoryPicker) {
       try {

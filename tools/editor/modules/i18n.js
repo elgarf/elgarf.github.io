@@ -44,6 +44,7 @@ const EN = {
   "Ещё": "More",
   "Переключатели слоёв": "Layer toggles",
   "Устройства": "Devices",
+  "Сигнальная и силовая коммутация": "Signal and power wiring",
   "Действия массового выделения": "Multi-selection actions",
   "Масштабирование выделения": "Selection resizing",
   "Панель свойств": "Properties panel",

@@ -30,6 +30,7 @@ export const setupToolbarActionsController = (deps = {}) => {
   const bindClicks = entries => {
     for (const [btn, fn] of entries) bindClick(btn, fn);
   };
+  const isInstallViewMode = () => String(st && st.viewMode || "") === "install";
   const nextMobileViewMode = () => {
     const mode = String(st && st.viewMode || "art");
     if (mode === "art") return "install";
@@ -296,15 +297,19 @@ export const setupToolbarActionsController = (deps = {}) => {
     return { bind, hide: hideMenu };
   };
   const chooseCreateTool = mode => {
-    const next = CREATE_TOOL_ITEMS.some(it => it.mode === mode) ? mode : "draw";
+    const requested = CREATE_TOOL_ITEMS.some(it => it.mode === mode) ? mode : "draw";
+    const next = (!isInstallViewMode() && requested === "device") ? "draw" : requested;
     st.createToolMode = next;
     if (typeof setMode === "function") setMode(next);
     else activateToolOrSelect(next);
   };
   const cycleCreateTool = () => {
-    const current = st.mode === "draw" || st.mode === "note" || st.mode === "shape" || st.mode === "device" ? st.mode : String(st.createToolMode || "draw");
-    const index = CREATE_TOOL_ITEMS.findIndex(it => it.mode === current);
-    const next = CREATE_TOOL_ITEMS[(index + 1 + CREATE_TOOL_ITEMS.length) % CREATE_TOOL_ITEMS.length].mode;
+    const installView = isInstallViewMode();
+    const items = installView ? CREATE_TOOL_ITEMS : CREATE_TOOL_ITEMS.filter(it => it.mode !== "device");
+    const currentRaw = st.mode === "draw" || st.mode === "note" || st.mode === "shape" || st.mode === "device" ? st.mode : String(st.createToolMode || "draw");
+    const current = (!installView && currentRaw === "device") ? "draw" : currentRaw;
+    const index = items.findIndex(it => it.mode === current);
+    const next = items[(index + 1 + items.length) % items.length].mode;
     chooseCreateTool(st.mode === "draw" || st.mode === "note" || st.mode === "shape" || st.mode === "device" ? next : current);
   };
   const chooseFlowTool = variant => {

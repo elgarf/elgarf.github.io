@@ -129,11 +129,10 @@ export const setupRenderPipeline = (deps = {}) => {
     const origin = getOrigin();
     for (let i = st.rects.length - 1; i >= 0; i--) {
       const rr = st.rects[i];
-      if (String(st.viewMode || "") === "install") {
-        const isDeviceRect = String((rr && rr.kind) || "").toLowerCase() === "device";
-        const devicesLayerOn = !(st.installLayers && st.installLayers.devices === false);
-        if (isDeviceRect && !devicesLayerOn) continue;
-      }
+      const isDeviceRect = String((rr && rr.kind) || "").toLowerCase() === "device";
+      const installView = String(st.viewMode || "") === "install";
+      const devicesLayerOn = installView && !(st.installLayers && st.installLayers.devices === false);
+      if (isDeviceRect && !devicesLayerOn) continue;
       const bb = rectAABB(rr);
       if (bb.maxX < viewMinX || bb.minX > viewMaxX || bb.maxY < viewMinY || bb.minY > viewMaxY) continue;
       drawRect(c, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, shapeFrameId: st.shapeRenderFrame, ...drawOptions });

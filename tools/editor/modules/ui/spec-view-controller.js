@@ -5,6 +5,50 @@ const escapeHtml = value => String(value == null ? "" : value)
   .replace(/&/g, "&amp;")
   .replace(/</g, "&lt;")
   .replace(/>/g, "&gt;");
+const renderInlineMd = value => {
+  const escaped = escapeHtml(value);
+  const linked = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, text, href) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`);
+  return linked.replace(/(^|[\s(])(https?:\/\/[^\s<]+)/g, (_m, lead, href) => `${lead}<a href="${href}" target="_blank" rel="noopener noreferrer">${href}</a>`);
+};
+const renderMarkdownBlock = text => {
+  const src = String(text || "").replace(/\r/g, "");
+  if (!src.trim()) return `<div class="spec-mode-markdown-empty">—</div>`;
+  const lines = src.split("\n");
+  const out = [];
+  let listOpen = false;
+  const closeList = () => {
+    if (!listOpen) return;
+    out.push("</ul>");
+    listOpen = false;
+  };
+  for (const raw of lines) {
+    const line = String(raw || "");
+    const heading = line.match(/^(#{1,6})\s+(.+)\s*$/);
+    if (heading) {
+      closeList();
+      const lvl = Math.max(1, Math.min(6, heading[1].length));
+      out.push(`<h${lvl}>${renderInlineMd(heading[2])}</h${lvl}>`);
+      continue;
+    }
+    const bullet = line.match(/^\s*[-*]\s+(.+)\s*$/);
+    if (bullet) {
+      if (!listOpen) {
+        out.push("<ul>");
+        listOpen = true;
+      }
+      out.push(`<li>${renderInlineMd(bullet[1])}</li>`);
+      continue;
+    }
+    if (!line.trim()) {
+      closeList();
+      continue;
+    }
+    closeList();
+    out.push(`<p>${renderInlineMd(line.trim())}</p>`);
+  }
+  closeList();
+  return out.join("");
+};
 
 const parseSpecSections = text => {
   const lines = String(text || "").replace(/\r/g, "").split("\n");
@@ -123,7 +167,21 @@ export const setupSpecViewController = (deps = {}) => {
   let wasSpecMode = false;
 
   const isSpecMode = () => normalizeViewMode(st.viewMode) === "spec";
-  const isEditableSection = s => Number(s && s.level) === 6;
+  const isEditableSectionTitle = rawTitle => {
+    const normalized = normalizeSemanticToken(rawTitle);
+    return (
+      normalized === normalizeSemanticToken("Сигнальная и силовая коммутация")
+      || normalized === normalizeSemanticToken("Signal and power wiring")
+      || normalized === normalizeSemanticToken("Устройства")
+      || normalized === normalizeSemanticToken("Devices")
+    );
+  };
+  const isEditableSection = s => {
+    const level = Number(s && s.level) || 0;
+    if (level === 6) return true;
+    if (level !== 5) return false;
+    return isEditableSectionTitle(String(s && s.title || ""));
+  };
   const hasEasyMde = () => !easyMdeFailed && typeof window !== "undefined" && typeof window.EasyMDE === "function";
 
   const ensureCustomMap = () => {
@@ -188,6 +246,8 @@ export const setupSpecViewController = (deps = {}) => {
     const on = !!hasManual;
     const sub = findSubSectionByKey(key);
     if (sub) sub.classList.toggle("has-manual", on);
+    const parentAny = findParentSectionByKey(key);
+    if (parentAny) parentAny.classList.toggle("has-manual", on);
     if (String(key || "") === GLOBAL_SPEC_KEY) {
       const parent = findParentSectionByKey(key);
       if (parent) parent.classList.toggle("has-manual", on);
@@ -307,7 +367,7 @@ export const setupSpecViewController = (deps = {}) => {
         + `</h2>`
         + `<div id="${escapeHtml(collapseId)}" class="accordion-collapse collapse" aria-labelledby="${escapeHtml(headingId)}" data-bs-parent="#${escapeHtml(parentAccordionId)}">`
         + `<div class="accordion-body">`
-        + `<pre>${escapeHtml(String(s.body || "").trim() || "—")}</pre>`
+        + `<div class="spec-mode-markdown">${renderMarkdownBlock(String(s.body || "").trim())}</div>`
         + manual
         + `</div>`
         + `</div>`
@@ -326,21 +386,31 @@ export const setupSpecViewController = (deps = {}) => {
       + `</div>`
       + `</section>`
     );
-    const html = globalBlock + sectionGroups.map((g, idx) => {
+    const html = sectionGroups.map((g, idx) => {
       const parent = g && g.parent ? g.parent : { title: "Секция", body: "" };
       const parentBody = String(parent.body || "").trim();
-      const parentPre = parentBody ? `<pre>${escapeHtml(parentBody)}</pre>` : "";
+      const parentPre = parentBody ? `<div class="spec-mode-markdown">${renderMarkdownBlock(parentBody)}</div>` : "";
+      const parentCustom = String(map[parent.key] || "");
+      const parentHasManual = !!parentCustom.trim();
+      const parentManual = isEditableSection(parent)
+        ? (`<div class="spec-mode-manual">`
+          + `<div class="spec-mode-manual-edit">`
+          + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${escapeHtml(parent.key)}" placeholder="- ${escapeHtml(t("Доп. пункт"))} 1&#10;- ${escapeHtml(t("Доп. пункт"))} 2">${escapeHtml(parentCustom)}</textarea>`
+          + `</div>`
+          + `</div>`)
+        : "";
       const parentAccordionId = `spec-accordion-${idx}`;
       const children = (Array.isArray(g && g.children) ? g.children : []).map(s => renderChild(s, parentAccordionId)).join("");
       const accordion = children ? `<div id="${escapeHtml(parentAccordionId)}" class="accordion spec-mode-accordion">${children}</div>` : "";
       return (
-        `<section class="spec-mode-block spec-mode-parent" data-section-key="${escapeHtml(parent.key || "")}">`
+        `<section class="spec-mode-block spec-mode-parent ${parentHasManual ? "has-manual" : ""}" data-section-key="${escapeHtml(parent.key || "")}">`
         + `<header>${escapeHtml(t(parent.title || "Секция"))}</header>`
         + parentPre
+        + parentManual
         + accordion
         + `</section>`
       );
-    }).join("");
+    }).join("") + globalBlock;
     el.specAutoBlocks.innerHTML = html;
     initEditors();
   };

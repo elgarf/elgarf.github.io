@@ -81,6 +81,7 @@ export const setupRectFactoryController = (deps = {}) => {
     if (v === "pc" || v === "mixer" || v === "camera") return v;
     return "controller";
   };
+  const normalizeDeviceOrientation = value => String(value || "").toLowerCase() === "vertical" ? "vertical" : "horizontal";
   const normalizePortCount = (value, fallback = 4) => Math.max(1, Math.min(64, Math.round(Number(value) || fallback)));
   const normalizePortLabels = (value, count) => {
     const n = normalizePortCount(count, 4);
@@ -141,6 +142,7 @@ export const setupRectFactoryController = (deps = {}) => {
           .slice(0, 512)
         : [],
       deviceType: normalizeDeviceType(r && r.deviceType),
+      deviceOrientation: normalizeDeviceOrientation(r && r.deviceOrientation),
       deviceInCount: normalizePortCount(r && r.deviceInCount, 4),
       deviceOutCount: normalizePortCount(r && r.deviceOutCount, 4),
       deviceInLabels: [],
@@ -198,6 +200,7 @@ export const setupRectFactoryController = (deps = {}) => {
       shapeOpacity: 0.72,
       shapePoints: [],
       deviceType: "controller",
+      deviceOrientation: "horizontal",
       deviceInCount: 4,
       deviceOutCount: 4,
       deviceInLabels: ["1", "2", "3", "4"],
@@ -252,6 +255,7 @@ export const setupRectFactoryController = (deps = {}) => {
     r.autoContrastB = false;
     r.colorB = "#0f172a";
     r.deviceType = "controller";
+    r.deviceOrientation = "horizontal";
     r.deviceInCount = 4;
     r.deviceOutCount = 4;
     r.deviceInLabels = ["1", "2", "3", "4"];

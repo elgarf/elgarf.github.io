@@ -81,6 +81,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const v = String(value || "").toLowerCase();
     return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
   };
+  const normalizeDeviceOrientation = value => String(value || "").toLowerCase() === "vertical" ? "vertical" : "horizontal";
   const normalizePortCount = (value, fallback = 4) => Math.max(1, Math.min(64, Math.round(Number(value) || fallback)));
   const parsePortLabels = (value, count) => {
     const n = normalizePortCount(count, 4);
@@ -268,6 +269,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       }
       uiSetValue(el.splitVariant, "0");
       uiSetValue(el.propDeviceType, "controller");
+      uiSetValue(el.propDeviceOrientation, "horizontal");
       uiSetValue(el.propDeviceInCount, "4");
       uiSetValue(el.propDeviceOutCount, "4");
       uiSetValue(el.propDevicePortLabel, "");
@@ -301,6 +303,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const inCount = normalizePortCount(r.deviceInCount, 4);
       const outCount = normalizePortCount(r.deviceOutCount, 4);
       uiSetValue(el.propDeviceType, normalizeDeviceType(r.deviceType));
+      uiSetValue(el.propDeviceOrientation, normalizeDeviceOrientation(r.deviceOrientation));
       uiSetValue(el.propDeviceInCount, String(inCount));
       uiSetValue(el.propDeviceOutCount, String(outCount));
       const selectedPort = getSelectedDevicePort(r);
@@ -393,6 +396,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       }
       if (isDeviceRect(r)) {
         if (shouldApply("deviceType")) r.deviceType = normalizeDeviceType(el.propDeviceType && el.propDeviceType.value || "controller");
+        if (shouldApply("deviceOrientation")) r.deviceOrientation = normalizeDeviceOrientation(el.propDeviceOrientation && el.propDeviceOrientation.value || "horizontal");
         if (shouldApply("deviceInCount")) r.deviceInCount = normalizePortCount(el.propDeviceInCount && el.propDeviceInCount.value, r.deviceInCount || 4);
         if (shouldApply("deviceOutCount")) r.deviceOutCount = normalizePortCount(el.propDeviceOutCount && el.propDeviceOutCount.value, r.deviceOutCount || 4);
         r.deviceInLabels = parsePortLabels((Array.isArray(r.deviceInLabels) ? r.deviceInLabels : []).join(","), r.deviceInCount || 4);
@@ -523,7 +527,19 @@ export const setupPropsPanelFeature = (deps = {}) => {
       }
     }
     for (const t of targets) {
-      const prev = { cellX: t.cellX, cellY: t.cellY, colorA: t.colorA, colorB: t.colorB, shapeOpacity: t.shapeOpacity, dataFlow: t.dataFlow, dataFlowZ: !!t.dataFlowZ, areaM2Px: t.areaM2Px, splitVariant: t.splitVariant };
+      const prev = {
+        cellX: t.cellX,
+        cellY: t.cellY,
+        colorA: t.colorA,
+        colorB: t.colorB,
+        shapeOpacity: t.shapeOpacity,
+        dataFlow: t.dataFlow,
+        dataFlowZ: !!t.dataFlowZ,
+        areaM2Px: t.areaM2Px,
+        splitVariant: t.splitVariant,
+        deviceType: t.deviceType,
+        deviceOrientation: t.deviceOrientation
+      };
       if (applyColor || shouldApply("colorA")) {
         t.colorA = el.a.value || "#2fcaaf";
         if (t.autoContrastB !== false) t.colorB = autoContrast(t.colorA); else t.colorB = el.b.value || t.colorB;
@@ -550,7 +566,13 @@ export const setupPropsPanelFeature = (deps = {}) => {
         if (prev.cellX !== t.cellX || prev.cellY !== t.cellY) remapRectRigLoadsToBottomSeams(t);
         invalidateRectCache(t, "topology");
       } else {
-        if (prev.colorA !== t.colorA || prev.colorB !== t.colorB || prev.shapeOpacity !== t.shapeOpacity) invalidateRectCache(t, "appearance");
+        if (
+          prev.colorA !== t.colorA
+          || prev.colorB !== t.colorB
+          || prev.shapeOpacity !== t.shapeOpacity
+          || prev.deviceType !== t.deviceType
+          || prev.deviceOrientation !== t.deviceOrientation
+        ) invalidateRectCache(t, "appearance");
         if (prev.areaM2Px !== t.areaM2Px || prev.splitVariant !== t.splitVariant) invalidateRectCache(t, "regions");
         if (prev.dataFlow !== t.dataFlow || prev.dataFlowZ !== !!t.dataFlowZ) invalidateRectCache(t, "flow");
       }
