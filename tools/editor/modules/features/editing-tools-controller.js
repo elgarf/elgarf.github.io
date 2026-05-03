@@ -483,6 +483,14 @@ export const setupEditingToolsInput = (deps = {}) => {
     st.flowLinkHover = null;
     st.flowDragPreview = null;
   };
+  const selectFlowLinkOnly = key => {
+    st.flowLinkSelectedKey = String(key || "");
+    if (st.selSet instanceof Set) st.selSet.clear();
+    else st.selSet = new Set();
+    st.sel = null;
+    st.selMultiBase = null;
+    st.devicePortSelection = null;
+  };
 
   const handleFlowEditPointerDown = (p, _opts = null) => {
     const opts = (_opts && typeof _opts === "object") ? _opts : null;
@@ -490,16 +498,17 @@ export const setupEditingToolsInput = (deps = {}) => {
     if (allowLinkOnly) {
       const curveHandleHit = typeof findFlowCurveHandleAtPoint === "function" ? findFlowCurveHandleAtPoint(p.x, p.y) : null;
       if (curveHandleHit) {
-        st.flowLinkSelectedKey = String(curveHandleHit.key || "");
+        selectFlowLinkOnly(String(curveHandleHit.key || ""));
         st.flowCurveDrag = {
           key: String(curveHandleHit.key || ""),
-          handle: String(curveHandleHit.handle || "") === "c2" ? "c2" : "c1",
+          handle: String(curveHandleHit.handle || ""),
           fallback: curveHandleHit.fallback || null
         };
         st.flowLinkPending = null;
         st.flowLinkDrag = null;
         st.flowDragPreview = null;
-        syncProps();
+        if (typeof syncPropsSmart === "function") syncPropsSmart();
+        else syncProps();
         render();
         return true;
       }
@@ -514,20 +523,22 @@ export const setupEditingToolsInput = (deps = {}) => {
         };
         st.flowLinkDrag = null;
         st.flowDragPreview = null;
-        syncProps();
+        if (typeof syncPropsSmart === "function") syncPropsSmart();
+        else syncProps();
         render();
         return true;
       }
       const linkHit = findFlowLinkAtPoint(p.x, p.y);
       if (linkHit && linkHit.link) {
-        st.flowLinkSelectedKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
+        selectFlowLinkOnly(`${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`);
         if (opts && opts.altKey && typeof clearFlowLinkManualBezier === "function") {
           if (clearFlowLinkManualBezier(st.flowLinkSelectedKey)) schedulePersist("project");
         }
         st.flowLinkPending = null;
         st.flowLinkDrag = null;
         st.flowDragPreview = null;
-        syncProps();
+        if (typeof syncPropsSmart === "function") syncPropsSmart();
+        else syncProps();
         render();
         return true;
       }

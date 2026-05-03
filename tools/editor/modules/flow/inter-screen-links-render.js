@@ -163,6 +163,69 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       t1: sampleBezier(pStart, c1, c2, pEnd, 0.52)
     };
   };
+  const lerpPoint = (a, b, t) => ({ x: toNum(a.x) + (toNum(b.x) - toNum(a.x)) * t, y: toNum(a.y) + (toNum(b.y) - toNum(a.y)) * t });
+  const getLinkControlPointCount = ln => Math.max(2, Math.min(4, Math.round(Number(ln && ln.controlPointCount) || 2)));
+  const getLinkControlOffsets = (ln, count) => {
+    const need = Math.max(0, count - 2);
+    const src = Array.isArray(ln && ln.controlOffsets) ? ln.controlOffsets : [];
+    const out = [];
+    for (let i = 0; i < need; i++) {
+      const it = src[i] && typeof src[i] === "object" ? src[i] : null;
+      out.push({ x: Number(it && it.x) || 0, y: Number(it && it.y) || 0 });
+    }
+    return out;
+  };
+  const buildLinkPoints = (pStart, pEnd, count, offsets) => {
+    const pts = [{ x: pStart.x, y: pStart.y }];
+    const n = Math.max(2, Math.round(Number(count) || 2));
+    const offs = Array.isArray(offsets) ? offsets : [];
+    for (let i = 1; i < n - 1; i++) {
+      const t = i / (n - 1);
+      const base = lerpPoint(pStart, pEnd, t);
+      const off = offs[i - 1] || { x: 0, y: 0 };
+      pts.push({ x: base.x + (Number(off.x) || 0), y: base.y + (Number(off.y) || 0), t });
+    }
+    pts.push({ x: pEnd.x, y: pEnd.y });
+    return pts;
+  };
+  const sampleQuadratic = (p0, c1, p1, t) => {
+    const u = 1 - t;
+    return {
+      x: u * u * toNum(p0.x) + 2 * u * t * toNum(c1.x) + t * t * toNum(p1.x),
+      y: u * u * toNum(p0.y) + 2 * u * t * toNum(c1.y) + t * t * toNum(p1.y)
+    };
+  };
+  const getLinkBendOffsets = (ln, pointCount, points) => {
+    const segCount = Math.max(1, pointCount - 1);
+    const src = Array.isArray(ln && ln.bendOffsets) ? ln.bendOffsets : [];
+    const hasExplicit = src.length >= segCount && src.some(it => {
+      const x = Number(it && it.x);
+      const y = Number(it && it.y);
+      return Number.isFinite(x) && Number.isFinite(y) && (Math.abs(x) > 0.001 || Math.abs(y) > 0.001);
+    });
+    const out = [];
+    const pStart = points[0];
+    const pEnd = points[points.length - 1];
+    const overallDx = toNum(pEnd.x) - toNum(pStart.x);
+    const side = overallDx >= 0 ? 1 : -1;
+    for (let i = 0; i < segCount; i++) {
+      const it = src[i] && typeof src[i] === "object" ? src[i] : null;
+      if (hasExplicit && it && Number.isFinite(Number(it.x)) && Number.isFinite(Number(it.y))) {
+        out.push({ x: Number(it.x), y: Number(it.y) });
+        continue;
+      }
+      const a = points[i];
+      const b = points[i + 1];
+      const dx = toNum(b.x) - toNum(a.x);
+      const dy = toNum(b.y) - toNum(a.y);
+      const d = Math.max(1, Math.hypot(dx, dy));
+      const nx = -dy / d;
+      const ny = dx / d;
+      const mag = Math.max(12, Math.min(96, d * 0.24));
+      out.push({ x: nx * mag * side, y: ny * mag * side });
+    }
+    return out;
+  };
 
   const drawFlowLinkArrow = (c, tail, head, color, z = 1) => {
     const dx = toNum(head.x) - toNum(tail.x);
@@ -208,7 +271,9 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       c.lineWidth = width;
       c.stroke(path);
     };
-    const drawLinkPath = (path, color, width) => {
+    const drawLinkPath = (path, color, width, lineType = "solid") => {
+      const dashed = String(lineType || "").toLowerCase() === "dashed";
+      if (dashed) c.setLineDash([10 / zoomSafe(st.zoom), 7 / zoomSafe(st.zoom)]);
       strokeOutlinedPath(
         path,
         "rgba(12,16,22,.92)",
@@ -216,6 +281,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         color,
         width
       );
+      if (dashed) c.setLineDash([]);
     };
     const hoverSegKey = st.flowLinkHover && st.flowLinkHover.key ? String(st.flowLinkHover.key) : "";
     const linkDrag = st.flowLinkDrag || null;
@@ -246,10 +312,15 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         : isPcLikeToController
           ? "rgba(80,220,180,.95)"
           : "rgba(255,193,7,.95)";
-      const strokeColorRaw = (key === hoverSegKey) ? "rgba(255,99,99,.98)" : baseColor;
+      const customColor = (String(ln && ln.colorMode || "").toLowerCase() === "custom" && /^#[0-9a-f]{6}$/i.test(String(ln && ln.color || "").trim())) ? String(ln.color).trim() : null;
+      const lineType = String(ln && ln.lineType || "").toLowerCase() === "dashed" ? "dashed" : "solid";
+      const strokeColorRaw = (key === hoverSegKey) ? "rgba(255,99,99,.98)" : (customColor || baseColor);
       const strokeColor = fromIsDevice ? withAlpha(strokeColorRaw, 0.56) : strokeColorRaw;
       c.save();
-      const baseW = exportPass ? strokeWidthForZoom(st.zoom, 0.85, 1.45) : strokeWidthForZoom(st.zoom, 1.2, 2.2);
+      const linkWidth = Math.max(0.5, Math.min(20, Number(ln && ln.width) || 2.2));
+      const baseW = exportPass
+        ? strokeWidthForZoom(st.zoom, 0.85, Math.max(1.0, linkWidth * 0.66))
+        : strokeWidthForZoom(st.zoom, 1.2, linkWidth);
       if (fromIsDevice || toIsDevice) {
         const sideDir = (toNum(b.x) - toNum(a.x)) >= 0 ? 1 : -1;
         const legacyManualAbs = ln && ln.manualBezier && ln.manualBezier.c1 && ln.manualBezier.c2
@@ -301,38 +372,128 @@ export const setupInterScreenLinksRender = (deps = {}) => {
           },
           18
         );
-        const manualAbs = manualAbsByEndpoints;
-        const geom2 = manualAbs
-          ? {
-            c1: manualAbs.c1,
-            c2: manualAbs.c2,
-            pts: (() => {
-              const pts = [];
-              for (let i = 1; i <= 18; i++) pts.push(sampleBezier(pStart, manualAbs.c1, manualAbs.c2, pEnd, i / 18));
-              return pts;
-            })(),
-            t0: sampleBezier(pStart, manualAbs.c1, manualAbs.c2, pEnd, 0.48),
-            t1: sampleBezier(pStart, manualAbs.c1, manualAbs.c2, pEnd, 0.52)
+        const controlPointCount = getLinkControlPointCount(ln);
+        const controlOffsets = getLinkControlOffsets(ln, controlPointCount);
+        const segRel = Array.isArray(ln && ln.segmentBezierRel) ? ln.segmentBezierRel : [];
+        const buildSegments = (sPoint, ePoint) => {
+          const points = buildLinkPoints(sPoint, ePoint, controlPointCount, controlOffsets);
+          const segCount = Math.max(1, points.length - 1);
+          const out = [];
+          for (let i = 0; i < segCount; i++) {
+            const s0 = points[i];
+            const s1 = points[i + 1];
+            const auto = buildSagBezierControls({ x: s0.x, y: s0.y }, { x: s1.x, y: s1.y });
+            const rel = segRel[i] && typeof segRel[i] === "object" ? segRel[i] : null;
+            const hasC1 = !!(rel && rel.c1 && Number.isFinite(Number(rel.c1.x)) && Number.isFinite(Number(rel.c1.y)));
+            const hasC2 = !!(rel && rel.c2 && Number.isFinite(Number(rel.c2.x)) && Number.isFinite(Number(rel.c2.y)));
+            const c1 = hasC1 ? { x: s0.x + (Number(rel.c1.x) || 0), y: s0.y + (Number(rel.c1.y) || 0) } : auto.c1;
+            const c2 = hasC2 ? { x: s1.x + (Number(rel.c2.x) || 0), y: s1.y + (Number(rel.c2.y) || 0) } : auto.c2;
+            out.push({ p0: s0, c1, c2, p1: s1, autoC1: auto.c1, autoC2: auto.c2, hasC1, hasC2 });
           }
-          : autoGeom;
+          if (controlPointCount > 2 && out.length > 1) {
+            for (let i = 1; i < points.length - 1; i++) {
+              const prevSeg = out[i - 1];
+              const nextSeg = out[i];
+              const anchor = points[i];
+              const prevExplicit = !!(prevSeg && prevSeg.hasC2);
+              const nextExplicit = !!(nextSeg && nextSeg.hasC1);
+              const mirrorFromNext = () => {
+                const vx = (nextSeg.c1.x || 0) - (anchor.x || 0);
+                const vy = (nextSeg.c1.y || 0) - (anchor.y || 0);
+                prevSeg.c2 = { x: (anchor.x || 0) - vx, y: (anchor.y || 0) - vy };
+              };
+              const mirrorFromPrev = () => {
+                const vx = (prevSeg.c2.x || 0) - (anchor.x || 0);
+                const vy = (prevSeg.c2.y || 0) - (anchor.y || 0);
+                nextSeg.c1 = { x: (anchor.x || 0) - vx, y: (anchor.y || 0) - vy };
+              };
+              if (prevExplicit && !nextExplicit) mirrorFromPrev();
+              else if (!prevExplicit && nextExplicit) mirrorFromNext();
+              else if (!prevExplicit && !nextExplicit) mirrorFromNext();
+            }
+          }
+          return { points, segs: out };
+        };
+        let built = buildSegments(pStart, pEnd);
+        let linkPoints = built.points;
+        let segs = built.segs;
+        if (controlPointCount > 2 && segs.length) {
+          const firstC = segs[0].c1;
+          const lastC = segs[segs.length - 1].c2;
+          const pStart2 = fromIsDevice ? deviceOutTailPoint(a, b, fromCid, sideDir, firstC) : pStart;
+          const pEnd2 = toIsDevice
+            ? deviceInTailPoint(a, b, toCid, sideDir, lastC)
+            : (fromIsDevice ? screenStartTailPoint(pStart2, b, 28, sideDir, lastC) : pEnd);
+          if (Math.hypot((pStart2.x || 0) - (pStart.x || 0), (pStart2.y || 0) - (pStart.y || 0)) > 0.01
+            || Math.hypot((pEnd2.x || 0) - (pEnd.x || 0), (pEnd2.y || 0) - (pEnd.y || 0)) > 0.01) {
+            built = buildSegments(pStart2, pEnd2);
+            linkPoints = built.points;
+            segs = built.segs;
+            pStart.x = pStart2.x; pStart.y = pStart2.y;
+            pEnd.x = pEnd2.x; pEnd.y = pEnd2.y;
+          }
+        }
         let prev = { x: pStart.x, y: pStart.y };
-        for (let i = 0; i < geom2.pts.length; i++) {
-          const p = geom2.pts[i];
-          st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
-          prev = p;
+        if (controlPointCount <= 2) {
+          const manualAbs = manualAbsByEndpoints;
+          const geom2 = manualAbs
+            ? {
+              c1: manualAbs.c1,
+              c2: manualAbs.c2,
+              pts: (() => {
+                const pts = [];
+                for (let i = 1; i <= 18; i++) pts.push(sampleBezier(pStart, manualAbs.c1, manualAbs.c2, pEnd, i / 18));
+                return pts;
+              })(),
+              t0: sampleBezier(pStart, manualAbs.c1, manualAbs.c2, pEnd, 0.48),
+              t1: sampleBezier(pStart, manualAbs.c1, manualAbs.c2, pEnd, 0.52)
+            }
+            : autoGeom;
+          for (let i = 0; i < geom2.pts.length; i++) {
+            const p = geom2.pts[i];
+            st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
+            prev = p;
+          }
+          segs.length = 0;
+          segs.push({ p0: pStart, p1: pEnd, c1: geom2.c1, c2: geom2.c2, autoC1: autoGeom.c1, autoC2: autoGeom.c2, legacy: true, t0: geom2.t0, t1: geom2.t1 });
+        } else {
+          for (const sg of segs) {
+            const samples = 12;
+            for (let i = 1; i <= samples; i++) {
+              const p = sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, i / samples);
+              st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
+              prev = p;
+            }
+          }
         }
         if (toIsDevice || fromIsDevice) st.flowLinkSegments.push({ key, a: { x: pEnd.x, y: pEnd.y }, b: { x: b.x, y: b.y }, link: ln });
         const path = new Path2D();
         path.moveTo(a.x, a.y);
         if (fromIsDevice) path.lineTo(pStart.x, pStart.y);
-        path.bezierCurveTo(geom2.c1.x, geom2.c1.y, geom2.c2.x, geom2.c2.y, pEnd.x, pEnd.y);
+        for (const sg of segs) path.bezierCurveTo(sg.c1.x, sg.c1.y, sg.c2.x, sg.c2.y, sg.p1.x, sg.p1.y);
         if (toIsDevice || fromIsDevice) path.lineTo(b.x, b.y);
-        drawLinkPath(path, strokeColor, baseW);
-        if (fromIsDevice && toIsDevice) drawFlowLinkArrow(c, geom2.t0, geom2.t1, strokeColor, st.zoom || 1);
-        else if (toIsDevice) drawFlowLinkArrow(c, pEnd, b, strokeColor, st.zoom || 1);
-        else drawFlowLinkArrow(c, geom2.t0, geom2.t1, strokeColor, st.zoom || 1);
+        drawLinkPath(path, strokeColor, baseW, lineType);
+        if (fromIsDevice && toIsDevice) {
+          for (const sg of segs) {
+            const t0 = sg.legacy ? sg.t0 : sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, 0.48);
+            const t1 = sg.legacy ? sg.t1 : sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, 0.52);
+            drawFlowLinkArrow(c, t0, t1, strokeColor, st.zoom || 1);
+          }
+        } else if (toIsDevice) {
+          drawFlowLinkArrow(c, pEnd, b, strokeColor, st.zoom || 1);
+        } else {
+          for (const sg of segs) {
+            const t0 = sg.legacy ? sg.t0 : sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, 0.48);
+            const t1 = sg.legacy ? sg.t1 : sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, 0.52);
+            drawFlowLinkArrow(c, t0, t1, strokeColor, st.zoom || 1);
+          }
+        }
         if (!exportPass && String(st.mode || "") === "select" && String(st.flowLinkSelectedKey || "") === key) {
-          const drawHandle = (pt, handle, anchor) => {
+          const segRelSnapshot = segs.map(sg => ({
+            c1: { x: (Number(sg.c1 && sg.c1.x) || 0) - (Number(sg.p0 && sg.p0.x) || 0), y: (Number(sg.c1 && sg.c1.y) || 0) - (Number(sg.p0 && sg.p0.y) || 0) },
+            c2: { x: (Number(sg.c2 && sg.c2.x) || 0) - (Number(sg.p1 && sg.p1.x) || 0), y: (Number(sg.c2 && sg.c2.y) || 0) - (Number(sg.p1 && sg.p1.y) || 0) }
+          }));
+          const drawHandle = (pt, handle, anchor, fallbackExtra = null) => {
             st.flowLinkCurveHandles.push({
               key,
               handle,
@@ -340,11 +501,27 @@ export const setupInterScreenLinksRender = (deps = {}) => {
               y: pt.y,
               ax: anchor && Number.isFinite(Number(anchor.x)) ? Number(anchor.x) : null,
               ay: anchor && Number.isFinite(Number(anchor.y)) ? Number(anchor.y) : null,
-              fallback: { c1: autoGeom.c1, c2: autoGeom.c2, start: a, end: b }
+              fallback: { c1: autoGeom.c1, c2: autoGeom.c2, start: pStart, end: pEnd, pointCount: controlPointCount, segmentRelSnapshot: segRelSnapshot, ...(fallbackExtra && typeof fallbackExtra === "object" ? fallbackExtra : {}) }
             });
           };
-          drawHandle(geom2.c1, "c1", pStart);
-          drawHandle(geom2.c2, "c2", pEnd);
+          const firstSeg = segs[0];
+          const lastSeg = segs[segs.length - 1];
+          if (firstSeg) drawHandle(firstSeg.c1, "c1", pStart, { pointCount: controlPointCount, edgeRole: "start" });
+          if (lastSeg) drawHandle(lastSeg.c2, "c2", pEnd, { pointCount: controlPointCount, edgeRole: "end" });
+          for (let i = 1; i < linkPoints.length - 1; i++) {
+            const pt = linkPoints[i];
+            const t = i / (controlPointCount - 1);
+            const basePt = lerpPoint(pStart, pEnd, t);
+            drawHandle(pt, `p${i}`, basePt, { start: pStart, end: pEnd, pointIndex: i, pointCount: controlPointCount });
+          }
+          for (let i = 1; i < linkPoints.length - 1; i++) {
+            if (controlPointCount <= 2) break;
+            const prevSeg = segs[i - 1];
+            const nextSeg = segs[i];
+            const anchorPoint = { x: linkPoints[i].x, y: linkPoints[i].y };
+            const handlePoint = nextSeg ? nextSeg.c1 : (prevSeg ? prevSeg.c2 : anchorPoint);
+            drawHandle(handlePoint, `p${i}bend`, anchorPoint, { pointIndex: i, pointCount: controlPointCount, anchor: anchorPoint });
+          }
         }
       } else {
         const pts = geom.pts;
@@ -357,7 +534,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         const path = new Path2D();
         path.moveTo(a.x, a.y);
         for (const p of pts) path.lineTo(p.x, p.y);
-        drawLinkPath(path, strokeColor, baseW);
+        drawLinkPath(path, strokeColor, baseW, lineType);
         drawFlowLinkArrow(c, geom.t0, geom.t1, strokeColor, st.zoom || 1);
       }
       c.restore();
@@ -410,13 +587,20 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       c.lineTo(x - size, y);
       c.closePath();
     };
+    const drawCircle = (x, y) => {
+      c.beginPath();
+      c.arc(x, y, Math.max(3, size * 0.82), 0, Math.PI * 2);
+      c.closePath();
+    };
     c.save();
     for (const h of handles) {
       const x = toNum(h && h.x);
       const y = toNum(h && h.y);
+      const handleName = String(h && h.handle || "");
+      const isControlPoint = /^p\d+$/.test(handleName);
       const ax = Number.isFinite(Number(h && h.ax)) ? Number(h.ax) : null;
       const ay = Number.isFinite(Number(h && h.ay)) ? Number(h.ay) : null;
-      if (ax != null && ay != null) {
+      if (!isControlPoint && ax != null && ay != null) {
         c.strokeStyle = "rgba(150,220,255,.82)";
         c.lineWidth = Math.max(1, 1.15 / zoomSafe(st.zoom, 0.35));
         c.setLineDash([5 / zoomSafe(st.zoom, 0.35), 4 / zoomSafe(st.zoom, 0.35)]);
@@ -426,10 +610,11 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         c.stroke();
         c.setLineDash([]);
       }
-      c.fillStyle = "rgba(80,220,180,.97)";
+      c.fillStyle = isControlPoint ? "rgba(255,213,92,.98)" : "rgba(80,220,180,.97)";
       c.strokeStyle = "rgba(0,0,0,.9)";
       c.lineWidth = Math.max(1, 1.35 / zoomSafe(st.zoom, 0.35));
-      drawDiamond(x, y);
+      if (isControlPoint) drawCircle(x, y);
+      else drawDiamond(x, y);
       c.fill();
       c.stroke();
     }

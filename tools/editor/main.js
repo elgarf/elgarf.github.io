@@ -2066,6 +2066,21 @@ if (el.propFlowLinkCurveMode) {
     render();
   });
 }
+if (el.btnFlowLinkColorReset) {
+  bindClick(el.btnFlowLinkColorReset, () => {
+    const key = String(st.flowLinkSelectedKey || "");
+    if (!key) return;
+    const list = Array.isArray(st.flowLinks) ? st.flowLinks.slice() : [];
+    const idx = list.findIndex(it => `${Math.max(1, Math.round(Number(it && it.from && it.from.rectId) || 0))}:${Math.max(0, Math.round(Number(it && it.from && it.from.rid) || 0))}:${Math.max(0, Math.round(Number(it && it.from && it.from.cid) || 0))}:end>${Math.max(1, Math.round(Number(it && it.to && it.to.rectId) || 0))}:${Math.max(0, Math.round(Number(it && it.to && it.to.rid) || 0))}:${Math.max(0, Math.round(Number(it && it.to && it.to.cid) || 0))}:start` === key);
+    if (idx < 0) return;
+    list[idx] = { ...list[idx], colorMode: "auto" };
+    try { delete list[idx].color; } catch (_e) { list[idx].color = null; }
+    st.flowLinks = list;
+    schedulePersist("project");
+    syncProps();
+    render();
+  });
+}
 const syncPropsBase = syncProps;
 syncProps = () => {
   syncPropsBase();

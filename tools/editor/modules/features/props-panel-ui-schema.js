@@ -19,9 +19,10 @@ export const getSelectionPanelKind = ({ rect, multi = false, isShapeRect, isNote
   };
 };
 
-export const syncDynamicPanelVisibility = ({ el, rect, multi = false, isShapeRect, isNoteRect } = {}) => {
+export const syncDynamicPanelVisibility = ({ el, rect, multi = false, isShapeRect, isNoteRect, hasFlowLinkSelection = false } = {}) => {
   const kind = getSelectionPanelKind({ rect, multi, isShapeRect, isNoteRect });
-  setPanelHidden(el.emptySelectionHint, kind.isObject);
+  const hasAnySelection = !!(kind.isObject || hasFlowLinkSelection);
+  setPanelHidden(el.emptySelectionHint, hasAnySelection);
   setPanelHidden(el.objectNameField, !kind.isObject);
   setPanelHidden(el.rectTextSizeField, !(kind.isScreen || kind.isNote));
   setPanelHidden(el.quickGeoPanel, !kind.isObject);
@@ -33,6 +34,7 @@ export const syncDynamicPanelVisibility = ({ el, rect, multi = false, isShapeRec
   setPanelHidden(el.cabinetSizePanel, !kind.isScreen);
   setPanelHidden(el.devicePropsPanel, !kind.isDevice);
   setPanelHidden(el.devicePortLabelField, !kind.isDevice);
+  setPanelHidden(el.flowLinkPropsPanel, !hasFlowLinkSelection);
   setPanelHidden(el.flowField, !kind.isScreen);
   setPanelHidden(el.numberCellsField, !kind.isScreen);
   setPanelHidden(el.splitVariantField, !kind.isScreen);
@@ -92,7 +94,12 @@ export const trackedPropInputNodes = el => [
   el.propDeviceOrientation,
   el.propDeviceInCount,
   el.propDeviceOutCount,
-  el.propDevicePortLabel
+  el.propDevicePortLabel,
+  el.propFlowLinkControlCount,
+  el.propFlowLinkColorMode,
+  el.propFlowLinkColor,
+  el.propFlowLinkWidth,
+  el.propFlowLinkLineType
 ];
 
 export const liveApplyInputNodes = el => [
@@ -109,7 +116,12 @@ export const liveApplyInputNodes = el => [
   el.propDeviceOrientation,
   el.propDeviceInCount,
   el.propDeviceOutCount,
-  el.propDevicePortLabel
+  el.propDevicePortLabel,
+  el.propFlowLinkControlCount,
+  el.propFlowLinkColorMode,
+  el.propFlowLinkColor,
+  el.propFlowLinkWidth,
+  el.propFlowLinkLineType
 ];
 
 export const commitApplyInputNodes = el => [
@@ -139,7 +151,12 @@ export const changeApplyInputNodes = el => [
   el.shapePointType
   ,
   el.propDeviceType,
-  el.propDeviceOrientation
+  el.propDeviceOrientation,
+  el.propFlowLinkControlCount,
+  el.propFlowLinkColorMode,
+  el.propFlowLinkColor,
+  el.propFlowLinkWidth,
+  el.propFlowLinkLineType
 ];
 
 export const fieldForPropNode = (el, node) => {
@@ -166,6 +183,11 @@ export const fieldForPropNode = (el, node) => {
   if (node === el.propDeviceInCount) return "deviceInCount";
   if (node === el.propDeviceOutCount) return "deviceOutCount";
   if (node === el.propDevicePortLabel) return "devicePortLabel";
+  if (node === el.propFlowLinkControlCount) return "flowLinkControlPointCount";
+  if (node === el.propFlowLinkColorMode) return "flowLinkColorMode";
+  if (node === el.propFlowLinkColor) return "flowLinkColor";
+  if (node === el.propFlowLinkWidth) return "flowLinkWidth";
+  if (node === el.propFlowLinkLineType) return "flowLinkLineType";
   return "";
 };
 

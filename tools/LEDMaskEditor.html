@@ -384,6 +384,37 @@
           <div class="form-check"><input id="propNumberCells" class="form-check-input" type="checkbox"><label
               class="form-check-label" for="propNumberCells">Нумеровать кабинеты</label></div>
         </div>
+        <div id="flowLinkPropsPanel" class="shape-point-group d-none">
+          <div class="shape-point-group-title">Свойства связи</div>
+          <div class="grid2">
+            <div class="field">
+              <label for="propFlowLinkControlCount">Контрольных точек</label>
+              <input id="propFlowLinkControlCount" type="number" min="2" max="4" step="1" value="2">
+            </div>
+            <div class="field">
+              <label for="propFlowLinkWidth">Толщина</label>
+              <input id="propFlowLinkWidth" type="number" min="0.5" max="20" step="0.1" value="2.2">
+            </div>
+            <div class="field">
+              <label for="propFlowLinkLineType">Тип линии</label>
+              <select id="propFlowLinkLineType">
+                <option value="solid">Сплошная</option>
+                <option value="dashed">Прерывистая</option>
+              </select>
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <label for="propFlowLinkColorMode">Цвет</label>
+              <div class="d-flex gap-2">
+                <select id="propFlowLinkColorMode">
+                  <option value="auto">Авто</option>
+                  <option value="custom">Пользовательский</option>
+                </select>
+                <input id="propFlowLinkColor" type="color" value="#ffc107">
+                <button id="btnFlowLinkColorReset" class="btn btn-outline-secondary btn-sm" type="button">Сброс</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div id="cabinetToolPanel" class="shape-point-group d-none">
           <div class="shape-point-group-title"><span id="cabinetSelectionLabel" class="hint mb-1">Кабинет не выбран</span></div>
           <div class="field mb-0">

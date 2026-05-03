@@ -310,6 +310,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       } else if (st.devicePortSelection) {
         st.devicePortSelection = null;
       }
+      if (handlePointerDownFlow(p, { ...(opts || {}), allowLinkOnly: true })) return;
       if (shapeInput.handlePointerDownSelectedShape(p, opts)) return;
       const h = hit(p.x, p.y);
       suppressMoveCursorUntilMouseUp = !!(h && !isSelectedRectId(h.id));
@@ -321,7 +322,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (handlePointerDownCabinet(p)) return;
     if (handlePointerDownCluster(p)) return;
     if (handlePointerDownRig(p)) return;
-    if (handlePointerDownFlow(p, opts)) return;
+    if (st.mode !== "select" && handlePointerDownFlow(p, opts)) return;
     if (st.mode === "select" && st.flowLinkSelectedKey) {
       st.flowLinkSelectedKey = "";
       st.flowCurveDrag = null;

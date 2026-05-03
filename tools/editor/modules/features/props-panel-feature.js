@@ -82,6 +82,33 @@ export const setupPropsPanelFeature = (deps = {}) => {
     return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
   };
   const normalizeDeviceOrientation = value => String(value || "").toLowerCase() === "vertical" ? "vertical" : "horizontal";
+  const normalizeFlowLinkControlPointCount = value => Math.max(2, Math.min(4, Math.round(Number(value) || 2)));
+  const normalizeFlowLinkColorMode = value => String(value || "").toLowerCase() === "custom" ? "custom" : "auto";
+  const normalizeFlowLinkColor = value => /^#[0-9a-f]{6}$/i.test(String(value || "").trim()) ? String(value).toLowerCase() : "#ffc107";
+  const normalizeFlowLinkWidth = value => Math.max(0.5, Math.min(20, Number(value) || 2.2));
+  const normalizeFlowLinkLineType = value => String(value || "").toLowerCase() === "dashed" ? "dashed" : "solid";
+  const flowOutPalette = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ff8000", "#8000ff", "#00ff80", "#ff0080", "#ffffff"];
+  const rectById = id => (Array.isArray(st && st.rects) ? st.rects : []).find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === Math.max(1, Math.round(Number(id) || 0))) || null;
+  const deviceTypeOf = r => {
+    const v = String((r && r.deviceType) || "controller").toLowerCase();
+    return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
+  };
+  const isPcLikeType = t => t === "pc" || t === "mixer" || t === "camera";
+  const autoFlowLinkColor = ln => {
+    const fromRect = rectById(ln && ln.from && ln.from.rectId);
+    const toRect = rectById(ln && ln.to && ln.to.rectId);
+    const fromKind = String((fromRect && fromRect.kind) || "").toLowerCase();
+    const toKind = String((toRect && toRect.kind) || "").toLowerCase();
+    const fromIsDevice = fromKind === "device";
+    const toIsDevice = toKind === "device";
+    const fromType = deviceTypeOf(fromRect);
+    const toType = deviceTypeOf(toRect);
+    const fromCid = Math.max(1, Math.round(Number(ln && ln.from && ln.from.cid) || 1));
+    if (fromIsDevice && fromType === "controller") return flowOutPalette[(fromCid - 1) % flowOutPalette.length];
+    if (fromIsDevice && toIsDevice && isPcLikeType(fromType) && isPcLikeType(toType)) return "#aa78ff";
+    if (fromIsDevice && toIsDevice && isPcLikeType(fromType) && toType === "controller") return "#50dcb4";
+    return "#ffc107";
+  };
   const normalizePortCount = (value, fallback = 4) => Math.max(1, Math.min(64, Math.round(Number(value) || fallback)));
   const parsePortLabels = (value, count) => {
     const n = normalizePortCount(count, 4);
@@ -119,7 +146,8 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (!key) return false;
     if (selectedFlowLink()) return true;
     const segs = Array.isArray(st && st.flowLinkSegments) ? st.flowLinkSegments : [];
-    return segs.some(s => String(s && s.key || "") === key);
+    if (segs.some(s => String(s && s.key || "") === key)) return true;
+    return true;
   };
   const selectionKey = () => {
     const ids = getSelectedRects().map(r => Math.max(0, Math.round(Number(r && r.id) || 0))).sort((a, b) => a - b);
@@ -224,7 +252,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
   });
   const syncProps = () => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
-    syncDynamicPanelVisibility({ el, rect: r, multi, isShapeRect, isNoteRect });
+    syncDynamicPanelVisibility({ el, rect: r, multi, isShapeRect, isNoteRect, hasFlowLinkSelection: hasSelectedFlowLink() });
     setMainPropsDisabled({ el, disabled: !on, uiSetDisabled });
     if (el.multiEditBadge) {
       const show = !!r && (multi || locked);
@@ -276,6 +304,20 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const selLink0 = selectedFlowLink();
       const showCurveField0 = !!hasSelectedFlowLink();
       uiSetValue(el.propFlowLinkCurveMode, "manual");
+      const count0 = normalizeFlowLinkControlPointCount(selLink0 && selLink0.controlPointCount);
+      const colorMode0 = normalizeFlowLinkColorMode(selLink0 && selLink0.colorMode);
+      const color0 = colorMode0 === "custom"
+        ? normalizeFlowLinkColor(selLink0 && selLink0.color)
+        : normalizeFlowLinkColor(autoFlowLinkColor(selLink0));
+      const width0 = normalizeFlowLinkWidth(selLink0 && selLink0.width);
+      const lineType0 = normalizeFlowLinkLineType(selLink0 && selLink0.lineType);
+      uiSetValue(el.propFlowLinkControlCount, String(count0));
+      uiSetValue(el.propFlowLinkColorMode, colorMode0);
+      uiSetValue(el.propFlowLinkColor, color0);
+      uiSetValue(el.propFlowLinkWidth, String(Math.round(width0 * 10) / 10));
+      uiSetValue(el.propFlowLinkLineType, lineType0);
+      if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, colorMode0 !== "custom");
+      if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, colorMode0 === "auto");
       setPanelHidden(el.flowLinkCurveField, !showCurveField0);
       if (showCurveField0) {
         const hasManual = !!(selLink0 && ((selLink0.manualBezierRel && selLink0.manualBezierRel.c1 && selLink0.manualBezierRel.c2) || (selLink0.manualBezier && selLink0.manualBezier.c1 && selLink0.manualBezier.c2)));
@@ -325,6 +367,20 @@ export const setupPropsPanelFeature = (deps = {}) => {
       uiSetValue(el.propFlowLinkCurveMode, "manual");
       uiSetDisabled(el.btnFlowLinkCurveReset, !isManual);
       uiSetDisabled(el.propFlowLinkCurveMode, true);
+      const count = normalizeFlowLinkControlPointCount(selLink && selLink.controlPointCount);
+      const colorMode = normalizeFlowLinkColorMode(selLink && selLink.colorMode);
+      const color = colorMode === "custom"
+        ? normalizeFlowLinkColor(selLink && selLink.color)
+        : normalizeFlowLinkColor(autoFlowLinkColor(selLink));
+      const width = normalizeFlowLinkWidth(selLink && selLink.width);
+      const lineType = normalizeFlowLinkLineType(selLink && selLink.lineType);
+      uiSetValue(el.propFlowLinkControlCount, String(count));
+      uiSetValue(el.propFlowLinkColorMode, colorMode);
+      uiSetValue(el.propFlowLinkColor, color);
+      uiSetValue(el.propFlowLinkWidth, String(Math.round(width * 10) / 10));
+      uiSetValue(el.propFlowLinkLineType, lineType);
+      if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, colorMode !== "custom");
+      if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, colorMode === "auto");
     }
     uiSetValue(el.shapeOpacity, mFmt(shapeTransparencyPercent(r)));
     {
@@ -366,6 +422,116 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const applyColor = !!o.applyColor;
     const field = String(o.field || "");
     const shouldApply = id => !field || field === id;
+    const flowLinkField = field.startsWith("flowLink");
+    const selectedLink = selectedFlowLink();
+    if (flowLinkField && selectedLink) {
+      const key = String(st && st.flowLinkSelectedKey || "");
+      const list = Array.isArray(st && st.flowLinks) ? st.flowLinks.slice() : [];
+      const idx = list.findIndex(it => flowLinkKeyOf(it) === key);
+      if (idx >= 0) {
+        const curLink = list[idx];
+        const next = { ...curLink };
+        if (shouldApply("flowLinkControlPointCount")) {
+          const n = normalizeFlowLinkControlPointCount(el.propFlowLinkControlCount && el.propFlowLinkControlCount.value);
+          const prev = Math.max(2, Math.round(Number(next.controlPointCount) || 2));
+          const oldOffsets = Array.isArray(next.controlOffsets) ? next.controlOffsets : [];
+          const newOffsets = [];
+          const handles = (Array.isArray(st && st.flowLinkCurveHandles) ? st.flowLinkCurveHandles : []).filter(h => String(h && h.key || "") === key);
+          const hC1 = handles.find(h => String(h && h.handle || "") === "c1");
+          const hC2 = handles.find(h => String(h && h.handle || "") === "c2");
+          const anyHandle = handles[0] || null;
+          const start = anyHandle && anyHandle.fallback && anyHandle.fallback.start ? anyHandle.fallback.start : null;
+          const end = anyHandle && anyHandle.fallback && anyHandle.fallback.end ? anyHandle.fallback.end : null;
+          const canSample = !!(start && end && Number.isFinite(Number(start.x)) && Number.isFinite(Number(start.y)) && Number.isFinite(Number(end.x)) && Number.isFinite(Number(end.y)));
+          const lerp = (a, b, t) => ({ x: (Number(a.x) || 0) + ((Number(b.x) || 0) - (Number(a.x) || 0)) * t, y: (Number(a.y) || 0) + ((Number(b.y) || 0) - (Number(a.y) || 0)) * t });
+          const sampleBezier = (p0, p1, p2, p3, t) => {
+            const u = 1 - t;
+            const tt = t * t;
+            const uu = u * u;
+            const uuu = uu * u;
+            const ttt = tt * t;
+            return {
+              x: uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
+              y: uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y
+            };
+          };
+          const buildPoints = (count, offsetsArr, s, e) => {
+            const pts = [{ x: Number(s.x) || 0, y: Number(s.y) || 0 }];
+            for (let i = 1; i < count - 1; i++) {
+              const t = i / (count - 1);
+              const b = lerp(s, e, t);
+              const o = offsetsArr[i - 1] || { x: 0, y: 0 };
+              pts.push({ x: b.x + (Number(o.x) || 0), y: b.y + (Number(o.y) || 0) });
+            }
+            pts.push({ x: Number(e.x) || 0, y: Number(e.y) || 0 });
+            return pts;
+          };
+          const sampleOldCurve = t => {
+            if (!canSample) return null;
+            if (prev <= 2) {
+              const c1 = hC1 && Number.isFinite(Number(hC1.x)) && Number.isFinite(Number(hC1.y))
+                ? { x: Number(hC1.x), y: Number(hC1.y) }
+                : (next && next.manualBezierRel && next.manualBezierRel.c1
+                  ? { x: (Number(start.x) || 0) + (Number(next.manualBezierRel.c1.x) || 0), y: (Number(start.y) || 0) + (Number(next.manualBezierRel.c1.y) || 0) }
+                  : (next && next.manualBezier && next.manualBezier.c1 ? { x: Number(next.manualBezier.c1.x) || 0, y: Number(next.manualBezier.c1.y) || 0 } : null));
+              const c2 = hC2 && Number.isFinite(Number(hC2.x)) && Number.isFinite(Number(hC2.y))
+                ? { x: Number(hC2.x), y: Number(hC2.y) }
+                : (next && next.manualBezierRel && next.manualBezierRel.c2
+                  ? { x: (Number(end.x) || 0) + (Number(next.manualBezierRel.c2.x) || 0), y: (Number(end.y) || 0) + (Number(next.manualBezierRel.c2.y) || 0) }
+                  : (next && next.manualBezier && next.manualBezier.c2 ? { x: Number(next.manualBezier.c2.x) || 0, y: Number(next.manualBezier.c2.y) || 0 } : null));
+              const p1 = c1 || lerp(start, end, 0.33);
+              const p2 = c2 || lerp(start, end, 0.66);
+              return sampleBezier(start, p1, p2, end, t);
+            }
+            const pts = buildPoints(prev, oldOffsets, start, end);
+            const segRel = Array.isArray(next && next.segmentBezierRel) ? next.segmentBezierRel : [];
+            const segCount = Math.max(1, pts.length - 1);
+            const segs = [];
+            for (let i = 0; i < segCount; i++) {
+              const p0 = pts[i];
+              const p3 = pts[i + 1];
+              const rel = segRel[i] && typeof segRel[i] === "object" ? segRel[i] : null;
+              const c1 = rel && rel.c1 ? { x: p0.x + (Number(rel.c1.x) || 0), y: p0.y + (Number(rel.c1.y) || 0) } : lerp(p0, p3, 0.33);
+              const c2 = rel && rel.c2 ? { x: p3.x + (Number(rel.c2.x) || 0), y: p3.y + (Number(rel.c2.y) || 0) } : lerp(p0, p3, 0.66);
+              segs.push({ p0, c1, c2, p3 });
+            }
+            const segT = t * segCount;
+            const segIdx = Math.max(0, Math.min(segCount - 1, Math.floor(segT)));
+            const lt = Math.max(0, Math.min(1, segT - segIdx));
+            const sg = segs[segIdx];
+            return sampleBezier(sg.p0, sg.c1, sg.c2, sg.p3, lt);
+          };
+          for (let i = 0; i < Math.max(0, n - 2); i++) {
+            const t = (i + 1) / (n - 1);
+            const sampled = sampleOldCurve(t);
+            if (sampled && canSample) {
+              const base = lerp(start, end, t);
+              newOffsets.push({ x: sampled.x - base.x, y: sampled.y - base.y });
+            } else {
+              const src = oldOffsets[Math.min(i, Math.max(0, oldOffsets.length - 1))] || { x: 0, y: 0 };
+              newOffsets.push({ x: Number(src.x) || 0, y: Number(src.y) || 0 });
+            }
+          }
+          next.controlPointCount = n;
+          next.controlOffsets = newOffsets;
+          if (prev !== n) {
+            try { delete next.manualBezier; } catch (_e) { next.manualBezier = null; }
+            try { delete next.manualBezierRel; } catch (_e) { next.manualBezierRel = null; }
+            try { delete next.segmentBezierRel; } catch (_e) { next.segmentBezierRel = null; }
+            try { delete next.bendOffsets; } catch (_e) { next.bendOffsets = null; }
+          }
+        }
+        if (shouldApply("flowLinkColorMode")) next.colorMode = normalizeFlowLinkColorMode(el.propFlowLinkColorMode && el.propFlowLinkColorMode.value);
+        if (shouldApply("flowLinkColor")) next.color = normalizeFlowLinkColor(el.propFlowLinkColor && el.propFlowLinkColor.value);
+        if (shouldApply("flowLinkWidth")) next.width = normalizeFlowLinkWidth(el.propFlowLinkWidth && el.propFlowLinkWidth.value);
+        if (shouldApply("flowLinkLineType")) next.lineType = normalizeFlowLinkLineType(el.propFlowLinkLineType && el.propFlowLinkLineType.value);
+        list[idx] = next;
+        st.flowLinks = list;
+        if (needPersist) schedulePersist("project");
+        if (needRender) render();
+      }
+      return;
+    }
     const r = cur(); if (!r) return;
     const selected = getSelectedRects(), targetsRaw = selected.length > 1 ? selected : [r], targets = targetsRaw.filter(t => !isRectLocked(t));
     if (!targets.length) return;

@@ -558,19 +558,37 @@ export const setupFlowLinkController = (deps = {}) => {
   const findFlowCurveHandleAtPoint = (wx, wy) => {
     const pts = Array.isArray(st.flowLinkCurveHandles) ? st.flowLinkCurveHandles : [];
     const tol = Math.max(7, 11 / Math.max(0.35, st.zoom || 1));
+    const pri = p => {
+      const h = String(p && p.handle || "");
+      if (/^p\d+$/.test(h)) return 2; // control point: lower priority
+      return 1; // anchors
+    };
     let best = null;
     let bestD = Infinity;
+    let bestPri = Infinity;
     for (const p of pts) {
       const d = Math.hypot((+p.x || 0) - wx, (+p.y || 0) - wy);
-      if (d < bestD) { bestD = d; best = p; }
+      const pPri = pri(p);
+      if (d > tol) continue;
+      if (pPri < bestPri || (pPri === bestPri && d < bestD)) {
+        best = p;
+        bestD = d;
+        bestPri = pPri;
+      }
     }
-    return (best && bestD <= tol) ? best : null;
+    return best || null;
   };
 
   const setFlowLinkManualBezierPoint = (key, handle, x, y, fallback = null) => {
     const targetKey = String(key || "");
     if (!targetKey) return false;
-    const h = String(handle || "") === "c2" ? "c2" : "c1";
+    const hRaw = String(handle || "");
+    const isPointHandle = /^p\d+$/.test(hRaw);
+    const segHandleMatch = hRaw.match(/^q(\d+)(c1|c2)$/i);
+    const pointBendHandleMatch = hRaw.match(/^p(\d+)bend$/i);
+    const pointDirHandleMatch = hRaw.match(/^p(\d+)(in|out)$/i);
+    const isBendHandle = /^b\d+$/.test(hRaw);
+    const h = hRaw === "c2" ? "c2" : "c1";
     const nx = Number(x);
     const ny = Number(y);
     if (!(Number.isFinite(nx) && Number.isFinite(ny))) return false;
@@ -578,6 +596,145 @@ export const setupFlowLinkController = (deps = {}) => {
     const idx = list.findIndex(it => flowLinkKey(it) === targetKey);
     if (idx < 0) return false;
     const cur = list[idx];
+    const snapshot = Array.isArray(fallback && fallback.segmentRelSnapshot) ? fallback.segmentRelSnapshot : [];
+    const buildSegmentRelState = (segCount, curSegRel) => {
+      const old = Array.isArray(curSegRel) ? curSegRel : [];
+      const out = [];
+      for (let i = 0; i < segCount; i++) {
+        const src = old[i] && typeof old[i] === "object" ? old[i] : (snapshot[i] && typeof snapshot[i] === "object" ? snapshot[i] : {});
+        const c1 = src.c1 && typeof src.c1 === "object" ? src.c1 : { x: 0, y: 0 };
+        const c2 = src.c2 && typeof src.c2 === "object" ? src.c2 : { x: 0, y: 0 };
+        out.push({
+          c1: { x: Number(c1.x) || 0, y: Number(c1.y) || 0 },
+          c2: { x: Number(c2.x) || 0, y: Number(c2.y) || 0 }
+        });
+      }
+      return out;
+    };
+    if (pointBendHandleMatch) {
+      const pointIndex = Math.max(1, Math.round(Number(pointBendHandleMatch[1]) || 1));
+      const pointCount = Math.max(2, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2));
+      const segCount = Math.max(1, pointCount - 1);
+      if (pointIndex <= 0 || pointIndex >= pointCount) return false;
+      const ax = Number(fallback && fallback.anchor && fallback.anchor.x);
+      const ay = Number(fallback && fallback.anchor && fallback.anchor.y);
+      if (!(Number.isFinite(ax) && Number.isFinite(ay))) return false;
+      const vx = nx - ax;
+      const vy = ny - ay;
+      const nextSeg = buildSegmentRelState(segCount, cur && cur.segmentBezierRel);
+      const prevIdx = pointIndex - 1;
+      const nextIdx = pointIndex;
+      if (nextIdx >= 0 && nextIdx < segCount) nextSeg[nextIdx].c1 = { x: vx, y: vy };
+      if (prevIdx >= 0 && prevIdx < segCount) nextSeg[prevIdx].c2 = { x: -vx, y: -vy };
+      list[idx] = { ...cur, controlPointCount: pointCount, segmentBezierRel: nextSeg };
+      st.flowLinks = list;
+      return true;
+    }
+    if (pointDirHandleMatch) {
+      const pointIndex = Math.max(1, Math.round(Number(pointDirHandleMatch[1]) || 1));
+      const dir = String(pointDirHandleMatch[2] || "in").toLowerCase();
+      const pointCount = Math.max(2, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2));
+      const segCount = Math.max(1, pointCount - 1);
+      const segIndex = dir === "in" ? pointIndex - 1 : pointIndex;
+      const role = dir === "in" ? "c2" : "c1";
+      if (segIndex < 0 || segIndex >= segCount) return false;
+      const ax = Number(fallback && fallback.anchor && fallback.anchor.x);
+      const ay = Number(fallback && fallback.anchor && fallback.anchor.y);
+      if (!(Number.isFinite(ax) && Number.isFinite(ay))) return false;
+      const nextSeg = buildSegmentRelState(segCount, cur && cur.segmentBezierRel);
+      nextSeg[segIndex][role] = { x: nx - ax, y: ny - ay };
+      list[idx] = { ...cur, controlPointCount: pointCount, segmentBezierRel: nextSeg };
+      st.flowLinks = list;
+      return true;
+    }
+    if (segHandleMatch) {
+      const segIndex = Math.max(0, Math.round(Number(segHandleMatch[1]) || 1) - 1);
+      const role = String(segHandleMatch[2] || "c1").toLowerCase() === "c2" ? "c2" : "c1";
+      const pointCount = Math.max(2, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2));
+      const segCount = Math.max(1, pointCount - 1);
+      if (segIndex >= segCount) return false;
+      const ax = Number(fallback && fallback.anchor && fallback.anchor.x);
+      const ay = Number(fallback && fallback.anchor && fallback.anchor.y);
+      if (!(Number.isFinite(ax) && Number.isFinite(ay))) return false;
+      const old = Array.isArray(cur && cur.segmentBezierRel) ? cur.segmentBezierRel : [];
+      const nextSeg = [];
+      for (let i = 0; i < segCount; i++) {
+        const src = old[i] && typeof old[i] === "object" ? old[i] : {};
+        const c1 = src.c1 && typeof src.c1 === "object" ? src.c1 : { x: 0, y: 0 };
+        const c2 = src.c2 && typeof src.c2 === "object" ? src.c2 : { x: 0, y: 0 };
+        nextSeg.push({
+          c1: { x: Number(c1.x) || 0, y: Number(c1.y) || 0 },
+          c2: { x: Number(c2.x) || 0, y: Number(c2.y) || 0 }
+        });
+      }
+      nextSeg[segIndex][role] = { x: nx - ax, y: ny - ay };
+      list[idx] = { ...cur, controlPointCount: pointCount, segmentBezierRel: nextSeg };
+      st.flowLinks = list;
+      return true;
+    }
+    if (isBendHandle) {
+      const segIndex = Math.max(0, Math.round(Number(hRaw.slice(1)) || 1) - 1);
+      const pointCount = Math.max(2, Math.min(4, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2)));
+      const segCount = Math.max(1, pointCount - 1);
+      if (segIndex >= segCount) return false;
+      const old = Array.isArray(cur && cur.bendOffsets) ? cur.bendOffsets : [];
+      const nextOffsets = [];
+      for (let i = 0; i < segCount; i++) {
+        const src = old[i] && typeof old[i] === "object" ? old[i] : { x: 0, y: 0 };
+        nextOffsets.push({ x: Number(src.x) || 0, y: Number(src.y) || 0 });
+      }
+      const ax = Number(fallback && fallback.ax);
+      const ay = Number(fallback && fallback.ay);
+      if (!(Number.isFinite(ax) && Number.isFinite(ay))) return false;
+      nextOffsets[segIndex] = { x: nx - ax, y: ny - ay };
+      list[idx] = { ...cur, controlPointCount: pointCount, bendOffsets: nextOffsets };
+      st.flowLinks = list;
+      return true;
+    }
+    if (isPointHandle) {
+      const pointIndex = Math.max(1, Math.round(Number(hRaw.slice(1)) || 1));
+      const pointCount = Math.max(2, Math.min(4, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2)));
+      const start = fallback && fallback.start && typeof fallback.start === "object" ? fallback.start : null;
+      const end = fallback && fallback.end && typeof fallback.end === "object" ? fallback.end : null;
+      if (!start || !end || pointIndex >= pointCount) return false;
+      const t = pointIndex / (pointCount - 1);
+      const bx = (Number(start.x) || 0) + ((Number(end.x) || 0) - (Number(start.x) || 0)) * t;
+      const by = (Number(start.y) || 0) + ((Number(end.y) || 0) - (Number(start.y) || 0)) * t;
+      const old = Array.isArray(cur && cur.controlOffsets) ? cur.controlOffsets : [];
+      const nextOffsets = [];
+      for (let i = 0; i < Math.max(0, pointCount - 2); i++) {
+        const src = old[i] && typeof old[i] === "object" ? old[i] : { x: 0, y: 0 };
+        nextOffsets.push({ x: Number(src.x) || 0, y: Number(src.y) || 0 });
+      }
+      const idxOff = pointIndex - 1;
+      if (idxOff >= 0 && idxOff < nextOffsets.length) {
+        nextOffsets[idxOff] = { x: nx - bx, y: ny - by };
+      }
+      list[idx] = { ...cur, controlPointCount: pointCount, controlOffsets: nextOffsets };
+      st.flowLinks = list;
+      return true;
+    }
+    if (hRaw === "c1" || hRaw === "c2") {
+      const pointCount = Math.max(2, Math.round(Number(fallback && fallback.pointCount) || Number(cur && cur.controlPointCount) || 2));
+      if (pointCount > 2) {
+        const segCount = Math.max(1, pointCount - 1);
+        const nextSeg = buildSegmentRelState(segCount, cur && cur.segmentBezierRel);
+        if (hRaw === "c1") {
+          const ax = Number(fallback && fallback.start && fallback.start.x);
+          const ay = Number(fallback && fallback.start && fallback.start.y);
+          if (!(Number.isFinite(ax) && Number.isFinite(ay))) return false;
+          nextSeg[0].c1 = { x: nx - ax, y: ny - ay };
+        } else {
+          const ax = Number(fallback && fallback.end && fallback.end.x);
+          const ay = Number(fallback && fallback.end && fallback.end.y);
+          if (!(Number.isFinite(ax) && Number.isFinite(ay))) return false;
+          nextSeg[segCount - 1].c2 = { x: nx - ax, y: ny - ay };
+        }
+        list[idx] = { ...cur, controlPointCount: pointCount, segmentBezierRel: nextSeg };
+        st.flowLinks = list;
+        return true;
+      }
+    }
     const fb = (fallback && typeof fallback === "object") ? fallback : {};
     const anchorStart = fb.start && typeof fb.start === "object" ? fb.start : null;
     const anchorEnd = fb.end && typeof fb.end === "object" ? fb.end : null;
@@ -593,7 +750,12 @@ export const setupFlowLinkController = (deps = {}) => {
     const c2Rel = curRel ? curRel.c2 : ((anchorEnd && Number.isFinite(Number(anchorEnd.x)) && Number.isFinite(Number(anchorEnd.y)))
       ? { x: (Number(c2Abs.x) || 0) - (Number(anchorEnd.x) || 0), y: (Number(c2Abs.y) || 0) - (Number(anchorEnd.y) || 0) }
       : { x: 0, y: 0 });
-    const next = { from: cur.from, to: cur.to, manualBezierRel: { c1: { x: Number(c1Rel.x) || 0, y: Number(c1Rel.y) || 0 }, c2: { x: Number(c2Rel.x) || 0, y: Number(c2Rel.y) || 0 } } };
+    const next = {
+      ...cur,
+      from: cur.from,
+      to: cur.to,
+      manualBezierRel: { c1: { x: Number(c1Rel.x) || 0, y: Number(c1Rel.y) || 0 }, c2: { x: Number(c2Rel.x) || 0, y: Number(c2Rel.y) || 0 } }
+    };
     if (h === "c1") {
       if (anchorStart && Number.isFinite(Number(anchorStart.x)) && Number.isFinite(Number(anchorStart.y))) next.manualBezierRel.c1 = { x: nx - Number(anchorStart.x), y: ny - Number(anchorStart.y) };
     } else if (anchorEnd && Number.isFinite(Number(anchorEnd.x)) && Number.isFinite(Number(anchorEnd.y))) {
@@ -612,7 +774,12 @@ export const setupFlowLinkController = (deps = {}) => {
     if (idx < 0) return false;
     const cur = list[idx];
     if (!cur || (!cur.manualBezier && !cur.manualBezierRel)) return false;
-    const next = { from: cur.from, to: cur.to, manualBezierRel: { c1: { x: 0, y: 0 }, c2: { x: 0, y: 0 } } };
+    const next = {
+      ...cur,
+      from: cur.from,
+      to: cur.to,
+      manualBezierRel: { c1: { x: 0, y: 0 }, c2: { x: 0, y: 0 } }
+    };
     list[idx] = next;
     st.flowLinks = list;
     return true;

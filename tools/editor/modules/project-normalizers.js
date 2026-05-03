@@ -217,6 +217,60 @@ export const normalizeFlowLinks = raw => {
   const out = [];
   const seen = new Set();
   const list = Array.isArray(raw) ? raw : [];
+  const clamp = (v, lo, hi, fb) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return fb;
+    return Math.max(lo, Math.min(hi, n));
+  };
+  const normColorMode = v => String(v || "").toLowerCase() === "custom" ? "custom" : "auto";
+  const normLineType = v => String(v || "").toLowerCase() === "dashed" ? "dashed" : "solid";
+  const normHex = v => {
+    const s = String(v || "").trim();
+    return /^#[0-9a-f]{6}$/i.test(s) ? s.toLowerCase() : null;
+  };
+  const normControlOffsets = (arr, count) => {
+    const need = Math.max(0, Math.round(Number(count) || 2) - 2);
+    const src = Array.isArray(arr) ? arr : [];
+    const outArr = [];
+    for (let i = 0; i < need; i++) {
+      const it = src[i] && typeof src[i] === "object" ? src[i] : null;
+      const x = Number(it && it.x);
+      const y = Number(it && it.y);
+      outArr.push({ x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 });
+    }
+    return outArr;
+  };
+  const normBendOffsets = (arr, count) => {
+    const need = Math.max(1, Math.round(Number(count) || 2) - 1);
+    const src = Array.isArray(arr) ? arr : [];
+    const outArr = [];
+    for (let i = 0; i < need; i++) {
+      const it = src[i] && typeof src[i] === "object" ? src[i] : null;
+      const x = Number(it && it.x);
+      const y = Number(it && it.y);
+      outArr.push({ x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 });
+    }
+    return outArr;
+  };
+  const normSegmentBezierRel = (arr, count) => {
+    const need = Math.max(1, Math.round(Number(count) || 2) - 1);
+    const src = Array.isArray(arr) ? arr : [];
+    const outArr = [];
+    for (let i = 0; i < need; i++) {
+      const it = src[i] && typeof src[i] === "object" ? src[i] : null;
+      const c1 = it && it.c1 && typeof it.c1 === "object" ? it.c1 : null;
+      const c2 = it && it.c2 && typeof it.c2 === "object" ? it.c2 : null;
+      const c1x = Number(c1 && c1.x);
+      const c1y = Number(c1 && c1.y);
+      const c2x = Number(c2 && c2.x);
+      const c2y = Number(c2 && c2.y);
+      outArr.push({
+        c1: { x: Number.isFinite(c1x) ? c1x : 0, y: Number.isFinite(c1y) ? c1y : 0 },
+        c2: { x: Number.isFinite(c2x) ? c2x : 0, y: Number.isFinite(c2y) ? c2y : 0 }
+      });
+    }
+    return outArr;
+  };
   const mkEnd = e => ({
     rectId: Math.max(1, Math.round(Number(e && e.rectId) || 0)),
     rid: Math.max(0, Math.round(Number(e && e.rid) || 0)),
@@ -260,9 +314,27 @@ export const normalizeFlowLinks = raw => {
     seen.add(key);
     const manualBezier = mkManualBezier(it.manualBezier);
     const manualBezierRel = mkManualBezierRel(it.manualBezierRel);
+    const controlPointCount = Math.round(clamp(it.controlPointCount, 2, 4, 2));
+    const controlOffsets = normControlOffsets(it.controlOffsets, controlPointCount);
+    const hasBendOffsets = Array.isArray(it.bendOffsets);
+    const bendOffsets = hasBendOffsets ? normBendOffsets(it.bendOffsets, controlPointCount) : null;
+    const hasSegmentBezierRel = Array.isArray(it.segmentBezierRel);
+    const segmentBezierRel = hasSegmentBezierRel ? normSegmentBezierRel(it.segmentBezierRel, controlPointCount) : null;
+    const colorMode = normColorMode(it.colorMode);
+    const lineType = normLineType(it.lineType);
+    const color = normHex(it.color);
+    const width = clamp(it.width, 0.5, 20, 2.2);
     const rec = { from: a, to: b };
     if (manualBezier) rec.manualBezier = manualBezier;
     if (manualBezierRel) rec.manualBezierRel = manualBezierRel;
+    rec.controlPointCount = controlPointCount;
+    rec.controlOffsets = controlOffsets;
+    if (bendOffsets) rec.bendOffsets = bendOffsets;
+    if (segmentBezierRel) rec.segmentBezierRel = segmentBezierRel;
+    rec.colorMode = colorMode;
+    rec.lineType = lineType;
+    if (color) rec.color = color;
+    rec.width = width;
     out.push(rec);
   }
   return out;
