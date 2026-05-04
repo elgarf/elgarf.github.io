@@ -271,6 +271,20 @@ export const normalizeFlowLinks = raw => {
     }
     return outArr;
   };
+  const normOrthogonalPoints = arr => {
+    const src = Array.isArray(arr) ? arr : [];
+    const outArr = [];
+    for (const it of src) {
+      const x = Number(it && it.x);
+      const y = Number(it && it.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      const prev = outArr[outArr.length - 1];
+      if (prev && Math.abs(prev.x - x) < 0.001 && Math.abs(prev.y - y) < 0.001) continue;
+      outArr.push({ x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 });
+      if (outArr.length >= 12) break;
+    }
+    return outArr;
+  };
   const mkEnd = e => ({
     rectId: Math.max(1, Math.round(Number(e && e.rectId) || 0)),
     rid: Math.max(0, Math.round(Number(e && e.rid) || 0)),
@@ -324,6 +338,7 @@ export const normalizeFlowLinks = raw => {
     const lineType = normLineType(it.lineType);
     const color = normHex(it.color);
     const width = clamp(it.width, 0.5, 20, 2.2);
+    const orthogonalPoints = normOrthogonalPoints(it.orthogonalPoints);
     const rec = { from: a, to: b };
     if (manualBezier) rec.manualBezier = manualBezier;
     if (manualBezierRel) rec.manualBezierRel = manualBezierRel;
@@ -331,6 +346,7 @@ export const normalizeFlowLinks = raw => {
     rec.controlOffsets = controlOffsets;
     if (bendOffsets) rec.bendOffsets = bendOffsets;
     if (segmentBezierRel) rec.segmentBezierRel = segmentBezierRel;
+    if (orthogonalPoints.length) rec.orthogonalPoints = orthogonalPoints;
     rec.colorMode = colorMode;
     rec.lineType = lineType;
     if (color) rec.color = color;

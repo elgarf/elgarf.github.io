@@ -264,6 +264,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (el.btnClearMasks) uiSetDisabled(el.btnClearMasks, !on);
     if (el.btnResetFlowLocks) uiSetDisabled(el.btnResetFlowLocks, !on);
     if (el.btnResetManualClusters) uiSetDisabled(el.btnResetManualClusters, !on);
+    if (el.btnAutoRouteDeviceOutLinks) uiSetDisabled(el.btnAutoRouteDeviceOutLinks, !on || !isDeviceRect(r));
     if (el.btnConvertRegionsToScreens) uiSetDisabled(el.btnConvertRegionsToScreens, !on || (typeof deps.isNoteRect === "function" && deps.isNoteRect(r)));
     if (el.btnAutoContrast) uiSetDisabled(el.btnAutoContrast, !on);
     uiSetValue(el.project, st.projectName);
@@ -519,6 +520,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
             try { delete next.manualBezierRel; } catch (_e) { next.manualBezierRel = null; }
             try { delete next.segmentBezierRel; } catch (_e) { next.segmentBezierRel = null; }
             try { delete next.bendOffsets; } catch (_e) { next.bendOffsets = null; }
+            try { delete next.orthogonalPoints; } catch (_e) { next.orthogonalPoints = null; }
           }
         }
         if (shouldApply("flowLinkColorMode")) next.colorMode = normalizeFlowLinkColorMode(el.propFlowLinkColorMode && el.propFlowLinkColorMode.value);

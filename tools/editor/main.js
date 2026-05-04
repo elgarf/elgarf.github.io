@@ -2081,6 +2081,232 @@ if (el.btnFlowLinkColorReset) {
     render();
   });
 }
+const routeSelectedDeviceOutLinksOrthogonal = () => {
+  const device = cur();
+  if (!device || String((device && device.kind) || "").toLowerCase() !== "device") return false;
+  const deviceId = Math.max(1, Math.round(Number(device.id) || 0));
+  const links = normalizeFlowLinks(st.flowLinks);
+  const targetLinks = links
+    .map((ln, index) => ({ ln, index }))
+    .filter(it => Math.max(1, Math.round(Number(it.ln && it.ln.from && it.ln.from.rectId) || 0)) === deviceId
+      && String(it.ln && it.ln.from && it.ln.from.kind || "").toLowerCase() === "end")
+    .sort((a, b) => (Math.max(0, Math.round(Number(a.ln.from.cid) || 0)) - Math.max(0, Math.round(Number(b.ln.from.cid) || 0))) || a.index - b.index);
+  if (!targetLinks.length) return false;
+
+  const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+  const rectByIdLocal = id => getRectById(Math.max(1, Math.round(Number(id) || 0))) || null;
+  const boxOf = r => {
+    const bb = rectAABBMasked(r);
+    return {
+      minX: num(bb.minX),
+      minY: num(bb.minY),
+      maxX: num(bb.maxX),
+      maxY: num(bb.maxY),
+      cx: (num(bb.minX) + num(bb.maxX)) / 2,
+      cy: (num(bb.minY) + num(bb.maxY)) / 2
+    };
+  };
+  const expandBox = (bb, pad) => ({
+    minX: bb.minX - pad,
+    minY: bb.minY - pad,
+    maxX: bb.maxX + pad,
+    maxY: bb.maxY + pad
+  });
+  const boxIntersectsSegment = (bb, a, b) => {
+    const ax = num(a.x), ay = num(a.y), bx = num(b.x), by = num(b.y);
+    if (Math.abs(ay - by) < 0.5) {
+      const x1 = Math.min(ax, bx), x2 = Math.max(ax, bx);
+      return ay >= bb.minY && ay <= bb.maxY && x2 > bb.minX && x1 < bb.maxX;
+    }
+    if (Math.abs(ax - bx) < 0.5) {
+      const y1 = Math.min(ay, by), y2 = Math.max(ay, by);
+      return ax >= bb.minX && ax <= bb.maxX && y2 > bb.minY && y1 < bb.maxY;
+    }
+    return true;
+  };
+  const boxSegmentInsideLength = (bb, a, b) => {
+    const ax = num(a.x), ay = num(a.y), bx = num(b.x), by = num(b.y);
+    if (Math.abs(ay - by) < 0.5) {
+      if (ay < bb.minY || ay > bb.maxY) return 0;
+      const x1 = Math.max(Math.min(ax, bx), bb.minX);
+      const x2 = Math.min(Math.max(ax, bx), bb.maxX);
+      return Math.max(0, x2 - x1);
+    }
+    if (Math.abs(ax - bx) < 0.5) {
+      if (ax < bb.minX || ax > bb.maxX) return 0;
+      const y1 = Math.max(Math.min(ay, by), bb.minY);
+      const y2 = Math.min(Math.max(ay, by), bb.maxY);
+      return Math.max(0, y2 - y1);
+    }
+    return 1000000;
+  };
+  const segLen = (a, b) => Math.abs(num(a.x) - num(b.x)) + Math.abs(num(a.y) - num(b.y));
+  const samePt = (a, b) => Math.hypot(num(a.x) - num(b.x), num(a.y) - num(b.y)) < 0.5;
+  const cleanPoints = pts => {
+    const out = [];
+    for (const p of pts) {
+      const q = { x: Math.round(num(p.x)), y: Math.round(num(p.y)) };
+      const prev = out[out.length - 1];
+      if (prev && samePt(prev, q)) continue;
+      out.push(q);
+    }
+    for (let i = out.length - 2; i > 0; i--) {
+      const a = out[i - 1], b = out[i], c = out[i + 1];
+      if ((Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5)
+        || (Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5)) out.splice(i, 1);
+    }
+    return out;
+  };
+  const pointKey = p => `${Math.round(num(p.x))}:${Math.round(num(p.y))}`;
+  const segmentOverlapPenalty = (a, b, used) => {
+    let penalty = 0;
+    const ax = num(a.x), ay = num(a.y), bx = num(b.x), by = num(b.y);
+    for (const s of used) {
+      if (Math.abs(ay - by) < 0.5 && Math.abs(s.a.y - s.b.y) < 0.5 && Math.abs(ay - s.a.y) < 3) {
+        const x1 = Math.min(ax, bx), x2 = Math.max(ax, bx);
+        const sx1 = Math.min(s.a.x, s.b.x), sx2 = Math.max(s.a.x, s.b.x);
+        if (Math.min(x2, sx2) - Math.max(x1, sx1) > 1) penalty += 40000;
+      } else if (Math.abs(ax - bx) < 0.5 && Math.abs(s.a.x - s.b.x) < 0.5 && Math.abs(ax - s.a.x) < 3) {
+        const y1 = Math.min(ay, by), y2 = Math.max(ay, by);
+        const sy1 = Math.min(s.a.y, s.b.y), sy2 = Math.max(s.a.y, s.b.y);
+        if (Math.min(y2, sy2) - Math.max(y1, sy1) > 1) penalty += 40000;
+      }
+    }
+    return penalty;
+  };
+  const rectBoxes = (Array.isArray(st.rects) ? st.rects : [])
+    .filter(r => r && String((r && r.kind) || "").toLowerCase() !== "note")
+    .map(r => ({ id: Math.max(1, Math.round(Number(r.id) || 0)), bb: expandBox(boxOf(r), 12) }));
+  const allBounds = rectBoxes.reduce((acc, it) => ({
+    minX: Math.min(acc.minX, it.bb.minX),
+    minY: Math.min(acc.minY, it.bb.minY),
+    maxX: Math.max(acc.maxX, it.bb.maxX),
+    maxY: Math.max(acc.maxY, it.bb.maxY)
+  }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+  const usedSegments = [];
+  const usedPoints = new Set();
+  const gap = 36;
+  const lane = 18;
+  const sourceBox = boxOf(device);
+  const sideExit = (side, p, bb, laneOffset = 0) => {
+    if (side === "right") return { x: bb.maxX + gap + laneOffset, y: p.y };
+    if (side === "left") return { x: bb.minX - gap - laneOffset, y: p.y };
+    if (side === "down") return { x: p.x, y: bb.maxY + gap + laneOffset };
+    return { x: p.x, y: bb.minY - gap - laneOffset };
+  };
+  const sideDistance = (side, p, bb) => {
+    if (side === "right") return Math.abs(bb.maxX - p.x);
+    if (side === "left") return Math.abs(p.x - bb.minX);
+    if (side === "down") return Math.abs(bb.maxY - p.y);
+    return Math.abs(p.y - bb.minY);
+  };
+  const sideCrossingCost = (side, p, bb) => {
+    const exit = sideExit(side, p, bb, 0);
+    return boxSegmentInsideLength(bb, p, exit);
+  };
+  const approachSidesFor = (a, b, bb) => {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const primary = Math.abs(dx) >= Math.abs(dy)
+      ? (dx >= 0 ? "left" : "right")
+      : (dy >= 0 ? "up" : "down");
+    const order = [primary, "left", "right", "up", "down"]
+      .sort((sa, sb) => sideCrossingCost(sa, b, bb) - sideCrossingCost(sb, b, bb));
+    return [...new Set(order)];
+  };
+  const buildRouteCandidates = (start, end, srcBb, dstBb, routeIndex) => {
+    const sourceSides = ["right", "left", "down", "up"]
+      .sort((sa, sb) => (sideCrossingCost(sa, start, srcBb) - sideCrossingCost(sb, start, srcBb))
+        || (sideDistance(sa, start, srcBb) - sideDistance(sb, start, srcBb))
+        + ((sa === (end.x >= start.x ? "right" : "left") ? -8 : 0) - (sb === (end.x >= start.x ? "right" : "left") ? -8 : 0)));
+    const candidates = [];
+    for (const sSide of sourceSides) {
+      const laneOffset = routeIndex * lane;
+      const sOut = sideExit(sSide, start, srcBb, laneOffset);
+      for (const eSide of approachSidesFor(sOut, end, dstBb)) {
+        const eOut = sideExit(eSide, end, dstBb, laneOffset);
+        candidates.push([sOut, { x: eOut.x, y: sOut.y }, eOut]);
+        candidates.push([sOut, { x: sOut.x, y: eOut.y }, eOut]);
+        const outerOffset = gap + (routeIndex + 1) * lane;
+        const leftLane = Math.min(allBounds.minX, srcBb.minX, dstBb.minX) - outerOffset;
+        const rightLane = Math.max(allBounds.maxX, srcBb.maxX, dstBb.maxX) + outerOffset;
+        const topLane = Math.min(allBounds.minY, srcBb.minY, dstBb.minY) - outerOffset;
+        const bottomLane = Math.max(allBounds.maxY, srcBb.maxY, dstBb.maxY) + outerOffset;
+        const wideLeftLane = leftLane - gap - lane * 2;
+        const wideRightLane = rightLane + gap + lane * 2;
+        const wideTopLane = topLane - gap - lane * 2;
+        const wideBottomLane = bottomLane + gap + lane * 2;
+        const midX = (sOut.x + eOut.x) / 2 + ((routeIndex % 2) ? lane : -lane);
+        const midY = (sOut.y + eOut.y) / 2 + ((routeIndex % 2) ? -lane : lane);
+        for (const x of [midX, leftLane, rightLane, wideLeftLane, wideRightLane]) candidates.push([sOut, { x, y: sOut.y }, { x, y: eOut.y }, eOut]);
+        for (const y of [midY, topLane, bottomLane, wideTopLane, wideBottomLane]) candidates.push([sOut, { x: sOut.x, y }, { x: eOut.x, y }, eOut]);
+      }
+    }
+    return candidates.map(cleanPoints);
+  };
+  const scoreRoute = (points, start, end, sourceId, targetId) => {
+    const full = cleanPoints([start, ...points, end]);
+    let score = full.reduce((sum, p, i) => i ? sum + segLen(full[i - 1], p) : 0, 0) + Math.max(0, full.length - 4) * 80;
+    for (let i = 0; i < full.length - 1; i++) {
+      const a = full[i], b = full[i + 1];
+      if (Math.abs(a.x - b.x) >= 0.5 && Math.abs(a.y - b.y) >= 0.5) score += 1000000;
+      score += segmentOverlapPenalty(a, b, usedSegments);
+      for (const blocker of rectBoxes) {
+        if (blocker.id === sourceId && i === 0) {
+          score += boxSegmentInsideLength(blocker.bb, a, b) * 1200;
+          continue;
+        }
+        if (blocker.id === targetId && i === full.length - 2) {
+          score += boxSegmentInsideLength(blocker.bb, a, b) * 1200;
+          continue;
+        }
+        if (blocker.id === sourceId || blocker.id === targetId) {
+          if (boxIntersectsSegment(blocker.bb, a, b)) score += 5000000;
+          continue;
+        }
+        if (boxIntersectsSegment(blocker.bb, a, b)) score += 10000000 + boxSegmentInsideLength(blocker.bb, a, b) * 2500;
+      }
+    }
+    for (let i = 1; i < full.length - 1; i++) if (usedPoints.has(pointKey(full[i]))) score += 20000;
+    return score;
+  };
+
+  let changed = false;
+  for (let i = 0; i < targetLinks.length; i++) {
+    const { ln, index } = targetLinks[i];
+    const start = findFlowAnchorByEndpoint(ln.from);
+    const end = findFlowAnchorByEndpoint(ln.to);
+    const targetRect = rectByIdLocal(ln && ln.to && ln.to.rectId);
+    if (!start || !end || !targetRect) continue;
+    const targetBox = boxOf(targetRect);
+    const candidates = buildRouteCandidates(start, end, sourceBox, targetBox, i);
+    let best = null;
+    for (const cand of candidates) {
+      const score = scoreRoute(cand, start, end, deviceId, Math.max(1, Math.round(Number(targetRect.id) || 0)));
+      if (!best || score < best.score) best = { points: cand, score };
+    }
+    if (!best) continue;
+    const routePoints = cleanPoints(best.points);
+    const full = cleanPoints([start, ...routePoints, end]);
+    for (let j = 0; j < full.length - 1; j++) usedSegments.push({ a: full[j], b: full[j + 1] });
+    for (const p of routePoints) usedPoints.add(pointKey(p));
+    links[index] = { ...ln, orthogonalPoints: routePoints, controlPointCount: 2, controlOffsets: [] };
+    try { delete links[index].manualBezier; } catch (_e) { links[index].manualBezier = null; }
+    try { delete links[index].manualBezierRel; } catch (_e) { links[index].manualBezierRel = null; }
+    try { delete links[index].segmentBezierRel; } catch (_e) { links[index].segmentBezierRel = null; }
+    try { delete links[index].bendOffsets; } catch (_e) { links[index].bendOffsets = null; }
+    changed = true;
+  }
+  if (!changed) return false;
+  st.flowLinks = links;
+  schedulePersist("project");
+  syncProps();
+  render();
+  return true;
+};
+if (el.btnAutoRouteDeviceOutLinks) {
+  bindClick(el.btnAutoRouteDeviceOutLinks, () => routeSelectedDeviceOutLinksOrthogonal());
+}
 const syncPropsBase = syncProps;
 syncProps = () => {
   syncPropsBase();

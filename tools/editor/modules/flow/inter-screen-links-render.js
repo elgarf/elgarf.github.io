@@ -254,6 +254,58 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     c.restore();
   };
 
+  const simplifyOrthogonalPoints = points => {
+    const src = Array.isArray(points) ? points : [];
+    const out = [];
+    for (const p of src) {
+      const x = toNum(p && p.x);
+      const y = toNum(p && p.y);
+      const prev = out[out.length - 1];
+      if (prev && Math.hypot(prev.x - x, prev.y - y) < 0.5) continue;
+      out.push({ x, y });
+    }
+    for (let i = out.length - 2; i > 0; i--) {
+      const a = out[i - 1], b = out[i], c = out[i + 1];
+      const sameX = Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5;
+      const sameY = Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5;
+      if (sameX || sameY) out.splice(i, 1);
+    }
+    return out;
+  };
+
+  const buildRoundedOrthogonalPath = points => {
+    const pts = simplifyOrthogonalPoints(points);
+    const path = new Path2D();
+    if (!pts.length) return { path, points: [] };
+    path.moveTo(pts[0].x, pts[0].y);
+    if (pts.length === 1) return { path, points: pts };
+    for (let i = 1; i < pts.length - 1; i++) {
+      const prev = pts[i - 1];
+      const cur = pts[i];
+      const next = pts[i + 1];
+      if (i === 1 || i === pts.length - 2) {
+        path.lineTo(cur.x, cur.y);
+        continue;
+      }
+      const l1 = Math.hypot(cur.x - prev.x, cur.y - prev.y);
+      const l2 = Math.hypot(next.x - cur.x, next.y - cur.y);
+      const r = Math.min(18, Math.max(4, Math.min(l1, l2) * 0.35));
+      const inPt = {
+        x: cur.x - Math.sign(cur.x - prev.x) * r,
+        y: cur.y - Math.sign(cur.y - prev.y) * r
+      };
+      const outPt = {
+        x: cur.x + Math.sign(next.x - cur.x) * r,
+        y: cur.y + Math.sign(next.y - cur.y) * r
+      };
+      path.lineTo(inPt.x, inPt.y);
+      path.quadraticCurveTo(cur.x, cur.y, outPt.x, outPt.y);
+    }
+    const last = pts[pts.length - 1];
+    path.lineTo(last.x, last.y);
+    return { path, points: pts };
+  };
+
   const drawInterScreenFlowLinks = (c, force = false) => {
     if (isCellEditMode() || isRigEditMode()) return;
     if (!force && normalizeViewMode(st.viewMode) !== "install" && st.mode !== "flowEdit") return;
@@ -321,6 +373,20 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const baseW = exportPass
         ? strokeWidthForZoom(st.zoom, 0.85, Math.max(1.0, linkWidth * 0.66))
         : strokeWidthForZoom(st.zoom, 1.2, linkWidth);
+      const orthogonalMid = Array.isArray(ln && ln.orthogonalPoints) ? ln.orthogonalPoints : [];
+      if (orthogonalMid.length) {
+        const route = buildRoundedOrthogonalPath([{ x: a.x, y: a.y }, ...orthogonalMid, { x: b.x, y: b.y }]);
+        for (let i = 0; i < route.points.length - 1; i++) {
+          st.flowLinkSegments.push({ key, a: route.points[i], b: route.points[i + 1], link: ln });
+        }
+        drawLinkPath(route.path, strokeColor, baseW, lineType);
+        if (route.points.length >= 2) {
+          const mid = Math.max(0, Math.floor((route.points.length - 2) / 2));
+          drawFlowLinkArrow(c, route.points[mid], route.points[mid + 1], strokeColor, st.zoom || 1);
+        }
+        c.restore();
+        continue;
+      }
       if (fromIsDevice || toIsDevice) {
         const sideDir = (toNum(b.x) - toNum(a.x)) >= 0 ? 1 : -1;
         const legacyManualAbs = ln && ln.manualBezier && ln.manualBezier.c1 && ln.manualBezier.c2
