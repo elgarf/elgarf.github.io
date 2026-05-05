@@ -67,6 +67,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     isNoteRect,
     rectUVToWorld,
     worldToRectUV,
+    findFlowAnchorByEndpoint,
     normalizeShapeBounds
   } = deps;
 
@@ -83,10 +84,21 @@ export const setupPropsPanelFeature = (deps = {}) => {
   };
   const normalizeDeviceOrientation = value => String(value || "").toLowerCase() === "vertical" ? "vertical" : "horizontal";
   const normalizeFlowLinkControlPointCount = value => Math.max(2, Math.min(6, Math.round(Number(value) || 2)));
-  const normalizeFlowLinkColorMode = value => String(value || "").toLowerCase() === "custom" ? "custom" : "auto";
   const normalizeFlowLinkColor = value => /^#[0-9a-f]{6}$/i.test(String(value || "").trim()) ? String(value).toLowerCase() : "#ffc107";
+  const hasFlowLinkCustomColor = ln => /^#[0-9a-f]{6}$/i.test(String(ln && ln.color || "").trim());
   const normalizeFlowLinkWidth = value => Math.max(0.5, Math.min(20, Number(value) || 2.2));
   const normalizeFlowLinkLineType = value => String(value || "").toLowerCase() === "dashed" ? "dashed" : "solid";
+  const buildDefaultOrthogonalPoints = ln => {
+    const start = typeof findFlowAnchorByEndpoint === "function" ? findFlowAnchorByEndpoint(ln && ln.from) : null;
+    const end = typeof findFlowAnchorByEndpoint === "function" ? findFlowAnchorByEndpoint(ln && ln.to) : null;
+    if (!start || !end) return [];
+    const sx = Number(start.x) || 0, sy = Number(start.y) || 0;
+    const ex = Number(end.x) || 0, ey = Number(end.y) || 0;
+    if (Math.abs(sx - ex) < 0.5 || Math.abs(sy - ey) < 0.5) {
+      return [{ x: Math.round((sx + ex) / 2), y: Math.round((sy + ey) / 2) }];
+    }
+    return [{ x: Math.round(ex), y: Math.round(sy) }];
+  };
   const flowOutPalette = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ff8000", "#8000ff", "#00ff80", "#ff0080", "#ffffff"];
   const rectById = id => (Array.isArray(st && st.rects) ? st.rects : []).find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === Math.max(1, Math.round(Number(id) || 0))) || null;
   const deviceTypeOf = r => {
@@ -306,19 +318,21 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const showCurveField0 = !!hasSelectedFlowLink();
       uiSetValue(el.propFlowLinkCurveMode, "manual");
       const count0 = normalizeFlowLinkControlPointCount(selLink0 && selLink0.controlPointCount);
-      const colorMode0 = normalizeFlowLinkColorMode(selLink0 && selLink0.colorMode);
-      const color0 = colorMode0 === "custom"
+      const orthogonal0 = !!(selLink0 && Array.isArray(selLink0.orthogonalPoints) && selLink0.orthogonalPoints.length);
+      const hasCustomColor0 = hasFlowLinkCustomColor(selLink0);
+      const color0 = hasCustomColor0
         ? normalizeFlowLinkColor(selLink0 && selLink0.color)
         : normalizeFlowLinkColor(autoFlowLinkColor(selLink0));
       const width0 = normalizeFlowLinkWidth(selLink0 && selLink0.width);
       const lineType0 = normalizeFlowLinkLineType(selLink0 && selLink0.lineType);
       uiSetValue(el.propFlowLinkControlCount, String(count0));
-      uiSetValue(el.propFlowLinkColorMode, colorMode0);
+      uiSetChecked(el.propFlowLinkOrthogonal, orthogonal0);
+      uiSetDisabled(el.propFlowLinkControlCount, orthogonal0);
       uiSetValue(el.propFlowLinkColor, color0);
       uiSetValue(el.propFlowLinkWidth, String(Math.round(width0 * 10) / 10));
       uiSetValue(el.propFlowLinkLineType, lineType0);
-      if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, colorMode0 !== "custom");
-      if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, colorMode0 === "auto");
+      if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, false);
+      if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasCustomColor0);
       setPanelHidden(el.flowLinkCurveField, !showCurveField0);
       if (showCurveField0) {
         const hasManual = !!(selLink0 && ((selLink0.manualBezierRel && selLink0.manualBezierRel.c1 && selLink0.manualBezierRel.c2) || (selLink0.manualBezier && selLink0.manualBezier.c1 && selLink0.manualBezier.c2)));
@@ -369,19 +383,21 @@ export const setupPropsPanelFeature = (deps = {}) => {
       uiSetDisabled(el.btnFlowLinkCurveReset, !isManual);
       uiSetDisabled(el.propFlowLinkCurveMode, true);
       const count = normalizeFlowLinkControlPointCount(selLink && selLink.controlPointCount);
-      const colorMode = normalizeFlowLinkColorMode(selLink && selLink.colorMode);
-      const color = colorMode === "custom"
+      const orthogonal = !!(selLink && Array.isArray(selLink.orthogonalPoints) && selLink.orthogonalPoints.length);
+      const hasCustomColor = hasFlowLinkCustomColor(selLink);
+      const color = hasCustomColor
         ? normalizeFlowLinkColor(selLink && selLink.color)
         : normalizeFlowLinkColor(autoFlowLinkColor(selLink));
       const width = normalizeFlowLinkWidth(selLink && selLink.width);
       const lineType = normalizeFlowLinkLineType(selLink && selLink.lineType);
       uiSetValue(el.propFlowLinkControlCount, String(count));
-      uiSetValue(el.propFlowLinkColorMode, colorMode);
+      uiSetChecked(el.propFlowLinkOrthogonal, orthogonal);
+      uiSetDisabled(el.propFlowLinkControlCount, orthogonal);
       uiSetValue(el.propFlowLinkColor, color);
       uiSetValue(el.propFlowLinkWidth, String(Math.round(width * 10) / 10));
       uiSetValue(el.propFlowLinkLineType, lineType);
-      if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, colorMode !== "custom");
-      if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, colorMode === "auto");
+      if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, false);
+      if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasCustomColor);
     }
     uiSetValue(el.shapeOpacity, mFmt(shapeTransparencyPercent(r)));
     {
@@ -523,15 +539,32 @@ export const setupPropsPanelFeature = (deps = {}) => {
             try { delete next.orthogonalPoints; } catch (_e) { next.orthogonalPoints = null; }
           }
         }
-        if (shouldApply("flowLinkColorMode")) {
-          next.colorMode = normalizeFlowLinkColorMode(el.propFlowLinkColorMode && el.propFlowLinkColorMode.value);
-          if (next.colorMode === "auto") {
-            try { delete next.color; } catch (_e) { next.color = null; }
+        if (shouldApply("flowLinkOrthogonal")) {
+          const orthogonal = !!(el.propFlowLinkOrthogonal && el.propFlowLinkOrthogonal.checked);
+          if (orthogonal) {
+            const existing = Array.isArray(next.orthogonalPoints)
+              ? next.orthogonalPoints
+                .map(p => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 }))
+                .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
+              : [];
+            const routePoints = existing.length ? existing : buildDefaultOrthogonalPoints(next);
+            if (routePoints.length) {
+              next.orthogonalPoints = routePoints;
+              next.controlPointCount = 2;
+              next.controlOffsets = [];
+              try { delete next.manualBezier; } catch (_e) { next.manualBezier = null; }
+              try { delete next.manualBezierRel; } catch (_e) { next.manualBezierRel = null; }
+              try { delete next.segmentBezierRel; } catch (_e) { next.segmentBezierRel = null; }
+              try { delete next.bendOffsets; } catch (_e) { next.bendOffsets = null; }
+            }
+          } else {
+            try { delete next.orthogonalPoints; } catch (_e) { next.orthogonalPoints = null; }
           }
         }
         if (shouldApply("flowLinkColor")) {
           next.color = normalizeFlowLinkColor(el.propFlowLinkColor && el.propFlowLinkColor.value);
-          next.colorMode = "custom";
+          try { delete next.colorMode; } catch (_e) { next.colorMode = null; }
+          if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, false);
         }
         if (shouldApply("flowLinkWidth")) next.width = normalizeFlowLinkWidth(el.propFlowLinkWidth && el.propFlowLinkWidth.value);
         if (shouldApply("flowLinkLineType")) next.lineType = normalizeFlowLinkLineType(el.propFlowLinkLineType && el.propFlowLinkLineType.value);
@@ -983,7 +1016,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (propsInputRaf) return;
     propsInputRaf = requestAnimationFrame(() => {
       propsInputRaf = 0;
-      applyPropsForKey(key, { list: false, persist: false, render: true, field });
+      applyPropsForKey(key, { list: false, persist: field === "flowLinkColor", render: true, field });
     });
   };
   bindEvents(liveApplyInputNodes(el), "input", scheduleApplyPropsInput);

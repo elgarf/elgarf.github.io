@@ -95,8 +95,8 @@ export const trackedPropInputNodes = el => [
   el.propDeviceInCount,
   el.propDeviceOutCount,
   el.propDevicePortLabel,
+  el.propFlowLinkOrthogonal,
   el.propFlowLinkControlCount,
-  el.propFlowLinkColorMode,
   el.propFlowLinkColor,
   el.propFlowLinkWidth,
   el.propFlowLinkLineType
@@ -117,8 +117,8 @@ export const liveApplyInputNodes = el => [
   el.propDeviceInCount,
   el.propDeviceOutCount,
   el.propDevicePortLabel,
+  el.propFlowLinkOrthogonal,
   el.propFlowLinkControlCount,
-  el.propFlowLinkColorMode,
   el.propFlowLinkColor,
   el.propFlowLinkWidth,
   el.propFlowLinkLineType
@@ -152,8 +152,8 @@ export const changeApplyInputNodes = el => [
   ,
   el.propDeviceType,
   el.propDeviceOrientation,
+  el.propFlowLinkOrthogonal,
   el.propFlowLinkControlCount,
-  el.propFlowLinkColorMode,
   el.propFlowLinkColor,
   el.propFlowLinkWidth,
   el.propFlowLinkLineType
@@ -183,8 +183,8 @@ export const fieldForPropNode = (el, node) => {
   if (node === el.propDeviceInCount) return "deviceInCount";
   if (node === el.propDeviceOutCount) return "deviceOutCount";
   if (node === el.propDevicePortLabel) return "devicePortLabel";
+  if (node === el.propFlowLinkOrthogonal) return "flowLinkOrthogonal";
   if (node === el.propFlowLinkControlCount) return "flowLinkControlPointCount";
-  if (node === el.propFlowLinkColorMode) return "flowLinkColorMode";
   if (node === el.propFlowLinkColor) return "flowLinkColor";
   if (node === el.propFlowLinkWidth) return "flowLinkWidth";
   if (node === el.propFlowLinkLineType) return "flowLinkLineType";

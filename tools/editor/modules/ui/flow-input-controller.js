@@ -54,21 +54,85 @@ export const setupFlowInputController = (deps = {}) => {
     st.flowDragPreview = null;
   };
   const removeLinksFromSameOut = from => {
-    if (!from) return;
+    if (!from) return null;
     const rectId = Math.max(1, Math.round(Number(from.rectId) || 0));
     const rid = Math.max(0, Math.round(Number(from.rid) || 0));
     const cid = Math.max(0, Math.round(Number(from.cid) || 0));
     const list = Array.isArray(st.flowLinks) ? st.flowLinks : [];
+    const removed = [];
     st.flowLinks = list.filter(ln => {
       const src = ln && ln.from;
       if (!src) return false;
-      return !(
+      const match = (
         Math.max(1, Math.round(Number(src.rectId) || 0)) === rectId
         && Math.max(0, Math.round(Number(src.rid) || 0)) === rid
         && Math.max(0, Math.round(Number(src.cid) || 0)) === cid
         && String(src.kind || "").toLowerCase() === "end"
       );
+      if (match) removed.push(ln);
+      return !match;
     });
+    return removed[0] || null;
+  };
+  const cleanOrthogonalPoints = pts => {
+    const out = [];
+    for (const p of (Array.isArray(pts) ? pts : [])) {
+      const q = { x: Math.round(Number(p && p.x) || 0), y: Math.round(Number(p && p.y) || 0) };
+      const prev = out[out.length - 1];
+      if (prev && Math.abs(prev.x - q.x) < 0.5 && Math.abs(prev.y - q.y) < 0.5) continue;
+      out.push(q);
+    }
+    for (let i = out.length - 2; i > 0; i--) {
+      const a = out[i - 1], b = out[i], c = out[i + 1];
+      if ((Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5)
+        || (Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5)) out.splice(i, 1);
+    }
+    return out;
+  };
+  const routeOrthogonalPoints = points => {
+    const pts = cleanOrthogonalPoints(points);
+    if (pts.length < 2) return pts;
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i], p1 = pts[i + 1];
+      out.push(p0);
+      if (Math.abs(p0.x - p1.x) >= 0.5 && Math.abs(p0.y - p1.y) >= 0.5) {
+        out.push({ x: p1.x, y: p0.y });
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    return cleanOrthogonalPoints(out);
+  };
+  const preserveOrthogonalLinkShape = (oldLink, from, to) => {
+    const oldMid = Array.isArray(oldLink && oldLink.orthogonalPoints) ? oldLink.orthogonalPoints : [];
+    if (!oldMid.length || !from || !to) return false;
+    const start = { x: Number(from.x) || 0, y: Number(from.y) || 0 };
+    const end = { x: Number(to.x) || 0, y: Number(to.y) || 0 };
+    const mid = routeOrthogonalPoints(oldMid);
+    let full = routeOrthogonalPoints([start, ...mid, end]);
+    if (full.length < 3) full = routeOrthogonalPoints([start, { x: end.x, y: start.y }, end]);
+    const list = Array.isArray(st.flowLinks) ? st.flowLinks.slice() : [];
+    const idx = list.findIndex(ln => {
+      const a = ln && ln.from, b = ln && ln.to;
+      return Math.max(1, Math.round(Number(a && a.rectId) || 0)) === Math.max(1, Math.round(Number(from.rectId) || 0))
+        && Math.max(0, Math.round(Number(a && a.rid) || 0)) === Math.max(0, Math.round(Number(from.rid) || 0))
+        && Math.max(0, Math.round(Number(a && a.cid) || 0)) === Math.max(0, Math.round(Number(from.cid) || 0))
+        && Math.max(1, Math.round(Number(b && b.rectId) || 0)) === Math.max(1, Math.round(Number(to.rectId) || 0))
+        && Math.max(0, Math.round(Number(b && b.rid) || 0)) === Math.max(0, Math.round(Number(to.rid) || 0))
+        && Math.max(0, Math.round(Number(b && b.cid) || 0)) === Math.max(0, Math.round(Number(to.cid) || 0));
+    });
+    if (idx < 0) return false;
+    const cur = list[idx];
+    const preserved = { ...cur };
+    for (const key of ["color", "lineType", "width"]) {
+      if (oldLink && Object.prototype.hasOwnProperty.call(oldLink, key)) preserved[key] = oldLink[key];
+    }
+    preserved.orthogonalPoints = full.slice(1, -1);
+    preserved.controlPointCount = 2;
+    preserved.controlOffsets = [];
+    list[idx] = preserved;
+    st.flowLinks = list;
+    return true;
   };
   const localCursorForRect = (r, p) => {
     if (!r || !p || typeof worldToRectUV !== "function") return null;
@@ -93,8 +157,8 @@ export const setupFlowInputController = (deps = {}) => {
       const dx = (+p.x || 0) - (+pd.downX || 0);
       const dy = (+p.y || 0) - (+pd.downY || 0);
       if (Math.hypot(dx, dy) >= Math.max(4, 6 / Math.max(0.25, st.zoom || 1))) {
-        removeLinksFromSameOut(pd.from);
-        st.flowLinkDrag = { from: { ...pd.from }, x: p.x, y: p.y, target: null, canLink: false };
+        const removedLink = removeLinksFromSameOut(pd.from);
+        st.flowLinkDrag = { from: { ...pd.from }, x: p.x, y: p.y, target: null, canLink: false, preserveLink: removedLink || null };
         st.flowLinkPending = null;
         updateFlowLinkDragTarget(p.x, p.y);
       }
@@ -218,7 +282,10 @@ export const setupFlowInputController = (deps = {}) => {
     st.flowLinkDrag = null;
     clearDragPreview();
     let changed = false;
-    if (fd && fd.from && fd.target && fd.canLink) changed = addFlowLinkBetween(fd.from, fd.target);
+    if (fd && fd.from && fd.target && fd.canLink) {
+      changed = addFlowLinkBetween(fd.from, fd.target);
+      if (changed && fd.preserveLink) preserveOrthogonalLinkShape(fd.preserveLink, fd.from, fd.target);
+    }
     st.flowLinkPending = null;
     st.flowLinkHover = null;
     finishPointerUp(changed);

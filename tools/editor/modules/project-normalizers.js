@@ -222,7 +222,6 @@ export const normalizeFlowLinks = raw => {
     if (!Number.isFinite(n)) return fb;
     return Math.max(lo, Math.min(hi, n));
   };
-  const normColorMode = v => String(v || "").toLowerCase() === "custom" ? "custom" : "auto";
   const normLineType = v => String(v || "").toLowerCase() === "dashed" ? "dashed" : "solid";
   const normHex = v => {
     const s = String(v || "").trim();
@@ -335,8 +334,8 @@ export const normalizeFlowLinks = raw => {
     const hasSegmentBezierRel = Array.isArray(it.segmentBezierRel);
     const segmentBezierRel = hasSegmentBezierRel ? normSegmentBezierRel(it.segmentBezierRel, controlPointCount) : null;
     const lineType = normLineType(it.lineType);
-    const color = normHex(it.color);
-    const colorMode = color ? "custom" : normColorMode(it.colorMode);
+    const legacyColorMode = String(it.colorMode || "").toLowerCase();
+    const color = legacyColorMode === "auto" ? "" : normHex(it.color);
     const width = clamp(it.width, 0.5, 20, 2.2);
     const orthogonalPoints = normOrthogonalPoints(it.orthogonalPoints);
     const rec = { from: a, to: b };
@@ -347,7 +346,6 @@ export const normalizeFlowLinks = raw => {
     if (bendOffsets) rec.bendOffsets = bendOffsets;
     if (segmentBezierRel) rec.segmentBezierRel = segmentBezierRel;
     if (orthogonalPoints.length) rec.orthogonalPoints = orthogonalPoints;
-    rec.colorMode = colorMode;
     rec.lineType = lineType;
     if (color) rec.color = color;
     rec.width = width;

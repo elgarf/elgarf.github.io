@@ -557,10 +557,24 @@ export const setupFlowLinkController = (deps = {}) => {
     }
     return out;
   };
+  const routeOrthogonalPoints = points => {
+    const pts = cleanOrthogonalPoints(points);
+    if (pts.length < 2) return pts;
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i], p1 = pts[i + 1];
+      out.push(p0);
+      if (Math.abs(p0.x - p1.x) >= 0.5 && Math.abs(p0.y - p1.y) >= 0.5) {
+        out.push({ x: p1.x, y: p0.y });
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    return cleanOrthogonalPoints(out);
+  };
   const moveFlowLinkOrthogonalSegment = (drag, wx, wy) => {
     if (!drag || !drag.key) return false;
     const segmentIndex = Math.max(0, Math.round(Number(drag.segmentIndex) || 0));
-    const base = cleanOrthogonalPoints(drag.points);
+    const base = routeOrthogonalPoints(drag.points);
     if (base.length < 2 || segmentIndex >= base.length - 1) return false;
     const a = base[segmentIndex];
     const b = base[segmentIndex + 1];
@@ -606,7 +620,7 @@ export const setupFlowLinkController = (deps = {}) => {
     return [{ x: ax, y: ay }, mid, { x: bx, y: by }];
   };
   const simplifyShortOrthogonalSegments = points => {
-    let pts = cleanOrthogonalPoints(points);
+    let pts = routeOrthogonalPoints(points);
     let changed = true;
     let guard = 0;
     while (changed && guard++ < 16) {
@@ -620,7 +634,7 @@ export const setupFlowLinkController = (deps = {}) => {
         if (rightIndex <= leftIndex + 1) continue;
         const horizontal = Math.abs((Number(pts[i].y) || 0) - (Number(pts[i + 1].y) || 0)) < 0.5;
         const bridge = orthogonalConnector(pts[leftIndex], pts[rightIndex], horizontal ? "yx" : "xy");
-        const next = cleanOrthogonalPoints([
+        const next = routeOrthogonalPoints([
           ...pts.slice(0, leftIndex),
           ...bridge,
           ...pts.slice(rightIndex + 1)
@@ -631,12 +645,12 @@ export const setupFlowLinkController = (deps = {}) => {
         break;
       }
     }
-    return pts;
+    return routeOrthogonalPoints(pts);
   };
   const deleteFlowLinkOrthogonalSegment = hit => {
     if (!hit || !hit.key) return false;
     const segmentIndex = Math.max(0, Math.round(Number(hit.segmentIndex) || 0));
-    const base = cleanOrthogonalPoints(hit.points);
+    const base = routeOrthogonalPoints(hit.points);
     const lastIndex = base.length - 1;
     if (base.length < 3 || segmentIndex >= lastIndex) return false;
     const leftIndex = Math.max(0, segmentIndex - 1);
@@ -655,7 +669,7 @@ export const setupFlowLinkController = (deps = {}) => {
     ];
     let best = null;
     for (const bridge of candidates) {
-      const next = cleanOrthogonalPoints([
+      const next = routeOrthogonalPoints([
         ...base.slice(0, leftIndex),
         ...bridge,
         ...base.slice(rightIndex + 1)

@@ -1929,6 +1929,7 @@ let applyProps = (_opts) => { };
   isShapeRect: r => isShapeRect(r),
   rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
   worldToRectUV: (r, wx, wy) => worldToRectUV(r, wx, wy),
+  findFlowAnchorByEndpoint: ep => findFlowAnchorByEndpoint(ep),
   normalizeShapeBounds: r => normalizeShapeBounds(r),
   shapePointHit: (r, wx, wy, z) => shapePointHit(r, wx, wy, z),
   getSelectedRects: () => getSelectedRects(),
@@ -2075,8 +2076,9 @@ if (el.btnFlowLinkColorReset) {
     const list = Array.isArray(st.flowLinks) ? st.flowLinks.slice() : [];
     const idx = list.findIndex(it => `${Math.max(1, Math.round(Number(it && it.from && it.from.rectId) || 0))}:${Math.max(0, Math.round(Number(it && it.from && it.from.rid) || 0))}:${Math.max(0, Math.round(Number(it && it.from && it.from.cid) || 0))}:end>${Math.max(1, Math.round(Number(it && it.to && it.to.rectId) || 0))}:${Math.max(0, Math.round(Number(it && it.to && it.to.rid) || 0))}:${Math.max(0, Math.round(Number(it && it.to && it.to.cid) || 0))}:start` === key);
     if (idx < 0) return;
-    list[idx] = { ...list[idx], colorMode: "auto" };
+    list[idx] = { ...list[idx] };
     try { delete list[idx].color; } catch (_e) { list[idx].color = null; }
+    try { delete list[idx].colorMode; } catch (_e) { list[idx].colorMode = null; }
     st.flowLinks = list;
     schedulePersist("project");
     syncProps();
@@ -2084,16 +2086,14 @@ if (el.btnFlowLinkColorReset) {
   });
 }
 const routeSelectedDeviceOutLinksOrthogonal = () => {
-  const device = cur();
-  if (!device || String((device && device.kind) || "").toLowerCase() !== "device") return false;
-  const deviceId = Math.max(1, Math.round(Number(device.id) || 0));
+  const current = cur();
+  const selectedDevices = (typeof getSelectedRects === "function" ? getSelectedRects() : [])
+    .filter(r => r && String((r && r.kind) || "").toLowerCase() === "device");
+  const routeDevices = selectedDevices.length
+    ? selectedDevices
+    : (current && String((current && current.kind) || "").toLowerCase() === "device" ? [current] : []);
+  if (!routeDevices.length) return false;
   const links = normalizeFlowLinks(st.flowLinks);
-  const targetLinks = links
-    .map((ln, index) => ({ ln, index }))
-    .filter(it => Math.max(1, Math.round(Number(it.ln && it.ln.from && it.ln.from.rectId) || 0)) === deviceId
-      && String(it.ln && it.ln.from && it.ln.from.kind || "").toLowerCase() === "end")
-    .sort((a, b) => (Math.max(0, Math.round(Number(a.ln.from.cid) || 0)) - Math.max(0, Math.round(Number(b.ln.from.cid) || 0))) || a.index - b.index);
-  if (!targetLinks.length) return false;
 
   const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
   const rectByIdLocal = id => getRectById(Math.max(1, Math.round(Number(id) || 0))) || null;
@@ -2190,7 +2190,6 @@ const routeSelectedDeviceOutLinksOrthogonal = () => {
   const gap = 36;
   const lane = 18;
   const entryFanGap = 16;
-  const sourceBox = boxOf(device);
   const sideExit = (side, p, bb, laneOffset = 0) => {
     if (side === "right") return { x: bb.maxX + gap + laneOffset, y: p.y };
     if (side === "left") return { x: bb.minX - gap - laneOffset, y: p.y };
@@ -2320,25 +2319,34 @@ const routeSelectedDeviceOutLinksOrthogonal = () => {
 
   let changed = false;
   const plannedRoutes = [];
-  for (let i = 0; i < targetLinks.length; i++) {
-    const { ln, index } = targetLinks[i];
-    const start = findFlowAnchorByEndpoint(ln.from);
-    const end = findFlowAnchorByEndpoint(ln.to);
-    const targetRect = rectByIdLocal(ln && ln.to && ln.to.rectId);
-    if (!start || !end || !targetRect) continue;
-    const targetBox = boxOf(targetRect);
-    const candidates = buildRouteCandidates(start, end, sourceBox, targetBox, i);
-    let best = null;
-    for (const cand of candidates) {
-      const score = scoreRoute(cand, start, end, deviceId, Math.max(1, Math.round(Number(targetRect.id) || 0)));
-      if (!best || score < best.score) best = { points: cand, score };
+  for (const device of routeDevices) {
+    const deviceId = Math.max(1, Math.round(Number(device && device.id) || 0));
+    const sourceBox = boxOf(device);
+    const targetLinks = links
+      .map((ln, index) => ({ ln, index }))
+      .filter(it => Math.max(1, Math.round(Number(it.ln && it.ln.from && it.ln.from.rectId) || 0)) === deviceId
+        && String(it.ln && it.ln.from && it.ln.from.kind || "").toLowerCase() === "end")
+      .sort((a, b) => (Math.max(0, Math.round(Number(a.ln.from.cid) || 0)) - Math.max(0, Math.round(Number(b.ln.from.cid) || 0))) || a.index - b.index);
+    for (let i = 0; i < targetLinks.length; i++) {
+      const { ln, index } = targetLinks[i];
+      const start = findFlowAnchorByEndpoint(ln.from);
+      const end = findFlowAnchorByEndpoint(ln.to);
+      const targetRect = rectByIdLocal(ln && ln.to && ln.to.rectId);
+      if (!start || !end || !targetRect) continue;
+      const targetBox = boxOf(targetRect);
+      const candidates = buildRouteCandidates(start, end, sourceBox, targetBox, plannedRoutes.length);
+      let best = null;
+      for (const cand of candidates) {
+        const score = scoreRoute(cand, start, end, deviceId, Math.max(1, Math.round(Number(targetRect.id) || 0)));
+        if (!best || score < best.score) best = { points: cand, score };
+      }
+      if (!best) continue;
+      const routePoints = cleanPoints(best.points);
+      const full = cleanPoints([start, ...routePoints, end]);
+      for (let j = 0; j < full.length - 1; j++) usedSegments.push({ a: full[j], b: full[j + 1] });
+      for (const p of routePoints) usedPoints.add(pointKey(p));
+      plannedRoutes.push({ ln, index, start, end, routePoints });
     }
-    if (!best) continue;
-    const routePoints = cleanPoints(best.points);
-    const full = cleanPoints([start, ...routePoints, end]);
-    for (let j = 0; j < full.length - 1; j++) usedSegments.push({ a: full[j], b: full[j + 1] });
-    for (const p of routePoints) usedPoints.add(pointKey(p));
-    plannedRoutes.push({ ln, index, start, end, routePoints });
   }
   const entryGroups = [];
   for (const item of plannedRoutes) {

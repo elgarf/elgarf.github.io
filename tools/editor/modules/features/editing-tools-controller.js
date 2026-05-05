@@ -535,14 +535,18 @@ export const setupEditingToolsInput = (deps = {}) => {
       }
       const linkHit = findFlowLinkAtPoint(p.x, p.y);
       if (linkHit && linkHit.link) {
-        selectFlowLinkOnly(`${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`);
-        if (linkHit.orthogonal && Array.isArray(linkHit.points)) {
+        const nextKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
+        const wasSelected = String(st.flowLinkSelectedKey || "") === nextKey;
+        selectFlowLinkOnly(nextKey);
+        if (wasSelected && linkHit.orthogonal && Array.isArray(linkHit.points)) {
           st.flowSegmentDrag = {
             key: st.flowLinkSelectedKey,
             segmentIndex: Math.max(0, Math.round(Number(linkHit.segmentIndex) || 0)),
             points: linkHit.points.map(pt => ({ x: Number(pt && pt.x) || 0, y: Number(pt && pt.y) || 0 })),
             changed: false
           };
+        } else {
+          st.flowSegmentDrag = null;
         }
         if (!linkHit.orthogonal && opts && opts.altKey && typeof clearFlowLinkManualBezier === "function") {
           if (clearFlowLinkManualBezier(st.flowLinkSelectedKey)) schedulePersist("project");

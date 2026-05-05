@@ -272,9 +272,23 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     }
     return out;
   };
+  const routeOrthogonalToEndpoints = points => {
+    const pts = simplifyOrthogonalPoints(points);
+    if (pts.length < 2) return pts;
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i], p1 = pts[i + 1];
+      out.push(p0);
+      if (Math.abs(p0.x - p1.x) >= 0.5 && Math.abs(p0.y - p1.y) >= 0.5) {
+        out.push({ x: p1.x, y: p0.y });
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    return simplifyOrthogonalPoints(out);
+  };
 
   const buildRoundedOrthogonalPath = points => {
-    const pts = simplifyOrthogonalPoints(points);
+    const pts = routeOrthogonalToEndpoints(points);
     const path = new Path2D();
     if (!pts.length) return { path, points: [] };
     path.moveTo(pts[0].x, pts[0].y);
@@ -391,12 +405,24 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     };
     const drawOrthogonalArrows = (points, color) => {
       if (!Array.isArray(points) || points.length < 2) return;
-      const minLen = Math.max(28, 44 / zoomSafe(st.zoom, 0.35));
+      const z = zoomSafe(st.zoom, 0.35);
+      const minLen = Math.max(28, 44 / z);
+      const arrowSize = Math.max(6, 12 / zoomSafe(st.zoom, 0.3));
       for (let i = 0; i < points.length - 1; i++) {
         const p0 = points[i], p1 = points[i + 1];
-        const len = Math.abs(toNum(p0.x) - toNum(p1.x)) + Math.abs(toNum(p0.y) - toNum(p1.y));
+        const x0 = toNum(p0.x), y0 = toNum(p0.y);
+        const x1 = toNum(p1.x), y1 = toNum(p1.y);
+        const dx = x1 - x0;
+        const dy = y1 - y0;
+        const len = Math.hypot(dx, dy);
         if (len < minLen) continue;
-        drawFlowLinkArrow(c, p0, p1, color, st.zoom || 1);
+        const ux = dx / len;
+        const uy = dy / len;
+        const mx = (x0 + x1) / 2;
+        const my = (y0 + y1) / 2;
+        const head = { x: mx + ux * arrowSize * 0.5, y: my + uy * arrowSize * 0.5 };
+        const tail = { x: mx - ux * arrowSize, y: my - uy * arrowSize };
+        drawFlowLinkArrow(c, tail, head, color, st.zoom || 1);
       }
     };
     const hoverSegKey = st.flowLinkHover && st.flowLinkHover.key ? String(st.flowLinkHover.key) : "";
@@ -428,7 +454,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         : isPcLikeToController
           ? "rgba(80,220,180,.95)"
           : "rgba(255,193,7,.95)";
-      const customColor = (String(ln && ln.colorMode || "").toLowerCase() === "custom" && /^#[0-9a-f]{6}$/i.test(String(ln && ln.color || "").trim())) ? String(ln.color).trim() : null;
+      const customColor = /^#[0-9a-f]{6}$/i.test(String(ln && ln.color || "").trim()) ? String(ln.color).trim() : null;
       const lineType = String(ln && ln.lineType || "").toLowerCase() === "dashed" ? "dashed" : "solid";
       const strokeColorRaw = (key === hoverSegKey) ? "rgba(255,99,99,.98)" : (customColor || baseColor);
       const strokeColor = fromIsDevice ? withAlpha(strokeColorRaw, 0.56) : strokeColorRaw;
