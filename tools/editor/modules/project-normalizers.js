@@ -334,9 +334,9 @@ export const normalizeFlowLinks = raw => {
     const bendOffsets = hasBendOffsets ? normBendOffsets(it.bendOffsets, controlPointCount) : null;
     const hasSegmentBezierRel = Array.isArray(it.segmentBezierRel);
     const segmentBezierRel = hasSegmentBezierRel ? normSegmentBezierRel(it.segmentBezierRel, controlPointCount) : null;
-    const colorMode = normColorMode(it.colorMode);
     const lineType = normLineType(it.lineType);
     const color = normHex(it.color);
+    const colorMode = color ? "custom" : normColorMode(it.colorMode);
     const width = clamp(it.width, 0.5, 20, 2.2);
     const orthogonalPoints = normOrthogonalPoints(it.orthogonalPoints);
     const rec = { from: a, to: b };

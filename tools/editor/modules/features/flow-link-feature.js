@@ -36,6 +36,8 @@ export function setupFlowLinkFeature(deps = {}) {
     findFlowLinkAnchorAtPoint,
     findFlowCurveHandleAtPoint,
     setFlowLinkManualBezierPoint,
+    moveFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegment,
     clearFlowLinkManualBezier,
     updateFlowLinkDragTarget
   } = setupFlowLinkController({
@@ -61,6 +63,8 @@ export function setupFlowLinkFeature(deps = {}) {
     findFlowLinkAnchorAtPoint,
     findFlowCurveHandleAtPoint,
     setFlowLinkManualBezierPoint,
+    moveFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegment,
     clearFlowLinkManualBezier,
     updateFlowLinkDragTarget
   };

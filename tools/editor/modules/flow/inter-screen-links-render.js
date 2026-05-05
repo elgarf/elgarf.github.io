@@ -335,6 +335,70 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       );
       if (dashed) c.setLineDash([]);
     };
+    const drawOrthogonalEditMarkers = (points, selectedKey) => {
+      if (!Array.isArray(points) || points.length < 2 || exportPass || String(st.mode || "") !== "select") return;
+      const selected = String(st.flowLinkSelectedKey || "") === String(selectedKey || "");
+      const activeDrag = st.flowSegmentDrag && String(st.flowSegmentDrag.key || "") === String(selectedKey || "");
+      const activeSegmentIndex = activeDrag ? Math.max(0, Math.round(Number(st.flowSegmentDrag.segmentIndex) || 0)) : -1;
+      if (!selected && !activeDrag) return;
+      const z = zoomSafe(st.zoom, 0.35);
+      const markerLen = Math.max(10, 16 / z);
+      const markerHalf = markerLen / 2;
+      const markerGap = Math.max(4, 6 / z);
+      const markW = Math.max(1.4, 2.2 / z);
+      c.save();
+      c.lineCap = "round";
+      c.lineJoin = "round";
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i], b = points[i + 1];
+        const horizontal = Math.abs(toNum(a.y) - toNum(b.y)) < 0.5;
+        const vertical = Math.abs(toNum(a.x) - toNum(b.x)) < 0.5;
+        if (!horizontal && !vertical) continue;
+        const mx = (toNum(a.x) + toNum(b.x)) / 2;
+        const my = (toNum(a.y) + toNum(b.y)) / 2;
+        c.strokeStyle = "rgba(8,12,18,.95)";
+        c.lineWidth = markW + Math.max(1.5, 2.2 / z);
+        c.beginPath();
+        if (horizontal) {
+          c.moveTo(mx - markerHalf, my - markerGap);
+          c.lineTo(mx + markerHalf, my - markerGap);
+          c.moveTo(mx - markerHalf, my + markerGap);
+          c.lineTo(mx + markerHalf, my + markerGap);
+        } else {
+          c.moveTo(mx - markerGap, my - markerHalf);
+          c.lineTo(mx - markerGap, my + markerHalf);
+          c.moveTo(mx + markerGap, my - markerHalf);
+          c.lineTo(mx + markerGap, my + markerHalf);
+        }
+        c.stroke();
+        c.strokeStyle = activeSegmentIndex === i ? "rgba(255,193,7,.98)" : "rgba(150,220,255,.96)";
+        c.lineWidth = markW;
+        c.beginPath();
+        if (horizontal) {
+          c.moveTo(mx - markerHalf, my - markerGap);
+          c.lineTo(mx + markerHalf, my - markerGap);
+          c.moveTo(mx - markerHalf, my + markerGap);
+          c.lineTo(mx + markerHalf, my + markerGap);
+        } else {
+          c.moveTo(mx - markerGap, my - markerHalf);
+          c.lineTo(mx - markerGap, my + markerHalf);
+          c.moveTo(mx + markerGap, my - markerHalf);
+          c.lineTo(mx + markerGap, my + markerHalf);
+        }
+        c.stroke();
+      }
+      c.restore();
+    };
+    const drawOrthogonalArrows = (points, color) => {
+      if (!Array.isArray(points) || points.length < 2) return;
+      const minLen = Math.max(28, 44 / zoomSafe(st.zoom, 0.35));
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i], p1 = points[i + 1];
+        const len = Math.abs(toNum(p0.x) - toNum(p1.x)) + Math.abs(toNum(p0.y) - toNum(p1.y));
+        if (len < minLen) continue;
+        drawFlowLinkArrow(c, p0, p1, color, st.zoom || 1);
+      }
+    };
     const hoverSegKey = st.flowLinkHover && st.flowLinkHover.key ? String(st.flowLinkHover.key) : "";
     const linkDrag = st.flowLinkDrag || null;
     const dragTargetKey = (linkDrag && linkDrag.target) ? flowAnchorKey(linkDrag.target) : "";
@@ -377,13 +441,11 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       if (orthogonalMid.length) {
         const route = buildRoundedOrthogonalPath([{ x: a.x, y: a.y }, ...orthogonalMid, { x: b.x, y: b.y }]);
         for (let i = 0; i < route.points.length - 1; i++) {
-          st.flowLinkSegments.push({ key, a: route.points[i], b: route.points[i + 1], link: ln });
+          st.flowLinkSegments.push({ key, a: route.points[i], b: route.points[i + 1], link: ln, orthogonal: true, segmentIndex: i, points: route.points });
         }
         drawLinkPath(route.path, strokeColor, baseW, lineType);
-        if (route.points.length >= 2) {
-          const mid = Math.max(0, Math.floor((route.points.length - 2) / 2));
-          drawFlowLinkArrow(c, route.points[mid], route.points[mid + 1], strokeColor, st.zoom || 1);
-        }
+        drawOrthogonalEditMarkers(route.points, key);
+        drawOrthogonalArrows(route.points, strokeColor);
         c.restore();
         continue;
       }

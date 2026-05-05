@@ -398,6 +398,17 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       setNoteResizeCursor(false);
       return !!clusterController.handleClusterPointerMove(p);
     }
+    if (st.flowSegmentDrag) {
+      if (flowController && typeof flowController.moveFlowLinkOrthogonalSegment === "function") {
+        const changed = flowController.moveFlowLinkOrthogonalSegment(st.flowSegmentDrag, p.x, p.y);
+        st.flowSegmentDrag.changed = !!(st.flowSegmentDrag.changed || changed);
+        if (changed) {
+          if (typeof syncPropsSmart === "function") syncPropsSmart();
+          render();
+        }
+      }
+      return true;
+    }
     if (handleFlowEditPointerMove(p)) return true;
     if (typeof setLayerButtonHover === "function" && String(st.viewMode || "") === "install") {
       const changed = setLayerButtonHover(p.x, p.y);
@@ -474,6 +485,16 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     }
     if (st.selBox) { finishSelectionBox(); return true; }
     if (handlePointerUpCluster()) return true;
+    if (st.flowSegmentDrag) {
+      const changed = !!st.flowSegmentDrag.changed;
+      st.flowSegmentDrag = null;
+      if (changed) {
+        schedulePersist("project");
+        if (typeof syncPropsSmart === "function") syncPropsSmart();
+      }
+      render();
+      return true;
+    }
     if (handlePointerUpFlowLink()) return true;
     if (handlePointerUpFlowDrag()) return true;
     if (st.multiSelectionResize && typeof endMultiSelectionResize === "function") {
@@ -538,6 +559,16 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
 
   const handleCanvasDoubleClick = (p, preventDefault = () => { }) => {
+    if (st.mode === "select" && flowController && typeof flowController.deleteFlowLinkOrthogonalSegmentAtPoint === "function") {
+      if (flowController.deleteFlowLinkOrthogonalSegmentAtPoint(p)) {
+        st.flowSegmentDrag = null;
+        schedulePersist("project");
+        if (typeof syncPropsSmart === "function") syncPropsSmart();
+        render();
+        preventDefault();
+        return;
+      }
+    }
     if (shapeInput.handleDoubleClickShape(p, preventDefault)) return;
     const h = hit(p.x, p.y);
     if (!h) return;

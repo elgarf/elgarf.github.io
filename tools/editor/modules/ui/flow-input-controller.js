@@ -14,6 +14,8 @@ export const setupFlowInputController = (deps = {}) => {
     findFlowEditPoint,
     addFlowLinkBetween,
     setFlowLinkManualBezierPoint,
+    moveFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegment,
     setFlowStart,
     setFlowLock,
     updateManualFlowPoint,
@@ -266,6 +268,12 @@ export const setupFlowInputController = (deps = {}) => {
     finishPointerUp(changed);
     return true;
   };
+  const deleteFlowLinkOrthogonalSegmentAtPoint = p => {
+    if (!p || typeof findFlowLinkAtPoint !== "function" || typeof deleteFlowLinkOrthogonalSegment !== "function") return false;
+    const linkHit = findFlowLinkAtPoint(p.x, p.y);
+    if (!linkHit || !linkHit.orthogonal) return false;
+    return !!deleteFlowLinkOrthogonalSegment(linkHit);
+  };
 
   const handleFlowMouseLeave = () => {
     if (st.mode !== "flowEdit" && !st.flowLinkDrag && !st.flowLinkHover) return false;
@@ -280,6 +288,9 @@ export const setupFlowInputController = (deps = {}) => {
     handleFlowEditPointerMove,
     handlePointerUpFlowLink,
     handlePointerUpFlowDrag,
+    moveFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegmentAtPoint,
     handleFlowMouseLeave
   };
 };

@@ -523,8 +523,16 @@ export const setupPropsPanelFeature = (deps = {}) => {
             try { delete next.orthogonalPoints; } catch (_e) { next.orthogonalPoints = null; }
           }
         }
-        if (shouldApply("flowLinkColorMode")) next.colorMode = normalizeFlowLinkColorMode(el.propFlowLinkColorMode && el.propFlowLinkColorMode.value);
-        if (shouldApply("flowLinkColor")) next.color = normalizeFlowLinkColor(el.propFlowLinkColor && el.propFlowLinkColor.value);
+        if (shouldApply("flowLinkColorMode")) {
+          next.colorMode = normalizeFlowLinkColorMode(el.propFlowLinkColorMode && el.propFlowLinkColorMode.value);
+          if (next.colorMode === "auto") {
+            try { delete next.color; } catch (_e) { next.color = null; }
+          }
+        }
+        if (shouldApply("flowLinkColor")) {
+          next.color = normalizeFlowLinkColor(el.propFlowLinkColor && el.propFlowLinkColor.value);
+          next.colorMode = "custom";
+        }
         if (shouldApply("flowLinkWidth")) next.width = normalizeFlowLinkWidth(el.propFlowLinkWidth && el.propFlowLinkWidth.value);
         if (shouldApply("flowLinkLineType")) next.lineType = normalizeFlowLinkLineType(el.propFlowLinkLineType && el.propFlowLinkLineType.value);
         list[idx] = next;

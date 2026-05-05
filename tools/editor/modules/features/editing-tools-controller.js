@@ -467,6 +467,8 @@ export const setupEditingToolsInput = (deps = {}) => {
     findFlowLinkAnchorAtPoint,
     findFlowCurveHandleAtPoint,
     setFlowLinkManualBezierPoint,
+    moveFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegment,
     clearFlowLinkManualBezier,
     updateFlowLinkDragTarget,
     findFlowEditPoint,
@@ -481,6 +483,7 @@ export const setupEditingToolsInput = (deps = {}) => {
     st.flowLinkPending = null;
     st.flowLinkDrag = null;
     st.flowLinkHover = null;
+    st.flowSegmentDrag = null;
     st.flowDragPreview = null;
   };
   const selectFlowLinkOnly = key => {
@@ -506,6 +509,7 @@ export const setupEditingToolsInput = (deps = {}) => {
         };
         st.flowLinkPending = null;
         st.flowLinkDrag = null;
+        st.flowSegmentDrag = null;
         st.flowDragPreview = null;
         if (typeof syncPropsSmart === "function") syncPropsSmart();
         else syncProps();
@@ -522,6 +526,7 @@ export const setupEditingToolsInput = (deps = {}) => {
           downY: p.y
         };
         st.flowLinkDrag = null;
+        st.flowSegmentDrag = null;
         st.flowDragPreview = null;
         if (typeof syncPropsSmart === "function") syncPropsSmart();
         else syncProps();
@@ -531,7 +536,15 @@ export const setupEditingToolsInput = (deps = {}) => {
       const linkHit = findFlowLinkAtPoint(p.x, p.y);
       if (linkHit && linkHit.link) {
         selectFlowLinkOnly(`${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`);
-        if (opts && opts.altKey && typeof clearFlowLinkManualBezier === "function") {
+        if (linkHit.orthogonal && Array.isArray(linkHit.points)) {
+          st.flowSegmentDrag = {
+            key: st.flowLinkSelectedKey,
+            segmentIndex: Math.max(0, Math.round(Number(linkHit.segmentIndex) || 0)),
+            points: linkHit.points.map(pt => ({ x: Number(pt && pt.x) || 0, y: Number(pt && pt.y) || 0 })),
+            changed: false
+          };
+        }
+        if (!linkHit.orthogonal && opts && opts.altKey && typeof clearFlowLinkManualBezier === "function") {
           if (clearFlowLinkManualBezier(st.flowLinkSelectedKey)) schedulePersist("project");
         }
         st.flowLinkPending = null;

@@ -592,6 +592,8 @@ const {
   findFlowLinkAnchorAtPoint,
   findFlowCurveHandleAtPoint,
   setFlowLinkManualBezierPoint,
+  moveFlowLinkOrthogonalSegment,
+  deleteFlowLinkOrthogonalSegment,
   clearFlowLinkManualBezier,
   updateFlowLinkDragTarget
 } = setupFlowLinkFeature({
@@ -1737,7 +1739,7 @@ const {
   rebuildAndPatchFlowRegion,
   findFlowLinkAnchorAtPoint,
   findFlowCurveHandleAtPoint,
-  setFlowLinkManualBezierPoint,
+  setFlowLinkManualBezierPoint, moveFlowLinkOrthogonalSegment, deleteFlowLinkOrthogonalSegment,
   clearFlowLinkManualBezier,
   updateFlowLinkDragTarget,
   findFlowEditPoint,
@@ -2187,6 +2189,7 @@ const routeSelectedDeviceOutLinksOrthogonal = () => {
   const usedPoints = new Set();
   const gap = 36;
   const lane = 18;
+  const entryFanGap = 16;
   const sourceBox = boxOf(device);
   const sideExit = (side, p, bb, laneOffset = 0) => {
     if (side === "right") return { x: bb.maxX + gap + laneOffset, y: p.y };
@@ -2270,8 +2273,53 @@ const routeSelectedDeviceOutLinksOrthogonal = () => {
     for (let i = 1; i < full.length - 1; i++) if (usedPoints.has(pointKey(full[i]))) score += 20000;
     return score;
   };
+  const finalSegmentInfo = (item, points = item.routePoints) => {
+    const full = cleanPoints([item.start, ...points, item.end]);
+    if (full.length < 2) return null;
+    const prev = full[full.length - 2];
+    const end = full[full.length - 1];
+    const vertical = Math.abs(num(prev.x) - num(end.x)) < 0.5;
+    const horizontal = Math.abs(num(prev.y) - num(end.y)) < 0.5;
+    if (!vertical && !horizontal) return null;
+    return { prev, end, orientation: vertical ? "v" : "h" };
+  };
+  const intervalsOverlap = (a1, a2, b1, b2) => Math.min(Math.max(a1, a2), Math.max(b1, b2)) - Math.max(Math.min(a1, a2), Math.min(b1, b2)) > 1;
+  const finalSegmentsConflict = (a, b) => {
+    const ai = finalSegmentInfo(a);
+    const bi = finalSegmentInfo(b);
+    if (!ai || !bi || ai.orientation !== bi.orientation) return false;
+    if (pointKey(ai.end) === pointKey(bi.end)) return true;
+    if (ai.orientation === "v") {
+      return Math.abs(num(ai.prev.x) - num(bi.prev.x)) < 3
+        && intervalsOverlap(num(ai.prev.y), num(ai.end.y), num(bi.prev.y), num(bi.end.y));
+    }
+    return Math.abs(num(ai.prev.y) - num(bi.prev.y)) < 3
+      && intervalsOverlap(num(ai.prev.x), num(ai.end.x), num(bi.prev.x), num(bi.end.x));
+  };
+  const offsetEntrySlot = (slotIndex, slotCount) => {
+    if (slotCount <= 1) return 0;
+    const span = entryFanGap * slotCount;
+    return -span / 2 + span * (slotIndex / (slotCount - 1));
+  };
+  const offsetFinalEntrySegment = (item, slotIndex, slotCount) => {
+    const info = finalSegmentInfo(item);
+    if (!info) return item.routePoints;
+    const delta = offsetEntrySlot(slotIndex, slotCount);
+    if (Math.abs(delta) < 0.5) return item.routePoints;
+    const base = cleanPoints([item.start, ...item.routePoints, item.end]);
+    if (base.length < 2) return item.routePoints;
+    const prev = info.prev;
+    const end = info.end;
+    const prefix = base.slice(0, -2);
+    const next = info.orientation === "v"
+      ? [...prefix, { x: prev.x + delta, y: prev.y }, { x: prev.x + delta, y: end.y }]
+      : [...prefix, { x: prev.x, y: prev.y + delta }, { x: end.x, y: prev.y + delta }];
+    const full = cleanPoints([...next, end]);
+    return cleanPoints(full.slice(1, -1));
+  };
 
   let changed = false;
+  const plannedRoutes = [];
   for (let i = 0; i < targetLinks.length; i++) {
     const { ln, index } = targetLinks[i];
     const start = findFlowAnchorByEndpoint(ln.from);
@@ -2290,6 +2338,27 @@ const routeSelectedDeviceOutLinksOrthogonal = () => {
     const full = cleanPoints([start, ...routePoints, end]);
     for (let j = 0; j < full.length - 1; j++) usedSegments.push({ a: full[j], b: full[j + 1] });
     for (const p of routePoints) usedPoints.add(pointKey(p));
+    plannedRoutes.push({ ln, index, start, end, routePoints });
+  }
+  const entryGroups = [];
+  for (const item of plannedRoutes) {
+    let group = null;
+    for (const candidateGroup of entryGroups) {
+      if (candidateGroup.some(other => finalSegmentsConflict(item, other))) {
+        group = candidateGroup;
+        break;
+      }
+    }
+    if (group) group.push(item);
+    else entryGroups.push([item]);
+  }
+  for (const group of entryGroups) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.index - b.index);
+    for (let i = 0; i < group.length; i++) group[i].routePoints = offsetFinalEntrySegment(group[i], i, group.length);
+  }
+  for (const item of plannedRoutes) {
+    const { ln, index, routePoints } = item;
     links[index] = { ...ln, orthogonalPoints: routePoints, controlPointCount: 2, controlOffsets: [] };
     try { delete links[index].manualBezier; } catch (_e) { links[index].manualBezier = null; }
     try { delete links[index].manualBezierRel; } catch (_e) { links[index].manualBezierRel = null; }
@@ -2326,7 +2395,7 @@ const inputWiringServices = {
   drawCellX, drawCellY,
   updateFlowLinkDragTarget, resetFlowHoverTransient,
   findFlowLinkAtPoint, findFlowStartHandle, findFlowDirectionButton, findFlowResetButton, findFlowEditPoint,
-  setFlowLinkManualBezierPoint,
+  setFlowLinkManualBezierPoint, moveFlowLinkOrthogonalSegment, deleteFlowLinkOrthogonalSegment,
   moveRectDrag, updateSelectionBox, finishSelectionBox,
   endClusterHandleDrag, addFlowLinkBetween, setFlowStart, setFlowLock, updateManualFlowPoint, dragManualFlowPoint,
   mkNote, mk, mkShape, mkDevice, isNoteRect, isShapeRect, openNoteEditor, setMode, refreshPanels, schedulePersist,

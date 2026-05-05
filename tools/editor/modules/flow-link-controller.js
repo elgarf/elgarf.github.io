@@ -540,6 +540,141 @@ export const setupFlowLinkController = (deps = {}) => {
     }
     return (best && bestD <= tol) ? best : null;
   };
+  const SHORT_ORTHOGONAL_SEGMENT = 6;
+  const cleanOrthogonalPoints = pts => {
+    const out = [];
+    for (const p of (Array.isArray(pts) ? pts : [])) {
+      const x = Math.round(Number(p && p.x) || 0);
+      const y = Math.round(Number(p && p.y) || 0);
+      const prev = out[out.length - 1];
+      if (prev && Math.abs(prev.x - x) < 0.5 && Math.abs(prev.y - y) < 0.5) continue;
+      out.push({ x, y });
+    }
+    for (let i = out.length - 2; i > 0; i--) {
+      const a = out[i - 1], b = out[i], c = out[i + 1];
+      if ((Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5)
+        || (Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5)) out.splice(i, 1);
+    }
+    return out;
+  };
+  const moveFlowLinkOrthogonalSegment = (drag, wx, wy) => {
+    if (!drag || !drag.key) return false;
+    const segmentIndex = Math.max(0, Math.round(Number(drag.segmentIndex) || 0));
+    const base = cleanOrthogonalPoints(drag.points);
+    if (base.length < 2 || segmentIndex >= base.length - 1) return false;
+    const a = base[segmentIndex];
+    const b = base[segmentIndex + 1];
+    const vertical = Math.abs(a.x - b.x) < 0.5;
+    const horizontal = Math.abs(a.y - b.y) < 0.5;
+    if (!vertical && !horizontal) return false;
+    const lastIndex = base.length - 1;
+    const startPoint = base[0];
+    const endPoint = base[lastIndex];
+    const next = base.slice();
+    if (vertical) {
+      const x = Math.round(Number(wx) || 0);
+      if (segmentIndex === 0) next.splice(1, 0, { x, y: startPoint.y });
+      if (segmentIndex + 1 === lastIndex) next.splice(next.length - 1, 0, { x, y: endPoint.y });
+      const i0 = segmentIndex === 0 ? 1 : segmentIndex;
+      const i1 = segmentIndex + 1 === lastIndex ? next.length - 2 : segmentIndex + 1;
+      next[i0] = { x, y: next[i0].y };
+      next[i1] = { x, y: next[i1].y };
+    } else {
+      const y = Math.round(Number(wy) || 0);
+      if (segmentIndex === 0) next.splice(1, 0, { x: startPoint.x, y });
+      if (segmentIndex + 1 === lastIndex) next.splice(next.length - 1, 0, { x: endPoint.x, y });
+      const i0 = segmentIndex === 0 ? 1 : segmentIndex;
+      const i1 = segmentIndex + 1 === lastIndex ? next.length - 2 : segmentIndex + 1;
+      next[i0] = { x: next[i0].x, y };
+      next[i1] = { x: next[i1].x, y };
+    }
+    const full = simplifyShortOrthogonalSegments(next);
+    if (full.length < 2) return false;
+    const list = normalizeFlowLinks(st.flowLinks);
+    const idx = list.findIndex(it => flowLinkKey(it) === String(drag.key || ""));
+    if (idx < 0) return false;
+    const cur = list[idx];
+    list[idx] = { ...cur, orthogonalPoints: full.slice(1, -1), controlPointCount: 2, controlOffsets: [] };
+    st.flowLinks = list;
+    return true;
+  };
+  const orthogonalConnector = (a, b, prefer = "xy") => {
+    const ax = Number(a && a.x) || 0, ay = Number(a && a.y) || 0;
+    const bx = Number(b && b.x) || 0, by = Number(b && b.y) || 0;
+    if (Math.abs(ax - bx) < 0.5 || Math.abs(ay - by) < 0.5) return [{ x: ax, y: ay }, { x: bx, y: by }];
+    const mid = prefer === "yx" ? { x: bx, y: ay } : { x: ax, y: by };
+    return [{ x: ax, y: ay }, mid, { x: bx, y: by }];
+  };
+  const simplifyShortOrthogonalSegments = points => {
+    let pts = cleanOrthogonalPoints(points);
+    let changed = true;
+    let guard = 0;
+    while (changed && guard++ < 16) {
+      changed = false;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const len = Math.abs((Number(pts[i].x) || 0) - (Number(pts[i + 1].x) || 0))
+          + Math.abs((Number(pts[i].y) || 0) - (Number(pts[i + 1].y) || 0));
+        if (len <= 0.5 || len > SHORT_ORTHOGONAL_SEGMENT) continue;
+        const leftIndex = Math.max(0, i - 1);
+        const rightIndex = Math.min(pts.length - 1, i + 2);
+        if (rightIndex <= leftIndex + 1) continue;
+        const horizontal = Math.abs((Number(pts[i].y) || 0) - (Number(pts[i + 1].y) || 0)) < 0.5;
+        const bridge = orthogonalConnector(pts[leftIndex], pts[rightIndex], horizontal ? "yx" : "xy");
+        const next = cleanOrthogonalPoints([
+          ...pts.slice(0, leftIndex),
+          ...bridge,
+          ...pts.slice(rightIndex + 1)
+        ]);
+        if (next.length >= pts.length) continue;
+        pts = next;
+        changed = true;
+        break;
+      }
+    }
+    return pts;
+  };
+  const deleteFlowLinkOrthogonalSegment = hit => {
+    if (!hit || !hit.key) return false;
+    const segmentIndex = Math.max(0, Math.round(Number(hit.segmentIndex) || 0));
+    const base = cleanOrthogonalPoints(hit.points);
+    const lastIndex = base.length - 1;
+    if (base.length < 3 || segmentIndex >= lastIndex) return false;
+    const leftIndex = Math.max(0, segmentIndex - 1);
+    const rightIndex = Math.min(lastIndex, segmentIndex + 2);
+    if (rightIndex <= leftIndex + 1) return false;
+    const a = base[leftIndex];
+    const b = base[rightIndex];
+    const clicked = {
+      a: base[segmentIndex],
+      b: base[segmentIndex + 1]
+    };
+    const horizontal = Math.abs(clicked.a.y - clicked.b.y) < 0.5;
+    const candidates = [
+      orthogonalConnector(a, b, horizontal ? "yx" : "xy"),
+      orthogonalConnector(a, b, horizontal ? "xy" : "yx")
+    ];
+    let best = null;
+    for (const bridge of candidates) {
+      const next = cleanOrthogonalPoints([
+        ...base.slice(0, leftIndex),
+        ...bridge,
+        ...base.slice(rightIndex + 1)
+      ]);
+      if (next.length >= base.length) continue;
+      if (next.length < 2) continue;
+      best = next;
+      break;
+    }
+    if (!best) return false;
+    best = simplifyShortOrthogonalSegments(best);
+    const list = normalizeFlowLinks(st.flowLinks);
+    const idx = list.findIndex(it => flowLinkKey(it) === String(hit.key || ""));
+    if (idx < 0) return false;
+    const cur = list[idx];
+    list[idx] = { ...cur, orthogonalPoints: best.slice(1, -1), controlPointCount: 2, controlOffsets: [] };
+    st.flowLinks = list;
+    return true;
+  };
 
   const findFlowLinkAnchorAtPoint = (wx, wy, kind = "") => {
     const pts = Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : [];
@@ -838,6 +973,8 @@ export const setupFlowLinkController = (deps = {}) => {
     findFlowLinkAnchorAtPoint,
     findFlowCurveHandleAtPoint,
     setFlowLinkManualBezierPoint,
+    moveFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegment,
     clearFlowLinkManualBezier,
     updateFlowLinkDragTarget
   };
