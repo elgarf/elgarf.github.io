@@ -275,12 +275,34 @@ export const setupInterScreenLinksRender = (deps = {}) => {
   const routeOrthogonalToEndpoints = points => {
     const pts = simplifyOrthogonalPoints(points);
     if (pts.length < 2) return pts;
+    const segmentAxis = (a, b) => {
+      if (!a || !b) return "";
+      if (Math.abs(a.y - b.y) < 0.5 && Math.abs(a.x - b.x) >= 0.5) return "h";
+      if (Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) >= 0.5) return "v";
+      return "";
+    };
+    const scoreElbow = (p0, elbow, p1, prev, next) => {
+      let score = 0;
+      const firstAxis = segmentAxis(p0, elbow);
+      const secondAxis = segmentAxis(elbow, p1);
+      const prevAxis = segmentAxis(prev, p0);
+      const nextAxis = segmentAxis(p1, next);
+      if (prevAxis && firstAxis === prevAxis) score -= 4;
+      if (nextAxis && secondAxis === nextAxis) score -= 4;
+      if (prevAxis && firstAxis && firstAxis !== prevAxis) score += 1;
+      if (nextAxis && secondAxis && secondAxis !== nextAxis) score += 1;
+      return score;
+    };
     const out = [];
     for (let i = 0; i < pts.length - 1; i++) {
       const p0 = pts[i], p1 = pts[i + 1];
       out.push(p0);
       if (Math.abs(p0.x - p1.x) >= 0.5 && Math.abs(p0.y - p1.y) >= 0.5) {
-        out.push({ x: p1.x, y: p0.y });
+        const prev = i > 0 ? pts[i - 1] : null;
+        const next = i < pts.length - 2 ? pts[i + 2] : null;
+        const elbowA = { x: p1.x, y: p0.y };
+        const elbowB = { x: p0.x, y: p1.y };
+        out.push(scoreElbow(p0, elbowA, p1, prev, next) <= scoreElbow(p0, elbowB, p1, prev, next) ? elbowA : elbowB);
       }
     }
     out.push(pts[pts.length - 1]);
@@ -297,20 +319,38 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const prev = pts[i - 1];
       const cur = pts[i];
       const next = pts[i + 1];
-      if (i === 1 || i === pts.length - 2) {
+      const dx1 = cur.x - prev.x;
+      const dy1 = cur.y - prev.y;
+      const dx2 = next.x - cur.x;
+      const dy2 = next.y - cur.y;
+      const horizontal1 = Math.abs(dy1) < 0.5 && Math.abs(dx1) >= 0.5;
+      const vertical1 = Math.abs(dx1) < 0.5 && Math.abs(dy1) >= 0.5;
+      const horizontal2 = Math.abs(dy2) < 0.5 && Math.abs(dx2) >= 0.5;
+      const vertical2 = Math.abs(dx2) < 0.5 && Math.abs(dy2) >= 0.5;
+      const orthogonalTurn = (horizontal1 && vertical2) || (vertical1 && horizontal2);
+      if (!orthogonalTurn) {
         path.lineTo(cur.x, cur.y);
         continue;
       }
-      const l1 = Math.hypot(cur.x - prev.x, cur.y - prev.y);
-      const l2 = Math.hypot(next.x - cur.x, next.y - cur.y);
-      const r = Math.min(18, Math.max(4, Math.min(l1, l2) * 0.35));
+      const l1 = Math.hypot(dx1, dy1);
+      const l2 = Math.hypot(dx2, dy2);
+      const rawRadius = Math.min(l1, l2) * 0.35;
+      const r = Math.min(18, Math.max(4, rawRadius));
+      if (r < 1) {
+        path.lineTo(cur.x, cur.y);
+        continue;
+      }
+      const ux1 = dx1 / l1;
+      const uy1 = dy1 / l1;
+      const ux2 = dx2 / l2;
+      const uy2 = dy2 / l2;
       const inPt = {
-        x: cur.x - Math.sign(cur.x - prev.x) * r,
-        y: cur.y - Math.sign(cur.y - prev.y) * r
+        x: cur.x - ux1 * r,
+        y: cur.y - uy1 * r
       };
       const outPt = {
-        x: cur.x + Math.sign(next.x - cur.x) * r,
-        y: cur.y + Math.sign(next.y - cur.y) * r
+        x: cur.x + ux2 * r,
+        y: cur.y + uy2 * r
       };
       path.lineTo(inPt.x, inPt.y);
       path.quadraticCurveTo(cur.x, cur.y, outPt.x, outPt.y);
