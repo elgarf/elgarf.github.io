@@ -516,6 +516,26 @@ export const setupEditingToolsInput = (deps = {}) => {
         render();
         return true;
       }
+      const selectedSegmentHit = findFlowLinkAtPoint(p.x, p.y);
+      if (selectedSegmentHit && selectedSegmentHit.link && selectedSegmentHit.orthogonal && Array.isArray(selectedSegmentHit.points)) {
+        const selectedSegmentKey = `${flowAnchorKey(selectedSegmentHit.link.from)}>${flowAnchorKey(selectedSegmentHit.link.to)}`;
+        if (String(st.flowLinkSelectedKey || "") === selectedSegmentKey) {
+          selectFlowLinkOnly(selectedSegmentKey);
+          st.flowSegmentDrag = {
+            key: st.flowLinkSelectedKey,
+            segmentIndex: Math.max(0, Math.round(Number(selectedSegmentHit.segmentIndex) || 0)),
+            points: selectedSegmentHit.points.map(pt => ({ x: Number(pt && pt.x) || 0, y: Number(pt && pt.y) || 0 })),
+            changed: false
+          };
+          st.flowLinkPending = null;
+          st.flowLinkDrag = null;
+          st.flowDragPreview = null;
+          if (typeof syncPropsSmart === "function") syncPropsSmart();
+          else syncProps();
+          render();
+          return true;
+        }
+      }
       const endAnchorHit = findFlowLinkAnchorAtPoint(p.x, p.y, "end");
       if (endAnchorHit) {
         st.flowLinkSelectedKey = "";

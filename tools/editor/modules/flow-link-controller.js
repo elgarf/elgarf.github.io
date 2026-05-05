@@ -587,18 +587,22 @@ export const setupFlowLinkController = (deps = {}) => {
     const next = base.slice();
     if (vertical) {
       const x = Math.round(Number(wx) || 0);
-      if (segmentIndex === 0) next.splice(1, 0, { x, y: startPoint.y });
-      if (segmentIndex + 1 === lastIndex) next.splice(next.length - 1, 0, { x, y: endPoint.y });
+      const insertedStart = segmentIndex === 0;
+      if (insertedStart) next.splice(1, 0, { x, y: startPoint.y });
+      const insertedEnd = segmentIndex + 1 === lastIndex;
+      if (insertedEnd) next.splice(next.length - 1, 0, { x, y: endPoint.y });
       const i0 = segmentIndex === 0 ? 1 : segmentIndex;
-      const i1 = segmentIndex + 1 === lastIndex ? next.length - 2 : segmentIndex + 1;
+      const i1 = insertedEnd ? next.length - 2 : segmentIndex + 1 + (insertedStart ? 1 : 0);
       next[i0] = { x, y: next[i0].y };
       next[i1] = { x, y: next[i1].y };
     } else {
       const y = Math.round(Number(wy) || 0);
-      if (segmentIndex === 0) next.splice(1, 0, { x: startPoint.x, y });
-      if (segmentIndex + 1 === lastIndex) next.splice(next.length - 1, 0, { x: endPoint.x, y });
+      const insertedStart = segmentIndex === 0;
+      if (insertedStart) next.splice(1, 0, { x: startPoint.x, y });
+      const insertedEnd = segmentIndex + 1 === lastIndex;
+      if (insertedEnd) next.splice(next.length - 1, 0, { x: endPoint.x, y });
       const i0 = segmentIndex === 0 ? 1 : segmentIndex;
-      const i1 = segmentIndex + 1 === lastIndex ? next.length - 2 : segmentIndex + 1;
+      const i1 = insertedEnd ? next.length - 2 : segmentIndex + 1 + (insertedStart ? 1 : 0);
       next[i0] = { x: next[i0].x, y };
       next[i1] = { x: next[i1].x, y };
     }
