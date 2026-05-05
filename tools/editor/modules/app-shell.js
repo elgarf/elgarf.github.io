@@ -13,7 +13,7 @@ const EDITOR_ELEMENT_IDS = [
   "propWm", "propHm", "propScale", "shapePointPanel", "propShapePointX", "propShapePointY", "propShapePointType", "propAreaM2", "propAreaM2Badge", "propColorA", "propColorB", "shapeOpacityField", "propShapeOpacity", "btnAutoContrast", "btnRandomColor",
   "areaM2Field", "colorPanel", "autoContrastField", "randomColorField", "cabinetSizePanel", "propCellX", "propCellY", "propCellUnit", "flowField", "propDataFlow", "propDataFlowZ", "numberCellsField", "propNumberCells",
   "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
-  "devicePropsPanel", "propDeviceType", "propDeviceOrientation", "propDeviceInCount", "propDeviceOutCount", "devicePortLabelField", "propDevicePortLabel", "btnAutoRouteDeviceOutLinks",
+  "devicePropsPanel", "propDeviceType", "propDeviceOrientation", "propDeviceInCount", "propDeviceOutCount", "devicePortLabelField", "propDevicePortLabel", "btnAutoRouteDeviceOutLinks", "btnImproveDeviceOutLinks",
   "flowLinkCurveField", "propFlowLinkCurveMode",
   "flowLinkPropsPanel", "propFlowLinkOrthogonal", "propFlowLinkControlCount", "propFlowLinkColor", "btnFlowLinkColorReset", "propFlowLinkWidth", "propFlowLinkLineType",
   "cabinetToolPanel", "cabinetSelectionLabel", "propCabinetDiag", "propCabinetColor", "btnCabinetStyleReset",

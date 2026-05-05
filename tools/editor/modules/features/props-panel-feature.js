@@ -277,6 +277,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (el.btnResetFlowLocks) uiSetDisabled(el.btnResetFlowLocks, !on);
     if (el.btnResetManualClusters) uiSetDisabled(el.btnResetManualClusters, !on);
     if (el.btnAutoRouteDeviceOutLinks) uiSetDisabled(el.btnAutoRouteDeviceOutLinks, !on || !isDeviceRect(r));
+    if (el.btnImproveDeviceOutLinks) uiSetDisabled(el.btnImproveDeviceOutLinks, !on || !isDeviceRect(r));
     if (el.btnConvertRegionsToScreens) uiSetDisabled(el.btnConvertRegionsToScreens, !on || (typeof deps.isNoteRect === "function" && deps.isNoteRect(r)));
     if (el.btnAutoContrast) uiSetDisabled(el.btnAutoContrast, !on);
     uiSetValue(el.project, st.projectName);

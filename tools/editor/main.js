@@ -2381,8 +2381,180 @@ const routeSelectedDeviceOutLinksOrthogonal = () => {
   render();
   return true;
 };
+const improveSelectedDeviceOutLinks = () => {
+  const current = cur();
+  const selectedDevices = (typeof getSelectedRects === "function" ? getSelectedRects() : [])
+    .filter(r => r && String((r && r.kind) || "").toLowerCase() === "device");
+  const routeDevices = selectedDevices.length
+    ? selectedDevices
+    : (current && String((current && current.kind) || "").toLowerCase() === "device" ? [current] : []);
+  if (!routeDevices.length) return false;
+  const deviceIds = new Set(routeDevices.map(r => Math.max(1, Math.round(Number(r && r.id) || 0))).filter(Boolean));
+  const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+  const samePt = (a, b) => Math.hypot(num(a.x) - num(b.x), num(a.y) - num(b.y)) < 0.5;
+  const cleanPoints = pts => {
+    const out = [];
+    for (const p of (Array.isArray(pts) ? pts : [])) {
+      const q = { x: Math.round(num(p && p.x)), y: Math.round(num(p && p.y)) };
+      const prev = out[out.length - 1];
+      if (prev && samePt(prev, q)) continue;
+      out.push(q);
+    }
+    for (let i = out.length - 2; i > 0; i--) {
+      const a = out[i - 1], b = out[i], c = out[i + 1];
+      if ((Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5)
+        || (Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5)) out.splice(i, 1);
+    }
+    return out;
+  };
+  const routeOrthogonalPointsLocal = pts => {
+    const src = cleanPoints(pts);
+    if (src.length < 2) return src;
+    const out = [];
+    for (let i = 0; i < src.length - 1; i++) {
+      const a = src[i], b = src[i + 1];
+      out.push(a);
+      if (Math.abs(a.x - b.x) >= 0.5 && Math.abs(a.y - b.y) >= 0.5) out.push({ x: b.x, y: a.y });
+    }
+    out.push(src[src.length - 1]);
+    return cleanPoints(out);
+  };
+  const normalizeEndpoint = ep => ({
+    rectId: Math.max(1, Math.round(Number(ep && ep.rectId) || 0)),
+    rid: Math.max(0, Math.round(Number(ep && ep.rid) || 0)),
+    cid: Math.max(0, Math.round(Number(ep && ep.cid) || 0)),
+    kind: String(ep && ep.kind || "").toLowerCase() === "end" ? "end" : "start"
+  });
+  const endpointKey = ep => {
+    const e = normalizeEndpoint(ep);
+    return `${e.rectId}:${e.rid}:${e.cid}:${e.kind}`;
+  };
+  const linkKey = ln => `${endpointKey(ln && ln.from)}>${endpointKey(ln && ln.to)}`;
+  const intervalOverlap = (a1, a2, b1, b2) => Math.min(Math.max(a1, a2), Math.max(b1, b2)) - Math.max(Math.min(a1, a2), Math.min(b1, b2));
+  const routeScale = Math.max(1, Number(routeDevices[0] && routeDevices[0].scale) || Number(st.globalScale) || 256);
+  const nearDistance = routeScale * 0.5;
+  const minOverlap = 24;
+  const links = normalizeFlowLinks(st.flowLinks);
+  const targets = [];
+  for (let index = 0; index < links.length; index++) {
+    const ln = links[index];
+    const from = normalizeEndpoint(ln && ln.from);
+    if (from.kind !== "end" || !deviceIds.has(from.rectId)) continue;
+    if (!Array.isArray(ln && ln.orthogonalPoints) || !ln.orthogonalPoints.length) continue;
+    const start = findFlowAnchorByEndpoint(ln.from);
+    const end = findFlowAnchorByEndpoint(ln.to);
+    if (!start || !end) continue;
+    const points = routeOrthogonalPointsLocal([start, ...ln.orthogonalPoints, end]);
+    if (points.length < 3) continue;
+    targets.push({ index, key: linkKey(ln), ln, points, start, end });
+  }
+  if (targets.length < 2) return false;
+  const makeSegmentRecords = () => {
+    const records = [];
+    for (let linkIndex = 0; linkIndex < targets.length; linkIndex++) {
+      const points = targets[linkIndex].points;
+      for (let segIndex = 0; segIndex < points.length - 1; segIndex++) {
+        if (segIndex === 0 || segIndex === points.length - 2) continue;
+        const a = points[segIndex], b = points[segIndex + 1];
+        const vertical = Math.abs(num(a.x) - num(b.x)) < 0.5;
+        const horizontal = Math.abs(num(a.y) - num(b.y)) < 0.5;
+        if (!vertical && !horizontal) continue;
+        const len = Math.abs(num(a.x) - num(b.x)) + Math.abs(num(a.y) - num(b.y));
+        if (len < 24) continue;
+        records.push({
+          linkIndex,
+          segIndex,
+          orientation: vertical ? "v" : "h",
+          coord: vertical ? num(a.x) : num(a.y),
+          from: vertical ? Math.min(num(a.y), num(b.y)) : Math.min(num(a.x), num(b.x)),
+          to: vertical ? Math.max(num(a.y), num(b.y)) : Math.max(num(a.x), num(b.x))
+        });
+      }
+    }
+    return records;
+  };
+  const segmentRelated = (a, b) => a.orientation === b.orientation
+    && Math.abs(a.coord - b.coord) <= nearDistance
+    && intervalOverlap(a.from, a.to, b.from, b.to) >= minOverlap;
+  const setSegmentCoord = (target, segIndex, orientation, coord) => {
+    const pts = target.points.slice();
+    const lastIndex = pts.length - 1;
+    if (segIndex < 0 || segIndex >= lastIndex) return false;
+    const rounded = Math.round(coord);
+    if (orientation === "v") {
+      const insertedStart = segIndex === 0;
+      if (insertedStart) pts.splice(1, 0, { x: rounded, y: pts[0].y });
+      const insertedEnd = segIndex + 1 === lastIndex;
+      if (insertedEnd) pts.splice(pts.length - 1, 0, { x: rounded, y: pts[pts.length - 1].y });
+      const i0 = insertedStart ? 1 : segIndex;
+      const i1 = insertedEnd ? pts.length - 2 : segIndex + 1 + (insertedStart ? 1 : 0);
+      pts[i0] = { x: rounded, y: pts[i0].y };
+      pts[i1] = { x: rounded, y: pts[i1].y };
+    } else {
+      const insertedStart = segIndex === 0;
+      if (insertedStart) pts.splice(1, 0, { x: pts[0].x, y: rounded });
+      const insertedEnd = segIndex + 1 === lastIndex;
+      if (insertedEnd) pts.splice(pts.length - 1, 0, { x: pts[pts.length - 1].x, y: rounded });
+      const i0 = insertedStart ? 1 : segIndex;
+      const i1 = insertedEnd ? pts.length - 2 : segIndex + 1 + (insertedStart ? 1 : 0);
+      pts[i0] = { x: pts[i0].x, y: rounded };
+      pts[i1] = { x: pts[i1].x, y: rounded };
+    }
+    const next = routeOrthogonalPointsLocal(pts);
+    if (next.length < 2) return false;
+    target.points = next;
+    return true;
+  };
+  let changed = false;
+  for (let pass = 0; pass < 3; pass++) {
+    const records = makeSegmentRecords();
+    const used = new Set();
+    for (let i = 0; i < records.length; i++) {
+      if (used.has(i)) continue;
+      const group = [i];
+      used.add(i);
+      for (let expanded = true; expanded;) {
+        expanded = false;
+        for (let j = 0; j < records.length; j++) {
+          if (used.has(j)) continue;
+          if (group.some(k => segmentRelated(records[k], records[j]))) {
+            group.push(j);
+            used.add(j);
+            expanded = true;
+          }
+        }
+      }
+      if (group.length < 2) continue;
+      const items = group.map(k => records[k])
+        .sort((a, b) => a.coord - b.coord || a.linkIndex - b.linkIndex || a.segIndex - b.segIndex);
+      const minCoord = items.reduce((min, it) => Math.min(min, it.coord), Infinity);
+      const maxCoord = items.reduce((max, it) => Math.max(max, it.coord), -Infinity);
+      if (!Number.isFinite(minCoord) || !Number.isFinite(maxCoord) || Math.abs(maxCoord - minCoord) < 0.5) continue;
+      for (let j = 0; j < items.length; j++) {
+        const rec = items[j];
+        const nextCoord = minCoord + (maxCoord - minCoord) * (j / Math.max(1, items.length - 1));
+        if (Math.abs(rec.coord - nextCoord) < 0.5) continue;
+        if (setSegmentCoord(targets[rec.linkIndex], rec.segIndex, rec.orientation, nextCoord)) changed = true;
+      }
+    }
+  }
+  if (!changed) return false;
+  for (const target of targets) {
+    const idx = target.index;
+    const full = cleanPoints(target.points);
+    links[idx] = { ...links[idx], orthogonalPoints: full.slice(1, -1), controlPointCount: 2, controlOffsets: [] };
+  }
+  st.flowLinks = links;
+  schedulePersist("project");
+  syncProps();
+  render();
+  return true;
+};
 if (el.btnAutoRouteDeviceOutLinks) {
   bindClick(el.btnAutoRouteDeviceOutLinks, () => routeSelectedDeviceOutLinksOrthogonal());
+}
+if (el.btnImproveDeviceOutLinks) {
+  bindClick(el.btnImproveDeviceOutLinks, () => improveSelectedDeviceOutLinks());
 }
 const syncPropsBase = syncProps;
 syncProps = () => {
