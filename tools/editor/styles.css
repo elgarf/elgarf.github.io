@@ -812,6 +812,38 @@
       pointer-events: none
     }
 
+    .package-export-busy-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 5000;
+      display: grid;
+      place-items: center;
+      background: rgba(7, 10, 14, .68);
+      color: rgba(255, 255, 255, .92);
+      backdrop-filter: blur(2px)
+    }
+
+    .package-export-busy-box {
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+      padding: 20px 24px;
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 8px;
+      background: rgba(18, 24, 32, .92);
+      box-shadow: 0 16px 44px rgba(0, 0, 0, .38);
+      font: 500 14px "Roboto", "Segoe UI", Arial, sans-serif
+    }
+
+    .package-export-busy-spinner {
+      width: 34px;
+      height: 34px;
+      border: 3px solid rgba(255, 255, 255, .2);
+      border-top-color: #0d6efd;
+      border-radius: 50%;
+      animation: app-loading-spin .8s linear infinite
+    }
+
     .canvas-wrap[data-mode="select"] canvas {
       cursor: default
     }

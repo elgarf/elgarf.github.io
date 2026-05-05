@@ -95,6 +95,8 @@ export const createRenderExportPngBlob = (deps = {}) => {
       };
     };
     const renderPass = pads => {
+      st.flowLinkAnchors = [];
+      st.flowLinkSegments = [];
       const l = Math.max(0, Math.ceil(Number(pads && pads.l) || 0));
       const r = Math.max(0, Math.ceil(Number(pads && pads.r) || 0));
       const t = Math.max(0, Math.ceil(Number(pads && pads.t) || 0));
@@ -108,6 +110,25 @@ export const createRenderExportPngBlob = (deps = {}) => {
       const exportOffsetX = -minX + shiftX;
       const exportOffsetY = -minY + shiftY;
       const shiftedRects = exportRects.map(rct => ({ ...rct, x: rct.x - minX + shiftX, y: rct.y - minY + shiftY }));
+      const shiftedRectById = new Map(shiftedRects.map(rct => [Math.max(1, Math.round(Number(rct && rct.id) || 0)), rct]));
+      const allShiftedRects = (Array.isArray(st.rects) ? st.rects : [])
+        .map(rct => shiftedRectById.get(Math.max(1, Math.round(Number(rct && rct.id) || 0))) || rct);
+      const shiftPoint = p => p && typeof p === "object"
+        ? { ...p, x: (Number(p.x) || 0) + exportOffsetX, y: (Number(p.y) || 0) + exportOffsetY }
+        : p;
+      const allShiftedFlowLinks = (Array.isArray(st.flowLinks) ? st.flowLinks : []).map(ln => {
+        if (!ln || typeof ln !== "object") return ln;
+        const outLink = { ...ln };
+        if (Array.isArray(ln.orthogonalPoints)) outLink.orthogonalPoints = ln.orthogonalPoints.map(shiftPoint);
+        if (ln.manualBezier && typeof ln.manualBezier === "object") {
+          outLink.manualBezier = {
+            ...ln.manualBezier,
+            c1: shiftPoint(ln.manualBezier.c1),
+            c2: shiftPoint(ln.manualBezier.c2)
+          };
+        }
+        return outLink;
+      });
       const shapeFrameId = `export:${shiftX}:${shiftY}:${out.width}:${out.height}:${includeFlow ? 1 : 0}:${rigOnly ? 1 : 0}:${flowOnly ? 1 : 0}`;
       const drawExportRects = extraOpts => {
         for (let i = exportRects.length - 1; i >= 0; i--) {
@@ -135,10 +156,19 @@ export const createRenderExportPngBlob = (deps = {}) => {
           };
           if (includeFlowRect) drawOpts.flowGroupsOverride = Array.isArray(flowGroups) ? flowGroups : [];
           if (isShape) {
+            const anchorStart = Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors.length : 0;
             c.save();
             c.translate(exportOffsetX, exportOffsetY);
             drawRect(c, er, false, 1, { x: 0, y: 0 }, drawOpts);
             c.restore();
+            if (Array.isArray(st.flowLinkAnchors)) {
+              for (let j = anchorStart; j < st.flowLinkAnchors.length; j++) {
+                const a = st.flowLinkAnchors[j];
+                if (!a) continue;
+                a.x = (Number(a.x) || 0) + exportOffsetX;
+                a.y = (Number(a.y) || 0) + exportOffsetY;
+              }
+            }
           } else {
             drawRect(c, er, false, 1, { x: 0, y: 0 }, drawOpts);
           }
@@ -146,7 +176,16 @@ export const createRenderExportPngBlob = (deps = {}) => {
       };
       if (includeFlow) {
         drawExportRects({ installTextMode: "skip" });
-        drawInterScreenFlowLinks(c, true);
+        const prevRects = st.rects;
+        const prevFlowLinks = st.flowLinks;
+        st.rects = allShiftedRects;
+        st.flowLinks = allShiftedFlowLinks;
+        try {
+          drawInterScreenFlowLinks(c, true);
+        } finally {
+          st.rects = prevRects;
+          st.flowLinks = prevFlowLinks;
+        }
         if (includeScreenLabels) drawExportRects({ installTextMode: "only", includeFlow: false });
       } else if (rigOnly) {
         drawExportRects({ installTextMode: "skip", includeFlow: false });

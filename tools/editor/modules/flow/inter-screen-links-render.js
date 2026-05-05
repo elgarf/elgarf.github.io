@@ -379,11 +379,12 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     };
     const drawLinkPath = (path, color, width, lineType = "solid") => {
       const dashed = String(lineType || "").toLowerCase() === "dashed";
-      if (dashed) c.setLineDash([10 / zoomSafe(st.zoom), 7 / zoomSafe(st.zoom)]);
+      const z = exportPass ? 1 : zoomSafe(st.zoom);
+      if (dashed) c.setLineDash([10 / z, 7 / z]);
       strokeOutlinedPath(
         path,
         "rgba(12,16,22,.92)",
-        width + outlineWidthForZoom(st.zoom),
+        width + outlineWidthForZoom(z),
         color,
         width
       );
@@ -501,7 +502,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       c.save();
       const linkWidth = Math.max(0.5, Math.min(20, Number(ln && ln.width) || 2.2));
       const baseW = exportPass
-        ? strokeWidthForZoom(st.zoom, 0.85, Math.max(1.0, linkWidth * 0.66))
+        ? Math.max(5, linkWidth * 2.4)
         : strokeWidthForZoom(st.zoom, 1.2, linkWidth);
       const orthogonalMid = Array.isArray(ln && ln.orthogonalPoints) ? ln.orthogonalPoints : [];
       if (orthogonalMid.length) {
