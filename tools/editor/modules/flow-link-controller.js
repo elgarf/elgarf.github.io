@@ -550,7 +550,9 @@ export const setupFlowLinkController = (deps = {}) => {
 
   const findFlowLinkAtPoint = (wx, wy) => {
     const segs = Array.isArray(st.flowLinkSegments) ? st.flowLinkSegments : [];
-    const tol = Math.max(10, 16 / Math.max(0.2, st.zoom || 1));
+    const touchLike = !!(st && st.touch && String(st.touch.type || "") === "single");
+    const baseTol = Math.max(10, 16 / Math.max(0.2, st.zoom || 1));
+    const tol = touchLike ? Math.max(baseTol, 22 / Math.max(0.2, st.zoom || 1)) : baseTol;
     let best = null;
     let bestD = Infinity;
     for (const s of segs) {
@@ -715,7 +717,9 @@ export const setupFlowLinkController = (deps = {}) => {
 
   const findFlowLinkAnchorAtPoint = (wx, wy, kind = "") => {
     const pts = Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : [];
-    const tol = Math.max(6, 9 / Math.max(0.35, st.zoom || 1));
+    const touchLike = !!(st && st.touch && String(st.touch.type || "") === "single");
+    const baseTol = Math.max(6, 9 / Math.max(0.35, st.zoom || 1));
+    const tol = touchLike ? Math.max(baseTol, 16 / Math.max(0.35, st.zoom || 1)) : baseTol;
     const kindNorm = String(kind || "").toLowerCase();
     let best = null;
     let bestD = Infinity;

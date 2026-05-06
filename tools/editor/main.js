@@ -174,6 +174,8 @@ let updateToolbarOverflow = () => { };
 let overflowHiddenButtons = [];
 const st = createInitialEditorState();
 let i18n = null;
+const tr = value => translateText(value);
+const ff = value => fontFamilyCss(value);
 const safeDefine = (obj, key, value, enumerable = false) => {
   try {
     Object.defineProperty(obj, key, { value, writable: true, configurable: true, enumerable: !!enumerable });
@@ -206,7 +208,7 @@ if (FlowDrawHelpers && typeof FlowDrawHelpers.setupFlowDrawController === "funct
     FLOW_DRAW_BATCH_STEP,
     touchProgressState,
     setCacheWithPrune,
-    fontFamilyCss: value => fontFamilyCss(value),
+    fontFamilyCss: ff,
     getFlowDrawRenderEpoch: () => flowDrawRenderEpoch,
     requestRenderNow: () => render()
   }));
@@ -578,7 +580,7 @@ const {
   st,
   rectUVToWorld,
   maskCellKey,
-  getFlowRegionConfig: (r, rid) => getFlowRegionConfig(r, rid),
+  getFlowRegionConfig,
   getFlowStartRoutingRegion,
   FLOW_DIR_SET
 });
@@ -601,15 +603,15 @@ const {
 } = setupFlowLinkFeature({
   st,
   normalizeFlowLinks,
-  getRectRuntime: (r, opts) => getRectRuntime(r, opts),
-  drawCellX: r => drawCellX(r),
-  drawCellY: r => drawCellY(r),
-  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
-  rectAABBMasked: r => rectAABBMasked(r),
+  getRectRuntime,
+  drawCellX,
+  drawCellY,
+  getCellTopologyCached,
+  rectAABBMasked,
   AREA_LIMIT_EPS,
   getFlowDrawRenderEpoch: () => flowDrawRenderEpoch,
-  getSplitFlowMarkerWorldPositions: (r, pts) => getSplitFlowMarkerWorldPositions(r, pts),
-  rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v)
+  getSplitFlowMarkerWorldPositions,
+  rectUVToWorld
 });
 const { drawInterScreenFlowLinks, drawFlowLinkCurveHandlesOverlay } = setupInterScreenLinksRender({
   st,
@@ -619,7 +621,7 @@ const { drawInterScreenFlowLinks, drawFlowLinkCurveHandlesOverlay } = setupInter
   normalizeFlowLinks,
   flowAnchorKey,
   flowLinkKeyOf,
-  findFlowAnchorByEndpoint: ep => findFlowAnchorByEndpoint(ep)
+  findFlowAnchorByEndpoint
 });
 let findFlowStartHandle = (_wx, _wy, _rid = null) => null;
 let findFlowDirectionButton = (_wx, _wy, _rid = null) => null;
@@ -637,8 +639,8 @@ let findFlowEditPoint = (_wx, _wy, _rid = null, _minIndex = 0) => null;
 }));
 const { drawFlowEditOverlay } = setupFlowEditOverlayRender({
   st,
-  fontFamilyCss: value => fontFamilyCss(value),
-  t: value => translateText(value)
+  fontFamilyCss: ff,
+  t: tr
 });
 const {
   collectClusterHandles,
@@ -659,7 +661,7 @@ const {
   worldToRectUV,
   findManualClusterById,
   isClusterEditMode,
-  fontFamilyCss: value => fontFamilyCss(value),
+  fontFamilyCss: ff,
   toLetters: value => toLetters(value)
 });
 
@@ -695,7 +697,7 @@ const {
   topoCalcKey,
   listSignature,
   getRectCalcCache: r => getRectCalcCache(r),
-  t: value => translateText(value)
+  t: tr
 });
 const pctFmt = v => { const n = Number.isFinite(+v) ? +v : 0; const t = Math.trunc(n * 100) / 100; return t.toFixed(2) };
 const calcNow = () => ((typeof performance !== "undefined" && performance && typeof performance.now === "function") ? performance.now() : Date.now());
@@ -920,7 +922,7 @@ const toolbarController = setupToolbarController({
   bindEvent,
   mobileToolButtons,
   applyThemeMode: (mode, persist) => applyThemeMode(mode, persist),
-  t: value => translateText(value)
+  t: tr
 });
 ensureMobileDock = toolbarController.ensureMobileDock;
 hideToolbarOverflowPopup = toolbarController.hideToolbarOverflowPopup;
@@ -965,7 +967,7 @@ let refreshSpecAuto = (_force = false) => { };
   commitProjectChange: opts => commitProjectChange(opts),
   getAutoSpecText: () => buildFlowSpecTextForView(),
   getLanguage: () => i18n ? i18n.getLanguage() : "",
-  t: value => translateText(value)
+  t: tr
 }));
 const isInstallViewMode = () => normalizeViewMode(st.viewMode) === "install";
 const isInstallOnlyToolMode = m => m === "flowEdit" || m === "clusterEdit" || m === "rigEdit";
@@ -992,7 +994,7 @@ const viewThemeLockController = setupViewThemeLockController({
   syncModeToggleButton,
   syncLockButtons,
   updateInstallToolAvailability,
-  onViewModeUiUpdated: () => updateSpecViewUi(),
+  onViewModeUiUpdated: updateSpecViewUi,
   refreshToolButtons: () => setMode(st.mode),
   commitProjectChange: opts => commitProjectChange(opts),
   setMode: m => setMode(m),
@@ -1043,7 +1045,7 @@ let buildPortableProject = () => buildPortableProjectBase(stripProjectCaches);
   serializeRectForProject: r => serializeRectForProject(r),
   genSaveLocationId: name => genSaveLocationId(name),
   cloneJson: (data, fallbackFactory) => cloneJson(data, fallbackFactory),
-  t: value => translateText(value)
+  t: tr
 }));
 const projectCodec = createProjectCodec({
   PROJECT_QUERY_VERSION,
@@ -1204,7 +1206,7 @@ let mkDevice = (_x, _y, _w, _h) => ({});
   updateViewModeUi,
   updateLockAllUi,
   setSelection,
-  syncProps,
+  syncProps: () => syncProps(),
   listRects,
   selRect,
   syncActiveTabSnapshot,
@@ -1346,7 +1348,7 @@ const rectHasManualFlow = r => {
   findManualClusterById,
   isNoteRect,
   closeNoteEditor,
-  syncProps,
+  syncProps: () => syncProps(),
   syncPropsSmart: () => syncPropsSmart(),
   updateModeBadges,
   updateClusterEditCursor,
@@ -1470,49 +1472,49 @@ let drawShapeRect = () => { };
 }));
 const { drawRectBase } = setupDrawRectBaseController({
   st,
-  isNoteRect: r => isNoteRect(r),
-  drawNoteRect: (c, r, sel, z) => drawNoteRect(c, r, sel, z),
-  isShapeRect: r => isShapeRect(r),
-  drawShapeRect: (c, r, sel, z, opts) => drawShapeRect(c, r, sel, z, opts),
-  drawCellX: r => drawCellX(r),
-  drawCellY: r => drawCellY(r),
-  getHiddenSet: r => getHiddenSet(r),
+  isNoteRect,
+  drawNoteRect,
+  isShapeRect,
+  drawShapeRect,
+  drawCellX,
+  drawCellY,
+  getHiddenSet,
   rads,
   rectCenter,
-  rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
+  rectUVToWorld,
   normalizeViewMode,
-  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
-  getMaskRenderDataCached: (r, cx, cy, hs, topo) => getMaskRenderDataCached(r, cx, cy, hs, topo),
+  getCellTopologyCached,
+  getMaskRenderDataCached,
   isMaskMode: () => isMaskMode(),
   isCellEditMode: () => isCellEditMode(),
   isClusterEditMode: () => isClusterEditMode(),
   isRigEditMode: () => isRigEditMode(),
   normalizeDataFlow,
-  planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
+  planNumberRegions,
   updateSplitVariantControl: r => updateSplitVariantControl(r),
-  getDataFlowGroups: (r, cx, cy, topo, hs, regions, opts) => getDataFlowGroups(r, cx, cy, topo, hs, regions, opts),
-  collectFlowLinkAnchors: (r, groups) => collectFlowLinkAnchors(r, groups),
-  collectFlowEditPoints: (r, groups, opts) => collectFlowEditPoints(r, groups, opts),
-  collectFlowManualPickPoints: (r, cx, cy, topo, hs, regions) => collectFlowManualPickPoints(r, cx, cy, topo, hs, regions),
-  getRectFillLayerCached: (r, cx, cy, topo, maskRender, lowDetail, z) => getRectFillLayerCached(r, cx, cy, topo, maskRender, lowDetail, z),
-  getRectDecorLayerCached: (r, maskRender, z) => getRectDecorLayerCached(r, maskRender, z),
-  getRectComponentRenderDataCached: (r, cx, cy, topo) => getRectComponentRenderDataCached(r, cx, cy, topo),
-  rectTextTheme: r => rectTextTheme(r),
+  getDataFlowGroups,
+  collectFlowLinkAnchors,
+  collectFlowEditPoints,
+  collectFlowManualPickPoints,
+  getRectFillLayerCached,
+  getRectDecorLayerCached,
+  getRectComponentRenderDataCached,
+  rectTextTheme,
   fontFamilyCss,
   toLetters,
   mFmt,
   pctFmt,
   fillPercent,
-  getRectTextSizePx: r => getRectTextSizePx(r),
-  buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
+  getRectTextSizePx,
+  buildVisibleCabinetSummary,
   listSignature,
-  getRectTextLayoutCached: (r, key, compute) => getRectTextLayoutCached(r, key, compute),
-  hiddenCellBoxes: (r, cx, cy, hs) => hiddenCellBoxes(r, cx, cy, hs),
-  computeFreeRects: (r, cx, cy, hs) => computeFreeRects(r, cx, cy, hs),
+  getRectTextLayoutCached,
+  hiddenCellBoxes,
+  computeFreeRects,
   chooseTextLayout,
   t: value => translateText(value),
   REGION_ZONE_COLORS,
-  getVisibleBoundarySegmentsCached: (r, cx, cy, hs) => getVisibleBoundarySegmentsCached(r, cx, cy, hs),
+  getVisibleBoundarySegmentsCached,
   drawRectOverlays: ctx => drawRectOverlays(ctx),
   drawRectInteractions: ctx => drawRectInteractions(ctx),
   drawRigOutsideOverlay: (c, r, cx, cy, topo, hs, z, sel) => drawRigOutsideOverlay(c, r, cx, cy, topo, hs, z, sel)
@@ -1540,26 +1542,26 @@ function drawRect(c, r, sel, z, origin, opts) {
   applyRigActionAtPoint
 } = setupRigInteractionController({
   st,
-  drawCellX: r => drawCellX(r),
-  drawCellY: r => drawCellY(r),
-  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
-  getHiddenSet: r => getHiddenSet(r),
+  drawCellX,
+  drawCellY,
+  getCellTopologyCached,
+  getHiddenSet,
   maskCellKey,
   normalizeRigData,
-  getRectRigData: r => getRectRigData(r),
-  setRectRigData: r => setRectRigData(r),
-  worldToRectUV: (r, wx, wy) => worldToRectUV(r, wx, wy),
+  getRectRigData,
+  setRectRigData,
+  worldToRectUV,
   RIG_DEFAULT_LOAD_KG
 }));
 const { drawRigOnRect, drawRigOutsideOverlay } = setupRigRenderController({
   st,
-  getRectRigData: r => getRectRigData(r),
-  buildRigLayout: (r, cx, cy, topo, hs, z) => buildRigLayout(r, cx, cy, topo, hs, z),
-  resolveRigFrameSeam: (layout, cellY, key) => resolveRigFrameSeam(layout, cellY, key),
-  drawLoadIcon: (c, x, y, size, opts) => drawLoadIcon(c, x, y, size, opts),
+  getRectRigData,
+  buildRigLayout,
+  resolveRigFrameSeam,
+  drawLoadIcon,
   fontFamilyCss: value => fontFamilyCss(value),
   isRigEditMode: () => isRigEditMode(),
-  rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
+  rectUVToWorld,
   RIG_DEFAULT_LOAD_KG
 });
 const { drawMaskOverlay, drawCellEditOverlay, drawCabinetEditOverlay, drawContentBounds, drawLayerButtons, hitLayerButton, setLayerButtonHover, clearLayerButtonHover } = setupViewportOverlays({
@@ -1567,16 +1569,16 @@ const { drawMaskOverlay, drawCellEditOverlay, drawCabinetEditOverlay, drawConten
   isMaskMode: () => isMaskMode(),
   isCellEditMode: () => isCellEditMode(),
   isCabinetEditMode: () => isCabinetEditMode(),
-  cur: () => cur(),
+  cur,
   getMaskNodeAxes: r => getMaskNodeAxes(r),
-  rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
-  drawCellX: r => drawCellX(r),
-  drawCellY: r => drawCellY(r),
-  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
-  buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
-  getHiddenSet: r => getHiddenSet(r),
+  rectUVToWorld,
+  drawCellX,
+  drawCellY,
+  getCellTopologyCached,
+  buildVisibleCabinetSummary,
+  getHiddenSet,
   fontFamilyCss,
-  rectAABBMasked: r => rectAABBMasked(r),
+  rectAABBMasked,
   listSignature,
   t: value => translateText(value)
 });
@@ -1585,11 +1587,11 @@ const { drawInstallSummaryOverlay } = setupInstallSummaryOverlay({
   cv,
   wrap,
   normalizeViewMode,
-  drawCellX: r => drawCellX(r),
-  drawCellY: r => drawCellY(r),
-  getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
-  getHiddenSet: r => getHiddenSet(r),
-  buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
+  drawCellX,
+  drawCellY,
+  getCellTopologyCached,
+  getHiddenSet,
+  buildVisibleCabinetSummary,
   fontFamilyCss,
   mFmt,
   isNoteRect: r => isNoteRect(r) || isShapeRect(r) || isDeviceRect(r),
@@ -1730,6 +1732,7 @@ const {
   schedulePersist,
   isRectLocked,
   normalizeFlowLinks,
+  flowLinkKeyOf,
   flowAnchorKey,
   findFlowLinkAtPoint,
   findFlowStartHandle,
@@ -1803,24 +1806,45 @@ let cloneRectForClipboard = _src => _src;
 let cloneRectForDuplicate = _src => _src;
 let resetProjectCore = () => { };
 let newProject = () => { };
+const editorCtx = {
+  state: st,
+  ui: {
+    bindClick,
+    bindEvent,
+    bindWindowEvent,
+    t: translateText
+  },
+  actions: {
+    render,
+    schedulePersist,
+    syncProps: () => syncProps(),
+    listRects,
+    cur,
+    getViewMetrics,
+    getActionTargets: () => getActionTargets(),
+    setSelection,
+    setMode,
+    refreshPanels
+  }
+};
 ({
   resetProjectCore,
   newProject
 } = setupProjectLifecycleController({
   st,
   el,
-  setSelection: (ids, lead) => setSelection(ids, lead),
+  setSelection: editorCtx.actions.setSelection,
   resetTransientState: full => resetTransientState(full),
-  setMode: mode => setMode(mode),
-  refreshPanels: () => refreshPanels(),
-  syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
-  renderProjectTabs: () => renderProjectTabs(),
+  setMode: editorCtx.actions.setMode,
+  refreshPanels: editorCtx.actions.refreshPanels,
+  syncActiveTabSnapshot,
+  renderProjectTabs,
   commitUiUpdate: opts => commitUiUpdate(opts),
-  updateViewModeUi: () => updateViewModeUi(),
+  updateViewModeUi,
   setGlobalSaveLocationId: id => setGlobalSaveLocationId(id),
   getGlobalSaveLocationId: () => getGlobalSaveLocationId(),
   genSaveLocationId: name => genSaveLocationId(name),
-  t: value => translateText(value)
+  t: editorCtx.ui.t
 }));
 ({
   insertCloneAboveSource,
@@ -1831,28 +1855,28 @@ let newProject = () => { };
 } = setupSelectionActionsFeature({
   st,
   isRectLocked: r => isRectLocked(r),
-  setSelection: (ids, lead) => setSelection(ids, lead),
+  setSelection: editorCtx.actions.setSelection,
   resetTransientState: full => resetTransientState(full),
-  refreshPanels: () => refreshPanels(),
-  updateClusterEditCursor: () => updateClusterEditCursor(),
+  refreshPanels: editorCtx.actions.refreshPanels,
+  updateClusterEditCursor,
   commitUiUpdate: opts => commitUiUpdate(opts),
-  normSelSet: () => normSelSet(),
-  getSelectedRects: () => getSelectedRects(),
-  cur: () => cur(),
+  normSelSet,
+  getSelectedRects,
+  cur: editorCtx.actions.cur,
   normalizeFlowLocks,
   normalizeManualClusters,
   normalizeRigData,
   autoContrast,
   withNameSuffixBeforeGroup,
-  syncProps: () => syncProps(),
-  listRects: () => listRects(),
-  setMode: mode => setMode(mode),
-  schedulePersist: kind => schedulePersist(kind)
+  syncProps: editorCtx.actions.syncProps,
+  listRects: editorCtx.actions.listRects,
+  setMode: editorCtx.actions.setMode,
+  schedulePersist: editorCtx.actions.schedulePersist
 }));
 const { dupMirrorSel } = setupMirrorDuplicateFeature({
   st,
-  cur: () => cur(),
-  getSelectedRects: () => getSelectedRects(),
+  cur: editorCtx.actions.cur,
+  getSelectedRects,
   drawCellX,
   drawCellY,
   parseLinkKey,
@@ -1860,19 +1884,19 @@ const { dupMirrorSel } = setupMirrorDuplicateFeature({
   getCellTopology,
   withNameSuffixBeforeGroup,
   getHiddenSet: rect => getHiddenSet(rect),
-  makeCalcBudget: () => makeCalcBudget(),
-  calcNow: () => calcNow(),
+  makeCalcBudget,
+  calcNow,
   planNumberRegionsUncached,
   SPLIT_VARIANT_MAX,
   normalizeFlowLocks,
   normalizeRigData,
   RIG_DEFAULT_LOAD_KG,
   autoContrast,
-  insertCloneAboveSource: (sourceId, clone) => insertCloneAboveSource(sourceId, clone),
-  setSelection: (ids, lead) => setSelection(ids, lead),
+  insertCloneAboveSource,
+  setSelection: editorCtx.actions.setSelection,
   selRect: id => selRect(id),
-  setMode: mode => setMode(mode),
-  schedulePersist: kind => schedulePersist(kind)
+  setMode: editorCtx.actions.setMode,
+  schedulePersist: editorCtx.actions.schedulePersist
 });
 function fit() {
   const fitRects = (Array.isArray(st.rects) ? st.rects : []).filter(r => !isNoteExcludedFromContentBounds(r));
@@ -1902,9 +1926,9 @@ const {
   el,
   SPLIT_VARIANT_MAX,
   evalExpr,
-  bindEvent: (...args) => bindEvent(...args),
-  render: () => render(),
-  getCurrentRect: () => cur()
+  bindEvent: editorCtx.ui.bindEvent,
+  render: editorCtx.actions.render,
+  getCurrentRect: editorCtx.actions.cur
 });
 const {
   uiSetValue,
@@ -1915,12 +1939,19 @@ const {
   cabinetUiToPx
 } = setupPropsUiUtils({
   st,
-  cur: () => cur(),
+  cur: editorCtx.actions.cur,
   normalizeCabinetUnit,
   mFmt,
   toPositiveInt,
   evalExpr
 });
+const propsUiShared = { uiSetDisabled, uiSetValue, uiSetChecked, uiSetText };
+const propsRenderShared = {
+  cur: editorCtx.actions.cur,
+  listRects: editorCtx.actions.listRects,
+  schedulePersist: editorCtx.actions.schedulePersist,
+  render: editorCtx.actions.render
+};
 let applyProps = (_opts) => { };
 ({
   syncProps,
@@ -1928,23 +1959,20 @@ let applyProps = (_opts) => { };
 } = setupPropsPanelFeature({
   st,
   el,
-  cur: () => cur(),
+  ...propsRenderShared,
   isRectLocked: r => isRectLocked(r),
   isNoteRect: r => isNoteRect(r),
   isShapeRect: r => isShapeRect(r),
-  rectUVToWorld: (r, u, v) => rectUVToWorld(r, u, v),
-  worldToRectUV: (r, wx, wy) => worldToRectUV(r, wx, wy),
-  findFlowAnchorByEndpoint: ep => findFlowAnchorByEndpoint(ep),
+  rectUVToWorld,
+  worldToRectUV,
+  findFlowAnchorByEndpoint,
   normalizeShapeBounds: r => normalizeShapeBounds(r),
-  shapePointHit: (r, wx, wy, z) => shapePointHit(r, wx, wy, z),
-  getSelectedRects: () => getSelectedRects(),
-  uiSetDisabled,
-  uiSetValue,
-  uiSetChecked,
-  uiSetText,
-  updateThemeUi: () => updateThemeUi(),
-  updateViewModeUi: () => updateViewModeUi(),
-  updateLockAllUi: () => updateLockAllUi(),
+  shapePointHit,
+  getSelectedRects,
+  ...propsUiShared,
+  updateThemeUi,
+  updateViewModeUi,
+  updateLockAllUi,
   mFmt,
   updateSplitVariantModeUi: arg => updateSplitVariantModeUi(arg),
   updateModeBadges: r => updateModeBadges(r),
@@ -1954,33 +1982,30 @@ let applyProps = (_opts) => { };
   normalizeCabinetUnit,
   metricFromPx: rect => metricFromPx(rect),
   normalizeDataFlow,
-  getFlowRegionConfig: (r, rid) => getFlowRegionConfig(r, rid),
+  getFlowRegionConfig,
   resolveFlowModeFromStartAndDir,
-  getFlowModeRegion: (r, rid, fallback) => getFlowModeRegion(r, rid, fallback),
+  getFlowModeRegion,
   updateSplitVariantControl: r => updateSplitVariantControl(r),
   cabinetPxToUi,
   getRectsBBox: rects => getRectsBBox(rects),
   evalExpr,
   parseAreaM2PxInput,
   pxFromMetric: rect => pxFromMetric(rect),
-  refreshMultiSelectionBase: () => refreshMultiSelectionBase(),
+  refreshMultiSelectionBase,
   rectAABB,
   cabinetUiToPx,
-  setFlowRegionMode: (r, rid, mode) => setFlowRegionMode(r, rid, mode),
+  setFlowRegionMode,
   remapRectRigLoadsToBottomSeams: r => remapRectRigLoadsToBottomSeams(r),
-  invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
-  listRects: () => listRects(),
-  schedulePersist: kind => schedulePersist(kind),
-  render: () => render(),
+  invalidateRectCache,
   createRectPropSchema,
   getAreaM2BadgeLabel,
   getAreaM2PresetValues: () => getAreaM2PresetValues(document),
   updateAreaM2Badge,
-  updateSplitVariantLabel: r => updateSplitVariantLabel(r)
+  updateSplitVariantLabel
 }));
 const { scheduleSyncProps, syncPropsSmart } = setupPropertiesSyncController({
   st,
-  syncProps: () => syncProps(),
+  syncProps: editorCtx.actions.syncProps,
   requestFrame: cb => requestAnimationFrame(cb),
   cancelFrame: id => cancelAnimationFrame(id),
   setDelay: (cb, ms) => setTimeout(cb, ms),
@@ -2645,13 +2670,13 @@ let applyToTargetsAndRender = (_visitor, _opts = {}, _after = null) => 0;
   applyToTargets,
   applyToTargetsAndRender
 } = setupTargetActionsFeature({
-  getSelectedRects: () => getSelectedRects(),
-  cur: () => cur(),
+  getSelectedRects,
+  cur: editorCtx.actions.cur,
   isRectLocked: r => isRectLocked(r),
-  syncProps: () => syncProps(),
-  listRects: () => listRects(),
-  schedulePersist: kind => schedulePersist(kind),
-  render: () => render()
+  syncProps: editorCtx.actions.syncProps,
+  listRects: editorCtx.actions.listRects,
+  schedulePersist: editorCtx.actions.schedulePersist,
+  render: editorCtx.actions.render
 }));
 const bindCommitInput = (node, onCommit) => {
   if (!node || !onCommit) return;
@@ -2661,31 +2686,28 @@ const bindCommitInput = (node, onCommit) => {
 setupPropsInputBindingsFeature({
   st,
   el,
-  bindEvent: (...args) => bindEvent(...args),
-  bindEvents: (...args) => bindEvents(...args),
-  bindCommitInputs: (...args) => bindCommitInputs(...args),
-  bindCommitInput: (...args) => bindCommitInput(...args),
+  bindEvent: editorCtx.ui.bindEvent,
+  bindEvents,
+  bindCommitInputs,
+  bindCommitInput,
   applyProps: opts => applyProps(opts),
-  syncProps: () => syncProps(),
-  applyToTargets: (visitor, opts) => applyToTargets(visitor, opts),
-  render: () => render(),
-  invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
-  cur: () => cur(),
+  syncProps: editorCtx.actions.syncProps,
+  applyToTargets,
+  ...propsRenderShared,
+  invalidateRectCache,
   evalExpr,
-  updateRectTextSizeLabel: r => updateRectTextSizeLabel(r),
-  scheduleFontReadyRender: (state, delay) => scheduleFontReadyRender(state, delay),
-  bindSplitVariantHandlers: () => bindSplitVariantHandlers(),
+  updateRectTextSizeLabel,
+  scheduleFontReadyRender,
+  bindSplitVariantHandlers,
   pxFromMetric: r => pxFromMetric(r),
   remapRectRigLoadsToBottomSeams: r => remapRectRigLoadsToBottomSeams(r),
-  schedulePersist: kind => schedulePersist(kind),
-  listRects: () => listRects(),
   isRectLocked: r => isRectLocked(r),
-  parseAreaM2PxInput: (input, fallback) => parseAreaM2PxInput(input, fallback),
+  parseAreaM2PxInput,
   getAreaM2BadgeLabel,
   getAreaM2PresetValues: () => getAreaM2PresetValues(document),
   setAreaM2ExpressionSource,
   updateAreaM2Badge,
-  persistProjectAndRender: () => persistProjectAndRender()
+  persistProjectAndRender
 });
 const {
   bindProxyClick,
@@ -2694,42 +2716,54 @@ const {
   closeHelpModal,
   showMessageModal,
   buildFlowSpecText
-} = setupUiTailFeature({
+} = (() => {
+  const uiTailShared = {
+    bindClick: editorCtx.ui.bindClick,
+    bindEvent: editorCtx.ui.bindEvent,
+    t: editorCtx.ui.t
+  };
+  const uiTailRenderShared = {
+    syncProps: editorCtx.actions.syncProps,
+    listRects: editorCtx.actions.listRects,
+    render: editorCtx.actions.render,
+    schedulePersist: editorCtx.actions.schedulePersist
+  };
+  return setupUiTailFeature({
   toolbarDeps: {
     el,
     st,
-    bindClick: (...args) => bindClick(...args),
-    bindEvent: (...args) => bindEvent(...args),
-    setViewMode: (mode, persist) => setViewMode(mode, persist),
-    isInstallViewMode: () => isInstallViewMode(),
+    bindClick: uiTailShared.bindClick,
+    bindEvent: uiTailShared.bindEvent,
+    setViewMode,
+    isInstallViewMode,
     activateToolOrSelect: mode => activateToolOrSelect(mode),
-    setMode: mode => setMode(mode),
-    setLockAll: (next, persist) => setLockAll(next, persist),
-    newProject: () => newProject(),
-    dupSel: () => dupSel(),
-    dupMirrorSel: () => dupMirrorSel(),
-    delSel: () => delSel(),
-    getViewMetrics: () => getViewMetrics(),
-    zoomAt: (x, y, next) => zoomAt(x, y, next),
-    render: () => render(),
-    fit: () => fit(),
-    getActionTargets: () => getActionTargets(),
-    applyToTargets: (fn, opts) => applyToTargets(fn, opts),
+    setMode,
+    setLockAll,
+    newProject,
+    dupSel,
+    dupMirrorSel,
+    delSel,
+    getViewMetrics: editorCtx.actions.getViewMetrics,
+    zoomAt,
+    render: editorCtx.actions.render,
+    fit,
+    getActionTargets: editorCtx.actions.getActionTargets,
+    applyToTargets,
     autoContrast,
-    invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
-    randomColor: () => randomColor(),
-    undoHistory: () => undoHistory(),
-    redoHistory: () => redoHistory(),
-    commitProjectChange: opts => commitProjectChange(opts),
+    invalidateRectCache,
+    randomColor,
+    undoHistory,
+    redoHistory,
+    commitProjectChange,
     setupToolbarActionsController
   },
   mobileDeps: {
     windowRef: window,
     el,
-    bindEvent: (...args) => bindEvent(...args),
+    bindEvent: uiTailShared.bindEvent,
     st,
     normalizeViewMode,
-    t: value => translateText(value)
+    t: uiTailShared.t
   },
   modalDeps: {
     windowRef: window,
@@ -2739,15 +2773,15 @@ const {
     lsSet: lsSetSafe,
     HELP_SEEN_KEY,
     setupProjectLinkModalController,
-    t: value => translateText(value)
+    t: uiTailShared.t
   },
   resetDeps: {
     el,
     st,
-    bindClick: (...args) => bindClick(...args),
-    applyToTargetsAndRender: (visitor, opts, after) => applyToTargetsAndRender(visitor, opts, after),
+    bindClick: uiTailShared.bindClick,
+    applyToTargetsAndRender,
     hiddenCache,
-    invalidateRectCache: (r, kind) => invalidateRectCache(r, kind),
+    invalidateRectCache,
     clearFlowLockMemory: r => clearFlowLockMemory(r),
     getRectCalcCache: r => getRectCalcCache(r),
     clearRectRegionsAndFlow: r => clearRectRegionsAndFlow(r)
@@ -2755,28 +2789,25 @@ const {
   convertDeps: {
     el,
     st,
-    bindClick: (...args) => bindClick(...args),
-    cur: () => cur(),
+    bindClick: uiTailShared.bindClick,
+    cur: editorCtx.actions.cur,
     isRectLocked: r => isRectLocked(r),
     isNoteRect: r => isNoteRect(r) || isShapeRect(r) || isDeviceRect(r),
     drawCellX,
     drawCellY,
-    getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
+    getCellTopologyCached,
     getHiddenSet: r => getHiddenSet(r),
-    planNumberRegions: (r, cx, cy, topo, hs, useCache) => planNumberRegions(r, cx, cy, topo, hs, useCache),
+    planNumberRegions,
     maskCellKey,
-    mk: (x, y, w, h) => mk(x, y, w, h),
+    mk,
     withNameSuffixBeforeGroup,
     autoContrast,
     hiddenCache,
     metricFromPx: r => metricFromPx(r),
-    setSelection: (ids, activeId) => setSelection(ids, activeId),
+    setSelection,
     resetTransientState: full => resetTransientState(full),
-    syncProps: () => syncProps(),
-    listRects: () => listRects(),
-    render: () => render(),
-    schedulePersist: kind => schedulePersist(kind),
-    t: value => translateText(value)
+    ...uiTailRenderShared,
+    t: uiTailShared.t
   },
   postSetupDeps: {
     windowRef: window,
@@ -2786,10 +2817,10 @@ const {
     promptFn: prompt,
     st,
     el,
-    bindClick: (...args) => bindClick(...args),
-    bindEvent: (...args) => bindEvent(...args),
-    bindWindowEvent: (...args) => bindWindowEvent(...args),
-    eventClosest: (...args) => eventClosest(...args),
+    bindClick: uiTailShared.bindClick,
+    bindEvent: uiTailShared.bindEvent,
+    bindWindowEvent: editorCtx.ui.bindWindowEvent,
+    eventClosest,
     lsGet: lsGetSafe,
     lsSet: lsSetSafe,
     INSTALL_HINT_KEY,
@@ -2797,31 +2828,28 @@ const {
     getGlobalSaveLocationId,
     extractProjectFromPngBytes,
     PNG_PROJECT_META_KEY,
-    loadProjectIntoActiveState: (...args) => loadProjectIntoActiveState(...args),
-    syncActiveTabSnapshot: () => syncActiveTabSnapshot(),
-    renderProjectTabs: () => renderProjectTabs(),
-    schedulePersist: kind => schedulePersist(kind),
-    syncProps: () => syncProps(),
-    listRects: () => listRects(),
-    refreshPanels: () => refreshPanels(),
-    render: () => render(),
+    loadProjectIntoActiveState,
+    syncActiveTabSnapshot,
+    renderProjectTabs,
+    ...uiTailRenderShared,
+    refreshPanels,
     encodeProjectToQueryValue,
-    buildPortableProject: () => buildPortableProject(),
+    buildPortableProject,
     saveProjectToServer,
     getProjectName: () => st.projectName,
     PROJECT_QUERY_PARAM,
     PROJECT_ID_PARAM,
-    buildProject: () => buildProject(),
-    projectFileBase: () => projectFileBase(),
+    buildProject,
+    projectFileBase,
     getSaveLocationId: () => st.saveLocationId,
-    t: value => translateText(value),
+    t: uiTailShared.t,
     setupInstallBannerController,
     setupProjectActionsFeature,
     setupSpecExportFeature,
     specExportDeps: {
       st,
       el,
-      bindClick: (...args) => bindClick(...args),
+      bindClick: uiTailShared.bindClick,
       isNoteRect: r => isNoteRect(r) || isShapeRect(r) || isDeviceRect(r),
       getRectRigData,
       drawCellX,
@@ -2839,25 +2867,26 @@ const {
       planNumberRegions,
       getDataFlowGroups,
       maskCellKey,
-      ensureFontReady: () => ensureFontReady(),
+      ensureFontReady,
       rectAABBMasked,
-      drawRect: (...args) => drawRect(...args),
-      drawInterScreenFlowLinks: (...args) => drawInterScreenFlowLinks(...args),
+      drawRect,
+      drawInterScreenFlowLinks,
       getRectCalcCache,
       embedProjectIntoPngBlob,
-      buildProject: () => buildProject(),
+      buildProject,
       PNG_PROJECT_META_KEY,
-      projectFileBase: () => projectFileBase(),
+      projectFileBase,
       setGlobalSaveLocationId,
       getGlobalSaveLocationId,
       saveStatus,
-      schedulePersist: kind => schedulePersist(kind),
-      persistNow: () => persistNow(),
+      schedulePersist: uiTailRenderShared.schedulePersist,
+      persistNow,
       showMessageModal: (...args) => showMessageModal(...args),
-      t: value => translateText(value)
+      t: uiTailShared.t
     }
   }
-});
+  });
+})();
 if (typeof buildFlowSpecText === "function") buildFlowSpecTextForView = () => buildFlowSpecText();
 updateSpecViewUi(true);
 const appBootstrapDeps = {
@@ -2865,9 +2894,9 @@ const appBootstrapDeps = {
   el,
   themeMedia,
   overflowHiddenButtons,
-  bindEvent,
-  bindClick,
-  bindWindowEvent,
+  bindEvent: editorCtx.ui.bindEvent,
+  bindClick: editorCtx.ui.bindClick,
+  bindWindowEvent: editorCtx.ui.bindWindowEvent,
   bindProxyClick,
   lsGet: lsGetSafe,
   lsSet: lsSetSafe,
@@ -2876,8 +2905,8 @@ const appBootstrapDeps = {
   closeHelpModal,
   syncActiveTabSnapshot,
   renderProjectTabs,
-  syncProps,
-  schedulePersist,
+  syncProps: editorCtx.actions.syncProps,
+  schedulePersist: editorCtx.actions.schedulePersist,
   createProjectTab,
   makeEmptyProjectData,
   applyThemeMode,
@@ -2889,15 +2918,15 @@ const appBootstrapDeps = {
   updateToolbarOverflow,
   persistNow,
   scheduleCanvasResize,
-  render,
+  render: editorCtx.actions.render,
   undoHistory,
   redoHistory,
-  setMode,
+  setMode: editorCtx.actions.setMode,
   isMaskMode,
   applyMaskPath,
   delSel,
   dupSel,
-  cur,
+  cur: editorCtx.actions.cur,
   cloneRectForClipboard,
   cloneRectForDuplicate,
   insertCloneAboveSource,
@@ -2916,7 +2945,7 @@ const appBootstrapDeps = {
   mk,
   autoContrast,
   resize,
-  refreshPanels,
+  refreshPanels: editorCtx.actions.refreshPanels,
   fit,
   cloneProjectData,
   buildProject,
@@ -2930,7 +2959,7 @@ const appBootstrapDeps = {
   encodeProjectToQueryValue,
   decodeProjectFromQueryValue,
   buildPortableProject,
-  t: value => translateText(value)
+  t: editorCtx.ui.t
 };
 setupAppBootstrapFeature(appBootstrapDeps);
 i18n = setupI18n({

@@ -47,153 +47,53 @@ export const syncDynamicPanelVisibility = ({ el, rect, multi = false, isShapeRec
   return kind;
 };
 
-export const mainPropNodes = el => [
-  el.name,
-  el.rectTextSize,
-  el.propNoteArtRender,
-  el.x,
-  el.y,
-  el.rot,
-  el.wm,
-  el.hm,
-  el.a,
-  el.b,
-  el.shapeOpacity,
-  el.cx,
-  el.cy,
-  el.cUnit,
-  el.dataFlow,
-  el.dataFlowZ,
-  el.numCells,
-  el.splitVariant
-  ,
-  el.propDeviceType,
-  el.propDeviceOrientation
+const PROP_DEFS = [
+  { key: "name", field: "name", main: true, tracked: true, live: true, commit: true },
+  { key: "rectTextSize", main: true, tracked: true },
+  { key: "propNoteArtRender", field: "noteIncludeInArtRender", main: true, tracked: true, change: true },
+  { key: "x", field: "x", main: true, tracked: true, live: true, commit: true },
+  { key: "y", field: "y", main: true, tracked: true, live: true, commit: true },
+  { key: "rot", field: "rotation", main: true, tracked: true, live: true, commit: true },
+  { key: "wm", field: "widthM", main: true, tracked: true, commit: true },
+  { key: "hm", field: "heightM", main: true, tracked: true, commit: true },
+  { key: "shapePointX", field: "shapePointX", tracked: true, live: true, commit: true },
+  { key: "shapePointY", field: "shapePointY", tracked: true, live: true, commit: true },
+  { key: "shapePointType", field: "shapePointType", tracked: true, change: true },
+  { key: "a", field: "colorA", main: true, tracked: true },
+  { key: "b", main: true, tracked: true },
+  { key: "shapeOpacity", field: "shapeOpacity", main: true, tracked: true, live: true, commit: true },
+  { key: "cx", field: "cellX", main: true, tracked: true, live: true, commit: true },
+  { key: "cy", field: "cellY", main: true, tracked: true, live: true, commit: true },
+  { key: "cUnit", main: true },
+  { key: "areaM2", field: "areaM2Px", tracked: true },
+  { key: "dataFlow", field: "dataFlow", main: true, tracked: true, change: true },
+  { key: "dataFlowZ", field: "dataFlowZ", main: true, tracked: true, change: true },
+  { key: "numCells", field: "numberCells", main: true, tracked: true },
+  { key: "splitVariant", field: "splitVariant", main: true, tracked: true, change: true },
+  { key: "propDeviceType", field: "deviceType", main: true, tracked: true, commit: true, change: true },
+  { key: "propDeviceOrientation", field: "deviceOrientation", main: true, tracked: true, live: true, commit: true, change: true },
+  { key: "propDeviceInCount", field: "deviceInCount", tracked: true, live: true, commit: true },
+  { key: "propDeviceOutCount", field: "deviceOutCount", tracked: true, live: true, commit: true },
+  { key: "propDevicePortLabel", field: "devicePortLabel", tracked: true, live: true, commit: true },
+  { key: "propFlowLinkOrthogonal", field: "flowLinkOrthogonal", tracked: true, live: true, change: true },
+  { key: "propFlowLinkControlCount", field: "flowLinkControlPointCount", tracked: true, live: true, change: true },
+  { key: "propFlowLinkColor", field: "flowLinkColor", tracked: true, live: true, change: true },
+  { key: "propFlowLinkWidth", field: "flowLinkWidth", tracked: true, live: true, change: true },
+  { key: "propFlowLinkLineType", field: "flowLinkLineType", tracked: true, live: true, change: true }
 ];
 
-export const trackedPropInputNodes = el => [
-  el.name,
-  el.x,
-  el.y,
-  el.rot,
-  el.wm,
-  el.hm,
-  el.shapePointX,
-  el.shapePointY,
-  el.shapePointType,
-  el.a,
-  el.b,
-  el.shapeOpacity,
-  el.cx,
-  el.cy,
-  el.areaM2,
-  el.dataFlow,
-  el.dataFlowZ,
-  el.numCells,
-  el.splitVariant,
-  el.rectTextSize
-  ,
-  el.propNoteArtRender,
-  el.propDeviceType,
-  el.propDeviceOrientation,
-  el.propDeviceInCount,
-  el.propDeviceOutCount,
-  el.propDevicePortLabel,
-  el.propFlowLinkOrthogonal,
-  el.propFlowLinkControlCount,
-  el.propFlowLinkColor,
-  el.propFlowLinkWidth,
-  el.propFlowLinkLineType
-];
+const collectNodes = (el, flag) => PROP_DEFS.filter(def => !!def[flag]).map(def => el[def.key]);
 
-export const liveApplyInputNodes = el => [
-  el.name,
-  el.x,
-  el.y,
-  el.rot,
-  el.shapePointX,
-  el.shapePointY,
-  el.shapeOpacity,
-  el.cx,
-  el.cy
-  ,
-  el.propDeviceOrientation,
-  el.propDeviceInCount,
-  el.propDeviceOutCount,
-  el.propDevicePortLabel,
-  el.propFlowLinkOrthogonal,
-  el.propFlowLinkControlCount,
-  el.propFlowLinkColor,
-  el.propFlowLinkWidth,
-  el.propFlowLinkLineType
-];
-
-export const commitApplyInputNodes = el => [
-  el.name,
-  el.x,
-  el.y,
-  el.rot,
-  el.wm,
-  el.hm,
-  el.shapePointX,
-  el.shapePointY,
-  el.shapeOpacity,
-  el.cx,
-  el.cy
-  ,
-  el.propDeviceType,
-  el.propDeviceOrientation,
-  el.propDeviceInCount,
-  el.propDeviceOutCount,
-  el.propDevicePortLabel
-];
-
-export const changeApplyInputNodes = el => [
-  el.dataFlow,
-  el.dataFlowZ,
-  el.splitVariant,
-  el.shapePointType
-  ,
-  el.propNoteArtRender,
-  el.propDeviceType,
-  el.propDeviceOrientation,
-  el.propFlowLinkOrthogonal,
-  el.propFlowLinkControlCount,
-  el.propFlowLinkColor,
-  el.propFlowLinkWidth,
-  el.propFlowLinkLineType
-];
+export const mainPropNodes = el => collectNodes(el, "main");
+export const trackedPropInputNodes = el => collectNodes(el, "tracked");
+export const liveApplyInputNodes = el => collectNodes(el, "live");
+export const commitApplyInputNodes = el => collectNodes(el, "commit");
+export const changeApplyInputNodes = el => collectNodes(el, "change");
 
 export const fieldForPropNode = (el, node) => {
-  if (node === el.name) return "name";
-  if (node === el.x) return "x";
-  if (node === el.y) return "y";
-  if (node === el.rot) return "rotation";
-  if (node === el.wm) return "widthM";
-  if (node === el.hm) return "heightM";
-  if (node === el.a) return "colorA";
-  if (node === el.shapeOpacity) return "shapeOpacity";
-  if (node === el.cx) return "cellX";
-  if (node === el.cy) return "cellY";
-  if (node === el.dataFlow) return "dataFlow";
-  if (node === el.dataFlowZ) return "dataFlowZ";
-  if (node === el.numCells) return "numberCells";
-  if (node === el.splitVariant) return "splitVariant";
-  if (node === el.areaM2) return "areaM2Px";
-  if (node === el.shapePointX) return "shapePointX";
-  if (node === el.shapePointY) return "shapePointY";
-  if (node === el.shapePointType) return "shapePointType";
-  if (node === el.propNoteArtRender) return "noteIncludeInArtRender";
-  if (node === el.propDeviceType) return "deviceType";
-  if (node === el.propDeviceOrientation) return "deviceOrientation";
-  if (node === el.propDeviceInCount) return "deviceInCount";
-  if (node === el.propDeviceOutCount) return "deviceOutCount";
-  if (node === el.propDevicePortLabel) return "devicePortLabel";
-  if (node === el.propFlowLinkOrthogonal) return "flowLinkOrthogonal";
-  if (node === el.propFlowLinkControlCount) return "flowLinkControlPointCount";
-  if (node === el.propFlowLinkColor) return "flowLinkColor";
-  if (node === el.propFlowLinkWidth) return "flowLinkWidth";
-  if (node === el.propFlowLinkLineType) return "flowLinkLineType";
+  for (const def of PROP_DEFS) {
+    if (node === el[def.key]) return def.field || "";
+  }
   return "";
 };
 

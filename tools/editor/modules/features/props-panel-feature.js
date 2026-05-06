@@ -21,6 +21,21 @@ import { noteTextColorForBackground } from "../utils/color-utils.js";
 import { autoFlowLinkColor, normalizeDeviceOrientation, normalizeDeviceType, normalizePortCount } from "../utils/device-utils.js";
 import { flowLinkKeyOf } from "../utils/flow-link-key-utils.js";
 import { isDeviceRectKind, isNoteHiddenInArtView } from "../utils/rect-kind-utils.js";
+import {
+  buildDefaultOrthogonalPoints,
+  hasFlowLinkCustomColor,
+  normalizeFlowLinkColor,
+  normalizeFlowLinkControlPointCount,
+  normalizeFlowLinkLineType,
+  normalizeFlowLinkWidth
+} from "./flow-link-props-utils.js";
+import {
+  multiNumberedBase,
+  multiNumberedStart,
+  normalizeNumberedBaseInput,
+  numberedNameFor,
+  parseNumberedBaseInput
+} from "./name-edit-utils.js";
 
 export const setupPropsPanelFeature = (deps = {}) => {
   const {
@@ -82,27 +97,11 @@ export const setupPropsPanelFeature = (deps = {}) => {
     normalizeDataFlow
   });
   const isDeviceRect = rect => isDeviceRectKind(rect);
-  const normalizeFlowLinkControlPointCount = value => Math.max(2, Math.min(6, Math.round(Number(value) || 2)));
-  const normalizeFlowLinkColor = value => /^#[0-9a-f]{6}$/i.test(String(value || "").trim()) ? String(value).toLowerCase() : "#ffc107";
-  const hasFlowLinkCustomColor = ln => /^#[0-9a-f]{6}$/i.test(String(ln && ln.color || "").trim());
-  const normalizeFlowLinkWidth = value => Math.max(0.5, Math.min(20, Number(value) || 2.2));
-  const normalizeFlowLinkLineType = value => String(value || "").toLowerCase() === "dashed" ? "dashed" : "solid";
   const dropSelectionForHiddenArtNote = rect => {
     if (!isNoteHiddenInArtView(rect, st && st.viewMode)) return;
     const id = Math.max(1, Math.round(Number(rect.id) || 0));
     if (st.selSet instanceof Set) st.selSet.delete(id);
     if (st.sel != null && Math.max(1, Math.round(Number(st.sel) || 0)) === id) st.sel = st.selSet instanceof Set ? ([...st.selSet][0] || null) : null;
-  };
-  const buildDefaultOrthogonalPoints = ln => {
-    const start = typeof findFlowAnchorByEndpoint === "function" ? findFlowAnchorByEndpoint(ln && ln.from) : null;
-    const end = typeof findFlowAnchorByEndpoint === "function" ? findFlowAnchorByEndpoint(ln && ln.to) : null;
-    if (!start || !end) return [];
-    const sx = Number(start.x) || 0, sy = Number(start.y) || 0;
-    const ex = Number(end.x) || 0, ey = Number(end.y) || 0;
-    if (Math.abs(sx - ex) < 0.5 || Math.abs(sy - ey) < 0.5) {
-      return [{ x: Math.round((sx + ex) / 2), y: Math.round((sy + ey) / 2) }];
-    }
-    return [{ x: Math.round(ex), y: Math.round(sy) }];
   };
   const rectById = id => (Array.isArray(st && st.rects) ? st.rects : []).find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === Math.max(1, Math.round(Number(id) || 0))) || null;
   const parsePortLabels = (value, count) => {
@@ -139,65 +138,6 @@ export const setupPropsPanelFeature = (deps = {}) => {
   const selectionKey = () => {
     const ids = getSelectedRects().map(r => Math.max(0, Math.round(Number(r && r.id) || 0))).sort((a, b) => a - b);
     return ids.length ? ids.join(",") : String(cur() && cur().id || "");
-  };
-  const splitNameGroup = name => {
-    const raw = String(name || "").trim();
-    const at = raw.indexOf("@");
-    const groupName = at >= 0 ? raw.slice(at + 1).split("@")[0].trim() : "";
-    return {
-      stem: (at >= 0 ? raw.slice(0, at) : raw).trim(),
-      group: groupName ? `@${groupName}` : ""
-    };
-  };
-  const normalizeNumberedBaseInput = value => {
-    const parts = splitNameGroup(value);
-    const m = parts.stem.match(/^(.*?)\s+\d+$/);
-    return String(m ? m[1] : parts.stem).trim();
-  };
-  const parseNumberedBaseInput = value => {
-    const parts = splitNameGroup(value);
-    const m = parts.stem.match(/^(.*?)\s+(\d+)$/);
-    return {
-      base: String(m ? m[1] : parts.stem).trim(),
-      startNumber: m ? Math.max(1, Math.round(Number(m[2]) || 1)) : null,
-      group: parts.group || ""
-    };
-  };
-  const parseNumberedName = name => {
-    const parts = splitNameGroup(name);
-    const m = parts.stem.match(/^(.*?)\s+(\d+)$/);
-    if (!m) return null;
-    const base = String(m[1] || "").trim();
-    if (!base) return null;
-    return { base, number: Math.max(1, Math.round(Number(m[2]) || 1)), group: parts.group };
-  };
-  const multiNumberedBase = rects => {
-    if (!Array.isArray(rects) || !rects.length) return "";
-    let base = null;
-    let group = null;
-    for (const r of rects) {
-      const parsed = parseNumberedName(r && r.name);
-      if (!parsed) return "";
-      if (base == null) base = parsed.base;
-      else if (base !== parsed.base) return "";
-      if (group == null) group = parsed.group || "";
-      else if (group !== (parsed.group || "")) group = "";
-    }
-    return `${base || ""}${group || ""}`.trim();
-  };
-  const multiNumberedStart = rects => {
-    if (!Array.isArray(rects) || !rects.length) return null;
-    const items = rects
-      .map(r => ({ r, parsed: parseNumberedName(r && r.name) }))
-      .filter(it => it.parsed)
-      .sort((a, b) => (Number(a.r && a.r.x) || 0) - (Number(b.r && b.r.x) || 0) || (Number(a.r && a.r.y) || 0) - (Number(b.r && b.r.y) || 0) || (Number(a.r && a.r.id) || 0) - (Number(b.r && b.r.id) || 0));
-    if (items.length !== rects.length) return null;
-    return items[0].parsed.number;
-  };
-  const numberedNameFor = (base, index, prevName, groupOverride = null) => {
-    const parts = splitNameGroup(prevName);
-    const group = groupOverride != null ? groupOverride : parts.group;
-    return `${String(base || "").trim()} ${index}${group || ""}`.trim();
   };
   const axisCompactSpan = (items, axis) => {
     const EPS = 1e-6;
@@ -237,6 +177,34 @@ export const setupPropsPanelFeature = (deps = {}) => {
     uiSetChecked,
     rectUVToWorld
   });
+  const syncFlowLinkSelectionUi = (selLink, options = {}) => {
+    const forceSync = !!options.forceSync;
+    const showCurveField = !!hasSelectedFlowLink();
+    setPanelHidden(el.flowLinkCurveField, !showCurveField);
+    if (!showCurveField && !forceSync) return;
+    uiSetValue(el.propFlowLinkCurveMode, "manual");
+    const count = normalizeFlowLinkControlPointCount(selLink && selLink.controlPointCount);
+    const orthogonal = !!(selLink && Array.isArray(selLink.orthogonalPoints) && selLink.orthogonalPoints.length);
+    const hasCustomColor = hasFlowLinkCustomColor(selLink);
+    const color = hasCustomColor
+      ? normalizeFlowLinkColor(selLink && selLink.color)
+      : normalizeFlowLinkColor(autoFlowLinkColor(selLink, rectById, isDeviceRect));
+    const width = normalizeFlowLinkWidth(selLink && selLink.width);
+    const lineType = normalizeFlowLinkLineType(selLink && selLink.lineType);
+    uiSetValue(el.propFlowLinkControlCount, String(count));
+    uiSetChecked(el.propFlowLinkOrthogonal, orthogonal);
+    uiSetDisabled(el.propFlowLinkControlCount, orthogonal);
+    uiSetValue(el.propFlowLinkColor, color);
+    uiSetValue(el.propFlowLinkWidth, String(Math.round(width * 10) / 10));
+    uiSetValue(el.propFlowLinkLineType, lineType);
+    if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, false);
+    if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasCustomColor);
+    if (showCurveField) {
+      const hasManual = !!(selLink && ((selLink.manualBezierRel && selLink.manualBezierRel.c1 && selLink.manualBezierRel.c2) || (selLink.manualBezier && selLink.manualBezier.c1 && selLink.manualBezier.c2)));
+      uiSetDisabled(el.btnFlowLinkCurveReset, !hasManual);
+      uiSetDisabled(el.propFlowLinkCurveMode, true);
+    }
+  };
   const syncProps = () => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
     syncDynamicPanelVisibility({ el, rect: r, multi, isShapeRect, isNoteRect, hasFlowLinkSelection: hasSelectedFlowLink() });
@@ -292,30 +260,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       uiSetValue(el.propDeviceOutCount, "4");
       uiSetValue(el.propDevicePortLabel, "");
       const selLink0 = selectedFlowLink();
-      const showCurveField0 = !!hasSelectedFlowLink();
-      uiSetValue(el.propFlowLinkCurveMode, "manual");
-      const count0 = normalizeFlowLinkControlPointCount(selLink0 && selLink0.controlPointCount);
-      const orthogonal0 = !!(selLink0 && Array.isArray(selLink0.orthogonalPoints) && selLink0.orthogonalPoints.length);
-      const hasCustomColor0 = hasFlowLinkCustomColor(selLink0);
-      const color0 = hasCustomColor0
-        ? normalizeFlowLinkColor(selLink0 && selLink0.color)
-        : normalizeFlowLinkColor(autoFlowLinkColor(selLink0, rectById, isDeviceRect));
-      const width0 = normalizeFlowLinkWidth(selLink0 && selLink0.width);
-      const lineType0 = normalizeFlowLinkLineType(selLink0 && selLink0.lineType);
-      uiSetValue(el.propFlowLinkControlCount, String(count0));
-      uiSetChecked(el.propFlowLinkOrthogonal, orthogonal0);
-      uiSetDisabled(el.propFlowLinkControlCount, orthogonal0);
-      uiSetValue(el.propFlowLinkColor, color0);
-      uiSetValue(el.propFlowLinkWidth, String(Math.round(width0 * 10) / 10));
-      uiSetValue(el.propFlowLinkLineType, lineType0);
-      if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, false);
-      if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasCustomColor0);
-      setPanelHidden(el.flowLinkCurveField, !showCurveField0);
-      if (showCurveField0) {
-        const hasManual = !!(selLink0 && ((selLink0.manualBezierRel && selLink0.manualBezierRel.c1 && selLink0.manualBezierRel.c2) || (selLink0.manualBezier && selLink0.manualBezier.c1 && selLink0.manualBezier.c2)));
-        uiSetDisabled(el.btnFlowLinkCurveReset, !hasManual);
-        uiSetDisabled(el.propFlowLinkCurveMode, true);
-      }
+      syncFlowLinkSelectionUi(selLink0, { forceSync: true });
       setPanelHidden(el.devicePortLabelField, true);
       if (el.splitVariantDec) uiSetDisabled(el.splitVariantDec, true);
       if (el.splitVariantInc) uiSetDisabled(el.splitVariantInc, true);
@@ -354,30 +299,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       }
     }
     const selLink = selectedFlowLink();
-    const showCurveField = !!hasSelectedFlowLink();
-    setPanelHidden(el.flowLinkCurveField, !showCurveField);
-    if (showCurveField) {
-      const isManual = !!(selLink && ((selLink.manualBezierRel && selLink.manualBezierRel.c1 && selLink.manualBezierRel.c2) || (selLink.manualBezier && selLink.manualBezier.c1 && selLink.manualBezier.c2)));
-      uiSetValue(el.propFlowLinkCurveMode, "manual");
-      uiSetDisabled(el.btnFlowLinkCurveReset, !isManual);
-      uiSetDisabled(el.propFlowLinkCurveMode, true);
-      const count = normalizeFlowLinkControlPointCount(selLink && selLink.controlPointCount);
-      const orthogonal = !!(selLink && Array.isArray(selLink.orthogonalPoints) && selLink.orthogonalPoints.length);
-      const hasCustomColor = hasFlowLinkCustomColor(selLink);
-      const color = hasCustomColor
-        ? normalizeFlowLinkColor(selLink && selLink.color)
-        : normalizeFlowLinkColor(autoFlowLinkColor(selLink, rectById, isDeviceRect));
-      const width = normalizeFlowLinkWidth(selLink && selLink.width);
-      const lineType = normalizeFlowLinkLineType(selLink && selLink.lineType);
-      uiSetValue(el.propFlowLinkControlCount, String(count));
-      uiSetChecked(el.propFlowLinkOrthogonal, orthogonal);
-      uiSetDisabled(el.propFlowLinkControlCount, orthogonal);
-      uiSetValue(el.propFlowLinkColor, color);
-      uiSetValue(el.propFlowLinkWidth, String(Math.round(width * 10) / 10));
-      uiSetValue(el.propFlowLinkLineType, lineType);
-      if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, false);
-      if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasCustomColor);
-    }
+    syncFlowLinkSelectionUi(selLink);
     uiSetValue(el.shapeOpacity, mFmt(shapeTransparencyPercent(r)));
     uiSetChecked(el.propNoteArtRender, r && r.noteIncludeInArtRender !== false);
     {
@@ -527,7 +449,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
                 .map(p => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 }))
                 .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
               : [];
-            const routePoints = existing.length ? existing : buildDefaultOrthogonalPoints(next);
+            const routePoints = existing.length ? existing : buildDefaultOrthogonalPoints(next, findFlowAnchorByEndpoint);
             if (routePoints.length) {
               next.orthogonalPoints = routePoints;
               next.controlPointCount = 2;

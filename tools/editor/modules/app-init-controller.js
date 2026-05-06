@@ -70,10 +70,14 @@ export const setupAppInitController = (deps = {}) => {
     syncActiveTabSnapshot();
     renderProjectTabs();
     render();
-    if (typeof hideStartupLoader === "function") hideStartupLoader();
     ensureFontReady()
-      .then(() => { render(); })
-      .catch(() => { });
+      .catch(() => { })
+      .finally(() => {
+        render();
+        if (typeof hideStartupLoader !== "function") return;
+        if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => hideStartupLoader());
+        else hideStartupLoader();
+      });
   };
 
   return {
