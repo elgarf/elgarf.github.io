@@ -1,5 +1,6 @@
 import { drawCanvasTooltip } from "../render/canvas-tooltip.js";
 import { drawCanvasUiBadge, drawCanvasUiButton } from "../render/canvas-ui.js";
+import { isNoteHiddenInArtView } from "../utils/rect-kind-utils.js";
 
 export const setupMultiSelectionActionsController = (deps = {}) => {
   const {
@@ -32,10 +33,9 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
 
   const selectedItems = () => {
     const rects = typeof getSelectedRects === "function" ? getSelectedRects() : [];
-    const artView = String(st && st.viewMode || "") === "art";
     return rects
       .filter(r => r && typeof rectAABB === "function")
-      .filter(r => !(artView && String((r && r.kind) || "").toLowerCase() === "note" && r.noteIncludeInArtRender === false))
+      .filter(r => !isNoteHiddenInArtView(r, st && st.viewMode))
       .map(r => {
         const bb = rectAABB(r);
         return bb ? {

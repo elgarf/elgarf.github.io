@@ -3,6 +3,7 @@ export const setupFlowLinkController = (deps = {}) => {
     st,
     normalizeFlowLinks,
     flowAnchorKey,
+    flowLinkKey: flowLinkPairKey,
     getRectRuntime,
     drawCellX,
     drawCellY,
@@ -96,7 +97,6 @@ export const setupFlowLinkController = (deps = {}) => {
     cid: toCid(ep.cid),
     kind: String(ep.kind || "")
   } : null;
-  const flowLinkPairKey = (from, to) => `${flowAnchorKey(from)}>${flowAnchorKey(to)}`;
   const flowLinkKey = ln => flowLinkPairKey(ln && ln.from, ln && ln.to);
   const regionNodeKey = (rectId, rid) => `${toRectId(rectId)}:${toRid(rid)}`;
   const parseRegionNodeKey = key => {
@@ -110,9 +110,7 @@ export const setupFlowLinkController = (deps = {}) => {
     const shouldLog = !!st.debugFlowLink || !ok;
     if (!shouldLog) return;
     try {
-      const fromId = toRectId(a && a.rectId);
-      const toId = toRectId(b && b.rectId);
-      const key = `${flowAnchorKey(a || {})}>${flowAnchorKey(b || {})}`;
+      const key = flowLinkPairKey(a || {}, b || {});
       const payload = {
         ok: !!ok,
         reason: String(reason || ""),

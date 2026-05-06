@@ -1,3 +1,5 @@
+import { isScreenRectKind } from "../utils/rect-kind-utils.js";
+
 export const setupShapeInputController = (deps = {}) => {
   const {
     st,
@@ -6,7 +8,6 @@ export const setupShapeInputController = (deps = {}) => {
     cur,
     selRect,
     isRectLocked,
-    isNoteRect,
     isShapeRect,
     mkShape,
     setMode,
@@ -53,12 +54,7 @@ export const setupShapeInputController = (deps = {}) => {
     return true;
   };
 
-  const isScreenRect = r => {
-    if (!r) return false;
-    if (typeof isShapeRect === "function" && isShapeRect(r)) return false;
-    if (typeof isNoteRect === "function" && isNoteRect(r)) return false;
-    return true;
-  };
+  const isScreenRect = r => isScreenRectKind(r);
 
   const findShapeEditHit = p => {
     if (!Array.isArray(st && st.rects)) return null;

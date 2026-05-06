@@ -1,3 +1,5 @@
+import { isDeviceRectKind, isNoteHiddenInArtView } from "../utils/rect-kind-utils.js";
+
 export const setupDrawRectBaseController = (deps = {}) => {
   const { st, isNoteRect, drawNoteRect, isShapeRect, drawShapeRect, drawCellX, drawCellY, getHiddenSet, rads, rectCenter, rectUVToWorld, normalizeViewMode, getCellTopologyCached, getMaskRenderDataCached, isMaskMode, isCellEditMode, isClusterEditMode, isRigEditMode, normalizeDataFlow, planNumberRegions, updateSplitVariantControl, getDataFlowGroups, collectFlowLinkAnchors, collectFlowEditPoints, collectFlowManualPickPoints, getRectFillLayerCached, getRectDecorLayerCached, getRectComponentRenderDataCached, rectTextTheme, fontFamilyCss, toLetters, mFmt, pctFmt, fillPercent, getRectTextSizePx, buildVisibleCabinetSummary, listSignature, getRectTextLayoutCached, hiddenCellBoxes, computeFreeRects, chooseTextLayout, REGION_ZONE_COLORS, getVisibleBoundarySegmentsCached, drawRectOverlays, drawRectInteractions, drawRigOutsideOverlay, t = value => value } = deps;
 
@@ -47,11 +49,11 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const options = opts || {};
       const viewModeOverride0 = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null;
       if (isNoteRect(r)) {
-        if ((viewModeOverride0 || normalizeViewMode(st.viewMode)) === "art" && r && r.noteIncludeInArtRender === false) return;
+        if (isNoteHiddenInArtView(r, viewModeOverride0 || normalizeViewMode(st.viewMode))) return;
         drawNoteRect(c, r, sel, z);
         return;
       }
-      if (String((r && r.kind) || "").toLowerCase() === "device") {
+      if (isDeviceRectKind(r)) {
         if (String(options.installTextMode || "") === "only") return;
         const center = rectCenter(r);
         const a = rads(r.rotation || 0);

@@ -457,6 +457,7 @@ export const setupEditingToolsInput = (deps = {}) => {
     isRectLocked,
     normalizeFlowLinks,
     flowAnchorKey,
+    flowLinkKeyOf,
     findFlowLinkAtPoint,
     findFlowStartHandle,
     findFlowDirectionButton,
@@ -518,7 +519,7 @@ export const setupEditingToolsInput = (deps = {}) => {
       }
       const selectedSegmentHit = findFlowLinkAtPoint(p.x, p.y);
       if (selectedSegmentHit && selectedSegmentHit.link && selectedSegmentHit.orthogonal && Array.isArray(selectedSegmentHit.points)) {
-        const selectedSegmentKey = `${flowAnchorKey(selectedSegmentHit.link.from)}>${flowAnchorKey(selectedSegmentHit.link.to)}`;
+        const selectedSegmentKey = flowLinkKeyOf(selectedSegmentHit.link);
         if (String(st.flowLinkSelectedKey || "") === selectedSegmentKey) {
           selectFlowLinkOnly(selectedSegmentKey);
           st.flowSegmentDrag = {
@@ -555,7 +556,7 @@ export const setupEditingToolsInput = (deps = {}) => {
       }
       const linkHit = findFlowLinkAtPoint(p.x, p.y);
       if (linkHit && linkHit.link) {
-        const nextKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
+        const nextKey = flowLinkKeyOf(linkHit.link);
         const wasSelected = String(st.flowLinkSelectedKey || "") === nextKey;
         selectFlowLinkOnly(nextKey);
         if (wasSelected && linkHit.orthogonal && Array.isArray(linkHit.points)) {
@@ -625,9 +626,9 @@ export const setupEditingToolsInput = (deps = {}) => {
     }
     const linkHit = findFlowLinkAtPoint(p.x, p.y);
     if (linkHit && linkHit.link) {
-      st.flowLinkSelectedKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
-      const killKey = `${flowAnchorKey(linkHit.link.from)}>${flowAnchorKey(linkHit.link.to)}`;
-      st.flowLinks = normalizeFlowLinks(st.flowLinks).filter(it => `${flowAnchorKey(it.from)}>${flowAnchorKey(it.to)}` !== killKey);
+      st.flowLinkSelectedKey = flowLinkKeyOf(linkHit.link);
+      const killKey = st.flowLinkSelectedKey;
+      st.flowLinks = normalizeFlowLinks(st.flowLinks).filter(it => flowLinkKeyOf(it) !== killKey);
       clearFlowLinkInteractionState();
       schedulePersist("project");
       syncProps();

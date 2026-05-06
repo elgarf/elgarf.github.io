@@ -1,4 +1,6 @@
 import { sampleBezier, buildSagBezierControls } from "./bezier-utils.js";
+import { autoFlowLinkColor } from "../utils/device-utils.js";
+import { isDeviceRectKind } from "../utils/rect-kind-utils.js";
 
 export const setupInterScreenLinksRender = (deps = {}) => {
   const {
@@ -8,23 +10,14 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     normalizeViewMode,
     normalizeFlowLinks,
     flowAnchorKey,
+    flowLinkKeyOf,
     findFlowAnchorByEndpoint
   } = deps;
   const rectById = id => {
     const rid = Math.max(1, Math.round(Number(id) || 0));
     return (Array.isArray(st && st.rects) ? st.rects : []).find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === rid) || null;
   };
-  const isDevice = r => String((r && r.kind) || "").toLowerCase() === "device";
-  const deviceType = r => {
-    const v = String((r && r.deviceType) || "controller").toLowerCase();
-    return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
-  };
-  const isPcLike = type => type === "pc" || type === "mixer" || type === "camera";
-  const outPurePalette = [
-    "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff",
-    "#ff8000", "#8000ff", "#00ff80", "#ff0080", "#ffffff"
-  ];
-  const outControllerColor = cid => outPurePalette[Math.max(0, Math.round(Number(cid) || 1) - 1) % outPurePalette.length];
+  const isDevice = r => isDeviceRectKind(r);
   const withAlpha = (hex, alpha = 0.58) => {
     const h = String(hex || "").trim();
     const m = h.match(/^#([0-9a-f]{6})$/i);
@@ -473,28 +466,15 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const a = findFlowAnchorByEndpoint(ln.from);
       const b = findFlowAnchorByEndpoint(ln.to);
       if (!a || !b) continue;
-      const key = `${flowAnchorKey(ln.from)}>${flowAnchorKey(ln.to)}`;
+      const key = flowLinkKeyOf(ln);
       const geom = getCurveGeom(a, b, 18);
       const fromRect = rectById(ln && ln.from && ln.from.rectId);
       const toRect = rectById(ln && ln.to && ln.to.rectId);
-      const fromType = deviceType(fromRect);
-      const toType = deviceType(toRect);
-      const fromCid = Math.max(1, Math.round(Number(ln && ln.from && ln.from.cid) || 1));
-      const toCid = Math.max(1, Math.round(Number(ln && ln.to && ln.to.cid) || 1));
       const fromIsDevice = isDevice(fromRect);
       const toIsDevice = isDevice(toRect);
       const devicesLayerOn = !(st.installLayers && st.installLayers.devices === false);
       if (!force && !devicesLayerOn && (fromIsDevice || toIsDevice)) continue;
-      const isPcLikeToController = isDevice(fromRect) && isPcLike(fromType) && isDevice(toRect) && toType === "controller";
-      const isPcLikeToPcLike = isDevice(fromRect) && isPcLike(fromType) && isDevice(toRect) && isPcLike(toType);
-      const isControllerOut = isDevice(fromRect) && fromType === "controller";
-      const baseColor = isControllerOut
-        ? outControllerColor(fromCid)
-        : isPcLikeToPcLike
-        ? "rgba(170,120,255,.95)"
-        : isPcLikeToController
-          ? "rgba(80,220,180,.95)"
-          : "rgba(255,193,7,.95)";
+      const baseColor = autoFlowLinkColor(ln, rectById, isDevice);
       const customColor = /^#[0-9a-f]{6}$/i.test(String(ln && ln.color || "").trim()) ? String(ln.color).trim() : null;
       const lineType = String(ln && ln.lineType || "").toLowerCase() === "dashed" ? "dashed" : "solid";
       const strokeColorRaw = (key === hoverSegKey) ? "rgba(255,99,99,.98)" : (customColor || baseColor);

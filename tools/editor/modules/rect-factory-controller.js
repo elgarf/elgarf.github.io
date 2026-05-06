@@ -1,3 +1,6 @@
+import { noteTextColorForBackground } from "./utils/color-utils.js";
+import { normalizeDeviceOrientation, normalizeDeviceType, normalizePortCount } from "./utils/device-utils.js";
+
 export const setupRectFactoryController = (deps = {}) => {
   const {
     st,
@@ -76,13 +79,6 @@ export const setupRectFactoryController = (deps = {}) => {
     }
     return out;
   };
-  const normalizeDeviceType = value => {
-    const v = String(value || "").toLowerCase();
-    if (v === "pc" || v === "mixer" || v === "camera") return v;
-    return "controller";
-  };
-  const normalizeDeviceOrientation = value => String(value || "").toLowerCase() === "vertical" ? "vertical" : "horizontal";
-  const normalizePortCount = (value, fallback = 4) => Math.max(1, Math.min(64, Math.round(Number(value) || fallback)));
   const normalizePortLabels = (value, count) => {
     const n = normalizePortCount(count, 4);
     const src = Array.isArray(value) ? value : [];
@@ -93,16 +89,6 @@ export const setupRectFactoryController = (deps = {}) => {
     }
     return out;
   };
-  const noteTextColorForBackground = value => {
-    const hex = String(value || "").trim().replace(/^#/, "");
-    if (!/^[0-9a-f]{6}$/i.test(hex)) return "#000000";
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.55 ? "#000000" : "#ffffff";
-  };
-
   const parseProjectRect = (r, i, legacyAreaM2) => {
     const colorA = String(r.colorA || "#2fcaaf");
     const autoB = r.autoContrastB !== false;
@@ -143,7 +129,6 @@ export const setupRectFactoryController = (deps = {}) => {
       locked: !!(r && r.locked),
       kind: String((r && r.kind) || ""),
       noteText: String((r && r.noteText) || ""),
-      noteIncludeInArtRender: !(r && r.noteIncludeInArtRender === false),
       shapeOpacity: normalizeShapeOpacity(r && Object.prototype.hasOwnProperty.call(r, "shapeOpacity") ? r.shapeOpacity : 0.72),
       shapePoints: Array.isArray(r && r.shapePoints)
         ? r.shapePoints
@@ -158,6 +143,11 @@ export const setupRectFactoryController = (deps = {}) => {
       deviceInLabels: [],
       deviceOutLabels: []
     };
+    if (String(it.kind || "").toLowerCase() === "note") {
+      it.noteIncludeInArtRender = !(r && r.noteIncludeInArtRender === false);
+      it.autoContrastB = true;
+      it.colorB = noteTextColorForBackground(it.colorA);
+    }
     it.deviceInLabels = normalizePortLabels(r && r.deviceInLabels, it.deviceInCount);
     it.deviceOutLabels = normalizePortLabels(r && r.deviceOutLabels, it.deviceOutCount);
 
@@ -207,7 +197,6 @@ export const setupRectFactoryController = (deps = {}) => {
       locked: false,
       kind: "",
       noteText: "",
-      noteIncludeInArtRender: true,
       shapeOpacity: 0.72,
       shapePoints: [],
       deviceType: "controller",

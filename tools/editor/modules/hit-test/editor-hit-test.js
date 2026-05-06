@@ -1,3 +1,5 @@
+import { isDeviceRectKind, isNoteHiddenInArtView } from "../utils/rect-kind-utils.js";
+
 const zoomSafe = zoom => Math.max(0.25, Number(zoom) || 1);
 const scaleSafe = value => Math.max(1, Number(value) || 256);
 
@@ -69,14 +71,11 @@ export const createEditorHitTest = ({
     const rects = Array.isArray(st && st.rects) ? st.rects : [];
     for (let i = 0; i < rects.length; i++) {
       const rect = rects[i];
-      const artHiddenNote = String(st && st.viewMode || "") === "art"
-        && String((rect && rect.kind) || "").toLowerCase() === "note"
-        && rect.noteIncludeInArtRender === false;
-      if (artHiddenNote) continue;
+      if (isNoteHiddenInArtView(rect, st && st.viewMode)) continue;
       if (typeof isRectLocked === "function" && isRectLocked(rect)) continue;
       {
         const installView = String(st && st.viewMode || "") === "install";
-        const isDeviceRect = String((rect && rect.kind) || "").toLowerCase() === "device";
+        const isDeviceRect = isDeviceRectKind(rect);
         const layers = (st && st.installLayers && typeof st.installLayers === "object") ? st.installLayers : {};
         const devicesVisible = installView && layers.devices !== false;
         if (isDeviceRect && !devicesVisible) continue;

@@ -1,4 +1,5 @@
 import { createSectionKeySequencer } from "./section-key-utils.js";
+import { isDeviceRectKind, isNoteRectKind, isShapeRectKind } from "../utils/rect-kind-utils.js";
 
 export const fmtAreaM2 = v => {
   const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
@@ -82,12 +83,8 @@ const screenSeriesName = meta => {
   const m = name.match(/^(.*?)\s+\d+$/);
   return String(m ? m[1] : name).trim() || name || "Экран";
 };
-const isDeviceRect = r => String((r && r.kind) || "").toLowerCase() === "device";
-const rectKind = r => String((r && r.kind) || "").toLowerCase();
-const isSpecRect = r => {
-  const k = rectKind(r);
-  return k !== "note" && k !== "shape";
-};
+const isDeviceRect = r => isDeviceRectKind(r);
+const isSpecRect = r => !isNoteRectKind(r) && !isShapeRectKind(r);
 const baseNameWithoutTrailingNumber = name => {
   const s = String(name || "").trim();
   if (!s) return "Устройство";

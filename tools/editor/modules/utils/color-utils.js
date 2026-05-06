@@ -133,3 +133,11 @@ export const bwTextForRgb = (r, g, b) => {
   const cBlack = (L + 0.05) / 0.05, cWhite = 1.05 / (L + 0.05);
   return cBlack >= cWhite ? "#000" : "#fff";
 };
+
+export const noteTextColorForBackground = value => {
+  const hex = String(value || "").trim().replace(/^#/, "");
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return "#000000";
+  const { r, g, b } = hexRgb(`#${hex}`);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? "#000000" : "#ffffff";
+};

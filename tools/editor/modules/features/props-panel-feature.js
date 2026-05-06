@@ -17,6 +17,10 @@ import {
   syncDynamicPanelVisibility,
   trackedPropInputNodes
 } from "./props-panel-ui-schema.js";
+import { noteTextColorForBackground } from "../utils/color-utils.js";
+import { autoFlowLinkColor, normalizeDeviceOrientation, normalizeDeviceType, normalizePortCount } from "../utils/device-utils.js";
+import { flowLinkKeyOf } from "../utils/flow-link-key-utils.js";
+import { isDeviceRectKind, isNoteHiddenInArtView } from "../utils/rect-kind-utils.js";
 
 export const setupPropsPanelFeature = (deps = {}) => {
   const {
@@ -77,28 +81,14 @@ export const setupPropsPanelFeature = (deps = {}) => {
     cabinetUiToPx,
     normalizeDataFlow
   });
-  const isDeviceRect = rect => String((rect && rect.kind) || "").toLowerCase() === "device";
-  const normalizeDeviceType = value => {
-    const v = String(value || "").toLowerCase();
-    return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
-  };
-  const normalizeDeviceOrientation = value => String(value || "").toLowerCase() === "vertical" ? "vertical" : "horizontal";
+  const isDeviceRect = rect => isDeviceRectKind(rect);
   const normalizeFlowLinkControlPointCount = value => Math.max(2, Math.min(6, Math.round(Number(value) || 2)));
   const normalizeFlowLinkColor = value => /^#[0-9a-f]{6}$/i.test(String(value || "").trim()) ? String(value).toLowerCase() : "#ffc107";
   const hasFlowLinkCustomColor = ln => /^#[0-9a-f]{6}$/i.test(String(ln && ln.color || "").trim());
   const normalizeFlowLinkWidth = value => Math.max(0.5, Math.min(20, Number(value) || 2.2));
   const normalizeFlowLinkLineType = value => String(value || "").toLowerCase() === "dashed" ? "dashed" : "solid";
-  const noteTextColorForBackground = value => {
-    const hex = String(value || "").trim().replace(/^#/, "");
-    if (!/^[0-9a-f]{6}$/i.test(hex)) return "#000000";
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.55 ? "#000000" : "#ffffff";
-  };
   const dropSelectionForHiddenArtNote = rect => {
-    if (!rect || String(st && st.viewMode || "") !== "art" || rect.noteIncludeInArtRender !== false) return;
+    if (!isNoteHiddenInArtView(rect, st && st.viewMode)) return;
     const id = Math.max(1, Math.round(Number(rect.id) || 0));
     if (st.selSet instanceof Set) st.selSet.delete(id);
     if (st.sel != null && Math.max(1, Math.round(Number(st.sel) || 0)) === id) st.sel = st.selSet instanceof Set ? ([...st.selSet][0] || null) : null;
@@ -114,29 +104,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     }
     return [{ x: Math.round(ex), y: Math.round(sy) }];
   };
-  const flowOutPalette = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ff8000", "#8000ff", "#00ff80", "#ff0080", "#ffffff"];
   const rectById = id => (Array.isArray(st && st.rects) ? st.rects : []).find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === Math.max(1, Math.round(Number(id) || 0))) || null;
-  const deviceTypeOf = r => {
-    const v = String((r && r.deviceType) || "controller").toLowerCase();
-    return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
-  };
-  const isPcLikeType = t => t === "pc" || t === "mixer" || t === "camera";
-  const autoFlowLinkColor = ln => {
-    const fromRect = rectById(ln && ln.from && ln.from.rectId);
-    const toRect = rectById(ln && ln.to && ln.to.rectId);
-    const fromKind = String((fromRect && fromRect.kind) || "").toLowerCase();
-    const toKind = String((toRect && toRect.kind) || "").toLowerCase();
-    const fromIsDevice = fromKind === "device";
-    const toIsDevice = toKind === "device";
-    const fromType = deviceTypeOf(fromRect);
-    const toType = deviceTypeOf(toRect);
-    const fromCid = Math.max(1, Math.round(Number(ln && ln.from && ln.from.cid) || 1));
-    if (fromIsDevice && fromType === "controller") return flowOutPalette[(fromCid - 1) % flowOutPalette.length];
-    if (fromIsDevice && toIsDevice && isPcLikeType(fromType) && isPcLikeType(toType)) return "#aa78ff";
-    if (fromIsDevice && toIsDevice && isPcLikeType(fromType) && toType === "controller") return "#50dcb4";
-    return "#ffc107";
-  };
-  const normalizePortCount = (value, fallback = 4) => Math.max(1, Math.min(64, Math.round(Number(value) || fallback)));
   const parsePortLabels = (value, count) => {
     const n = normalizePortCount(count, 4);
     const src = String(value == null ? "" : value).split(",").map(s => s.trim()).filter(Boolean);
@@ -153,14 +121,6 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const kind = String(sel.kind || "").toLowerCase() === "end" ? "end" : "start";
     const cid = Math.max(1, Math.round(Number(sel.cid) || 1));
     return { rectId, kind, cid };
-  };
-  const flowLinkKeyOf = ln => {
-    const from = ln && ln.from;
-    const to = ln && ln.to;
-    if (!from || !to) return "";
-    const fk = `${Math.max(1, Math.round(Number(from.rectId) || 0))}:${Math.max(0, Math.round(Number(from.rid) || 0))}:${Math.max(0, Math.round(Number(from.cid) || 0))}:end`;
-    const tk = `${Math.max(1, Math.round(Number(to.rectId) || 0))}:${Math.max(0, Math.round(Number(to.rid) || 0))}:${Math.max(0, Math.round(Number(to.cid) || 0))}:start`;
-    return `${fk}>${tk}`;
   };
   const selectedFlowLink = () => {
     const key = String(st && st.flowLinkSelectedKey || "");
@@ -339,7 +299,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const hasCustomColor0 = hasFlowLinkCustomColor(selLink0);
       const color0 = hasCustomColor0
         ? normalizeFlowLinkColor(selLink0 && selLink0.color)
-        : normalizeFlowLinkColor(autoFlowLinkColor(selLink0));
+        : normalizeFlowLinkColor(autoFlowLinkColor(selLink0, rectById, isDeviceRect));
       const width0 = normalizeFlowLinkWidth(selLink0 && selLink0.width);
       const lineType0 = normalizeFlowLinkLineType(selLink0 && selLink0.lineType);
       uiSetValue(el.propFlowLinkControlCount, String(count0));
@@ -406,7 +366,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const hasCustomColor = hasFlowLinkCustomColor(selLink);
       const color = hasCustomColor
         ? normalizeFlowLinkColor(selLink && selLink.color)
-        : normalizeFlowLinkColor(autoFlowLinkColor(selLink));
+        : normalizeFlowLinkColor(autoFlowLinkColor(selLink, rectById, isDeviceRect));
       const width = normalizeFlowLinkWidth(selLink && selLink.width);
       const lineType = normalizeFlowLinkLineType(selLink && selLink.lineType);
       uiSetValue(el.propFlowLinkControlCount, String(count));

@@ -1,3 +1,5 @@
+import { isDeviceRectKind, isNoteHiddenInArtView } from "../utils/rect-kind-utils.js";
+
 export const setupSelectionController = (deps = {}) => {
   const {
     st,
@@ -9,9 +11,7 @@ export const setupSelectionController = (deps = {}) => {
     refreshPropsListRender
   } = deps;
 
-  const isArtHiddenNote = rect => String(st && st.viewMode || "") === "art"
-    && String((rect && rect.kind) || "").toLowerCase() === "note"
-    && rect.noteIncludeInArtRender === false;
+  const isArtHiddenNote = rect => isNoteHiddenInArtView(rect, st && st.viewMode);
 
   const getRectsBBox = rects => {
     const list = Array.isArray(rects) ? rects : [];
@@ -147,7 +147,7 @@ export const setupSelectionController = (deps = {}) => {
       : ((r, boxBounds) => rectIntersectsBox(rectAABBMasked(r), boxBounds));
     const deviceSelectableInCurrentView = rect => {
       const installView = String(st && st.viewMode || "") === "install";
-      const isDeviceRect = String((rect && rect.kind) || "").toLowerCase() === "device";
+      const isDeviceRect = isDeviceRectKind(rect);
       if (!isDeviceRect) return true;
       if (!installView) return false;
       const layers = (st && st.installLayers && typeof st.installLayers === "object") ? st.installLayers : {};

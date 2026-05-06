@@ -5,6 +5,7 @@ import { createToolFsm, createModePredicates } from "./modules/tool-fsm.js";
 import { createRectPropSchema } from "./modules/props-schema.js";
 import { touchProgressState, setCacheWithPrune } from "./modules/cache-utils.js";
 import { autoContrast, hexRgb, hslToRgb, pickByContrast, rgbHex, rgbToHsl, contrastRatio, shadeHex, randomColor, rectTextTheme, bwTextForRgb } from "./modules/utils/color-utils.js";
+import { isDeviceRectKind, isNoteExcludedFromContentBounds, isNoteRectKind, isScreenRectKind, isShapeRectKind } from "./modules/utils/rect-kind-utils.js";
 import { distToSegment, overlapArea, rads, rectAABB, rectCenter, rectUVToWorld, worldToRectUV, maskCellKey, pointInPoly, getOriginFromRects, createCellFromWorldPoint, hiddenCellBoxes, computeFreeRects, createMaskNodeAxesGetter } from "./modules/utils/geometry.js";
 import { toInt, toPosInt, toTrimmed, evalExpr, toRoundedInt, clampInt, toPositiveInt, parseAreaM2PxInput } from "./modules/utils/number-utils.js";
 import { fontFamilyCss, escXml } from "./modules/utils/text-utils.js";
@@ -583,6 +584,7 @@ const {
 });
 const {
   flowAnchorKey,
+  flowLinkKeyOf,
   findFlowAnchorByEndpoint,
   pruneFlowLinks,
   canLinkFlowAnchors,
@@ -616,6 +618,7 @@ const { drawInterScreenFlowLinks, drawFlowLinkCurveHandlesOverlay } = setupInter
   normalizeViewMode,
   normalizeFlowLinks,
   flowAnchorKey,
+  flowLinkKeyOf,
   findFlowAnchorByEndpoint: ep => findFlowAnchorByEndpoint(ep)
 });
 let findFlowStartHandle = (_wx, _wy, _rid = null) => null;
@@ -1222,9 +1225,9 @@ let mkDevice = (_x, _y, _w, _h) => ({});
   normalizeViewMode,
   evalExpr
 }));
-const isNoteRect = r => String((r && r.kind) || "").toLowerCase() === "note";
-let isShapeRect = r => String((r && r.kind) || "").toLowerCase() === "shape";
-const isDeviceRect = r => String((r && r.kind) || "").toLowerCase() === "device";
+const isNoteRect = r => isNoteRectKind(r);
+let isShapeRect = r => isShapeRectKind(r);
+const isDeviceRect = r => isDeviceRectKind(r);
 const hasRect = id => st.rects.some(v => v.id === id);
 let setMode = (_m) => { };
 let activateToolOrSelect = (_mode) => { };
@@ -1761,10 +1764,7 @@ const getCabinetCellAtPoint = (r, wx, wy) => {
   if (!Number.isFinite(cid)) return null;
   return { rectId: r.id, cid: cid | 0, col: cell.col, row: cell.row };
 };
-const isCabinetSelectableRect = r => {
-  const kind = String((r && r.kind) || "").toLowerCase();
-  return !!r && kind !== "device" && kind !== "note";
-};
+const isCabinetSelectableRect = r => isScreenRectKind(r);
 const normalizeCabinetStyleValue = style => {
   const src = (style && typeof style === "object") ? style : {};
   const diagRaw = String(src.diag || "auto");
@@ -1875,7 +1875,7 @@ const { dupMirrorSel } = setupMirrorDuplicateFeature({
   schedulePersist: kind => schedulePersist(kind)
 });
 function fit() {
-  const fitRects = (Array.isArray(st.rects) ? st.rects : []).filter(r => !(isNoteRect(r) && r.noteIncludeInArtRender === false));
+  const fitRects = (Array.isArray(st.rects) ? st.rects : []).filter(r => !isNoteExcludedFromContentBounds(r));
   if (!fitRects.length) { st.camX = 0; st.camY = 0; st.zoom = 1; render(); return } let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (const r of fitRects) { const bb = rectAABBMasked(r); minX = Math.min(minX, bb.minX); minY = Math.min(minY, bb.minY); maxX = Math.max(maxX, bb.maxX); maxY = Math.max(maxY, bb.maxY) }
   const vm = getViewMetrics(), w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY), pad = 80; st.zoom = zc(Math.min((vm.viewWidth - pad) / w, (vm.viewHeight - pad) / h)); st.camX = (minX + maxX) / 2; st.camY = (minY + maxY) / 2; render()
 }
@@ -2044,13 +2044,7 @@ const getSelectedFlowLinkByKey = () => {
   const key = String(st.flowLinkSelectedKey || "");
   if (!key) return null;
   const list = Array.isArray(st.flowLinks) ? st.flowLinks : [];
-  const mkKey = ln => {
-    const from = ln && ln.from;
-    const to = ln && ln.to;
-    if (!from || !to) return "";
-    return `${Math.max(1, Math.round(Number(from.rectId) || 0))}:${Math.max(0, Math.round(Number(from.rid) || 0))}:${Math.max(0, Math.round(Number(from.cid) || 0))}:end>${Math.max(1, Math.round(Number(to.rectId) || 0))}:${Math.max(0, Math.round(Number(to.rid) || 0))}:${Math.max(0, Math.round(Number(to.cid) || 0))}:start`;
-  };
-  return list.find(it => mkKey(it) === key) || null;
+  return list.find(it => flowLinkKeyOf(it) === key) || null;
 };
 const ensureSelectedFlowLinkManual = () => {
   const key = String(st.flowLinkSelectedKey || "");
@@ -2080,7 +2074,7 @@ if (el.btnFlowLinkColorReset) {
     const key = String(st.flowLinkSelectedKey || "");
     if (!key) return;
     const list = Array.isArray(st.flowLinks) ? st.flowLinks.slice() : [];
-    const idx = list.findIndex(it => `${Math.max(1, Math.round(Number(it && it.from && it.from.rectId) || 0))}:${Math.max(0, Math.round(Number(it && it.from && it.from.rid) || 0))}:${Math.max(0, Math.round(Number(it && it.from && it.from.cid) || 0))}:end>${Math.max(1, Math.round(Number(it && it.to && it.to.rectId) || 0))}:${Math.max(0, Math.round(Number(it && it.to && it.to.rid) || 0))}:${Math.max(0, Math.round(Number(it && it.to && it.to.cid) || 0))}:start` === key);
+    const idx = list.findIndex(it => flowLinkKeyOf(it) === key);
     if (idx < 0) return;
     list[idx] = { ...list[idx] };
     try { delete list[idx].color; } catch (_e) { list[idx].color = null; }
@@ -2094,10 +2088,10 @@ if (el.btnFlowLinkColorReset) {
 const routeSelectedDeviceOutLinksOrthogonal = () => {
   const current = cur();
   const selectedDevices = (typeof getSelectedRects === "function" ? getSelectedRects() : [])
-    .filter(r => r && String((r && r.kind) || "").toLowerCase() === "device");
+    .filter(r => isDeviceRect(r));
   const routeDevices = selectedDevices.length
     ? selectedDevices
-    : (current && String((current && current.kind) || "").toLowerCase() === "device" ? [current] : []);
+    : (isDeviceRect(current) ? [current] : []);
   if (!routeDevices.length) return false;
   const links = normalizeFlowLinks(st.flowLinks);
 
@@ -2390,10 +2384,10 @@ const routeSelectedDeviceOutLinksOrthogonal = () => {
 const improveSelectedDeviceOutLinks = () => {
   const current = cur();
   const selectedDevices = (typeof getSelectedRects === "function" ? getSelectedRects() : [])
-    .filter(r => r && String((r && r.kind) || "").toLowerCase() === "device");
+    .filter(r => isDeviceRect(r));
   const routeDevices = selectedDevices.length
     ? selectedDevices
-    : (current && String((current && current.kind) || "").toLowerCase() === "device" ? [current] : []);
+    : (isDeviceRect(current) ? [current] : []);
   if (!routeDevices.length) return false;
   const deviceIds = new Set(routeDevices.map(r => Math.max(1, Math.round(Number(r && r.id) || 0))).filter(Boolean));
   const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;

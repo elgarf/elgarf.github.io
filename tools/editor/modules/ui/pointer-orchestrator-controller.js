@@ -1,4 +1,6 @@
 import { setupShapeInputController } from "../shape/shape-input-controller.js";
+import { roundDraftSizePx } from "../utils/draft-utils.js";
+import { isDeviceRectKind, isScreenRectKind } from "../utils/rect-kind-utils.js";
 
 export const setupPointerOrchestratorController = (deps = {}) => {
   const {
@@ -109,7 +111,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     const a = pickFlowAnchorAtPoint(p.x, p.y);
     if (!a) return false;
     const r = getRectById(a.rectId);
-    if (!r || String((r && r.kind) || "").toLowerCase() !== "device") return false;
+    if (!isDeviceRectKind(r)) return false;
     st.devicePortSelection = {
       rectId: Math.max(1, Math.round(Number(a.rectId) || 1)),
       cid: Math.max(1, Math.round(Number(a.cid) || 1)),
@@ -222,10 +224,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (h && h.id !== st.sel) selRect(h.id);
     return h || null;
   };
-  const isScreenRect = r => {
-    const kind = String((r && r.kind) || "").toLowerCase();
-    return !!r && kind !== "note" && kind !== "device" && kind !== "shape";
-  };
+  const isScreenRect = r => isScreenRectKind(r);
   const clearScreenToolSelection = () => {
     selRect(null);
     st.maskHover = null;
@@ -493,11 +492,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   const handlePointerUpCluster = () => clusterController.handlePointerUpCluster();
   const handlePointerUpFlowLink = () => flowController.handlePointerUpFlowLink();
   const handlePointerUpFlowDrag = () => flowController.handlePointerUpFlowDrag();
-  const roundDraftSizePx = value => {
-    const scale = Math.max(1, Math.round(Number(st.globalScale) || 256));
-    const meters = Math.max(0.5, Math.round((Math.max(0, Number(value) || 0) / scale) * 2) / 2);
-    return Math.max(1, Math.round(meters * scale));
-  };
+  const roundDraftSize = (value, kind = "rect") => roundDraftSizePx(value, kind, st && st.globalScale);
   const handleCanvasPointerUp = () => {
     const hadDrag = !!st.drag;
     const hadMovedDrag = !!(st.drag && st.drag.moved);
@@ -539,8 +534,8 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (st.draft) {
       const d = st.draft;
       if (d.width >= 1 && d.height >= 1) {
-        const width = roundDraftSizePx(d.width);
-        const height = roundDraftSizePx(d.height);
+        const width = roundDraftSize(d.width, d.kind);
+        const height = roundDraftSize(d.height, d.kind);
         created = (String(d.kind || "") === "note")
           ? mkNote(d.x, d.y, width, height)
           : (String(d.kind || "") === "device")

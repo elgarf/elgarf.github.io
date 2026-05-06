@@ -1,3 +1,5 @@
+import { isDeviceRectKind } from "../utils/rect-kind-utils.js";
+
 export const setupFlowAnchorResolver = (deps = {}) => {
   const {
     st,
@@ -51,7 +53,7 @@ export const setupFlowAnchorResolver = (deps = {}) => {
     const rec = getRectFlowGroups(rectId);
     const rr = (rec && rec.rr) || ((Array.isArray(st && st.rects) ? st.rects : [])
       .find(r => Math.max(1, Math.round(Number(r && r.id) || 0)) === rectId) || null);
-    const isDevice = rr && String((rr && rr.kind) || "").toLowerCase() === "device";
+    const isDevice = isDeviceRectKind(rr);
     if (isDevice) {
       const w = Math.max(1, Number(rr.width) || 1);
       const h = Math.max(1, Number(rr.height) || 1);

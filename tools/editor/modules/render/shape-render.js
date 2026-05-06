@@ -10,6 +10,8 @@ import {
   shapePoint
 } from "../shape/shape-path-utils.js";
 
+import { isShapeRectKind } from "../utils/rect-kind-utils.js";
+
 export const setupShapeRender = (deps = {}) => {
   const {
     st,
@@ -19,7 +21,7 @@ export const setupShapeRender = (deps = {}) => {
     distToSegment
   } = deps;
 
-  const isShapeRect = r => String((r && r.kind) || "").toLowerCase() === "shape";
+  const isShapeRect = r => isShapeRectKind(r);
   const shapePoints = r => Array.isArray(r && r.shapePoints) ? r.shapePoints : [];
   const shapeWorldPathPoints = r => shapePoints(r).map(p => {
     const x = Number(p.x) || 0;

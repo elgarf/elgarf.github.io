@@ -1,5 +1,6 @@
 import { setupFlowLinkController } from "../flow-link-controller.js";
 import { setupFlowAnchorResolver } from "../flow/anchor-resolver.js";
+import { flowAnchorKey, flowLinkKey, flowLinkKeyOf, normalizeFlowEndpoint } from "../utils/flow-link-key-utils.js";
 
 export function setupFlowLinkFeature(deps = {}) {
   const {
@@ -15,8 +16,6 @@ export function setupFlowLinkFeature(deps = {}) {
     getSplitFlowMarkerWorldPositions,
     rectUVToWorld
   } = deps;
-
-  const flowAnchorKey = a => `${Math.max(1, Math.round(Number(a && a.rectId) || 0))}:${Math.max(0, Math.round(Number(a && a.rid) || 0))}:${Math.max(0, Math.round(Number(a && a.cid) || 0))}:${String(a && a.kind || "").toLowerCase() === "end" ? "end" : "start"}`;
 
   const { findFlowAnchorByEndpoint } = setupFlowAnchorResolver({
     st,
@@ -44,6 +43,7 @@ export function setupFlowLinkFeature(deps = {}) {
     st,
     normalizeFlowLinks,
     flowAnchorKey,
+    flowLinkKey,
     getRectRuntime,
     drawCellX,
     drawCellY,
@@ -54,6 +54,9 @@ export function setupFlowLinkFeature(deps = {}) {
 
   return {
     flowAnchorKey,
+    flowLinkKey,
+    flowLinkKeyOf,
+    normalizeFlowEndpoint,
     findFlowAnchorByEndpoint,
     pruneFlowLinks,
     canLinkFlowAnchors,

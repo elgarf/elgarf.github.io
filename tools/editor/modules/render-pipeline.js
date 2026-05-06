@@ -1,3 +1,6 @@
+import { isDeviceRectKind, isNoteHiddenInArtView } from "./utils/rect-kind-utils.js";
+import { roundDraftMeters } from "./utils/draft-utils.js";
+
 export const setupRenderPipeline = (deps = {}) => {
   const {
     ctx, overlayCtx, st, cv, overlayCanvas, wrap,
@@ -53,9 +56,8 @@ export const setupRenderPipeline = (deps = {}) => {
     if (!st.draft) return;
     const d = st.draft;
     const scale = Math.max(1, Math.round(Number(st.globalScale) || 256));
-    const roundHalf = v => Math.max(0.5, Math.round(Math.max(0, Number(v) || 0) * 2) / 2);
-    const wm = roundHalf(Math.abs(Number(d.width) || 0) / scale);
-    const hm = roundHalf(Math.abs(Number(d.height) || 0) / scale);
+    const wm = roundDraftMeters(Math.abs(Number(d.width) || 0) / scale, d.kind);
+    const hm = roundDraftMeters(Math.abs(Number(d.height) || 0) / scale, d.kind);
     const fmt = v => Number.isInteger(v) ? String(v) : String(v).replace(".", ",");
     const meterUnit = (typeof document !== "undefined" && /^en\b/i.test(document.documentElement.getAttribute("lang") || "")) ? "m" : "м";
     const label = `${fmt(wm)} x ${fmt(hm)} ${meterUnit}`;
@@ -129,9 +131,8 @@ export const setupRenderPipeline = (deps = {}) => {
     const origin = getOrigin();
     for (let i = st.rects.length - 1; i >= 0; i--) {
       const rr = st.rects[i];
-      const isNoteRect = String((rr && rr.kind) || "").toLowerCase() === "note";
-      if (isNoteRect && String(st.viewMode || "") === "art" && rr && rr.noteIncludeInArtRender === false) continue;
-      const isDeviceRect = String((rr && rr.kind) || "").toLowerCase() === "device";
+      if (isNoteHiddenInArtView(rr, st.viewMode)) continue;
+      const isDeviceRect = isDeviceRectKind(rr);
       const installView = String(st.viewMode || "") === "install";
       const devicesLayerOn = installView && !(st.installLayers && st.installLayers.devices === false);
       if (isDeviceRect && !devicesLayerOn) continue;

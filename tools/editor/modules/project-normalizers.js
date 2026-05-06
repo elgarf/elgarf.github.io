@@ -1,4 +1,5 @@
 import { DATA_FLOW_MODES, FLOW_DIR_SET, RIG_DEFAULT_LOAD_KG } from "./constants.js";
+import { normalizeFlowEndpoint } from "./utils/flow-link-key-utils.js";
 
 const normalizeNumericKeyedMap = (raw, normalizeValue) => {
   const src = (raw && typeof raw === "object") ? raw : {};
@@ -284,12 +285,7 @@ export const normalizeFlowLinks = raw => {
     }
     return outArr;
   };
-  const mkEnd = e => ({
-    rectId: Math.max(1, Math.round(Number(e && e.rectId) || 0)),
-    rid: Math.max(0, Math.round(Number(e && e.rid) || 0)),
-    cid: Math.max(0, Math.round(Number(e && e.cid) || 0)),
-    kind: String(e && e.kind || "").toLowerCase() === "end" ? "end" : "start"
-  });
+  const mkEnd = e => normalizeFlowEndpoint(e);
   const mkManualBezier = v => {
     if (!v || typeof v !== "object") return null;
     const c1 = v.c1 && typeof v.c1 === "object" ? v.c1 : null;

@@ -1,3 +1,5 @@
+import { isDeviceRectKind, isNoteHiddenInArtView, isShapeRectKind } from "../utils/rect-kind-utils.js";
+
 export const createRenderExportPngBlob = (deps = {}) => {
   const {
     st,
@@ -35,13 +37,11 @@ export const createRenderExportPngBlob = (deps = {}) => {
     const includeRig = !!(mode.includeFlow || rigOnly);
     const includeScreenLabels = !(flowOnly || rigOnly);
     const forceRigOverlay = !!(includeRig && !flowOnly);
-    const isDeviceRect = r => String((r && r.kind) || "").toLowerCase() === "device";
-    const isNoteRect = r => String((r && r.kind) || "").toLowerCase() === "note";
     const includeDevices = !!includeFlow && !rigOnly;
     const artExport = !(includeFlow || includeRig);
     const exportRects = (Array.isArray(st.rects) ? st.rects : [])
-      .filter(r => includeDevices || !isDeviceRect(r))
-      .filter(r => !(artExport && isNoteRect(r) && r.noteIncludeInArtRender === false));
+      .filter(r => includeDevices || !isDeviceRectKind(r))
+      .filter(r => !(artExport && isNoteHiddenInArtView(r, "art")));
     if (!exportRects.length) return null;
     await ensureFontReady();
     let minX = 1e9;
@@ -137,7 +137,7 @@ export const createRenderExportPngBlob = (deps = {}) => {
       const drawExportRects = extraOpts => {
         for (let i = exportRects.length - 1; i >= 0; i--) {
           const rct = exportRects[i];
-          const isShape = String((rct && rct.kind) || "").toLowerCase() === "shape";
+          const isShape = isShapeRectKind(rct);
           const er = isShape ? rct : shiftedRects[i];
           const includeFlowRect = !!(includeFlow && normalizeDataFlow(rct && rct.dataFlow) !== "none");
           const flowGroups = includeFlowRect ? getExportFlowGroupsFromCache(rct) : null;

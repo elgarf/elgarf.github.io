@@ -1,6 +1,8 @@
 const DEFAULT_TEXT_SIZE = 32;
 const DEFAULT_FONT_FAMILY = "Roboto";
 
+import { isNoteRectKind } from "./utils/rect-kind-utils.js";
+
 export const createProjectCodec = (deps) => {
   const d = deps || {};
   const PROJECT_QUERY_VERSION = String(d.PROJECT_QUERY_VERSION || "gz2");
@@ -147,7 +149,7 @@ export const createProjectCodec = (deps) => {
     if (!isPlainObject(r.flowLockCidToSeed) || !Object.keys((typeof d.normalizeFlowLockCidToSeedMap === "function" ? d.normalizeFlowLockCidToSeedMap(r.flowLockCidToSeed) : r.flowLockCidToSeed)).length) delete r.flowLockCidToSeed;
     if (!r.kind) delete r.kind;
     if (!r.noteText) delete r.noteText;
-    if (r.noteIncludeInArtRender !== false) delete r.noteIncludeInArtRender;
+    if (!isNoteRectKind(r) || r.noteIncludeInArtRender !== false) delete r.noteIncludeInArtRender;
     {
       const op = Number(r.shapeOpacity);
       if (!Number.isFinite(op) || op === 0.72) delete r.shapeOpacity;
