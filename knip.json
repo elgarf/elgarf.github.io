@@ -1,0 +1,39 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "index.html",
+    "tools/LEDMaskEditor.html",
+    "tools/editor/main.js",
+    "tools/editor/modules/calc/worker-script.js",
+    "tools/editor/workers/calc-worker-bootstrap.js"
+  ],
+  "project": [
+    "tools/editor/**/*.{js,ts}",
+    "tools/editor/modules/**/*.{js,ts}",
+    "tools/editor/workers/*.{js,ts}"
+  ],
+  "ignoreIssues": {
+    "tools/editor/modules/i18n.js": ["exports"],
+    "tools/editor/modules/tool-fsm.js": ["exports"],
+    "tools/editor/modules/cache-utils.js": ["exports"],
+    "tools/editor/modules/constants.js": ["exports"],
+    "tools/editor/modules/png-project-meta.js": ["exports"],
+    "tools/editor/modules/utils/color-utils.js": ["exports"],
+    "tools/editor/modules/utils/rect-kind-utils.js": ["exports"],
+    "tools/editor/modules/utils/device-utils.js": ["exports"],
+    "tools/editor/modules/utils/flow-link-key-utils.js": ["exports"],
+    "tools/editor/modules/utils/draft-utils.js": ["exports"],
+    "tools/editor/modules/flow/draw-helpers.js": ["exports"],
+    "tools/editor/modules/features/props-panel-feature.js": ["exports"],
+    "tools/editor/modules/features/props-shape-point-controller.js": ["exports"],
+    "tools/editor/modules/features/props-shape-style-controller.js": ["exports"],
+    "tools/editor/modules/features/props-panel-ui-schema.js": ["exports"],
+    "tools/editor/modules/features/name-edit-utils.js": ["exports"],
+    "tools/editor/modules/hit-test/editor-hit-test.js": ["exports"],
+    "tools/editor/modules/shape/shape-path-utils.js": ["exports"],
+    "tools/editor/modules/spec/build-flow-links-section.js": ["exports"]
+  },
+  "tags": [
+    "-lintignore"
+  ]
+}

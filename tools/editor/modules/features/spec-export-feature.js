@@ -40,6 +40,7 @@ export const setupSpecExportFeature = (deps = {}) => {
     saveBlobWithSystemDialog,
     schedulePersist,
     persistNow,
+    flushSpecCustomEditors,
     showMessageModal,
     t = value => value
   } = deps;
@@ -366,7 +367,10 @@ export const setupSpecExportFeature = (deps = {}) => {
     getGlobalSaveLocationId,
     saveStatus,
     saveBlobWithSystemDialog,
-    buildFlowSpecText: () => buildFlowSpecText({ includeManual: true, cachedOnly: true }),
+    buildFlowSpecText: () => {
+      if (typeof flushSpecCustomEditors === "function") flushSpecCustomEditors();
+      return buildFlowSpecText({ includeManual: true, cachedOnly: true });
+    },
     ensureExportCaches,
     showMessageModal,
     t

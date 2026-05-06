@@ -69,14 +69,19 @@ export const setupAppInitController = (deps = {}) => {
     if (el.redo) el.redo.disabled = !st.history.redo.length;
     syncActiveTabSnapshot();
     renderProjectTabs();
-    render();
+    resize();
+    render(true);
     ensureFontReady()
       .catch(() => { })
       .finally(() => {
-        render();
+        resize();
+        render(true);
         if (typeof hideStartupLoader !== "function") return;
-        if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => hideStartupLoader());
-        else hideStartupLoader();
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => hideStartupLoader());
+          });
+        } else hideStartupLoader();
       });
   };
 

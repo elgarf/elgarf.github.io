@@ -956,9 +956,11 @@ let commitUiUpdate = (_opts = {}) => { };
 let buildFlowSpecTextForView = () => "";
 let updateSpecViewUi = (_force = false) => { };
 let refreshSpecAuto = (_force = false) => { };
+let flushSpecCustomEditors = () => { };
 ({
   updateSpecViewUi,
-  refreshAutoSpec: refreshSpecAuto
+  refreshAutoSpec: refreshSpecAuto,
+  flushCustomEditorsToState: flushSpecCustomEditors
 } = setupSpecViewController({
   st,
   el,
@@ -2881,6 +2883,7 @@ const {
       saveStatus,
       schedulePersist: uiTailRenderShared.schedulePersist,
       persistNow,
+      flushSpecCustomEditors,
       showMessageModal: (...args) => showMessageModal(...args),
       t: uiTailShared.t
     }

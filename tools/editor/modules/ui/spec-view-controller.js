@@ -337,6 +337,21 @@ export const setupSpecViewController = (deps = {}) => {
     }
   };
 
+  const flushCustomEditorsToState = () => {
+    if (!el.specAutoBlocks) return;
+    for (const [key, editor] of editorMap.entries()) {
+      if (!key || !editor || typeof editor.value !== "function") continue;
+      setCustomText(key, editor.value());
+    }
+    const textareas = el.specAutoBlocks.querySelectorAll("textarea[data-spec-edit]");
+    for (const ta of textareas) {
+      if (!(ta instanceof HTMLTextAreaElement)) continue;
+      const key = String(ta.getAttribute("data-spec-edit") || "");
+      if (!key || editorMap.has(key)) continue;
+      setCustomText(key, ta.value);
+    }
+  };
+
   const renderSections = () => {
     if (!el.specAutoBlocks) return;
     if (!sectionGroups.length) {
@@ -533,6 +548,7 @@ export const setupSpecViewController = (deps = {}) => {
   return {
     isSpecMode,
     refreshAutoSpec,
-    updateSpecViewUi
+    updateSpecViewUi,
+    flushCustomEditorsToState
   };
 };

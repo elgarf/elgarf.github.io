@@ -1,7 +1,7 @@
 import { createSectionKeySequencer } from "./section-key-utils.js";
 import { isDeviceRectKind, isNoteRectKind, isShapeRectKind } from "../utils/rect-kind-utils.js";
 
-export const fmtAreaM2 = v => {
+const fmtAreaM2 = v => {
   const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
   return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "");
 };
@@ -164,40 +164,12 @@ const buildScreenSpecSection = (deps = {}) => {
   pushSpecListLine(out, t("Подвесы"), supportList);
   pushSpecCountLine(out, t("Рамы"), frameCount, t("шт."));
   pushSpecListLine(out, t("Грузы"), bottomLoadList);
+  pushSpecCountLine(out, t("Скоба такелажная"), sumMapCounts(rec.rigData.supportBySize) * 2);
+  pushSpecCountLine(out, t("Стропа"), sumMapCounts(rec.rigData.supportBySize) * 2);
   pushSpecCountLine(out, t("Скоба монтажная для рамы"), frameBracketCount, t("шт."));
   pushSpecCountLine(out, t("Болт для крепления скобы"), frameBracketCount * 4, t("шт."));
   if (String(manualText || "").trim()) out.push("", String(manualText).trim());
   return out.join("\n");
-};
-
-const buildSummarySection = (deps = {}) => {
-  const { group, rec, interSpec, manualText } = deps;
-  const cab = mapToCabinetList(rec.cabinetBySize);
-  const cbl = mapToCableList(rec.cableByLen);
-  const interGroup = interSpec && interSpec.byGroupOut ? interSpec.byGroupOut.get(group) : null;
-  const icbl = interGroup ? mapToCableList(interGroup.cableByLen) : [];
-  const irts = interGroup ? mapToNamedCountList(interGroup.routes) : [];
-  const sup = mapToRigSizeList(rec.supportBySize);
-  const btm = mapToRigWeightList(rec.bottomLoadByKg);
-  const supportCount = sumMapCounts(rec.supportBySize);
-  const frameBracketCount = rec.frameCount + rec.bottomRowFrameCount;
-  const lines = [
-    `###### Группа: ${group}`,
-    `* Площадь экранов: ${fmtAreaM2(rec.visibleAreaM2)} м²`
-  ];
-  pushSpecListLine(lines, "Кабинеты", cab);
-  pushSpecListLine(lines, "Коммутация", cbl);
-  pushSpecListLine(lines, "Межэкранные связи", irts);
-  pushSpecListLine(lines, "Межэкранная коммутация", icbl);
-  pushSpecListLine(lines, "Подвесы", sup);
-  pushSpecCountLine(lines, "Рамы", rec.frameCount);
-  pushSpecListLine(lines, "Грузы", btm);
-  pushSpecCountLine(lines, "Скоба такелажная", supportCount * 2);
-  pushSpecCountLine(lines, "Стропа", supportCount * 2);
-  pushSpecCountLine(lines, "Скоба монтажная для рамы", frameBracketCount);
-  pushSpecCountLine(lines, "Болт для крепления скобы", frameBracketCount * 4);
-  if (String(manualText || "").trim()) lines.push("", String(manualText).trim());
-  return lines.join("\n");
 };
 
 export const buildFlowLinksSpecText = (deps = {}) => {
@@ -227,7 +199,9 @@ export const buildFlowLinksSpecText = (deps = {}) => {
   const globalManual = includeManual
     ? [manualResolver.getGlobalManual(), String(specCustomText || "").trim()].filter(Boolean).join("\n\n").trim()
     : "";
-  const TOTAL_PARENT = t("Итоговая сумма");
+  const ROOT_PARENT = t("Спецификация");
+  const COMMUTATION_TITLE = t("Сигнальная и силовая коммутация");
+  const DEVICES_TITLE = t("Устройства");
   const byScreenSeries = new Map();
   for (const r of screenRects) {
     const meta = parseScreenNameGroup(r);
@@ -328,7 +302,9 @@ export const buildFlowLinksSpecText = (deps = {}) => {
       const irts = interGroup ? mapToNamedCountList(interGroup.routes, t("шт.")) : [];
       const sup = mapToRigSizeList(rec.supportBySize, t("м"), t("шт."));
       const btm = mapToRigWeightList(rec.bottomLoadByKg, t("кг"), t("шт."));
-      const manualText = manualResolver.getSectionManual(6, TOTAL_PARENT, `${t("Группа")}: ${group}`);
+      const manualText = manualResolver.getSectionManual(6, ROOT_PARENT, group);
+      const supportCount = sumMapCounts(rec.supportBySize);
+      const frameBracketCount = rec.frameCount + rec.bottomRowFrameCount;
       const bulletLines = [
         `* ${t("Площадь экранов")}: ${fmtAreaM2(rec.visibleAreaM2)} ${t("м²")}`,
         joinSpecLine(t("Кабинеты"), cab),
@@ -336,15 +312,21 @@ export const buildFlowLinksSpecText = (deps = {}) => {
         joinSpecLine(t("Межэкранные связи"), irts),
         joinSpecLine(t("Межэкранная коммутация"), icbl),
         joinSpecLine(t("Подвесы"), sup),
+        supportCount > 0 ? `* ${t("Стропа")}: ${supportCount * 2} ${t("шт.")}` : "",
+        supportCount > 0 ? `* ${t("Скоба такелажная")}: ${supportCount * 2} ${t("шт.")}` : "",
         rec.frameCount > 0 ? `* ${t("Рамы")}: ${rec.frameCount} ${t("шт.")}` : "",
+        frameBracketCount > 0 ? `* ${t("Скоба монтажная для рамы")}: ${frameBracketCount} ${t("шт.")}` : "",
+        frameBracketCount > 0 ? `* ${t("Болт для крепления скобы")}: ${frameBracketCount * 4} ${t("шт.")}` : "",
         joinSpecLine(t("Грузы"), btm),
         String(manualText || "").trim()
       ].filter(Boolean);
       return [`###### ${group}`, ...bulletLines].join("\n");
     })
     .join("\n\n");
-  const commutationHeader = `##### ${t("Сигнальная и силовая коммутация")}`;
-  const commutationText = [globalManual, String(specCustomText || "").trim()].filter(Boolean).join("\n\n").trim();
+  const commutationHeader = `##### ${COMMUTATION_TITLE}`;
+  const commutationManual = manualResolver.getSectionManual(5, "", COMMUTATION_TITLE);
+  const commutationText = [commutationManual, globalManual, String(specCustomText || "").trim()].filter(Boolean).join("\n\n").trim();
+  const devicesManual = manualResolver.getSectionManual(5, "", DEVICES_TITLE);
 
   return [
     `### ${String(projectName || "Проект").trim() || "Проект"}`,
@@ -358,7 +340,8 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     commutationHeader,
     ...(commutationText ? ["", commutationText] : []),
     "",
-    `##### ${t("Устройства")}`,
+    `##### ${DEVICES_TITLE}`,
+    ...(devicesManual ? ["", devicesManual, ""] : []),
     ...(deviceBlocks ? [deviceBlocks] : [`* ${t("Нет устройств")}`])
   ].join("\n");
 };

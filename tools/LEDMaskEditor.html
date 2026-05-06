@@ -69,14 +69,19 @@
   </div>
   <script>
     (() => {
+      let hideTimer = 0;
       const hide = () => {
         const node = document.getElementById("appLoadingScreen");
         if (!node) return;
+        if (hideTimer) {
+          window.clearTimeout(hideTimer);
+          hideTimer = 0;
+        }
         node.classList.add("is-hidden");
         window.setTimeout(() => { if (node.parentNode) node.parentNode.removeChild(node); }, 220);
       };
       window.ledMaskHideStartupLoader = hide;
-      window.addEventListener("load", () => window.setTimeout(hide, 1200), { once: true });
+      hideTimer = window.setTimeout(hide, 15000);
     })();
   </script>
   <div class="app">
