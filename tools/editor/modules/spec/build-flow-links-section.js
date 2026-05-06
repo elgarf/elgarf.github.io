@@ -212,8 +212,8 @@ export const buildFlowLinksSpecText = (deps = {}) => {
   const globalManual = includeManual
     ? [manualResolver.getGlobalManual(), normalizeSectionText(specCustomText || "")].filter(Boolean).join("\n").trim()
     : "";
-  const ROOT_PARENT = t("Спецификация");
   const SCREENS_TITLE = t("Экраны");
+  const ROOT_PARENT = SCREENS_TITLE;
   const COMMUTATION_TITLE = t("Сигнальная и силовая коммутация");
   const DEVICES_TITLE = t("Устройства");
   const byScreenSeries = new Map();
