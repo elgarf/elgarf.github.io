@@ -32,6 +32,14 @@ export const setupSpecExportFeature = (deps = {}) => {
     getRectCalcCache,
     embedProjectIntoPngBlob,
     buildProject,
+    buildPortableProject,
+    encodeProjectToQueryValue,
+    saveProjectToServer,
+    getProjectName = () => "project",
+    getProjectGuid = () => "",
+    PROJECT_QUERY_PARAM = "project",
+    PROJECT_ID_PARAM = "projectid",
+    onViewerUrlUpdated = null,
     PNG_PROJECT_META_KEY,
     projectFileBase,
     setGlobalSaveLocationId,
@@ -270,22 +278,75 @@ export const setupSpecExportFeature = (deps = {}) => {
     return { cabinetBySize, cableByLen, visibleAreaM2 };
   };
 
+  const buildViewerUrlFromCurrentLocation = () => {
+    try {
+      const url = new URL((globalThis.location && globalThis.location.href) || "");
+      const viewer = new URL("./LedMaskViewer.html", url);
+      const p = new URLSearchParams(url.search || "");
+      const idParam = p.get("projectid") || p.get("projectId") || p.get("id");
+      if (idParam) viewer.searchParams.set("projectId", idParam);
+      if (p.get("project")) viewer.searchParams.set("project", p.get("project"));
+      viewer.searchParams.delete("id");
+      if (p.get("viewer") === "1") viewer.searchParams.delete("viewer");
+      return viewer.toString();
+    } catch {
+      return "";
+    }
+  };
+  const buildViewerUrlLikeQr = async () => {
+    try {
+      const value = await encodeProjectToQueryValue(buildPortableProject());
+      const viewer = new URL("./LedMaskViewer.html", (globalThis.location && globalThis.location.href) || "");
+      let usedServerId = 0;
+      try { usedServerId = await saveProjectToServer(getProjectName(), value, getProjectGuid()); } catch { usedServerId = 0; }
+      if (usedServerId > 0) {
+        viewer.searchParams.delete(PROJECT_QUERY_PARAM);
+        viewer.searchParams.delete(PROJECT_ID_PARAM);
+        viewer.searchParams.set("projectId", String(usedServerId));
+      } else {
+        viewer.searchParams.set(PROJECT_QUERY_PARAM, value);
+        viewer.searchParams.delete(PROJECT_ID_PARAM);
+        viewer.searchParams.delete("projectId");
+      }
+      return viewer.toString();
+    } catch {
+      return buildViewerUrlFromCurrentLocation();
+    }
+  };
+  const hasServerProjectIdInLocation = () => {
+    try {
+      const p = new URLSearchParams((globalThis.location && globalThis.location.search) || "");
+      return !!String(p.get("projectid") || p.get("projectId") || "").trim();
+    } catch {
+      return false;
+    }
+  };
+  let viewerUrlCache = buildViewerUrlFromCurrentLocation();
+  let viewerUrlResolvePromise = null;
+  const ensureViewerUrlForSpecMode = () => {
+    if (hasServerProjectIdInLocation()) {
+      viewerUrlCache = buildViewerUrlFromCurrentLocation() || viewerUrlCache;
+      return;
+    }
+    if (viewerUrlResolvePromise) return;
+    viewerUrlResolvePromise = (async () => {
+      const nextUrl = await buildViewerUrlLikeQr();
+      const changed = String(nextUrl || "") && String(nextUrl || "") !== String(viewerUrlCache || "");
+      if (changed) {
+        viewerUrlCache = String(nextUrl || "");
+        if (typeof onViewerUrlUpdated === "function") onViewerUrlUpdated();
+      }
+    })().finally(() => {
+      viewerUrlResolvePromise = null;
+    });
+  };
   const buildFlowSpecText = (options = {}) => buildFlowLinksSpecText({
     projectName: String(st.projectName || "Проект"),
     viewerUrl: (() => {
-      try {
-        const url = new URL((globalThis.location && globalThis.location.href) || "");
-        const viewer = new URL("./LedMaskViewer.html", url);
-        const p = new URLSearchParams(url.search || "");
-        const idParam = p.get("id") || p.get("projectId");
-        if (idParam) viewer.searchParams.set("id", idParam);
-        if (p.get("project")) viewer.searchParams.set("project", p.get("project"));
-        viewer.searchParams.delete("projectId");
-        if (p.get("viewer") === "1") viewer.searchParams.delete("viewer");
-        return viewer.toString();
-      } catch {
-        return "";
-      }
+      const forced = String((options && options.viewerUrl) || "");
+      if (forced) return forced;
+      ensureViewerUrlForSpecMode();
+      return String(viewerUrlCache || "") || buildViewerUrlFromCurrentLocation();
     })(),
     rects: st.rects,
     isNoteRect,
@@ -367,9 +428,10 @@ export const setupSpecExportFeature = (deps = {}) => {
     getGlobalSaveLocationId,
     saveStatus,
     saveBlobWithSystemDialog,
-    buildFlowSpecText: () => {
+    buildFlowSpecText: async () => {
       if (typeof flushSpecCustomEditors === "function") flushSpecCustomEditors();
-      return buildFlowSpecText({ includeManual: true, cachedOnly: true });
+      const viewerUrl = await buildViewerUrlLikeQr();
+      return buildFlowSpecText({ includeManual: true, cachedOnly: true, viewerUrl });
     },
     ensureExportCaches,
     showMessageModal,
