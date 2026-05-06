@@ -303,14 +303,11 @@ export const setupSpecExportFeature = (deps = {}) => {
         viewer.searchParams.delete(PROJECT_QUERY_PARAM);
         viewer.searchParams.delete(PROJECT_ID_PARAM);
         viewer.searchParams.set("projectId", String(usedServerId));
-      } else {
-        viewer.searchParams.set(PROJECT_QUERY_PARAM, value);
-        viewer.searchParams.delete(PROJECT_ID_PARAM);
-        viewer.searchParams.delete("projectId");
+        return viewer.toString();
       }
-      return viewer.toString();
+      return t("Не удалось сформировать ссылку");
     } catch {
-      return buildViewerUrlFromCurrentLocation();
+      return t("Не удалось сформировать ссылку");
     }
   };
   const hasServerProjectIdInLocation = () => {

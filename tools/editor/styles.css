@@ -1595,6 +1595,37 @@
       border-top: 1px solid var(--bs-border-color);
       padding-top: 10px
     }
+    .rect-list-group {
+      margin: 0 0 8px;
+    }
+    .rect-list-group-title {
+      width: 100%;
+      margin: 8px 0 6px;
+      padding: 4px 2px;
+      border: 0;
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--bs-secondary-color);
+      cursor: pointer;
+    }
+    .rect-list-group-title:first-child {
+      margin-top: 0;
+    }
+    .rect-list-group-title i {
+      width: 10px;
+      text-align: center;
+      font-size: 10px;
+      opacity: .85;
+    }
+    .rect-list-group-body {
+      display: block;
+    }
 
     .rect-item {
       border: 1px solid var(--bs-border-color);

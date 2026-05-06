@@ -213,6 +213,7 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     ? [manualResolver.getGlobalManual(), normalizeSectionText(specCustomText || "")].filter(Boolean).join("\n").trim()
     : "";
   const ROOT_PARENT = t("Спецификация");
+  const SCREENS_TITLE = t("Экраны");
   const COMMUTATION_TITLE = t("Сигнальная и силовая коммутация");
   const DEVICES_TITLE = t("Устройства");
   const byScreenSeries = new Map();
@@ -273,7 +274,10 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     const name = baseNameWithoutTrailingNumber(r && r.name);
     deviceNameGroups.set(name, (deviceNameGroups.get(name) || 0) + 1);
   }
-  const deviceBlocks = mapToNamedCountList(deviceNameGroups, t("шт.")).map(item => `* ${item}`).join("\n");
+  const deviceBlocks = [...deviceNameGroups.entries()]
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0]), "ru", { numeric: true }))
+    .map(([name, count]) => `* ${name} – ${count} ${t("шт.")}`)
+    .join("\n");
 
   const byGroup = new Map();
   for (const r of screenRects) {
@@ -346,15 +350,16 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     "",
     String(viewerUrl || "").trim(),
     "",
+    `##### ${SCREENS_TITLE}`,
     ...screenListLines,
     "",
     groupBlocks,
     "",
     commutationHeader,
-    ...(commutationText ? ["", commutationText] : []),
+    ...(commutationText ? [commutationText] : []),
     "",
     `##### ${DEVICES_TITLE}`,
-    ...(devicesManual ? ["", devicesManual, ""] : []),
-    ...(deviceBlocks ? [deviceBlocks] : [`* ${t("Нет устройств")}`])
+    ...(deviceBlocks ? [deviceBlocks] : [`* ${t("Нет устройств")}`]),
+    ...(devicesManual ? [devicesManual] : [])
   ].join("\n");
 };

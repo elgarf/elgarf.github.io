@@ -300,7 +300,7 @@ export const setupSpecViewController = (deps = {}) => {
   const bindSpecBlockEvents = () => {
     if (specEventsBound || !el.specAutoBlocks) return;
     specEventsBound = true;
-    el.specAutoBlocks.addEventListener("shown.bs.collapse", evt => {
+    const refreshEditorByCollapseEvent = evt => {
       const target = evt && evt.target;
       if (!target || !(target instanceof HTMLElement)) return;
       const sub = target.closest(".spec-mode-sub[data-section-key]");
@@ -309,25 +309,27 @@ export const setupSpecViewController = (deps = {}) => {
       if (!key) return;
       const editor = editorMap.get(key);
       if (editor && editor.codemirror) {
-        const text = getCustomText(key, "");
-        if (String(editor.value() || "") !== text) editor.value(text);
-        try { editor.codemirror.refresh(); } catch { /* noop */ }
+        const refreshSafe = () => {
+          try { editor.codemirror.refresh(); } catch { /* noop */ }
+        };
+        refreshSafe();
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => {
+            refreshSafe();
+            requestAnimationFrame(() => refreshSafe());
+          });
+        }
+        setTimeout(() => refreshSafe(), 24);
         return;
       }
       const ta = target.querySelector("textarea[data-spec-edit]");
       if (ta instanceof HTMLTextAreaElement) {
         const text = getCustomText(key, ta.value);
         if (ta.value !== text) ta.value = text;
-        if (hasEasyMde() && !editorMap.has(key)) {
-          const editor = createEasyMdeEditor(ta, key);
-          if (editor && editor.codemirror) {
-            try { editor.codemirror.refresh(); } catch { /* noop */ }
-          } else if (!editorMap.has(key)) {
-            bindPlainTextarea(ta, key);
-          }
-        }
       }
-    });
+    };
+    el.specAutoBlocks.addEventListener("show.bs.collapse", refreshEditorByCollapseEvent);
+    el.specAutoBlocks.addEventListener("shown.bs.collapse", refreshEditorByCollapseEvent);
   };
 
   const initEditors = () => {
@@ -340,11 +342,6 @@ export const setupSpecViewController = (deps = {}) => {
       if (!key) continue;
       ta.value = getCustomText(key, ta.value);
       if (!hasEasyMde()) {
-        bindPlainTextarea(ta, key);
-        continue;
-      }
-      const collapse = ta.closest(".accordion-collapse");
-      if (collapse && !collapse.classList.contains("show")) {
         bindPlainTextarea(ta, key);
         continue;
       }

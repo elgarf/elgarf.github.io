@@ -26,6 +26,45 @@ export const setupSelectionUiFeature = (deps = {}) => {
     syncPropsSmart,
     t = value => value
   } = deps;
+  const groupCollapsed = {
+    notes: false,
+    devices: false,
+    screens: false
+  };
+  let groupToggleBound = false;
+  const clampByte = v => Math.max(0, Math.min(255, Math.round(Number(v) || 0)));
+  const parseHexColor = value => {
+    const s = String(value || "").trim();
+    const hex = s.startsWith("#") ? s.slice(1) : s;
+    if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+      return {
+        r: parseInt(hex[0] + hex[0], 16),
+        g: parseInt(hex[1] + hex[1], 16),
+        b: parseInt(hex[2] + hex[2], 16)
+      };
+    }
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+      return {
+        r: parseInt(hex.slice(0, 2), 16),
+        g: parseInt(hex.slice(2, 4), 16),
+        b: parseInt(hex.slice(4, 6), 16)
+      };
+    }
+    return null;
+  };
+  const relativeLuminance = rgb => {
+    const toLin = c => {
+      const v = clampByte(c) / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * toLin(rgb.r) + 0.7152 * toLin(rgb.g) + 0.0722 * toLin(rgb.b);
+  };
+  const contrastTextColor = bgHex => {
+    const rgb = parseHexColor(bgHex);
+    if (!rgb) return "#f8fafc";
+    const lum = relativeLuminance(rgb);
+    return lum > 0.45 ? "#0f172a" : "#f8fafc";
+  };
 
   const syncSelectionProps = () => {
     if (typeof syncPropsSmart === "function") syncPropsSmart();
@@ -69,6 +108,17 @@ export const setupSelectionUiFeature = (deps = {}) => {
 
   const listRects = () => {
     listCtrl.ensureListEvents();
+    if (!groupToggleBound && el.list) {
+      groupToggleBound = true;
+      bindEvent(el.list, "click", e => {
+        const btn = eventClosest(e, ".rect-list-group-toggle");
+        if (!btn) return;
+        const key = String(btn.getAttribute("data-group") || "");
+        if (!Object.prototype.hasOwnProperty.call(groupCollapsed, key)) return;
+        groupCollapsed[key] = !groupCollapsed[key];
+        listRects();
+      });
+    }
     if (!st.rects.length) {
       listCtrl.listNodeCache.clear();
       listCtrl.clearListDropMarker();
@@ -76,6 +126,31 @@ export const setupSelectionUiFeature = (deps = {}) => {
       return;
     }
     const fragment = document.createDocumentFragment();
+    const noteNodes = [];
+    const deviceNodes = [];
+    const screenNodes = [];
+    const appendGroup = (groupKey, titleText, nodes) => {
+      if (!nodes.length) return;
+      const collapsed = !!groupCollapsed[groupKey];
+      const group = document.createElement("section");
+      group.className = "rect-list-group";
+      group.setAttribute("data-group", groupKey);
+      const title = document.createElement("button");
+      title.type = "button";
+      title.className = "rect-list-group-title rect-list-group-toggle";
+      title.setAttribute("data-group", groupKey);
+      title.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      title.innerHTML = `<i class="fa-solid ${collapsed ? "fa-chevron-right" : "fa-chevron-down"}"></i><span>${titleText}</span>`;
+      group.appendChild(title);
+      if (!collapsed) {
+        const body = document.createElement("div");
+        body.className = "rect-list-group-body";
+        for (const node of nodes) body.appendChild(node);
+        group.appendChild(body);
+      }
+      fragment.appendChild(group);
+    };
+    const kindOf = r => String((r && r.kind) || "").toLowerCase();
     const live = new Set();
     for (const r of st.rects) {
       const id = Math.round(Number(r.id) || 0);
@@ -122,13 +197,42 @@ export const setupSelectionUiFeature = (deps = {}) => {
       if (node._title.textContent !== titleText) node._title.textContent = titleText;
       const metaText = `${r.width}x${r.height} @ (${r.x}, ${r.y})`;
       if (node._meta.textContent !== metaText) node._meta.textContent = metaText;
-      fragment.appendChild(node);
+      const baseColor = String(r && r.colorA || "").trim();
+      if (baseColor) {
+        const textColor = contrastTextColor(baseColor);
+        node.style.background = baseColor;
+        node.style.borderColor = baseColor;
+        node.style.color = textColor;
+        if (node._meta) node._meta.style.setProperty("color", textColor, "important");
+        if (node._lock) {
+          node._lock.style.color = textColor;
+          node._lock.style.borderColor = textColor;
+          node._lock.style.background = "transparent";
+        }
+      } else {
+        node.style.background = "";
+        node.style.borderColor = "";
+        node.style.color = "";
+        if (node._meta) node._meta.style.removeProperty("color");
+        if (node._lock) {
+          node._lock.style.color = "";
+          node._lock.style.borderColor = "";
+          node._lock.style.background = "";
+        }
+      }
+      const kind = kindOf(r);
+      if (kind === "note") noteNodes.push(node);
+      else if (kind === "device") deviceNodes.push(node);
+      else screenNodes.push(node);
     }
     for (const [id, node] of listCtrl.listNodeCache) {
       if (live.has(id)) continue;
       if (node && node.parentNode) node.parentNode.removeChild(node);
       listCtrl.listNodeCache.delete(id);
     }
+    appendGroup("notes", t("Примечания"), noteNodes);
+    appendGroup("devices", t("Устройства"), deviceNodes);
+    appendGroup("screens", t("Экраны"), screenNodes);
     el.list.replaceChildren(fragment);
   };
 
