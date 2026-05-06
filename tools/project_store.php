@@ -35,6 +35,13 @@ try {
             lastAccess INTEGER
         )'
     );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS project_checklists (
+            project_guid TEXT PRIMARY KEY,
+            checklist_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
     $cols = $pdo->query("PRAGMA table_info(projects)")->fetchAll();
     $hasChecksum = false;
     $hasLastAccess = false;
@@ -106,6 +113,17 @@ $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 if ($method === 'GET') {
     $idRaw = $_GET['id'] ?? '';
     $listRaw = $_GET['list'] ?? '';
+    $checklistGuidRaw = trim((string)($_GET['checklist_guid'] ?? ''));
+
+    if ($checklistGuidRaw !== '') {
+        $st = $pdo->prepare('SELECT project_guid, checklist_json, updated_at FROM project_checklists WHERE project_guid = :project_guid LIMIT 1');
+        $st->execute([':project_guid' => $checklistGuidRaw]);
+        $row = $st->fetch();
+        if (!$row) {
+            respond(200, ['ok' => true, 'checklist' => ['project_guid' => $checklistGuidRaw, 'checklist_json' => '{}', 'updated_at' => null]]);
+        }
+        respond(200, ['ok' => true, 'checklist' => $row]);
+    }
 
     if ($idRaw !== '') {
         $id = max(1, (int)$idRaw);
@@ -141,6 +159,32 @@ if ($method === 'POST') {
     $body = json_decode((string)$raw, true);
     if (!is_array($body)) {
         respond(400, ['ok' => false, 'error' => 'invalid_json']);
+    }
+
+    $checklistGuid = trim((string)($body['checklistGuid'] ?? ''));
+    if ($checklistGuid !== '') {
+        $checklistData = $body['checklistData'] ?? [];
+        if (!is_array($checklistData)) {
+            respond(400, ['ok' => false, 'error' => 'invalid_checklist_data']);
+        }
+        $json = json_encode($checklistData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (!is_string($json)) {
+            respond(400, ['ok' => false, 'error' => 'invalid_checklist_data']);
+        }
+        $updatedAt = gmdate('c');
+        $upsert = $pdo->prepare(
+            'INSERT INTO project_checklists(project_guid, checklist_json, updated_at)
+             VALUES(:project_guid, :checklist_json, :updated_at)
+             ON CONFLICT(project_guid) DO UPDATE SET
+               checklist_json = excluded.checklist_json,
+               updated_at = excluded.updated_at'
+        );
+        $upsert->execute([
+            ':project_guid' => $checklistGuid,
+            ':checklist_json' => $json,
+            ':updated_at' => $updatedAt,
+        ]);
+        respond(200, ['ok' => true, 'saved' => true, 'project_guid' => $checklistGuid, 'updated_at' => $updatedAt]);
     }
 
     $name = trim((string)($body['name'] ?? 'project'));

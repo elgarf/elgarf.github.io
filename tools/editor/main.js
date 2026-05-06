@@ -2944,6 +2944,7 @@ const {
 if (typeof buildFlowSpecText === "function") buildFlowSpecTextForView = () => buildFlowSpecText();
 try {
   if (typeof window !== "undefined") {
+    window.ledMaskGetProjectGuid = () => String(st && st.projectGuid || "");
     window.ledMaskBuildFlatSpecText = () => {
       if (typeof buildFlowSpecText !== "function") return "";
       return buildFlowSpecText({

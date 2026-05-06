@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>LED Mask Viewer</title>
+  <link rel="stylesheet" href="./vendor/bootstrap/bootstrap.min.css">
   <style>
     :root {
       color-scheme: dark;
@@ -25,34 +26,32 @@
     }
     .viewer-tabs {
       display: flex;
-      gap: 6px;
+      align-items: flex-end;
+      gap: 8px;
       padding: 8px 10px 0;
-      background: linear-gradient(180deg, rgba(20, 26, 34, .95) 0%, rgba(14, 19, 26, .9) 100%);
-      border-bottom: 1px solid rgba(255, 255, 255, .1);
+      border-bottom: 1px solid var(--bs-border-color);
+      background: var(--bs-body-bg);
+      overflow-x: auto;
+      overflow-y: hidden;
       z-index: 6;
     }
+    .viewer-tabs-list {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 2px;
+      min-width: 0;
+      white-space: nowrap;
+      border-bottom: 0;
+    }
+    .viewer-tabs-list .nav-item {
+      flex: 0 0 auto;
+    }
     .viewer-tab-btn {
-      border: 1px solid rgba(255, 255, 255, .18);
-      border-bottom-color: rgba(255, 255, 255, .08);
-      background: rgba(255, 255, 255, .06);
-      color: rgba(255, 255, 255, .88);
-      border-radius: 10px 10px 0 0;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 7px 12px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 240px;
       cursor: pointer;
-      transform: translateY(1px);
-      transition: background .12s ease, border-color .12s ease, color .12s ease;
-    }
-    .viewer-tab-btn:hover {
-      background: rgba(255, 255, 255, .1);
-      color: rgba(255, 255, 255, .96);
-    }
-    .viewer-tab-btn.active {
-      background: #111820;
-      color: #ffffff;
-      border-color: rgba(255, 255, 255, .24);
-      border-bottom-color: #111820;
     }
     .viewer-content {
       position: relative;
@@ -115,6 +114,31 @@
       font-size: 14px;
       line-height: 1.5;
     }
+    .viewer-spec-panel ul.viewer-spec-checklist {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 10px;
+    }
+    .viewer-spec-panel .viewer-spec-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin: 0 0 6px;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .viewer-spec-panel .viewer-spec-check > input[type="checkbox"] {
+      margin-top: 2px;
+      width: 16px;
+      height: 16px;
+      accent-color: #76d6a9;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .viewer-spec-panel .viewer-spec-check > span {
+      display: inline-block;
+      flex: 1 1 auto;
+    }
     .viewer-spec-panel h1,
     .viewer-spec-panel h2,
     .viewer-spec-panel h3,
@@ -157,9 +181,15 @@
 </head>
 <body>
   <div class="viewer-root">
-    <div class="viewer-tabs">
-      <button id="tabInstall" class="viewer-tab-btn active" type="button">Монтажный вид</button>
-      <button id="tabSpec" class="viewer-tab-btn" type="button">Спецификация</button>
+    <div class="viewer-tabs" data-bs-theme="dark">
+      <ul class="viewer-tabs-list nav nav-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button id="tabInstall" class="viewer-tab-btn nav-link active" type="button" role="tab" aria-selected="true">Монтажный вид</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button id="tabSpec" class="viewer-tab-btn nav-link" type="button" role="tab" aria-selected="false">Спецификация</button>
+        </li>
+      </ul>
     </div>
     <div class="viewer-content">
       <iframe id="viewerFrame" class="viewer-frame" title="LED project viewer"></iframe>
@@ -179,6 +209,10 @@
       let lastZoomText = "—";
       let activeTab = "install";
       let specRenderVersion = 0;
+      let currentSpecStorageKey = "led-mask-viewer.spec-checks.default";
+      let currentProjectGuid = "";
+      let serverChecklistState = {};
+      const projectStoreApiUrl = "https://static.93.189.179.185.ip.webhost1.net/project_store.php";
       const q = new URLSearchParams(location.search || "");
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
       const packedProject = (q.get("project") || "").trim();
@@ -275,12 +309,90 @@
         const linked = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, text, href) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`);
         return linked.replace(/(^|[\s(])(https?:\/\/[^\s<]+)/g, (_m, lead, href) => `${lead}<a href="${href}" target="_blank" rel="noopener noreferrer">${href}</a>`);
       };
+      const hashKey = value => {
+        const s = String(value || "");
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < s.length; i++) {
+          h ^= s.charCodeAt(i);
+          h = Math.imul(h, 16777619) >>> 0;
+        }
+        return h.toString(36);
+      };
+      const loadChecklistState = () => {
+        if (currentProjectGuid && serverChecklistState && typeof serverChecklistState === "object") {
+          return { ...serverChecklistState };
+        }
+        try {
+          const raw = localStorage.getItem(currentSpecStorageKey) || "{}";
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (_e) {
+          return {};
+        }
+      };
+      const saveChecklistState = state => {
+        if (currentProjectGuid) {
+          serverChecklistState = state && typeof state === "object" ? { ...state } : {};
+        }
+        try {
+          localStorage.setItem(currentSpecStorageKey, JSON.stringify(state && typeof state === "object" ? state : {}));
+        } catch (_e) { }
+      };
+      const loadChecklistStateFromServer = async guid => {
+        const g = String(guid || "").trim();
+        if (!g) return null;
+        try {
+          const u = new URL(projectStoreApiUrl);
+          u.searchParams.set("checklist_guid", g);
+          const res = await fetch(u.toString(), { method: "GET" });
+          if (!res.ok) return null;
+          const json = await res.json();
+          if (!json || json.ok !== true || !json.checklist) return null;
+          const raw = String(json.checklist.checklist_json || "{}");
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (_e) {
+          return null;
+        }
+      };
+      const saveChecklistStateToServer = async (guid, state) => {
+        const g = String(guid || "").trim();
+        if (!g) return false;
+        try {
+          const res = await fetch(projectStoreApiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              checklistGuid: g,
+              checklistData: state && typeof state === "object" ? state : {}
+            })
+          });
+          if (!res.ok) return false;
+          const json = await res.json();
+          return !!(json && json.ok === true);
+        } catch (_e) {
+          return false;
+        }
+      };
+      const resolveSpecStorageKey = () => {
+        try {
+          const w = frame.contentWindow;
+          const guid = w && typeof w.ledMaskGetProjectGuid === "function" ? String(w.ledMaskGetProjectGuid() || "").trim() : "";
+          const fallback = String(pid || "").trim() || "default";
+          return `led-mask-viewer.spec-checks.${guid || fallback}`;
+        } catch (_e) {
+          const fallback = String(pid || "").trim() || "default";
+          return `led-mask-viewer.spec-checks.${fallback}`;
+        }
+      };
       const markdownToHtml = text => {
         const src = String(text || "").replace(/\r/g, "");
         if (!src.trim()) return `<div class="viewer-spec-empty">Нет данных для спецификации</div>`;
         const lines = src.split("\n");
         const out = [];
+        const checks = loadChecklistState();
         let listOpen = false;
+        let headingTrail = ["spec"];
         const closeList = () => {
           if (!listOpen) return;
           out.push("</ul>");
@@ -292,16 +404,27 @@
           if (heading) {
             closeList();
             const lvl = Math.max(1, Math.min(6, heading[1].length));
+            headingTrail = headingTrail.slice(0, Math.max(1, lvl - 1));
+            headingTrail[lvl - 1] = String(heading[2] || "").trim();
             out.push(`<h${lvl}>${renderInlineMd(heading[2])}</h${lvl}>`);
             continue;
           }
           const bullet = line.match(/^\s*[-*]\s+(.+)\s*$/);
           if (bullet) {
             if (!listOpen) {
-              out.push("<ul>");
+              out.push('<ul class="viewer-spec-checklist">');
               listOpen = true;
             }
-            out.push(`<li>${renderInlineMd(bullet[1])}</li>`);
+            const textPart = String(bullet[1] || "").trim();
+            const keyRaw = `${headingTrail.join(" > ")}|${textPart}`;
+            const key = hashKey(keyRaw);
+            const checked = !!checks[key];
+            out.push(
+              `<li><label class="viewer-spec-check">`
+              + `<input type="checkbox" data-check-key="${escapeHtml(key)}"${checked ? " checked" : ""}>`
+              + `<span>${renderInlineMd(textPart)}</span>`
+              + `</label></li>`
+            );
             continue;
           }
           if (!line.trim()) {
@@ -324,6 +447,22 @@
           return;
         }
         let text = "";
+        currentSpecStorageKey = resolveSpecStorageKey();
+        try {
+          const wGuid = w && typeof w.ledMaskGetProjectGuid === "function" ? String(w.ledMaskGetProjectGuid() || "").trim() : "";
+          currentProjectGuid = wGuid;
+        } catch (_e) {
+          currentProjectGuid = "";
+        }
+        if (currentProjectGuid) {
+          const fromServer = await loadChecklistStateFromServer(currentProjectGuid);
+          if (fromServer && typeof fromServer === "object") {
+            serverChecklistState = fromServer;
+            try { localStorage.setItem(currentSpecStorageKey, JSON.stringify(fromServer)); } catch (_e) { }
+          } else {
+            serverChecklistState = loadChecklistState();
+          }
+        }
         try {
           text = await Promise.resolve(w.ledMaskBuildFlatSpecText());
         } catch (_e) {
@@ -336,11 +475,25 @@
         }
         specPanel.innerHTML = markdownToHtml(text);
       };
+      specPanel.addEventListener("change", e => {
+        const input = e.target && e.target.closest ? e.target.closest("input[type='checkbox'][data-check-key]") : null;
+        if (!input) return;
+        const key = String(input.getAttribute("data-check-key") || "").trim();
+        if (!key) return;
+        const state = loadChecklistState();
+        state[key] = !!input.checked;
+        saveChecklistState(state);
+        if (currentProjectGuid) {
+          saveChecklistStateToServer(currentProjectGuid, state);
+        }
+      });
       const switchTab = next => {
         activeTab = next === "spec" ? "spec" : "install";
         const install = activeTab === "install";
         tabInstall.classList.toggle("active", install);
         tabSpec.classList.toggle("active", !install);
+        tabInstall.setAttribute("aria-selected", install ? "true" : "false");
+        tabSpec.setAttribute("aria-selected", install ? "false" : "true");
         specPanel.classList.toggle("show", !install);
         frame.style.display = install ? "block" : "none";
         label.style.display = install ? "block" : "none";
