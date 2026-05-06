@@ -96,6 +96,7 @@ export const createEditorDomRefs = (documentRef = document) => {
 };
 
 export const createInitialEditorState = () => ({
+  projectGuid: "",
   debugSnap: false,
   renderProfiler: false,
   renderProfile: null,

@@ -1,7 +1,6 @@
 export const setupInstallSummaryOverlay = (deps = {}) => {
   const {
     st,
-    cv,
     wrap,
     normalizeViewMode,
     drawCellX,

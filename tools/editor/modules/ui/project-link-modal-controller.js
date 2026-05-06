@@ -18,7 +18,7 @@ export const setupProjectLinkModalController = (deps = {}) => {
         qr.addData(text);
         qr.make();
         return qr.createDataURL(14, 3);
-      } catch (_e) {
+      } catch {
         // try next correction level; L gives max capacity
       }
     }
@@ -62,3 +62,4 @@ export const setupProjectLinkModalController = (deps = {}) => {
 
   return { buildQrDataUrl, showProjectLinkModal };
 };
+

@@ -224,7 +224,7 @@ export const setupSpecViewController = (deps = {}) => {
 
   const disposeEditors = () => {
     for (const [, editor] of editorMap.entries()) {
-      try { if (editor && typeof editor.toTextArea === "function") editor.toTextArea(); } catch (_e) { }
+      try { if (editor && typeof editor.toTextArea === "function") editor.toTextArea(); } catch { /* noop */ }
     }
     editorMap.clear();
   };
@@ -267,6 +267,35 @@ export const setupSpecViewController = (deps = {}) => {
   const bindPlainTextarea = (ta, key) => {
     ta.addEventListener("input", () => setCustomText(key, ta.value));
   };
+  const createEasyMdeEditor = (ta, key) => {
+    if (!(ta instanceof HTMLTextAreaElement) || !key || !hasEasyMde()) return null;
+    try {
+      const editor = new window.EasyMDE({
+        element: ta,
+        autofocus: false,
+        spellChecker: false,
+        status: false,
+        autoDownloadFontAwesome: false,
+        forceSync: true,
+        lineWrapping: true,
+        sideBySideFullscreen: false,
+        toolbar: [
+          "bold", "italic", "heading", "|",
+          "unordered-list", "ordered-list", "|",
+          "quote", "code", "link"
+        ]
+      });
+      editor.value(getCustomText(key, ta.value));
+      editor.codemirror.on("change", () => {
+        setCustomText(key, editor.value());
+      });
+      editorMap.set(key, editor);
+      return editor;
+    } catch {
+      easyMdeFailed = true;
+      return null;
+    }
+  };
 
   const bindSpecBlockEvents = () => {
     if (specEventsBound || !el.specAutoBlocks) return;
@@ -282,13 +311,21 @@ export const setupSpecViewController = (deps = {}) => {
       if (editor && editor.codemirror) {
         const text = getCustomText(key, "");
         if (String(editor.value() || "") !== text) editor.value(text);
-        try { editor.codemirror.refresh(); } catch (_e) { }
+        try { editor.codemirror.refresh(); } catch { /* noop */ }
         return;
       }
       const ta = target.querySelector("textarea[data-spec-edit]");
       if (ta instanceof HTMLTextAreaElement) {
         const text = getCustomText(key, ta.value);
         if (ta.value !== text) ta.value = text;
+        if (hasEasyMde() && !editorMap.has(key)) {
+          const editor = createEasyMdeEditor(ta, key);
+          if (editor && editor.codemirror) {
+            try { editor.codemirror.refresh(); } catch { /* noop */ }
+          } else if (!editorMap.has(key)) {
+            bindPlainTextarea(ta, key);
+          }
+        }
       }
     });
   };
@@ -306,32 +343,17 @@ export const setupSpecViewController = (deps = {}) => {
         bindPlainTextarea(ta, key);
         continue;
       }
-      try {
-        const editor = new window.EasyMDE({
-          element: ta,
-          autofocus: false,
-          spellChecker: false,
-          status: false,
-          autoDownloadFontAwesome: false,
-          forceSync: true,
-          lineWrapping: true,
-          sideBySideFullscreen: false,
-          toolbar: [
-            "bold", "italic", "heading", "|",
-            "unordered-list", "ordered-list", "|",
-            "quote", "code", "link"
-          ]
-        });
-        editor.value(getCustomText(key, ta.value));
-        editor.codemirror.on("change", () => {
-          setCustomText(key, editor.value());
-        });
-        editorMap.set(key, editor);
+      const collapse = ta.closest(".accordion-collapse");
+      if (collapse && !collapse.classList.contains("show")) {
+        bindPlainTextarea(ta, key);
+        continue;
+      }
+      const editor = createEasyMdeEditor(ta, key);
+      if (editor && editor.codemirror) {
         setTimeout(() => {
-          try { editor.codemirror.refresh(); } catch (_e) { }
+          try { editor.codemirror.refresh(); } catch { /* noop */ }
         }, 0);
-      } catch (_e) {
-        easyMdeFailed = true;
+      } else {
         bindPlainTextarea(ta, key);
       }
     }
@@ -552,3 +574,5 @@ export const setupSpecViewController = (deps = {}) => {
     flushCustomEditorsToState
   };
 };
+
+

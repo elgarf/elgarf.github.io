@@ -24,7 +24,7 @@ export const createEventBinders = (deps = {}) => {
         node.focus();
         node.select();
       }
-    } catch (_e) { }
+    } catch { /* noop */ }
   };
 
   return {
@@ -37,3 +37,5 @@ export const createEventBinders = (deps = {}) => {
     focusAndSelect
   };
 };
+
+

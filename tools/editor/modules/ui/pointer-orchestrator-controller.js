@@ -37,7 +37,6 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     flowController,
     resetFlowHoverTransient,
     selectHoveredRectSmart,
-    finishPointerUp,
     finishSelectionBox,
     mkNote,
     mk,

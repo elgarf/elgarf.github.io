@@ -26,7 +26,7 @@ export const setupAppInitController = (deps = {}) => {
     let queryProjectData = null;
     try {
       queryProjectData = await getProjectDataFromQueryParam();
-    } catch (_e) {
+    } catch {
       showMessageModal(t("Параметр проекта в URL повреждён или не поддерживается"));
       queryProjectData = null;
     }
@@ -90,3 +90,4 @@ export const setupAppInitController = (deps = {}) => {
     initProjectState
   };
 };
+

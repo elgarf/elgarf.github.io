@@ -81,7 +81,7 @@ export const setupModalWiringFeature = (deps = {}) => {
         if (!txt || loading) return;
         try {
           if (typeof focusAndSelect === "function") focusAndSelect(txt);
-        } catch (_e) { }
+        } catch { /* noop */ }
       }, 0);
     }
   };
@@ -115,3 +115,5 @@ export const setupModalWiringFeature = (deps = {}) => {
     showProjectLinkModal
   };
 };
+
+

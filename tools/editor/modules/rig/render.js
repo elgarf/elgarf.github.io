@@ -14,7 +14,7 @@ export const setupRigRenderController = (deps = {}) => {
   } = deps;
 
   const drawRigOnRect = (c, r, w, h, cx, cy, topo, hs, z, sel) => {
-    const rig = getRectRigData(r), layout = buildRigLayout(r, cx, cy, topo, hs, z), ui = layout.ui, loadSize = layout.loadSizePx, frames = new Set(Array.isArray(rig.frames) ? rig.frames : []), loads = (rig && rig.loads && typeof rig.loads === "object") ? rig.loads : {}, suspends = (Array.isArray(rig.suspends) ? rig.suspends : []).filter(col => layout.anchors.has(col)).sort((a, b) => a - b), links = new Set(Array.isArray(rig.suspendLinks) ? rig.suspendLinks : []);
+    const rig = getRectRigData(r), layout = buildRigLayout(r, cx, cy, topo, hs, z), ui = layout.ui, loadSize = layout.loadSizePx, frames = new Set(Array.isArray(rig.frames) ? rig.frames : []), loads = (rig && rig.loads && typeof rig.loads === "object") ? rig.loads : {};
     c.save();
     const frameW = 4.5 * 2, hover = st.rigHover && st.rigHover.rectId === r.id ? st.rigHover : null;
     const drawnSeams = new Set();
@@ -255,8 +255,7 @@ export const setupRigRenderController = (deps = {}) => {
         c.restore();
       }
     }
-    if (showAnchorHints) {
-    }
+    void showAnchorHints;
     if (isRigEditMode() && sel && st.rigHover && st.rigHover.rectId === r.id && (st.rigHover.type === "suspend" || st.rigHover.type === "suspendLink")) {
       c.strokeStyle = "rgba(255,224,138,.95)";
       c.lineWidth = Math.max(1.6, 2.4 * ui);

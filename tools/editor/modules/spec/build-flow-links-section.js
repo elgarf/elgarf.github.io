@@ -70,11 +70,18 @@ const mapSignature = map =>
     .sort((a, b) => a[0].localeCompare(b[0], "ru", { numeric: true }) || a[1] - b[1]);
 const createManualSectionResolver = (customMap = {}) => {
   const nextKey = createSectionKeySequencer();
+  const normalizeSectionText = value =>
+    String(value || "")
+      .split(/\r?\n/)
+      .map(line => String(line || "").trimEnd())
+      .filter(line => line.trim().length > 0)
+      .join("\n")
+      .trim();
   const getSectionManual = (level, parentTitle, title) => {
     const key = nextKey(level, parentTitle, title);
-    return String((customMap && customMap[key]) || "").trim();
+    return normalizeSectionText((customMap && customMap[key]) || "");
   };
-  const getGlobalManual = () => String((customMap && customMap.__global__) || "").trim();
+  const getGlobalManual = () => normalizeSectionText((customMap && customMap.__global__) || "");
   return { getSectionManual, getGlobalManual };
 };
 
@@ -168,14 +175,13 @@ const buildScreenSpecSection = (deps = {}) => {
   pushSpecCountLine(out, t("Стропа"), sumMapCounts(rec.rigData.supportBySize) * 2);
   pushSpecCountLine(out, t("Скоба монтажная для рамы"), frameBracketCount, t("шт."));
   pushSpecCountLine(out, t("Болт для крепления скобы"), frameBracketCount * 4, t("шт."));
-  if (String(manualText || "").trim()) out.push("", String(manualText).trim());
+  if (String(manualText || "").trim()) out.push(String(manualText).trim());
   return out.join("\n");
 };
 
 export const buildFlowLinksSpecText = (deps = {}) => {
   const {
     rects,
-    isNoteRect,
     buildInterScreenSpecData,
     parseScreenNameGroup,
     buildRectSpecData,
@@ -196,8 +202,15 @@ export const buildFlowLinksSpecText = (deps = {}) => {
   const manualResolver = includeManual
     ? createManualSectionResolver((specCustomSections && typeof specCustomSections === "object") ? specCustomSections : {})
     : { getSectionManual: () => "", getGlobalManual: () => "" };
+  const normalizeSectionText = value =>
+    String(value || "")
+      .split(/\r?\n/)
+      .map(line => String(line || "").trimEnd())
+      .filter(line => line.trim().length > 0)
+      .join("\n")
+      .trim();
   const globalManual = includeManual
-    ? [manualResolver.getGlobalManual(), String(specCustomText || "").trim()].filter(Boolean).join("\n\n").trim()
+    ? [manualResolver.getGlobalManual(), normalizeSectionText(specCustomText || "")].filter(Boolean).join("\n").trim()
     : "";
   const ROOT_PARENT = t("Спецификация");
   const COMMUTATION_TITLE = t("Сигнальная и силовая коммутация");
@@ -209,7 +222,7 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     if (!byScreenSeries.has(series)) byScreenSeries.set(series, []);
     byScreenSeries.get(series).push(r);
   }
-  const screenBlocks = [...byScreenSeries.entries()]
+  [...byScreenSeries.entries()]
     .sort((a, b) => a[0].localeCompare(b[0], "ru"))
     .map(([series, rows]) => {
       const records = rows
@@ -318,15 +331,15 @@ export const buildFlowLinksSpecText = (deps = {}) => {
         frameBracketCount > 0 ? `* ${t("Скоба монтажная для рамы")}: ${frameBracketCount} ${t("шт.")}` : "",
         frameBracketCount > 0 ? `* ${t("Болт для крепления скобы")}: ${frameBracketCount * 4} ${t("шт.")}` : "",
         joinSpecLine(t("Грузы"), btm),
-        String(manualText || "").trim()
+        normalizeSectionText(manualText || "")
       ].filter(Boolean);
       return [`###### ${group}`, ...bulletLines].join("\n");
     })
     .join("\n\n");
   const commutationHeader = `##### ${COMMUTATION_TITLE}`;
   const commutationManual = manualResolver.getSectionManual(5, "", COMMUTATION_TITLE);
-  const commutationText = [commutationManual, globalManual, String(specCustomText || "").trim()].filter(Boolean).join("\n\n").trim();
-  const devicesManual = manualResolver.getSectionManual(5, "", DEVICES_TITLE);
+  const commutationText = [commutationManual, globalManual, normalizeSectionText(specCustomText || "")].filter(Boolean).join("\n").trim();
+  const devicesManual = normalizeSectionText(manualResolver.getSectionManual(5, "", DEVICES_TITLE));
 
   return [
     `### ${String(projectName || "Проект").trim() || "Проект"}`,

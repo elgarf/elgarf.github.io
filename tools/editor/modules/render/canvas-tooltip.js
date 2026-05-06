@@ -74,9 +74,10 @@ export const drawCanvasTooltip = (c, label, x, y, z = 1, opts = {}) => {
     c.fill();
     c.fillStyle = theme.color;
     c.fillText(text, bx + padX, by + h / 2);
-  } catch (_err) {
+  } catch {
     // Tooltip drawing must never break the editor render pass.
   } finally {
     c.restore();
   }
 };
+

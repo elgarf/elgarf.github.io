@@ -27,6 +27,7 @@ try {
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS projects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_guid TEXT,
             name TEXT NOT NULL,
             data TEXT NOT NULL,
             created_at TEXT NOT NULL,
@@ -37,8 +38,12 @@ try {
     $cols = $pdo->query("PRAGMA table_info(projects)")->fetchAll();
     $hasChecksum = false;
     $hasLastAccess = false;
+    $hasProjectGuid = false;
     foreach ($cols as $col) {
         $colName = isset($col['name']) ? strtolower((string)$col['name']) : '';
+        if ($colName === 'project_guid') {
+            $hasProjectGuid = true;
+        }
         if ($colName === 'checksum') {
             $hasChecksum = true;
         }
@@ -51,6 +56,9 @@ try {
     }
     if (!$hasLastAccess) {
         $pdo->exec('ALTER TABLE projects ADD COLUMN lastAccess INTEGER');
+    }
+    if (!$hasProjectGuid) {
+        $pdo->exec('ALTER TABLE projects ADD COLUMN project_guid TEXT');
     }
     $rowsForHash = $pdo->query('SELECT id, data FROM projects WHERE checksum IS NULL OR checksum = ""')->fetchAll();
     $updHash = $pdo->prepare('UPDATE projects SET checksum = :checksum WHERE id = :id');
@@ -88,6 +96,7 @@ try {
          AND checksum IS NOT NULL AND checksum <> ""'
     );
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_checksum ON projects(checksum)');
+    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_guid ON projects(project_guid) WHERE project_guid IS NOT NULL AND project_guid <> ""');
 } catch (Throwable $e) {
     respond(500, ['ok' => false, 'error' => 'db_init_failed']);
 }
@@ -143,6 +152,29 @@ if ($method === 'POST') {
         respond(400, ['ok' => false, 'error' => 'missing_data']);
     }
     $checksum = hash('sha256', $data);
+    $projectGuid = trim((string)($body['projectGuid'] ?? ''));
+
+    if ($projectGuid !== '') {
+        $findByGuid = $pdo->prepare('SELECT id FROM projects WHERE project_guid = :project_guid LIMIT 1');
+        $findByGuid->execute([':project_guid' => $projectGuid]);
+        $existingByGuid = $findByGuid->fetch();
+        if ($existingByGuid && isset($existingByGuid['id'])) {
+            $existingId = (int)$existingByGuid['id'];
+            $updateByGuid = $pdo->prepare(
+                'UPDATE projects
+                 SET name = :name, data = :data, checksum = :checksum, lastAccess = :last_access
+                 WHERE id = :id'
+            );
+            $updateByGuid->execute([
+                ':name' => $name,
+                ':data' => $data,
+                ':checksum' => $checksum,
+                ':last_access' => time(),
+                ':id' => $existingId,
+            ]);
+            respond(200, ['ok' => true, 'id' => $existingId, 'duplicate' => false, 'updatedByGuid' => true]);
+        }
+    }
 
     $find = $pdo->prepare('SELECT id FROM projects WHERE checksum = :checksum LIMIT 1');
     $find->execute([':checksum' => $checksum]);
@@ -160,8 +192,9 @@ if ($method === 'POST') {
     $createdAt = gmdate('c');
     $nowAccess = time();
     try {
-        $st = $pdo->prepare('INSERT INTO projects(name, data, created_at, checksum, lastAccess) VALUES(:name, :data, :created_at, :checksum, :last_access)');
+        $st = $pdo->prepare('INSERT INTO projects(project_guid, name, data, created_at, checksum, lastAccess) VALUES(:project_guid, :name, :data, :created_at, :checksum, :last_access)');
         $st->execute([
+            ':project_guid' => ($projectGuid !== '' ? $projectGuid : null),
             ':name' => $name,
             ':data' => $data,
             ':created_at' => $createdAt,

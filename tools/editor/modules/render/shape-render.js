@@ -6,8 +6,7 @@ import {
   flattenShapePoints,
   isBezierPoint,
   makeShapePath2D,
-  num,
-  shapePoint
+  num
 } from "../shape/shape-path-utils.js";
 
 import { isShapeRectKind } from "../utils/rect-kind-utils.js";

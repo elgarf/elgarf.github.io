@@ -21,7 +21,7 @@ export const setupUiBinders = (deps = {}) => {
       const path = String((globalThis.location && globalThis.location.pathname) || "").toLowerCase();
       const byPath = path.endsWith("/ledmaskviewer.html") || path.endsWith("ledmaskviewer.html");
       return byParam || byPath;
-    } catch (_e) {
+    } catch {
       return false;
     }
   })();
@@ -114,3 +114,4 @@ export const setupUiBinders = (deps = {}) => {
 
   return { applyProjectNameInput };
 };
+

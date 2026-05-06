@@ -14,7 +14,7 @@ export const evalExpr = (input, fallback) => {
   try {
     const v = Function(`"use strict";return (${normalized});`)();
     return Number.isFinite(v) ? v : fallback;
-  } catch (_e) {
+  } catch {
     return fallback;
   }
 };
@@ -45,3 +45,4 @@ export const parseAreaM2PxInput = (input, fallback) => {
   if (!Number.isFinite(n) || n <= 0) return Number(fallback) || 65536;
   return Math.max(1, Math.round(n));
 };
+

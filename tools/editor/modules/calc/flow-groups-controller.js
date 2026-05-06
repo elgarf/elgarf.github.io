@@ -35,7 +35,6 @@ export const setupFlowGroupsController = (deps = {}) => {
     default: { order: ["_rowTop", "asc", "_colLeft", "asc"], axes: { primary: "row", primaryDir: "asc", secondaryStart: "asc" } }
   });
   const toInt0 = v => Math.max(0, Math.round(Number(v) || 0));
-  const toInt1 = v => Math.max(1, Math.round(Number(v) || 0));
   const cidOf = it => toInt0(it && it.cid);
   const colOf = it => toInt0(it && it.col);
   const rowOf = it => toInt0(it && it.row);
@@ -54,7 +53,7 @@ export const setupFlowGroupsController = (deps = {}) => {
     if (!(regionFlowCache instanceof Map)) {
       regionFlowCache = new Map();
       try { Object.defineProperty(getDataFlowGroupsUncached, "_regionFlowCache", { value: regionFlowCache, writable: true, configurable: true }); }
-      catch (_e) { getDataFlowGroupsUncached._regionFlowCache = regionFlowCache; }
+      catch { getDataFlowGroupsUncached._regionFlowCache = regionFlowCache; }
     }
     const regionGeomKey = arr => {
       const list = (Array.isArray(arr) ? arr : []).map(it => `${cidOf(it)}:${colOf(it)},${rowOf(it)}`).sort();
@@ -80,7 +79,7 @@ export const setupFlowGroupsController = (deps = {}) => {
       const pts = Array.isArray(cached.points) ? cached.points : [];
       const set = new Set();
       for (const p of pts) set.add(cidOf(p));
-      try { cached.cidSet = set; } catch (_e) { }
+      try { cached.cidSet = set; } catch { /* noop */ }
       return set;
     };
     const rebuildOrderedFromCached = (arr, cached) => {
@@ -416,3 +415,5 @@ export const setupFlowGroupsController = (deps = {}) => {
     getDataFlowGroupsUncached
   };
 };
+
+

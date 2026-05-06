@@ -51,7 +51,7 @@ export const setupRegionsFlowController = (deps = {}) => {
         if (g && g._dbg && typeof g._dbg === "object") dbg.push(g._dbg);
       }
       console.info("[flow-calc]", { rectId, key, ...stats, regions: dbg, ...(extra && typeof extra === "object" ? extra : {}) });
-    } catch (_e) { }
+    } catch { /* noop */ }
   };
 
   const planNumberRegions = (r, cx, cy, topo, hs, useCache = true) => {
@@ -72,7 +72,7 @@ export const setupRegionsFlowController = (deps = {}) => {
         syncFlowLocksWithRegions(r, value, topo);
         if (cache.flow && cache.flow.regionKey !== key) cache.flow = null;
         return value;
-      } catch (_e) {
+      } catch {
         // fallback to async path below
       }
     }
@@ -97,7 +97,7 @@ export const setupRegionsFlowController = (deps = {}) => {
         budget.deadline = calcNow() + FLOW_WORKER_TIMEOUT_MS;
         const value = getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget, o);
         return Array.isArray(value) ? value : [];
-      } catch (_e) {
+      } catch {
         return [];
       }
     }
@@ -121,7 +121,7 @@ export const setupRegionsFlowController = (deps = {}) => {
         markCalcMetric("flow", 0, timedOut);
         logFlowCalcSummary(r && r.id || 0, key, cache.flow.value, { source: "main-manual", timedOut: !!timedOut, elapsed: 0 });
         return cache.flow.value;
-      } catch (_e) {
+      } catch {
         cache.flow = { key, regionKey, value: [], pending: false };
         markCalcMetric("flow", 0, true);
         logFlowCalcSummary(r && r.id || 0, key, cache.flow.value, { source: "main-manual-error", timedOut: true, elapsed: 0, error: _e && _e.message || String(_e) });
@@ -141,3 +141,5 @@ export const setupRegionsFlowController = (deps = {}) => {
     logFlowCalcSummary
   };
 };
+
+

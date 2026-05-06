@@ -118,7 +118,7 @@ const VIEWER_MODE = (() => {
     const path = String((location && location.pathname) || "").toLowerCase();
     const byPath = path.endsWith("/ledmaskviewer.html") || path.endsWith("ledmaskviewer.html");
     return byParam || byPath;
-  } catch (_e) {
+  } catch {
     return false;
   }
 })();
@@ -179,7 +179,7 @@ const ff = value => fontFamilyCss(value);
 const safeDefine = (obj, key, value, enumerable = false) => {
   try {
     Object.defineProperty(obj, key, { value, writable: true, configurable: true, enumerable: !!enumerable });
-  } catch (_e) {
+  } catch {
     obj[key] = value;
   }
   return value;
@@ -226,7 +226,7 @@ const genSaveLocationId = (seed = "project") => {
 const getGlobalSaveLocationId = () => {
   try {
     return normalizeSaveLocationId(lsGetSafe(SAVE_LOCATION_ID_KEY, "") || "");
-  } catch (_e) {
+  } catch {
     return "ledmask-default";
   }
 };
@@ -344,9 +344,9 @@ let handleRigPointerLeave = () => false;
 }));
 const clearFlowLockMemory = r => {
   if (!r || typeof r !== "object") return;
-  try { delete r._flowLockRidToSig; } catch (_e) { r._flowLockRidToSig = {}; }
-  try { delete r._flowLockSigToCfg; } catch (_e) { r._flowLockSigToCfg = {}; }
-  try { delete r._flowLockCidToSeed; } catch (_e) { r._flowLockCidToSeed = {}; }
+  try { delete r._flowLockRidToSig; } catch { r._flowLockRidToSig = {}; }
+  try { delete r._flowLockSigToCfg; } catch { r._flowLockSigToCfg = {}; }
+  try { delete r._flowLockCidToSeed; } catch { r._flowLockCidToSeed = {}; }
 };
 let cellFromWorldPoint = (_r, _wx, _wy, _skipHidden = true) => null;
 const {
@@ -721,7 +721,7 @@ const markCalcMetric = (kind, ms, timedOut) => {
   if (dur > CALC_TIMEOUT_MS) dst.slow++;
   if (timedOut) dst.timeouts++;
 };
-try { if (typeof window !== "undefined") window.ledMaskCalcMetrics = calcMetrics; } catch (_e) { }
+try { if (typeof window !== "undefined") window.ledMaskCalcMetrics = calcMetrics; } catch { /* noop */ }
 const toLetters = i => { let n = Math.max(0, Math.floor(i)) + 1, s = ""; while (n > 0) { n--; s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) } return s };
 const {
   splitIndicesBySize,
@@ -986,6 +986,41 @@ const updateInstallToolAvailability = () => {
     b.setAttribute("aria-disabled", allow ? "false" : "true");
   }
 };
+const setButtonsEnabled = (buttons, enabled) => {
+  const allow = !!enabled;
+  for (const b of buttons) {
+    if (!b) continue;
+    b.disabled = !allow;
+    b.setAttribute("aria-disabled", allow ? "false" : "true");
+  }
+};
+const isCopyableRect = r => !!r && (
+  isScreenRectKind(r)
+  || isShapeRect(r)
+  || isNoteRect(r)
+  || isDeviceRect(r)
+);
+const getSelectionIdsSnapshot = () => {
+  const ids = new Set();
+  if (st && st.selSet && typeof st.selSet.forEach === "function") st.selSet.forEach(id => ids.add(id));
+  if (st && st.sel != null) ids.add(st.sel);
+  return [...ids];
+};
+const hasSelectedFlowLink = () => {
+  const key = String(st && st.flowLinkSelectedKey || "");
+  if (!key) return false;
+  const list = Array.isArray(st && st.flowLinks) ? st.flowLinks : [];
+  return list.some(link => flowLinkKeyOf(link) === key);
+};
+const updateSelectionActionButtonsAvailability = () => {
+  const selectedIds = getSelectionIdsSnapshot();
+  const selectedRects = selectedIds.map(id => getRectById(id)).filter(Boolean);
+  const canCopy = selectedRects.some(r => isCopyableRect(r));
+  const canDeleteRects = selectedRects.some(r => isCopyableRect(r) && !isRectLocked(r));
+  const canDelete = canDeleteRects || hasSelectedFlowLink();
+  setButtonsEnabled([el.btnCopy, el.btnCopyMirror, el.mCopy, el.mCopyMirror], canCopy);
+  setButtonsEnabled([el.btnDelete, el.mDelete], canDelete);
+};
 const viewThemeLockController = setupViewThemeLockController({
   windowRef: window,
   documentRef: document,
@@ -1141,8 +1176,8 @@ const ensureFontReady = async () => {
   const localMax = st.rects.reduce((m, r) => Math.max(m, Math.max(0, Number(r && r.textSize) || 0)), 0);
   const size = Math.max(6, st.textSize || 12, localMax);
   const family = fontFamilyCss(st.fontFamily);
-  try { await document.fonts.load(`${size}px ${family}`); } catch (_e) { }
-  try { await document.fonts.ready; } catch (_e) { }
+  try { await document.fonts.load(`${size}px ${family}`); } catch { /* noop */ }
+  try { await document.fonts.ready; } catch { /* noop */ }
   st.fontReady = true;
 };
 ({
@@ -1667,6 +1702,7 @@ const renderRuntimeBase = render;
 const renderOverlayRuntimeBase = renderOverlay;
 const renderNowRuntimeBase = renderNow;
 render = (immediate = false) => {
+  updateSelectionActionButtonsAvailability();
   renderRuntimeBase(immediate);
   if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => drawInstallSummaryOverlay());
   else drawInstallSummaryOverlay();
@@ -2104,8 +2140,8 @@ if (el.btnFlowLinkColorReset) {
     const idx = list.findIndex(it => flowLinkKeyOf(it) === key);
     if (idx < 0) return;
     list[idx] = { ...list[idx] };
-    try { delete list[idx].color; } catch (_e) { list[idx].color = null; }
-    try { delete list[idx].colorMode; } catch (_e) { list[idx].colorMode = null; }
+    try { delete list[idx].color; } catch { list[idx].color = null; }
+    try { delete list[idx].colorMode; } catch { list[idx].colorMode = null; }
     st.flowLinks = list;
     schedulePersist("project");
     syncProps();
@@ -2395,10 +2431,10 @@ const routeSelectedDeviceOutLinksOrthogonal = () => {
   for (const item of plannedRoutes) {
     const { ln, index, routePoints } = item;
     links[index] = { ...ln, orthogonalPoints: routePoints, controlPointCount: 2, controlOffsets: [] };
-    try { delete links[index].manualBezier; } catch (_e) { links[index].manualBezier = null; }
-    try { delete links[index].manualBezierRel; } catch (_e) { links[index].manualBezierRel = null; }
-    try { delete links[index].segmentBezierRel; } catch (_e) { links[index].segmentBezierRel = null; }
-    try { delete links[index].bendOffsets; } catch (_e) { links[index].bendOffsets = null; }
+    try { delete links[index].manualBezier; } catch { links[index].manualBezier = null; }
+    try { delete links[index].manualBezierRel; } catch { links[index].manualBezierRel = null; }
+    try { delete links[index].segmentBezierRel; } catch { links[index].segmentBezierRel = null; }
+    try { delete links[index].bendOffsets; } catch { links[index].bendOffsets = null; }
     changed = true;
   }
   if (!changed) return false;
@@ -2839,6 +2875,7 @@ const {
     buildPortableProject,
     saveProjectToServer,
     getProjectName: () => st.projectName,
+    getProjectGuid: () => String(st.projectGuid || ""),
     PROJECT_QUERY_PARAM,
     PROJECT_ID_PARAM,
     buildProject,
@@ -2978,3 +3015,5 @@ i18n = setupI18n({
   }
 });
 i18n.translateDom(document.body);
+
+

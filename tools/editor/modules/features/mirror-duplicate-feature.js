@@ -118,7 +118,7 @@ export const setupMirrorDuplicateFeature = (deps = {}) => {
           }
         }
       }
-    } catch (_e) { }
+    } catch { /* noop */ }
     const srcFlowLocks = normalizeFlowLocks(r && r.flowLocks), mirFlowLocks = {};
     for (const [rk, cfg] of Object.entries(srcFlowLocks || {})) {
       const srcRid = Math.max(0, Math.round(Number(rk) || 0));
@@ -211,3 +211,5 @@ export const setupMirrorDuplicateFeature = (deps = {}) => {
 
   return { dupMirrorSel };
 };
+
+

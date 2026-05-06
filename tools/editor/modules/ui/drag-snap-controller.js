@@ -12,7 +12,7 @@ export const setupDragSnapController = (deps = {}) => {
   if (st && typeof st.debugSnap === "undefined") st.debugSnap = false;
   const snapDebug = (tag, payload) => {
     if (!st || !st.debugSnap) return;
-    try { console.info(`[snap-debug:${tag}]`, payload); } catch {}
+    try { console.info(`[snap-debug:${tag}]`, payload); } catch { /* noop */ }
   };
   const overlap1d = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0);
   const pickY = (a, b) => {
@@ -606,3 +606,4 @@ export const setupDragSnapController = (deps = {}) => {
     moveRectDrag
   };
 };
+

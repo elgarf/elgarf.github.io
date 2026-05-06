@@ -283,7 +283,7 @@ export const setupSpecExportFeature = (deps = {}) => {
         viewer.searchParams.delete("projectId");
         if (p.get("viewer") === "1") viewer.searchParams.delete("viewer");
         return viewer.toString();
-      } catch (_e) {
+      } catch {
         return "";
       }
     })(),
@@ -386,3 +386,4 @@ export const setupSpecExportFeature = (deps = {}) => {
     buildFlowSpecText
   };
 };
+

@@ -191,7 +191,7 @@ export const setupProjectSessionController = (deps = {}) => {
       if (!rawPrev) return true;
       const prevProject = JSON.parse(rawPrev);
       if (!isProjectEffectivelyEmpty(prevProject)) return false;
-    } catch (_e) { }
+    } catch { /* noop */ }
     return true;
   };
   const persistNow = () => {
@@ -209,7 +209,7 @@ export const setupProjectSessionController = (deps = {}) => {
       }
       lastProjectJson = saveJsonIfChanged(AUTO_SAVE_KEY, nextProject, lastProjectJson);
       saveStatus.saved();
-    } catch (_e) {
+    } catch {
       saveStatus.error();
     }
   };
@@ -246,3 +246,5 @@ export const setupProjectSessionController = (deps = {}) => {
     schedulePersist
   };
 };
+
+

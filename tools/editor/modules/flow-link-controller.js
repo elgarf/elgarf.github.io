@@ -127,7 +127,7 @@ export const setupFlowLinkController = (deps = {}) => {
       flowLinkCheckDebugState.set(key, { sig, ts: now });
       const method = ok ? "info" : "warn";
       console[method]("[canLinkFlowAnchors]", payload);
-    } catch (_e) { }
+    } catch { /* noop */ }
   };
 
   const pruneFlowLinks = () => {
@@ -803,7 +803,7 @@ export const setupFlowLinkController = (deps = {}) => {
       if (nextIdx >= 0 && nextIdx < segCount) nextSeg[nextIdx].c1 = { x: vx, y: vy };
       if (prevIdx >= 0 && prevIdx < segCount) nextSeg[prevIdx].c2 = { x: -vx, y: -vy };
       const nextLink = { ...cur, controlPointCount: pointCount, segmentBezierRel: nextSeg };
-      try { delete nextLink.orthogonalPoints; } catch (_e) { nextLink.orthogonalPoints = null; }
+      try { delete nextLink.orthogonalPoints; } catch { nextLink.orthogonalPoints = null; }
       list[idx] = nextLink;
       st.flowLinks = list;
       return true;
@@ -822,7 +822,7 @@ export const setupFlowLinkController = (deps = {}) => {
       const nextSeg = buildSegmentRelState(segCount, cur && cur.segmentBezierRel);
       nextSeg[segIndex][role] = { x: nx - ax, y: ny - ay };
       const nextLink = { ...cur, controlPointCount: pointCount, segmentBezierRel: nextSeg };
-      try { delete nextLink.orthogonalPoints; } catch (_e) { nextLink.orthogonalPoints = null; }
+      try { delete nextLink.orthogonalPoints; } catch { nextLink.orthogonalPoints = null; }
       list[idx] = nextLink;
       st.flowLinks = list;
       return true;
@@ -849,7 +849,7 @@ export const setupFlowLinkController = (deps = {}) => {
       }
       nextSeg[segIndex][role] = { x: nx - ax, y: ny - ay };
       const nextLink = { ...cur, controlPointCount: pointCount, segmentBezierRel: nextSeg };
-      try { delete nextLink.orthogonalPoints; } catch (_e) { nextLink.orthogonalPoints = null; }
+      try { delete nextLink.orthogonalPoints; } catch { nextLink.orthogonalPoints = null; }
       list[idx] = nextLink;
       st.flowLinks = list;
       return true;
@@ -870,7 +870,7 @@ export const setupFlowLinkController = (deps = {}) => {
       if (!(Number.isFinite(ax) && Number.isFinite(ay))) return false;
       nextOffsets[segIndex] = { x: nx - ax, y: ny - ay };
       const nextLink = { ...cur, controlPointCount: pointCount, bendOffsets: nextOffsets };
-      try { delete nextLink.orthogonalPoints; } catch (_e) { nextLink.orthogonalPoints = null; }
+      try { delete nextLink.orthogonalPoints; } catch { nextLink.orthogonalPoints = null; }
       list[idx] = nextLink;
       st.flowLinks = list;
       return true;
@@ -895,7 +895,7 @@ export const setupFlowLinkController = (deps = {}) => {
         nextOffsets[idxOff] = { x: nx - bx, y: ny - by };
       }
       const nextLink = { ...cur, controlPointCount: pointCount, controlOffsets: nextOffsets };
-      try { delete nextLink.orthogonalPoints; } catch (_e) { nextLink.orthogonalPoints = null; }
+      try { delete nextLink.orthogonalPoints; } catch { nextLink.orthogonalPoints = null; }
       list[idx] = nextLink;
       st.flowLinks = list;
       return true;
@@ -917,7 +917,7 @@ export const setupFlowLinkController = (deps = {}) => {
           nextSeg[segCount - 1].c2 = { x: nx - ax, y: ny - ay };
         }
         const nextLink = { ...cur, controlPointCount: pointCount, segmentBezierRel: nextSeg };
-        try { delete nextLink.orthogonalPoints; } catch (_e) { nextLink.orthogonalPoints = null; }
+        try { delete nextLink.orthogonalPoints; } catch { nextLink.orthogonalPoints = null; }
         list[idx] = nextLink;
         st.flowLinks = list;
         return true;
@@ -949,7 +949,7 @@ export const setupFlowLinkController = (deps = {}) => {
     } else if (anchorEnd && Number.isFinite(Number(anchorEnd.x)) && Number.isFinite(Number(anchorEnd.y))) {
       next.manualBezierRel.c2 = { x: nx - Number(anchorEnd.x), y: ny - Number(anchorEnd.y) };
     }
-    try { delete next.orthogonalPoints; } catch (_e) { next.orthogonalPoints = null; }
+    try { delete next.orthogonalPoints; } catch { next.orthogonalPoints = null; }
     list[idx] = next;
     st.flowLinks = list;
     return true;
@@ -969,7 +969,7 @@ export const setupFlowLinkController = (deps = {}) => {
       to: cur.to,
       manualBezierRel: { c1: { x: 0, y: 0 }, c2: { x: 0, y: 0 } }
     };
-    try { delete next.orthogonalPoints; } catch (_e) { next.orthogonalPoints = null; }
+    try { delete next.orthogonalPoints; } catch { next.orthogonalPoints = null; }
     list[idx] = next;
     st.flowLinks = list;
     return true;
@@ -1020,3 +1020,5 @@ export const setupFlowLinkController = (deps = {}) => {
     updateFlowLinkDragTarget
   };
 };
+
+

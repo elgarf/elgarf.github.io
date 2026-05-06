@@ -28,5 +28,7 @@ export const setupAppBootstrapFeature = (deps = {}) => {
       },
       async fromQueryValue(value) { return await decodeProjectFromQueryValue(value); }
     };
-  } catch (_e) { }
+  } catch { /* noop */ }
 };
+
+

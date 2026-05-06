@@ -59,7 +59,7 @@ export const applyShapePointProps = ({
   if (!selectedPoint) return false;
   const point = rect.shapePoints[selectedPoint.index] || selectedPoint.point || {};
   if (shouldApply("shapePointType")) {
-    if (!!(el.shapePointType && el.shapePointType.checked)) {
+    if (el.shapePointType && el.shapePointType.checked) {
       const wasBezier = String(point.type || "") === "bezier";
       point.type = "bezier";
       const hasStoredHandles =

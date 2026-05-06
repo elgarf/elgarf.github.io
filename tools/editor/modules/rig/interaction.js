@@ -217,7 +217,7 @@ export const setupRigInteractionController = (deps = {}) => {
 
   const getRigHitAtPoint = (r, wx, wy, z) => {
     if (!r) return null;
-    const { cx, cy, layout } = getRigContext(r, z);
+    const { layout } = getRigContext(r, z);
     const rig = getRectRigData(r);
     const uv = worldToRectUV(r, wx, wy);
     const lx = (+uv.u || 0) - layout.w / 2;
@@ -233,7 +233,7 @@ export const setupRigInteractionController = (deps = {}) => {
     const btnR = 8 * ui;
     const btnDx = bodyR + Math.max(10 * ui, loadSize * 0.22);
 
-    for (const [key, wk] of Object.entries(loads)) {
+    for (const [key] of Object.entries(loads)) {
       const seam = layout.bottomLoads.get(String(key || ""));
       if (!seam) continue;
       const y = seam.yBottom - loadSize * 0.5;
@@ -341,7 +341,7 @@ export const setupRigInteractionController = (deps = {}) => {
       const c = toInt0(hit.col);
       if (suspends.has(c)) {
         suspends.delete(c);
-        for (const lk of [...links]) {
+        for (const lk of links) {
           const p = String(lk || "").split("-").map(v => toInt0(v));
           if (p.length !== 2) continue;
           if (p[0] === c || p[1] === c) links.delete(lk);

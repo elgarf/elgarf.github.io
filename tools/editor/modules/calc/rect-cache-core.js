@@ -7,7 +7,7 @@ export const setupRectCacheCore = (deps = {}) => {
       makeNonEnumerableCalcCache(r, { regions: null, flow: null, topo: null, compRender: null, maskRender: null, boundarySegs: null, fillLayer: null, decorLayer: null, flowPassiveLayer: null, cabinetSummary: null, aabb: null });
     } else if (Object.prototype.propertyIsEnumerable.call(r, "_calcCache")) {
       const cur = r._calcCache;
-      try { delete r._calcCache; } catch (_e) { }
+      try { delete r._calcCache; } catch { /* noop */ }
       makeNonEnumerableCalcCache(r, cur);
     }
     if (!r._calcCache.topo) r._calcCache.topo = null;
@@ -58,3 +58,5 @@ export const setupRectCacheCore = (deps = {}) => {
     getCellTopologyCached
   };
 };
+
+

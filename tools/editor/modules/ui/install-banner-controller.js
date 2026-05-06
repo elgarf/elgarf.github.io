@@ -39,7 +39,7 @@ export const setupInstallBannerController = (deps = {}) => {
         await deferredInstallPrompt.userChoice;
         deferredInstallPrompt = null;
         hideInstallBanner();
-      } catch (_e) { }
+      } catch { /* noop */ }
       return;
     }
     if (isIOS()) {
@@ -58,7 +58,7 @@ export const setupInstallBannerController = (deps = {}) => {
       try {
         deferredInstallPrompt.prompt();
         await deferredInstallPrompt.userChoice;
-      } catch (_e) { }
+      } catch { /* noop */ }
       deferredInstallPrompt = null;
       hideInstallBanner();
     });
@@ -78,3 +78,5 @@ export const setupInstallBannerController = (deps = {}) => {
 
   return { hideInstallBanner, showInstallBanner };
 };
+
+

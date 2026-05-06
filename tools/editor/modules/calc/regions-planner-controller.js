@@ -1,36 +1,15 @@
 export const setupRegionsPlannerController = (deps = {}) => {
   const {
     calcNow,
-    CALC_TIMEOUT_MS,
     checkCalcTimeout,
     buildSingleRegionPlan,
     safeDefine,
     maskCellKey,
     AREA_LIMIT_EPS,
     SPLIT_VARIANT_MAX,
-    normalizeDataFlow,
-    buildZOrder,
-    buildSnakeOrder,
-    getFlowRegionConfig,
-    getFlowStartRoutingRegion,
-    resolveFlowModeFromStartAndDir,
-    getFlowModeRegion,
-    getFlowLocksRegion,
-    FLOW_DIR_SET,
-    pathSelfCrosses,
-    refineFlowOrder,
-    FLOW_OPTIMIZE_MAX_POINTS,
-    optimizeFlowPathShortest,
-    flowPathCost,
-    applyFlowStartRouting,
-    applyFlowLocksToOrdered,
-    FLOW_SEARCH_NODE_LIMIT_STRICT,
-    flowSearchOrder,
-    toLetters,
-    REGION_ZONE_COLORS
+    toLetters
   } = deps;
   const toInt0 = v => Math.max(0, Math.round(Number(v) || 0));
-  const toInt1 = v => Math.max(1, Math.round(Number(v) || 0));
   const clampInt = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(Number(v) || 0)));
   const rectSig = z => `${z.c0},${z.c1},${z.r0},${z.r1}`;
   const regsSig = regs => (Array.isArray(regs) ? regs.map(rectSig).sort().join("|") : "");
@@ -463,7 +442,6 @@ const planNumberRegionsUncached = (r, cx, cy, topo, hs, budget) => {
   const regsSignature = regs => regsSig(regs);
   const regsScore = (regs, targetParts) => Math.abs((regs && regs.length || 0) - targetParts) * 1e15 + variantBad(regs) * 1e3 + variantShape(regs);
   const beamImproveVariant = (input, strategy, targetParts) => {
-    const kind = (strategy && strategy.kind) || "block";
     const canUseBeam = (cols * rows) <= 320 && targetParts <= 12;
     if (!canUseBeam) return input;
     const makeOrientOrder = z => {

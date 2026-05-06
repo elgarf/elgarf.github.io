@@ -1,3 +1,5 @@
+import { flowLinkKeyOf } from "../utils/flow-link-key-utils.js";
+
 export const setupSelectionActionsFeature = (deps = {}) => {
   const {
     st,
@@ -14,7 +16,6 @@ export const setupSelectionActionsFeature = (deps = {}) => {
     normalizeManualClusters,
     normalizeRigData,
     autoContrast,
-    withNameSuffixBeforeGroup,
     syncProps,
     listRects,
     setMode,
@@ -61,7 +62,23 @@ export const setupSelectionActionsFeature = (deps = {}) => {
 
   const delSel = () => {
     normSelSet();
-    if (!st.selSet.size && st.sel == null) return;
+    if (!st.selSet.size && st.sel == null) {
+      const selectedFlowKey = String(st.flowLinkSelectedKey || "");
+      if (!selectedFlowKey) return;
+      const list = Array.isArray(st.flowLinks) ? st.flowLinks : [];
+      const next = list.filter(link => flowLinkKeyOf(link) !== selectedFlowKey);
+      if (next.length === list.length) return;
+      st.flowLinks = next;
+      st.flowLinkSelectedKey = "";
+      st.flowSegmentDrag = null;
+      st.flowSegmentHover = null;
+      st.flowSegmentPendingTap = null;
+      st.flowSegmentSelectedHit = null;
+      resetTransientState(false);
+      refreshPanels();
+      commitUiUpdate({ persist: true, render: true });
+      return;
+    }
     const ids = st.selSet.size ? new Set(st.selSet) : new Set([st.sel]);
     let removed = false;
     st.rects = st.rects.filter(r => {

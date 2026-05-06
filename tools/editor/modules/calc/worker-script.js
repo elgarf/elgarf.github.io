@@ -46,9 +46,10 @@ self.onmessage=e=>{
     }else{
       ok=false;
     }
-  }catch(_e){ok=false;result=null;}
+  }catch{ok=false;result=null;}
   elapsed=calcNow()-started;
   self.postMessage({kind,reqId,ok,result,timedOut,elapsed});
 };`);
   return s.join("\n");
 };
+

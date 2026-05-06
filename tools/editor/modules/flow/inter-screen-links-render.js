@@ -56,69 +56,6 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     curveCache.set(key, value);
     return value;
   };
-  const deviceOutTailPoint = (a, b, cid = 1, sideDir = null, aimPoint = null) => {
-    const ax = toNum(a.x), ay = toNum(a.y);
-    const hasAim = !!(aimPoint && typeof aimPoint === "object");
-    const tx = hasAim && Number.isFinite(Number(aimPoint.x)) ? toNum(aimPoint.x) : toNum(b && b.x);
-    const ty = hasAim && Number.isFinite(Number(aimPoint.y)) ? toNum(aimPoint.y) : toNum(b && b.y);
-    const bx = toNum(b && b.x), by = toNum(b && b.y);
-    let dx = tx - ax;
-    let dy = ty - ay;
-    let d = Math.hypot(dx, dy);
-    if (d <= 1e-6) {
-      const dir = Number(sideDir) === -1 ? -1 : Number(sideDir) === 1 ? 1 : (bx >= ax ? 1 : -1);
-      dx = dir;
-      dy = 1;
-      d = Math.hypot(dx, dy);
-    }
-    const ux = dx / d;
-    const uy = dy / d;
-    const idx = Math.max(0, Math.round(Number(cid) || 1) - 1);
-    const len = 16 + idx * 7;
-    return { x: ax + ux * len, y: ay + uy * len };
-  };
-  const deviceInTailPoint = (a, b, cid = 1, sideDir = null, aimPoint = null) => {
-    const hasAim = !!(aimPoint && typeof aimPoint === "object");
-    const ax = hasAim && Number.isFinite(Number(aimPoint.x)) ? toNum(aimPoint.x) : toNum(a && a.x);
-    const ay = hasAim && Number.isFinite(Number(aimPoint.y)) ? toNum(aimPoint.y) : toNum(a && a.y);
-    const bx = toNum(b.x), by = toNum(b.y);
-    let dx = ax - bx;
-    let dy = ay - by;
-    let d = Math.hypot(dx, dy);
-    if (d <= 1e-6) {
-      const dir = Number(sideDir) === -1 ? -1 : Number(sideDir) === 1 ? 1 : (bx >= ax ? 1 : -1);
-      dx = dir;
-      dy = -1;
-      d = Math.hypot(dx, dy);
-    }
-    const ux = dx / d;
-    const uy = dy / d;
-    const idx = Math.max(0, Math.round(Number(cid) || 1) - 1);
-    const len = 16 + idx * 7;
-    return { x: bx + ux * len, y: by + uy * len };
-  };
-  const screenStartTailPoint = (fromPoint, toPoint, len = 16, sideDir = 1, aimPoint = null) => {
-    const fx = toNum(fromPoint && fromPoint.x);
-    const fy = toNum(fromPoint && fromPoint.y);
-    const tx = toNum(toPoint && toPoint.x);
-    const ty = toNum(toPoint && toPoint.y);
-    const ax = (aimPoint && Number.isFinite(Number(aimPoint.x))) ? toNum(aimPoint.x) : fx;
-    const ay = (aimPoint && Number.isFinite(Number(aimPoint.y))) ? toNum(aimPoint.y) : fy;
-    const dx = ax - tx;
-    const dy = ay - ty;
-    const d = Math.hypot(dx, dy);
-    if (d <= 1e-6) return { x: tx, y: ty - len };
-    const ux = dx / d;
-    const uy = dy / d;
-    if (aimPoint && Number.isFinite(Number(aimPoint.x)) && Number.isFinite(Number(aimPoint.y))) {
-      return { x: tx + ux * len, y: ty + uy * len };
-    }
-    const nx = -uy;
-    const ny = ux;
-    const dev = Math.max(6, Math.min(18, len * 0.45));
-    const s = Number(sideDir) === -1 ? -1 : 1;
-    return { x: tx + ux * len + nx * dev * s, y: ty + uy * len + ny * dev * s };
-  };
   const getStemSmoothGeom = (pStart, pEnd, opts = {}, steps = 18) => {
     const {
       stemStartAnchor = null, // point before pStart (for tangent direction at start)
@@ -180,44 +117,6 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     }
     pts.push({ x: pEnd.x, y: pEnd.y });
     return pts;
-  };
-  const sampleQuadratic = (p0, c1, p1, t) => {
-    const u = 1 - t;
-    return {
-      x: u * u * toNum(p0.x) + 2 * u * t * toNum(c1.x) + t * t * toNum(p1.x),
-      y: u * u * toNum(p0.y) + 2 * u * t * toNum(c1.y) + t * t * toNum(p1.y)
-    };
-  };
-  const getLinkBendOffsets = (ln, pointCount, points) => {
-    const segCount = Math.max(1, pointCount - 1);
-    const src = Array.isArray(ln && ln.bendOffsets) ? ln.bendOffsets : [];
-    const hasExplicit = src.length >= segCount && src.some(it => {
-      const x = Number(it && it.x);
-      const y = Number(it && it.y);
-      return Number.isFinite(x) && Number.isFinite(y) && (Math.abs(x) > 0.001 || Math.abs(y) > 0.001);
-    });
-    const out = [];
-    const pStart = points[0];
-    const pEnd = points[points.length - 1];
-    const overallDx = toNum(pEnd.x) - toNum(pStart.x);
-    const side = overallDx >= 0 ? 1 : -1;
-    for (let i = 0; i < segCount; i++) {
-      const it = src[i] && typeof src[i] === "object" ? src[i] : null;
-      if (hasExplicit && it && Number.isFinite(Number(it.x)) && Number.isFinite(Number(it.y))) {
-        out.push({ x: Number(it.x), y: Number(it.y) });
-        continue;
-      }
-      const a = points[i];
-      const b = points[i + 1];
-      const dx = toNum(b.x) - toNum(a.x);
-      const dy = toNum(b.y) - toNum(a.y);
-      const d = Math.max(1, Math.hypot(dx, dy));
-      const nx = -dy / d;
-      const ny = dx / d;
-      const mag = Math.max(12, Math.min(96, d * 0.24));
-      out.push({ x: nx * mag * side, y: ny * mag * side });
-    }
-    return out;
   };
 
   const drawFlowLinkArrow = (c, tail, head, color, z = 1) => {
@@ -497,7 +396,6 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         continue;
       }
       if (fromIsDevice || toIsDevice) {
-        const sideDir = (toNum(b.x) - toNum(a.x)) >= 0 ? 1 : -1;
         const legacyManualAbs = ln && ln.manualBezier && ln.manualBezier.c1 && ln.manualBezier.c2
           ? { c1: { x: toNum(ln.manualBezier.c1.x), y: toNum(ln.manualBezier.c1.y) }, c2: { x: toNum(ln.manualBezier.c2.x), y: toNum(ln.manualBezier.c2.y) } }
           : null;

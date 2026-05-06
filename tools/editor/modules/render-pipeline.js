@@ -95,7 +95,7 @@ export const setupRenderPipeline = (deps = {}) => {
     c.restore();
   };
 
-  const drawDeferredTextJob = (c, job, z) => {
+  const drawDeferredTextJob = (c, job, _z) => {
     if (!job || !job.overlay) return;
     const ov = job.overlay;
     c.save();

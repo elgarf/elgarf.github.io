@@ -73,7 +73,7 @@ export const setupFlowLockSyncController = (deps = {}) => {
         cidToSeed[String(Math.max(0, Math.round(Number(cid) || 0)))] = `${col},${row}`;
       }
       return { ridToSig, cidToSeed };
-    } catch (_e) {
+    } catch {
       return { ridToSig: {}, cidToSeed: {} };
     }
   };
@@ -165,9 +165,9 @@ export const setupFlowLockSyncController = (deps = {}) => {
     }
     if (changed) r.flowLocks = nextNorm;
     else r.flowLocks = norm;
-    try { r._flowLockRidToSig = nextRidToSig; } catch (_e) { }
-    try { r._flowLockSigToCfg = nextSigToCfg; } catch (_e) { }
-    try { r._flowLockCidToSeed = nextCidToSeed; } catch (_e) { }
+    try { r._flowLockRidToSig = nextRidToSig; } catch { /* noop */ }
+    try { r._flowLockSigToCfg = nextSigToCfg; } catch { /* noop */ }
+    try { r._flowLockCidToSeed = nextCidToSeed; } catch { /* noop */ }
   };
 
   return {
@@ -176,4 +176,6 @@ export const setupFlowLockSyncController = (deps = {}) => {
     syncFlowLocksWithRegions
   };
 };
+
+
 

@@ -27,16 +27,6 @@ export const setupProjectActionsFeature = (deps = {}) => {
     refreshPanels,
     render,
 
-    bindEvent,
-    eventClosest,
-    showProjectLinkModal,
-    encodeProjectToQueryValue,
-    buildPortableProject,
-    saveProjectToServer,
-    getProjectName,
-    PROJECT_QUERY_PARAM,
-    PROJECT_ID_PARAM,
-
     saveButton,
     buildProject,
     projectFileBase,

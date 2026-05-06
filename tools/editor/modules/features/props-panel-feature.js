@@ -434,11 +434,11 @@ export const setupPropsPanelFeature = (deps = {}) => {
           next.controlPointCount = n;
           next.controlOffsets = newOffsets;
           if (prev !== n) {
-            try { delete next.manualBezier; } catch (_e) { next.manualBezier = null; }
-            try { delete next.manualBezierRel; } catch (_e) { next.manualBezierRel = null; }
-            try { delete next.segmentBezierRel; } catch (_e) { next.segmentBezierRel = null; }
-            try { delete next.bendOffsets; } catch (_e) { next.bendOffsets = null; }
-            try { delete next.orthogonalPoints; } catch (_e) { next.orthogonalPoints = null; }
+            try { delete next.manualBezier; } catch { next.manualBezier = null; }
+            try { delete next.manualBezierRel; } catch { next.manualBezierRel = null; }
+            try { delete next.segmentBezierRel; } catch { next.segmentBezierRel = null; }
+            try { delete next.bendOffsets; } catch { next.bendOffsets = null; }
+            try { delete next.orthogonalPoints; } catch { next.orthogonalPoints = null; }
           }
         }
         if (shouldApply("flowLinkOrthogonal")) {
@@ -454,18 +454,18 @@ export const setupPropsPanelFeature = (deps = {}) => {
               next.orthogonalPoints = routePoints;
               next.controlPointCount = 2;
               next.controlOffsets = [];
-              try { delete next.manualBezier; } catch (_e) { next.manualBezier = null; }
-              try { delete next.manualBezierRel; } catch (_e) { next.manualBezierRel = null; }
-              try { delete next.segmentBezierRel; } catch (_e) { next.segmentBezierRel = null; }
-              try { delete next.bendOffsets; } catch (_e) { next.bendOffsets = null; }
+              try { delete next.manualBezier; } catch { next.manualBezier = null; }
+              try { delete next.manualBezierRel; } catch { next.manualBezierRel = null; }
+              try { delete next.segmentBezierRel; } catch { next.segmentBezierRel = null; }
+              try { delete next.bendOffsets; } catch { next.bendOffsets = null; }
             }
           } else {
-            try { delete next.orthogonalPoints; } catch (_e) { next.orthogonalPoints = null; }
+            try { delete next.orthogonalPoints; } catch { next.orthogonalPoints = null; }
           }
         }
         if (shouldApply("flowLinkColor")) {
           next.color = normalizeFlowLinkColor(el.propFlowLinkColor && el.propFlowLinkColor.value);
-          try { delete next.colorMode; } catch (_e) { next.colorMode = null; }
+          try { delete next.colorMode; } catch { next.colorMode = null; }
           if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, false);
         }
         if (shouldApply("flowLinkWidth")) next.width = normalizeFlowLinkWidth(el.propFlowLinkWidth && el.propFlowLinkWidth.value);
@@ -685,7 +685,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       const maxSplit = Math.max(0, Math.round(evalExpr(el.splitVariant.max, Math.max(0, SPLIT_VARIANT_MAX - 1))));
       const prevSplit = Math.max(0, Math.round(Number(t.splitVariant) || 0));
       if (shouldApply("splitVariant")) t.splitVariant = Math.max(0, Math.min(maxSplit, Math.round(evalExpr(el.splitVariant.value, t.splitVariant || 0))));
-      if (t.splitVariant !== prevSplit) { try { delete t._splitVariantCount; } catch (_e) { t._splitVariantCount = NaN; } }
+      if (t.splitVariant !== prevSplit) { try { delete t._splitVariantCount; } catch { t._splitVariantCount = NaN; } }
       const topoChanged = (prev.cellX !== t.cellX || prev.cellY !== t.cellY);
       if (topoChanged) {
         if (prev.cellX !== t.cellX || prev.cellY !== t.cellY) remapRectRigLoadsToBottomSeams(t);
@@ -773,9 +773,9 @@ export const setAreaM2ExpressionSource = (rect, input) => {
   const expression = getAreaM2ExpressionLabel(input);
   if (expression) {
     try { Object.defineProperty(rect, "_areaM2Expression", { value: expression, writable: true, configurable: true }); }
-    catch (_e) { rect._areaM2Expression = expression; }
+    catch { rect._areaM2Expression = expression; }
   } else {
-    try { delete rect._areaM2Expression; } catch (_e) { rect._areaM2Expression = ""; }
+    try { delete rect._areaM2Expression; } catch { rect._areaM2Expression = ""; }
   }
   return expression;
 };
@@ -822,7 +822,7 @@ export const setupPropertiesSyncController = (deps = {}) => {
     }
     if (syncPropsRaf) {
       if (typeof cancelFrame === "function") {
-        try { cancelFrame(syncPropsRaf); } catch (_e) { }
+        try { cancelFrame(syncPropsRaf); } catch { /* noop */ }
       } else {
         clearDelay(syncPropsRaf);
       }
@@ -1096,3 +1096,5 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   bindCommitInput(el.textSize, () => { applyTextSettings(); syncProps(); });
   bindCommitInput(el.font, () => { applyTextSettings(); syncProps(); });
 };
+
+

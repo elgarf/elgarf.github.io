@@ -8,9 +8,22 @@ export const setupProjectSerializationController = (deps = {}) => {
     cloneJson,
     t = value => value
   } = deps;
+  const createProjectGuid = () => {
+    try {
+      if (typeof crypto !== "undefined" && crypto && typeof crypto.randomUUID === "function") {
+        return String(crypto.randomUUID());
+      }
+    } catch { /* noop */ }
+    return `pg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  };
+  const ensureProjectGuid = value => {
+    const v = String(value || "").trim();
+    return v || createProjectGuid();
+  };
 
   const buildProject = () => ({
     version: 1,
+    projectGuid: ensureProjectGuid(st.projectGuid),
     projectName: st.projectName,
     saveLocationId: st.saveLocationId,
     camera: { x: st.camX, y: st.camY, zoom: st.zoom },
@@ -49,6 +62,7 @@ export const setupProjectSerializationController = (deps = {}) => {
 
   const makeEmptyProjectData = (name = t("Новый проект")) => ({
     version: 1,
+    projectGuid: createProjectGuid(),
     projectName: name,
     saveLocationId: genSaveLocationId(name),
     camera: { x: 0, y: 0, zoom: 1 },

@@ -171,7 +171,7 @@ export const setupToolbarActionsController = (deps = {}) => {
     const cancelPointer = () => {
       clearHoldTimer();
       if (pointer && pointer.button) {
-        try { pointer.button.releasePointerCapture(pointer.id); } catch (_err) { }
+        try { pointer.button.releasePointerCapture(pointer.id); } catch { /* noop */ }
       }
       pointer = null;
       hideMenu();
@@ -193,7 +193,7 @@ export const setupToolbarActionsController = (deps = {}) => {
           pointer.menu = true;
           placeMenu(pointer.button);
           if (source === "pointer" && pointer.button) {
-            try { pointer.button.releasePointerCapture(id); } catch (_err) { }
+            try { pointer.button.releasePointerCapture(id); } catch { /* noop */ }
           }
           pointer.hoverValue = updateMenuHover(pointer.x, pointer.y);
           notifyMenuOpen(itemAtPoint(pointer.x, pointer.y));
@@ -207,7 +207,7 @@ export const setupToolbarActionsController = (deps = {}) => {
       clearHoldTimer();
       pointer = null;
       if (active.button && source === "pointer") {
-        try { active.button.releasePointerCapture(id); } catch (_err) { }
+        try { active.button.releasePointerCapture(id); } catch { /* noop */ }
       }
       if (wasMenu) {
         const value = valueAtPoint(clientX, clientY) || active.hoverValue || "";
@@ -239,7 +239,7 @@ export const setupToolbarActionsController = (deps = {}) => {
         if (Date.now() < ignorePointerUntil) return;
         if (e.button != null && e.button !== 0) return;
         beginHold(btn, e.pointerId, e.clientX, e.clientY, "pointer");
-        try { btn.setPointerCapture(e.pointerId); } catch (_err) { }
+        try { btn.setPointerCapture(e.pointerId); } catch { /* noop */ }
         if (e.pointerType === "touch") e.preventDefault();
       };
       const touchId = touch => touch ? `touch:${touch.identifier}` : "touch";
@@ -440,3 +440,5 @@ export const setupToolbarActionsController = (deps = {}) => {
 
   return { bindSnapToggles };
 };
+
+

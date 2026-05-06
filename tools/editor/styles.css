@@ -669,7 +669,8 @@
     .help-sub {
       margin: 0 0 12px;
       color: var(--bs-secondary-color);
-      font-size: 12px
+      font-size: 14px;
+      font-weight: 600
     }
 
     .help-list {
@@ -684,6 +685,7 @@
       gap: 10px;
       align-items: start;
       padding: 8px;
+      margin-left: 10px;
       border: 1px solid var(--bs-border-color);
       border-radius: 10px;
       background: var(--bs-tertiary-bg)
@@ -699,7 +701,7 @@
 
     .help-item b {
       display: block;
-      font-size: 13px;
+      font-size: 15px;
       margin-bottom: 2px
     }
 
@@ -1199,6 +1201,15 @@
       overflow: auto !important;
       overflow-x: auto !important;
       overflow-y: auto !important;
+      padding-bottom: 10px !important;
+      box-sizing: border-box;
+    }
+    .spec-mode-manual-edit .CodeMirror-lines {
+      padding-bottom: 8px !important;
+      box-sizing: border-box;
+    }
+    .spec-mode-manual-edit .CodeMirror-sizer {
+      margin-bottom: 8px !important;
     }
     .spec-mode-manual-edit .CodeMirror-wrap .CodeMirror-scroll {
       overflow-x: auto !important;

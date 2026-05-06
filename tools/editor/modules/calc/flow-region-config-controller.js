@@ -27,7 +27,7 @@ export const setupFlowRegionConfigController = (deps = {}) => {
     if (!sig) return;
     const bySig = (r._flowLockSigToCfg && typeof r._flowLockSigToCfg === "object") ? r._flowLockSigToCfg : {};
     bySig[sig] = cloneFlowRegionConfig(cfg);
-    try { r._flowLockSigToCfg = bySig; } catch (_e) { }
+    try { r._flowLockSigToCfg = bySig; } catch { /* noop */ }
   };
 
   const getFlowLocksRegion = (r, rid) => {
@@ -188,3 +188,5 @@ export const setupFlowRegionConfigController = (deps = {}) => {
     dragManualFlowPoint
   };
 };
+
+

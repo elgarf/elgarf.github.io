@@ -9,6 +9,7 @@ export const setupProjectLinkActionsController = (deps = {}) => {
     buildPortableProject,
     saveProjectToServer,
     getProjectName,
+    getProjectGuid,
     PROJECT_QUERY_PARAM,
     PROJECT_ID_PARAM
   } = deps;
@@ -40,7 +41,7 @@ export const setupProjectLinkActionsController = (deps = {}) => {
       const ok = document.execCommand("copy");
       document.body.removeChild(ta);
       return !!ok;
-    } catch (_e) {
+    } catch {
       return false;
     }
   };
@@ -50,7 +51,7 @@ export const setupProjectLinkActionsController = (deps = {}) => {
       if (!navigator.clipboard || typeof navigator.clipboard.readText !== "function") return null;
       const got = await navigator.clipboard.readText();
       return String(got || "") === String(expected || "");
-    } catch (_e) {
+    } catch {
       return null;
     }
   };
@@ -65,7 +66,7 @@ export const setupProjectLinkActionsController = (deps = {}) => {
         const verified = await verifyClipboardText(value);
         if (verified === true) return true;
         if (verified === false) wrote = false;
-      } catch (_e) { }
+      } catch { /* noop */ }
     }
     if (!wrote) {
       const legacyOk = legacyCopyText(value);
@@ -87,7 +88,7 @@ export const setupProjectLinkActionsController = (deps = {}) => {
       const value = await encodeProjectToQueryValue(buildPortableProject());
       const url = new URL(viewerOnly ? "./LedMaskViewer.html" : "./LEDMaskEditor.html", location.href);
       let usedServerId = 0;
-      try { usedServerId = await saveProjectToServer(getProjectName(), value); } catch (_e) { usedServerId = 0; }
+      try { usedServerId = await saveProjectToServer(getProjectName(), value, getProjectGuid()); } catch { usedServerId = 0; }
       if (usedServerId > 0) {
         url.searchParams.delete(PROJECT_QUERY_PARAM);
         if (viewerOnly) {
@@ -141,3 +142,5 @@ export const setupProjectLinkActionsController = (deps = {}) => {
     bindProjectLinkHandlers
   };
 };
+
+

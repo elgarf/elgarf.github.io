@@ -9,7 +9,7 @@ const flushQueue = () => {
     const evt = preBootQueue.shift();
     try {
       if (typeof self.onmessage === "function") self.onmessage(evt);
-    } catch (_e) { }
+    } catch { /* noop */ }
   }
 };
 
@@ -32,6 +32,8 @@ self.addEventListener("message", evt => {
   }
   try {
     if (typeof self.onmessage === "function") self.onmessage(evt);
-  } catch (_e) { }
+  } catch { /* noop */ }
 });
+
+
 

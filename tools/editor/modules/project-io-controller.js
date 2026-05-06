@@ -11,17 +11,21 @@ export const setupProjectIoController = (deps = {}) => {
     try {
       const res = await fetch(url, { ...(options || {}), signal: ctl ? ctl.signal : undefined });
       let json = null;
-      try { json = await res.json(); } catch (_e) { json = null; }
+      try { json = await res.json(); } catch { json = null; }
       return { ok: !!(res && res.ok), status: res ? res.status : 0, json };
     } finally {
       if (timer) clearTimeout(timer);
     }
   };
 
-  const saveProjectToServer = async (name, encodedData) => {
+  const saveProjectToServer = async (name, encodedData, projectGuid = "") => {
     const api = toTrimmed(PROJECT_STORE_API_URL || "");
     if (!api) return null;
-    const payload = { name: toTrimmed(name || "") || "project", data: String(encodedData || "") };
+    const payload = {
+      name: toTrimmed(name || "") || "project",
+      data: String(encodedData || ""),
+      projectGuid: toTrimmed(projectGuid || "")
+    };
     if (!payload.data) return null;
     const r = await fetchJsonWithTimeout(api, {
       method: "POST",
@@ -56,12 +60,12 @@ export const setupProjectIoController = (deps = {}) => {
         const byId = await loadProjectByIdFromServer(pid);
         if (byId && typeof byId === "object") return byId;
       }
-    } catch (_e) { }
+    } catch { /* noop */ }
     let raw = "";
     try {
       const params = new URLSearchParams(location.search || "");
       raw = params.get(PROJECT_QUERY_PARAM) || "";
-    } catch (_e) {
+    } catch {
       raw = "";
     }
     if (!raw) return null;
@@ -78,7 +82,7 @@ export const setupProjectIoController = (deps = {}) => {
       u.searchParams.delete(PROJECT_ID_PARAM);
       const nextUrl = `${u.pathname}${u.search}${u.hash}`;
       history.replaceState(history.state, "", nextUrl);
-    } catch (_e) { }
+    } catch { /* noop */ }
   };
 
   const attachProjectCodecBridge = () => {
@@ -93,7 +97,7 @@ export const setupProjectIoController = (deps = {}) => {
         },
         async fromQueryValue(value) { return await decodeProjectFromQueryValue(value); }
       };
-    } catch (_e) { }
+    } catch { /* noop */ }
   };
 
   return {
@@ -105,3 +109,5 @@ export const setupProjectIoController = (deps = {}) => {
     attachProjectCodecBridge
   };
 };
+
+

@@ -32,6 +32,18 @@ export const setupProjectStateController = (deps = {}) => {
     normalizeViewMode,
     evalExpr
   } = deps;
+  const createProjectGuid = () => {
+    try {
+      if (typeof crypto !== "undefined" && crypto && typeof crypto.randomUUID === "function") {
+        return String(crypto.randomUUID());
+      }
+    } catch { /* noop */ }
+    return `pg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  };
+  const ensureProjectGuid = value => {
+    const v = String(value || "").trim();
+    return v || createProjectGuid();
+  };
 
   const applyLoadedProjectSettings = d => {
     if (d && d.camera) {
@@ -75,6 +87,7 @@ export const setupProjectStateController = (deps = {}) => {
     st.projectName = (d && Object.prototype.hasOwnProperty.call(d, "projectName"))
       ? String(d.projectName || "")
       : "project";
+    st.projectGuid = ensureProjectGuid(d && d.projectGuid);
     st.saveLocationId = setGlobalSaveLocationId((d && d.saveLocationId) || getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
   };
 
@@ -131,7 +144,7 @@ export const setupProjectStateController = (deps = {}) => {
           return true;
         }
       }
-    } catch (_e) { }
+    } catch { /* noop */ }
     try {
       const rawSaved = lsGet(AUTO_SAVE_KEY, "");
       if (!rawSaved) return false;
@@ -142,7 +155,7 @@ export const setupProjectStateController = (deps = {}) => {
       loadProjectIntoActiveState(data);
       renderProjectTabs();
       return true;
-    } catch (_e) {
+    } catch {
       return false;
     }
   };
@@ -152,3 +165,5 @@ export const setupProjectStateController = (deps = {}) => {
     restoreAutoSave
   };
 };
+
+

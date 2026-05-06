@@ -329,7 +329,6 @@ export const setupI18n = (deps = {}) => {
   } = deps;
   let lang = detectLanguage(navigatorRef);
   currentLanguage = lang;
-  let translating = false;
 
   const translateNode = node => {
     if (!node || normalizeLang(lang) === "ru") return;
@@ -390,11 +389,9 @@ export const setupI18n = (deps = {}) => {
   const applyLanguage = nextLang => {
     lang = normalizeLang(nextLang);
     currentLanguage = lang;
-    try { localStorage.removeItem(LANGUAGE_KEY); } catch (_e) { }
+    try { localStorage.removeItem(LANGUAGE_KEY); } catch { /* noop */ }
     documentRef.documentElement.lang = lang;
-    translating = true;
     walk(documentRef.body, lang === "ru" ? restoreNode : translateNode);
-    translating = false;
     syncToggle();
     if (typeof onLanguageChange === "function") onLanguageChange(lang);
   };
@@ -413,3 +410,5 @@ export const setupI18n = (deps = {}) => {
     translateDom: root => walk(root || documentRef.body, lang === "ru" ? restoreNode : translateNode)
   };
 };
+
+

@@ -65,7 +65,7 @@ export const setupRectListController = (deps = {}) => {
       it.classList.add("dragging");
       if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = "move";
-        try { e.dataTransfer.setData("text/plain", String(id)); } catch (_e) { }
+        try { e.dataTransfer.setData("text/plain", String(id)); } catch { /* noop */ }
       }
     });
 
@@ -115,3 +115,5 @@ export const setupRectListController = (deps = {}) => {
     listNodeCache: state.listNodeCache
   };
 };
+
+

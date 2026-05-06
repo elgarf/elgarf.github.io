@@ -59,7 +59,6 @@ export const setupDrawRectBaseController = (deps = {}) => {
         const a = rads(r.rotation || 0);
         const w = Math.max(1, Number(r.width) || 1);
         const h = Math.max(1, Number(r.height) || 1);
-        const exportLike = !!options.ignoreInstallLayerToggles;
         const baseColor = String(r.colorA || "#2fcaaf");
         const borderColor = sel ? "#ffe08a" : "rgba(255,255,255,.85)";
         const inCount = Math.max(1, Math.min(64, Math.round(Number(r.deviceInCount) || 4)));

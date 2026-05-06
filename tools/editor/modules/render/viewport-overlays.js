@@ -7,7 +7,6 @@ export const setupViewportOverlays = (deps = {}) => {
     st,
     isMaskMode,
     isCellEditMode,
-    isCabinetEditMode,
     cur,
     getMaskNodeAxes,
     rectUVToWorld,
@@ -369,7 +368,7 @@ export const setupViewportOverlays = (deps = {}) => {
       for (let i = 0; i < lines.length; i++) c.fillText(lines[i], bx + pad, by + pad + i * lh);
     }
   };
-  const drawCabinetEditOverlay = (c, z) => {
+  const drawCabinetEditOverlay = (c, _z) => {
     const sel = st.cabinetCellSelection;
     if (!sel || !Number.isFinite(Number(sel.rectId)) || !Number.isFinite(Number(sel.cid))) return;
     const r = (Array.isArray(st.rects) ? st.rects : []).find(it => Math.round(Number(it && it.id) || 0) === Math.round(Number(sel.rectId) || 0));

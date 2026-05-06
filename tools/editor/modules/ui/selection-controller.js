@@ -35,7 +35,7 @@ export const setupSelectionController = (deps = {}) => {
 
   const normSelSet = () => {
     if (!(st.selSet instanceof Set)) st.selSet = new Set();
-    for (const id of [...st.selSet]) {
+    for (const id of st.selSet) {
       const rr = getRectById(id);
       if (!rr || isRectLocked(rr) || isArtHiddenNote(rr)) st.selSet.delete(id);
     }

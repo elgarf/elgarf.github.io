@@ -104,7 +104,7 @@ export const setupRectCachePersistenceController = (deps = {}) => {
           const byId = new Map(); for (const it of list) byId.set(it.id, it);
           const value = { nx: Math.max(1, Math.round(Number(g.nx) || 1)), ny: Math.max(1, Math.round(Number(g.ny) || 1)), colToGroup: [...g.colToGroup], rowToGroup: [...g.rowToGroup], regionsById: byId, xCutsPx: Array.isArray(g.xCutsPx) ? [...g.xCutsPx] : [0, Math.max(1, Math.round(Number(r.width) || 1))], yCutsPx: Array.isArray(g.yCutsPx) ? [...g.yCutsPx] : [0, Math.max(1, Math.round(Number(r.height) || 1))], cellToRegion: [...g.cellToRegion], regions: list };
           try { Object.defineProperty(value, "_calcKey", { value: String(g.key), writable: true, configurable: true }); }
-          catch (_e) { value._calcKey = String(g.key); }
+          catch { value._calcKey = String(g.key); }
           cache.regions = { key: String(g.key), value };
         }
       }
@@ -129,4 +129,5 @@ export const setupRectCachePersistenceController = (deps = {}) => {
     restorePersistedRectCache
   };
 };
+
 
