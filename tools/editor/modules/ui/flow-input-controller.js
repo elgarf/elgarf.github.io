@@ -103,14 +103,14 @@ export const setupFlowInputController = (deps = {}) => {
     out.push(pts[pts.length - 1]);
     return cleanOrthogonalPoints(out);
   };
-  const preserveOrthogonalLinkShape = (oldLink, from, to) => {
-    const oldMid = Array.isArray(oldLink && oldLink.orthogonalPoints) ? oldLink.orthogonalPoints : [];
-    if (!oldMid.length || !from || !to) return false;
+  const applySimpleOrthogonalLinkShape = (oldLink, from, to) => {
+    if (!Array.isArray(oldLink && oldLink.orthogonalPoints) || !oldLink.orthogonalPoints.length || !from || !to) return false;
     const start = { x: Number(from.x) || 0, y: Number(from.y) || 0 };
     const end = { x: Number(to.x) || 0, y: Number(to.y) || 0 };
-    const mid = routeOrthogonalPoints(oldMid);
-    let full = routeOrthogonalPoints([start, ...mid, end]);
-    if (full.length < 3) full = routeOrthogonalPoints([start, { x: end.x, y: start.y }, end]);
+    const mid = (Math.abs(start.x - end.x) < 0.5 || Math.abs(start.y - end.y) < 0.5)
+      ? { x: Math.round((start.x + end.x) / 2), y: Math.round((start.y + end.y) / 2) }
+      : { x: Math.round(end.x), y: Math.round(start.y) };
+    const full = routeOrthogonalPoints([start, mid, end]);
     const list = Array.isArray(st.flowLinks) ? st.flowLinks.slice() : [];
     const idx = list.findIndex(ln => {
       const a = ln && ln.from, b = ln && ln.to;
@@ -284,7 +284,7 @@ export const setupFlowInputController = (deps = {}) => {
     let changed = false;
     if (fd && fd.from && fd.target && fd.canLink) {
       changed = addFlowLinkBetween(fd.from, fd.target);
-      if (changed && fd.preserveLink) preserveOrthogonalLinkShape(fd.preserveLink, fd.from, fd.target);
+      if (changed && fd.preserveLink) applySimpleOrthogonalLinkShape(fd.preserveLink, fd.from, fd.target);
     }
     st.flowLinkPending = null;
     st.flowLinkHover = null;

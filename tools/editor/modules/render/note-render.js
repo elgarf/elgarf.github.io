@@ -36,13 +36,13 @@ export const setupNoteRender = (deps = {}) => {
     c.rotate(a);
     c.beginPath();
     c.rect(-w / 2, -h / 2, w, h);
-    c.fillStyle = "rgba(255,251,209,.62)";
+    c.fillStyle = String(r.colorA || "#fff7c2");
     c.fill();
     c.lineWidth = Math.max(1, 1.2 / Math.max(0.2, z || 1));
     c.strokeStyle = sel ? "rgba(13,110,253,.96)" : "rgba(61,73,93,.78)";
     c.stroke();
     const pad = Math.max(6, 8 / Math.max(0.5, z || 1));
-    c.fillStyle = "#1f2937";
+    c.fillStyle = String(r.colorB || "#1f2937");
     c.textAlign = "left";
     c.textBaseline = "top";
     c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`;

@@ -9,6 +9,10 @@ export const setupSelectionController = (deps = {}) => {
     refreshPropsListRender
   } = deps;
 
+  const isArtHiddenNote = rect => String(st && st.viewMode || "") === "art"
+    && String((rect && rect.kind) || "").toLowerCase() === "note"
+    && rect.noteIncludeInArtRender === false;
+
   const getRectsBBox = rects => {
     const list = Array.isArray(rects) ? rects : [];
     if (!list.length) return null;
@@ -17,6 +21,7 @@ export const setupSelectionController = (deps = {}) => {
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const r of list) {
+      if (isArtHiddenNote(r)) continue;
       const bb = rectAABBMasked(r);
       if (!bb) continue;
       if (bb.minX < minX) minX = bb.minX;
@@ -32,11 +37,11 @@ export const setupSelectionController = (deps = {}) => {
     if (!(st.selSet instanceof Set)) st.selSet = new Set();
     for (const id of [...st.selSet]) {
       const rr = getRectById(id);
-      if (!rr || isRectLocked(rr)) st.selSet.delete(id);
+      if (!rr || isRectLocked(rr) || isArtHiddenNote(rr)) st.selSet.delete(id);
     }
     if (st.sel != null) {
       const sr = getRectById(st.sel);
-      if (sr && !isRectLocked(sr)) st.selSet.add(st.sel);
+      if (sr && !isRectLocked(sr) && !isArtHiddenNote(sr)) st.selSet.add(st.sel);
     }
     if (!st.selSet.size) st.sel = null;
     if (st.sel != null && !st.selSet.has(st.sel)) st.sel = [...st.selSet][0] || null;
@@ -149,7 +154,7 @@ export const setupSelectionController = (deps = {}) => {
       return layers.devices !== false;
     };
     const ids = st.rects
-      .filter(r => !isRectLocked(r) && shapeSelectableInCurrentView(r) && deviceSelectableInCurrentView(r) && intersects(r, b))
+      .filter(r => !isArtHiddenNote(r) && !isRectLocked(r) && shapeSelectableInCurrentView(r) && deviceSelectableInCurrentView(r) && intersects(r, b))
       .map(r => r.id);
     if (box.append) {
       normSelSet();

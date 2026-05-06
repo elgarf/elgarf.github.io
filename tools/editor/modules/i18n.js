@@ -209,6 +209,7 @@ const EN = {
   "Скопируйте ссылку проекта": "Copy project link",
   "Введите текст примечания": "Enter note text",
   "Двойной клик для ввода текста": "Double-click to enter text",
+  "Включать в рендер режима для художника": "Include in art view render",
   "Экранов пока нет.": "No screens yet.",
   "Блокировка экрана": "Screen lock",
   "Разблокировать экран": "Unlock screen",

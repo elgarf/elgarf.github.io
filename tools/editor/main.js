@@ -1761,6 +1761,10 @@ const getCabinetCellAtPoint = (r, wx, wy) => {
   if (!Number.isFinite(cid)) return null;
   return { rectId: r.id, cid: cid | 0, col: cell.col, row: cell.row };
 };
+const isCabinetSelectableRect = r => {
+  const kind = String((r && r.kind) || "").toLowerCase();
+  return !!r && kind !== "device" && kind !== "note";
+};
 const normalizeCabinetStyleValue = style => {
   const src = (style && typeof style === "object") ? style : {};
   const diagRaw = String(src.diag || "auto");
@@ -1771,7 +1775,7 @@ const normalizeCabinetStyleValue = style => {
 };
 handleCabinetEditPointerDown = p => {
   const h = hit(p.x, p.y);
-  if (!h) {
+  if (!isCabinetSelectableRect(h)) {
     selRect(null);
     st.cabinetCellSelection = null;
     syncPropsSmart();
@@ -1788,7 +1792,7 @@ handleCabinetEditPointerDown = p => {
 };
 handleCabinetEditPointerMove = p => {
   const h = hit(p.x, p.y);
-  st.cabinetCellHover = (h && !isRectLocked(h)) ? getCabinetCellAtPoint(h, p.x, p.y) : null;
+  st.cabinetCellHover = (isCabinetSelectableRect(h) && !isRectLocked(h)) ? getCabinetCellAtPoint(h, p.x, p.y) : null;
   render();
   return true;
 };
@@ -1871,7 +1875,8 @@ const { dupMirrorSel } = setupMirrorDuplicateFeature({
   schedulePersist: kind => schedulePersist(kind)
 });
 function fit() {
-  if (!st.rects.length) { st.camX = 0; st.camY = 0; st.zoom = 1; render(); return } let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (const r of st.rects) { const bb = rectAABBMasked(r); minX = Math.min(minX, bb.minX); minY = Math.min(minY, bb.minY); maxX = Math.max(maxX, bb.maxX); maxY = Math.max(maxY, bb.maxY) }
+  const fitRects = (Array.isArray(st.rects) ? st.rects : []).filter(r => !(isNoteRect(r) && r.noteIncludeInArtRender === false));
+  if (!fitRects.length) { st.camX = 0; st.camY = 0; st.zoom = 1; render(); return } let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (const r of fitRects) { const bb = rectAABBMasked(r); minX = Math.min(minX, bb.minX); minY = Math.min(minY, bb.minY); maxX = Math.max(maxX, bb.maxX); maxY = Math.max(maxY, bb.maxY) }
   const vm = getViewMetrics(), w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY), pad = 80; st.zoom = zc(Math.min((vm.viewWidth - pad) / w, (vm.viewHeight - pad) / h)); st.camX = (minX + maxX) / 2; st.camY = (minY + maxY) / 2; render()
 }
 const updateRectTextSizeLabel = r => {
@@ -1984,7 +1989,8 @@ const { scheduleSyncProps, syncPropsSmart } = setupPropertiesSyncController({
 const getCabinetSelectionRect = () => {
   const sel = st.cabinetCellSelection;
   if (!sel || !Number.isFinite(Number(sel.rectId))) return null;
-  return getRectById(sel.rectId) || null;
+  const r = getRectById(sel.rectId) || null;
+  return isCabinetSelectableRect(r) ? r : null;
 };
 const syncCabinetToolPanel = () => {
   if (!el.cabinetToolPanel) return;
@@ -2509,6 +2515,7 @@ const improveSelectedDeviceOutLinks = () => {
   for (let pass = 0; pass < 3; pass++) {
     const records = makeSegmentRecords();
     const used = new Set();
+    const layouts = [];
     for (let i = 0; i < records.length; i++) {
       if (used.has(i)) continue;
       const group = [i];
@@ -2526,15 +2533,47 @@ const improveSelectedDeviceOutLinks = () => {
       }
       if (group.length < 2) continue;
       const items = group.map(k => records[k])
-        .sort((a, b) => a.coord - b.coord || a.linkIndex - b.linkIndex || a.segIndex - b.segIndex);
+        .sort((a, b) => a.from - b.from || (b.to - b.from) - (a.to - a.from) || a.coord - b.coord || a.linkIndex - b.linkIndex || a.segIndex - b.segIndex);
       const minCoord = items.reduce((min, it) => Math.min(min, it.coord), Infinity);
       const maxCoord = items.reduce((max, it) => Math.max(max, it.coord), -Infinity);
       if (!Number.isFinite(minCoord) || !Number.isFinite(maxCoord) || Math.abs(maxCoord - minCoord) < 0.5) continue;
-      for (let j = 0; j < items.length; j++) {
-        const rec = items[j];
-        const nextCoord = minCoord + (maxCoord - minCoord) * (j / Math.max(1, items.length - 1));
-        if (Math.abs(rec.coord - nextCoord) < 0.5) continue;
-        if (setSegmentCoord(targets[rec.linkIndex], rec.segIndex, rec.orientation, nextCoord)) changed = true;
+      const lanes = [];
+      const intervalConflict = (a, b) => intervalOverlap(a.from, a.to, b.from, b.to) >= minOverlap;
+      for (const rec of items) {
+        let lane = null;
+        for (const candidate of lanes) {
+          if (!candidate.some(other => intervalConflict(rec, other))) {
+            lane = candidate;
+            break;
+          }
+        }
+        if (lane) lane.push(rec);
+        else lanes.push([rec]);
+      }
+      if (lanes.length < 2) continue;
+      lanes.sort((a, b) => {
+        const ac = a.reduce((sum, it) => sum + it.coord, 0) / a.length;
+        const bc = b.reduce((sum, it) => sum + it.coord, 0) / b.length;
+        return ac - bc;
+      });
+      const laneGap = (maxCoord - minCoord) / Math.max(1, lanes.length - 1);
+      if (laneGap < 0.5) continue;
+      layouts.push({
+        lanes,
+        center: (minCoord + maxCoord) / 2,
+        laneGap
+      });
+    }
+    const commonLaneGap = layouts.reduce((min, it) => Math.min(min, it.laneGap), Infinity);
+    if (!Number.isFinite(commonLaneGap) || commonLaneGap < 0.5) continue;
+    for (const layout of layouts) {
+      const startCoord = layout.center - commonLaneGap * (layout.lanes.length - 1) / 2;
+      for (let laneIndex = 0; laneIndex < layout.lanes.length; laneIndex++) {
+        const nextCoord = startCoord + commonLaneGap * laneIndex;
+        for (const rec of layout.lanes[laneIndex]) {
+          if (Math.abs(rec.coord - nextCoord) < 0.5) continue;
+          if (setSegmentCoord(targets[rec.linkIndex], rec.segIndex, rec.orientation, nextCoord)) changed = true;
+        }
       }
     }
   }

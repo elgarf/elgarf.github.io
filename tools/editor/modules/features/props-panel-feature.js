@@ -88,6 +88,21 @@ export const setupPropsPanelFeature = (deps = {}) => {
   const hasFlowLinkCustomColor = ln => /^#[0-9a-f]{6}$/i.test(String(ln && ln.color || "").trim());
   const normalizeFlowLinkWidth = value => Math.max(0.5, Math.min(20, Number(value) || 2.2));
   const normalizeFlowLinkLineType = value => String(value || "").toLowerCase() === "dashed" ? "dashed" : "solid";
+  const noteTextColorForBackground = value => {
+    const hex = String(value || "").trim().replace(/^#/, "");
+    if (!/^[0-9a-f]{6}$/i.test(hex)) return "#000000";
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.55 ? "#000000" : "#ffffff";
+  };
+  const dropSelectionForHiddenArtNote = rect => {
+    if (!rect || String(st && st.viewMode || "") !== "art" || rect.noteIncludeInArtRender !== false) return;
+    const id = Math.max(1, Math.round(Number(rect.id) || 0));
+    if (st.selSet instanceof Set) st.selSet.delete(id);
+    if (st.sel != null && Math.max(1, Math.round(Number(st.sel) || 0)) === id) st.sel = st.selSet instanceof Set ? ([...st.selSet][0] || null) : null;
+  };
   const buildDefaultOrthogonalPoints = ln => {
     const start = typeof findFlowAnchorByEndpoint === "function" ? findFlowAnchorByEndpoint(ln && ln.from) : null;
     const end = typeof findFlowAnchorByEndpoint === "function" ? findFlowAnchorByEndpoint(ln && ln.to) : null;
@@ -304,6 +319,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       uiSetValue(el.rot, "0"); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
       uiSetValue(el.a, "#2fcaaf"); uiSetValue(el.b, autoContrast("#2fcaaf"));
       uiSetValue(el.shapeOpacity, "28");
+      uiSetChecked(el.propNoteArtRender, true);
       uiSetValue(el.dataFlow, "none"); uiSetChecked(el.dataFlowZ, false); uiSetChecked(el.numCells, false);
       if (el.splitVariant) {
         const maxv = String(Math.max(0, SPLIT_VARIANT_MAX - 1));
@@ -350,7 +366,9 @@ export const setupPropsPanelFeature = (deps = {}) => {
       return;
     }
     syncSelectedShapePointPanel(r);
-    metricFromPx(r); if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA);
+    metricFromPx(r);
+    if (typeof isNoteRect === "function" && isNoteRect(r)) r.colorB = noteTextColorForBackground(r.colorA);
+    else if (r.autoContrastB !== false) r.colorB = autoContrast(r.colorA);
     uiSetValue(el.name, r.name);
     uiSetValue(el.rectTextSize, String(Math.max(0, Math.min(128, Math.round(Number(r.textSize) || 0)))));
     updateRectTextSizeLabel(r);
@@ -401,6 +419,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasCustomColor);
     }
     uiSetValue(el.shapeOpacity, mFmt(shapeTransparencyPercent(r)));
+    uiSetChecked(el.propNoteArtRender, r && r.noteIncludeInArtRender !== false);
     {
       const globalMode = normalizeDataFlow(r.dataFlow), rid = (st.mode === "flowEdit" && Number.isFinite(Number(st.flowRegionRid))) ? Math.max(0, Math.round(Number(st.flowRegionRid) || 0)) : null, cfg = (rid != null) ? getFlowRegionConfig(r, rid) : null, pts = (rid != null) ? (st.flowEditPoints || []).filter(p => p.rid === rid) : [], computedMode = (rid != null) ? resolveFlowModeFromStartAndDir(pts, cfg, getFlowModeRegion(r, rid, globalMode)) : "none";
       uiSetValue(el.dataFlow, (computedMode !== "none") ? computedMode : globalMode);
@@ -604,6 +623,10 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(r)) {
         r.shapeOpacity = shapeOpacityFromTransparencyInput({ inputValue: el.shapeOpacity && el.shapeOpacity.value, fallbackRect: r, evalExpr });
       }
+      if (shouldApply("noteIncludeInArtRender") && typeof isNoteRect === "function" && isNoteRect(r)) {
+        r.noteIncludeInArtRender = !(el.propNoteArtRender && el.propNoteArtRender.checked === false);
+        dropSelectionForHiddenArtNote(r);
+      }
       if (isDeviceRect(r)) {
         if (shouldApply("deviceType")) r.deviceType = normalizeDeviceType(el.propDeviceType && el.propDeviceType.value || "controller");
         if (shouldApply("deviceOrientation")) r.deviceOrientation = normalizeDeviceOrientation(el.propDeviceOrientation && el.propDeviceOrientation.value || "horizontal");
@@ -743,6 +766,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
         colorA: t.colorA,
         colorB: t.colorB,
         shapeOpacity: t.shapeOpacity,
+        noteIncludeInArtRender: t.noteIncludeInArtRender !== false,
         dataFlow: t.dataFlow,
         dataFlowZ: !!t.dataFlowZ,
         areaM2Px: t.areaM2Px,
@@ -752,10 +776,19 @@ export const setupPropsPanelFeature = (deps = {}) => {
       };
       if (applyColor || shouldApply("colorA")) {
         t.colorA = el.a.value || "#2fcaaf";
-        if (t.autoContrastB !== false) t.colorB = autoContrast(t.colorA); else t.colorB = el.b.value || t.colorB;
+        if ((typeof isNoteRect === "function" && isNoteRect(t)) || t.autoContrastB !== false) {
+          t.autoContrastB = true;
+          t.colorB = (typeof isNoteRect === "function" && isNoteRect(t)) ? noteTextColorForBackground(t.colorA) : autoContrast(t.colorA);
+        } else {
+          t.colorB = el.b.value || t.colorB;
+        }
       }
       if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(t)) {
         t.shapeOpacity = shapeOpacityFromTransparencyInput({ inputValue: el.shapeOpacity && el.shapeOpacity.value, fallbackRect: t, evalExpr });
+      }
+      if (shouldApply("noteIncludeInArtRender") && typeof isNoteRect === "function" && isNoteRect(t)) {
+        t.noteIncludeInArtRender = !(el.propNoteArtRender && el.propNoteArtRender.checked === false);
+        dropSelectionForHiddenArtNote(t);
       }
       if (shouldApply("cellX")) t.cellX = cabinetUiToPx(el.cx && el.cx.value, el.cUnit && el.cUnit.value, t.cellX || 128, t);
       if (shouldApply("cellY")) t.cellY = cabinetUiToPx(el.cy && el.cy.value, el.cUnit && el.cUnit.value, t.cellY || 128, t);
@@ -780,6 +813,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
           prev.colorA !== t.colorA
           || prev.colorB !== t.colorB
           || prev.shapeOpacity !== t.shapeOpacity
+          || prev.noteIncludeInArtRender !== (t.noteIncludeInArtRender !== false)
           || prev.deviceType !== t.deviceType
           || prev.deviceOrientation !== t.deviceOrientation
         ) invalidateRectCache(t, "appearance");
@@ -1047,6 +1081,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   bindEvent(el.b, "input", e => {
     if (keyForEvent(e) !== selectionKey()) return;
     const count = applyToTargets(r => {
+      if (typeof isNoteRect === "function" && isNoteRect(r)) return;
       r.autoContrastB = false;
       r.colorB = el.b.value || r.colorB;
       invalidateRectCache(r, "appearance");
@@ -1058,6 +1093,7 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
   bindEvent(el.b, "change", e => {
     if (keyForEvent(e) !== selectionKey()) return;
     const count = applyToTargets(r => {
+      if (typeof isNoteRect === "function" && isNoteRect(r)) return;
       r.autoContrastB = false;
       r.colorB = el.b.value || r.colorB;
       invalidateRectCache(r, "appearance");

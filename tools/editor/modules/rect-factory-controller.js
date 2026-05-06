@@ -93,6 +93,15 @@ export const setupRectFactoryController = (deps = {}) => {
     }
     return out;
   };
+  const noteTextColorForBackground = value => {
+    const hex = String(value || "").trim().replace(/^#/, "");
+    if (!/^[0-9a-f]{6}$/i.test(hex)) return "#000000";
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.55 ? "#000000" : "#ffffff";
+  };
 
   const parseProjectRect = (r, i, legacyAreaM2) => {
     const colorA = String(r.colorA || "#2fcaaf");
@@ -134,6 +143,7 @@ export const setupRectFactoryController = (deps = {}) => {
       locked: !!(r && r.locked),
       kind: String((r && r.kind) || ""),
       noteText: String((r && r.noteText) || ""),
+      noteIncludeInArtRender: !(r && r.noteIncludeInArtRender === false),
       shapeOpacity: normalizeShapeOpacity(r && Object.prototype.hasOwnProperty.call(r, "shapeOpacity") ? r.shapeOpacity : 0.72),
       shapePoints: Array.isArray(r && r.shapePoints)
         ? r.shapePoints
@@ -197,6 +207,7 @@ export const setupRectFactoryController = (deps = {}) => {
       locked: false,
       kind: "",
       noteText: "",
+      noteIncludeInArtRender: true,
       shapeOpacity: 0.72,
       shapePoints: [],
       deviceType: "controller",
@@ -215,10 +226,11 @@ export const setupRectFactoryController = (deps = {}) => {
     r.kind = "note";
     r.name = `Примечание ${r.id}`;
     r.noteText = "";
+    r.noteIncludeInArtRender = true;
     r.rotation = 0;
     r.colorA = "#fff7c2";
-    r.autoContrastB = false;
-    r.colorB = "#1f2937";
+    r.autoContrastB = true;
+    r.colorB = noteTextColorForBackground(r.colorA);
     return r;
   };
 

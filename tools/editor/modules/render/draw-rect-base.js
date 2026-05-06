@@ -45,7 +45,12 @@ export const setupDrawRectBaseController = (deps = {}) => {
 
   function drawRectBase(c, r, sel, z, origin, opts) {
       const options = opts || {};
-      if (isNoteRect(r)) { drawNoteRect(c, r, sel, z); return; }
+      const viewModeOverride0 = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null;
+      if (isNoteRect(r)) {
+        if ((viewModeOverride0 || normalizeViewMode(st.viewMode)) === "art" && r && r.noteIncludeInArtRender === false) return;
+        drawNoteRect(c, r, sel, z);
+        return;
+      }
       if (String((r && r.kind) || "").toLowerCase() === "device") {
         if (String(options.installTextMode || "") === "only") return;
         const center = rectCenter(r);

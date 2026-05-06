@@ -69,6 +69,10 @@ export const createEditorHitTest = ({
     const rects = Array.isArray(st && st.rects) ? st.rects : [];
     for (let i = 0; i < rects.length; i++) {
       const rect = rects[i];
+      const artHiddenNote = String(st && st.viewMode || "") === "art"
+        && String((rect && rect.kind) || "").toLowerCase() === "note"
+        && rect.noteIncludeInArtRender === false;
+      if (artHiddenNote) continue;
       if (typeof isRectLocked === "function" && isRectLocked(rect)) continue;
       {
         const installView = String(st && st.viewMode || "") === "install";

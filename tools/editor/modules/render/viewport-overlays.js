@@ -123,7 +123,8 @@ export const setupViewportOverlays = (deps = {}) => {
 
   const getContentBounds = () => {
     const isDeviceRect = r => String((r && r.kind) || "").toLowerCase() === "device";
-    const rects = (Array.isArray(st.rects) ? st.rects : []).filter(r => !isDeviceRect(r));
+    const isArtRenderExcludedNote = r => String((r && r.kind) || "").toLowerCase() === "note" && r.noteIncludeInArtRender === false;
+    const rects = (Array.isArray(st.rects) ? st.rects : []).filter(r => !isDeviceRect(r) && !isArtRenderExcludedNote(r));
     if (!rects.length) return null;
     const key = rects.map(r => [
       toIntMin(r && r.id, 0),
@@ -132,6 +133,7 @@ export const setupViewportOverlays = (deps = {}) => {
       r && r.width || 0,
       r && r.height || 0,
       Number(r && r.rotation) || 0,
+      r && r.noteIncludeInArtRender === false ? 0 : 1,
       toPosInt(drawCellX(r)),
       toPosInt(drawCellY(r)),
       listSignature(r && r.hiddenCells)

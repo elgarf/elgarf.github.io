@@ -32,8 +32,10 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
 
   const selectedItems = () => {
     const rects = typeof getSelectedRects === "function" ? getSelectedRects() : [];
+    const artView = String(st && st.viewMode || "") === "art";
     return rects
       .filter(r => r && typeof rectAABB === "function")
+      .filter(r => !(artView && String((r && r.kind) || "").toLowerCase() === "note" && r.noteIncludeInArtRender === false))
       .map(r => {
         const bb = rectAABB(r);
         return bb ? {

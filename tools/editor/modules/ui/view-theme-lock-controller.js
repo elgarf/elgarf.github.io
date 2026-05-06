@@ -103,12 +103,6 @@ export const setupViewThemeLockController = (deps = {}) => {
     if (nextMode === "spec" && currentMode !== "spec") st.prevViewMode = currentMode;
     if (nextMode !== "spec") st.prevViewMode = nextMode;
     st.viewMode = nextMode;
-    if (nextMode === "art") {
-      if (!st.installLayers || typeof st.installLayers !== "object") {
-        st.installLayers = { contours: true, text: true, flow: true, devices: true, rig: true };
-      }
-      st.installLayers.devices = false;
-    }
     updateViewModeUi();
     if (!isInstallViewMode() && typeof isInstallOnlyToolMode === "function" && isInstallOnlyToolMode(st.mode)) {
       if (typeof setMode === "function") setMode("select");

@@ -222,6 +222,26 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (h && h.id !== st.sel) selRect(h.id);
     return h || null;
   };
+  const isScreenRect = r => {
+    const kind = String((r && r.kind) || "").toLowerCase();
+    return !!r && kind !== "note" && kind !== "device" && kind !== "shape";
+  };
+  const clearScreenToolSelection = () => {
+    selRect(null);
+    st.maskHover = null;
+    st.cellHover = null;
+    st.cellHoverPos = null;
+    st.cellKnifeDrag = null;
+    st.flowRegionRid = null;
+    return true;
+  };
+  const selectScreenHitRectIfNeeded = h => {
+    if (!isScreenRect(h)) {
+      clearScreenToolSelection();
+      return null;
+    }
+    return selectHitRectIfNeeded(h);
+  };
   const handlePointerDownDrawOrNote = p => {
     if (!(st.mode === "draw" || isNoteMode() || st.mode === "device")) return false;
     st.draft = null;
@@ -234,15 +254,16 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
   const handlePointerDownMask = p => {
     if (!isMaskMode()) return false;
-    selectHitRectIfNeeded(hit(p.x, p.y));
-    if (isRectLocked(cur())) return true;
+    const h = selectScreenHitRectIfNeeded(hit(p.x, p.y));
+    if (!h) { render(); return true; }
+    if (isRectLocked(h)) return true;
     addMaskPoint(p.x, p.y);
     return true;
   };
   const handlePointerDownCell = p => {
     if (!isCellEditMode()) return false;
-    const h = selectHitRectIfNeeded(hit(p.x, p.y));
-    if (!h) { selRect(null); return true; }
+    const h = selectScreenHitRectIfNeeded(hit(p.x, p.y));
+    if (!h) { render(); return true; }
     if (isRectLocked(h)) return true;
     st.cellKnifeDrag = beginCellKnifeDragAtPoint ? beginCellKnifeDragAtPoint(h, p.x, p.y) : null;
     if (!st.cellKnifeDrag) {
@@ -264,7 +285,16 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     return !!handleRigPointerDown(p);
   };
   const handlePointerDownFlow = (p, opts = null) => {
-    if (st.mode === "flowEdit") return !!handleFlowEditPointerDown(p, opts);
+    if (st.mode === "flowEdit") {
+      const h = hit(p.x, p.y);
+      if ((h && !isScreenRect(h)) || (!h && !isScreenRect(cur()))) {
+        clearScreenToolSelection();
+        if (typeof syncPropsSmart === "function") syncPropsSmart();
+        render();
+        return true;
+      }
+      return !!handleFlowEditPointerDown(p, opts);
+    }
     if (st.mode === "select") return !!handleFlowEditPointerDown(p, { ...(opts || {}), allowLinkOnly: true });
     return false;
   };
@@ -365,14 +395,16 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (shapeInput.handlePointerMove(p, o)) return true;
     if (isMaskMode()) {
       setNoteResizeCursor(false);
-      const r = getHoveredRect(p);
+      const h = hit(p.x, p.y);
+      const r = isScreenRect(h) ? getHoveredRect(p) : null;
       st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null;
       render();
       return true;
     }
     if (isCellEditMode()) {
       setNoteResizeCursor(false);
-      const r = getHoveredRect(p);
+      const h = hit(p.x, p.y);
+      const r = isScreenRect(h) ? getHoveredRect(p) : null;
       if (st.cellKnifeDrag && r && Number(r.id) === Number(st.cellKnifeDrag.rectId) && typeof updateCellKnifeDragAtPoint === "function") {
         if (updateCellKnifeDragAtPoint(r, st.cellKnifeDrag, p.x, p.y)) render();
       }

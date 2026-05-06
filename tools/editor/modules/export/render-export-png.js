@@ -36,8 +36,12 @@ export const createRenderExportPngBlob = (deps = {}) => {
     const includeScreenLabels = !(flowOnly || rigOnly);
     const forceRigOverlay = !!(includeRig && !flowOnly);
     const isDeviceRect = r => String((r && r.kind) || "").toLowerCase() === "device";
+    const isNoteRect = r => String((r && r.kind) || "").toLowerCase() === "note";
     const includeDevices = !!includeFlow && !rigOnly;
-    const exportRects = (Array.isArray(st.rects) ? st.rects : []).filter(r => includeDevices || !isDeviceRect(r));
+    const artExport = !(includeFlow || includeRig);
+    const exportRects = (Array.isArray(st.rects) ? st.rects : [])
+      .filter(r => includeDevices || !isDeviceRect(r))
+      .filter(r => !(artExport && isNoteRect(r) && r.noteIncludeInArtRender === false));
     if (!exportRects.length) return null;
     await ensureFontReady();
     let minX = 1e9;

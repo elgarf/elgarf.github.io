@@ -24,6 +24,19 @@ export const setupFlowLinkController = (deps = {}) => {
     return (v === "pc" || v === "mixer" || v === "camera") ? v : "controller";
   };
   const isPcLike = type => type === "pc" || type === "mixer" || type === "camera";
+  const isNumericPortLabel = value => {
+    const s = String(value == null ? "" : value).trim();
+    return !s || /^[-+]?(?:\d+(?:[.,]\d+)?|\d*[.,]\d+)$/.test(s);
+  };
+  const devicePortLabel = (r, kind, cid) => {
+    const index = Math.max(0, toCid(cid) - 1);
+    const labels = kind === "end"
+      ? (Array.isArray(r && r.deviceOutLabels) ? r.deviceOutLabels : [])
+      : (Array.isArray(r && r.deviceInLabels) ? r.deviceInLabels : []);
+    const raw = labels[index];
+    return String(raw == null || raw === "" ? String(index + 1) : raw).trim();
+  };
+  const hasNamedDeviceOutPort = (r, cid) => !isNumericPortLabel(devicePortLabel(r, "end", cid));
   const isScreenLikeRect = r => !isDeviceRect(r);
   const posNum = (v, fallback = 1) => Math.max(1, Number(v) || fallback);
   const round3 = v => Math.round((Number(v) || 0) * 1000) / 1000;
@@ -93,11 +106,13 @@ export const setupFlowLinkController = (deps = {}) => {
   const endpointNodeKey = ep => regionNodeKey(ep && ep.rectId, ep && ep.rid);
 
   const logCanLinkFlowAnchorsDebug = (a, b, ok, reason, extra = {}) => {
-    if (!st || !st.debugFlowLink) return;
+    if (!st) return;
+    const shouldLog = !!st.debugFlowLink || !ok;
+    if (!shouldLog) return;
     try {
       const fromId = toRectId(a && a.rectId);
       const toId = toRectId(b && b.rectId);
-      const key = `${fromId}>${toId}`;
+      const key = `${flowAnchorKey(a || {})}>${flowAnchorKey(b || {})}`;
       const payload = {
         ok: !!ok,
         reason: String(reason || ""),
@@ -105,12 +120,15 @@ export const setupFlowLinkController = (deps = {}) => {
         to: endpointDebug(b),
         ...extra
       };
+      st.lastFlowLinkCheck = payload;
+      if (!ok) st.lastFlowLinkReject = payload;
       const sig = JSON.stringify(payload);
       const now = Date.now();
       const prev = flowLinkCheckDebugState.get(key);
       if (prev && prev.sig === sig && (now - prev.ts) < 320) return;
       flowLinkCheckDebugState.set(key, { sig, ts: now });
-      console.info("[canLinkFlowAnchors]", payload);
+      const method = ok ? "info" : "warn";
+      console[method]("[canLinkFlowAnchors]", payload);
     } catch (_e) { }
   };
 
@@ -136,18 +154,21 @@ export const setupFlowLinkController = (deps = {}) => {
     if (!ra || !rb) { logCanLinkFlowAnchorsDebug(a, b, false, "rect_not_found"); return false; }
     const aIsDevice = isDeviceRect(ra);
     const bIsDevice = isDeviceRect(rb);
+    const aType = aIsDevice ? deviceType(ra) : "";
+    const bType = bIsDevice ? deviceType(rb) : "";
+    const sourceNamedControllerOut = aIsDevice && aType === "controller" && hasNamedDeviceOutPort(ra, a.cid);
     if (aIsDevice || bIsDevice) {
-      const aType = deviceType(ra);
-      const bType = deviceType(rb);
       const allowControllerToScreen = aIsDevice && !bIsDevice && aType === "controller";
+      const allowNamedControllerOutToDeviceIn = bIsDevice && sourceNamedControllerOut;
       const allowPcLikeToController = aIsDevice && bIsDevice && isPcLike(aType) && bType === "controller";
       const allowPcLikeToPcLike = aIsDevice && bIsDevice && isPcLike(aType) && isPcLike(bType);
-      if (!allowControllerToScreen && !allowPcLikeToController && !allowPcLikeToPcLike) {
+      if (!allowControllerToScreen && !allowNamedControllerOutToDeviceIn && !allowPcLikeToController && !allowPcLikeToPcLike) {
         logCanLinkFlowAnchorsDebug(a, b, false, "device_link_rule_violation", {
           fromKind: rectKind(ra),
           toKind: rectKind(rb),
           fromDeviceType: aType,
-          toDeviceType: bType
+          toDeviceType: bType,
+          fromDeviceOutLabel: aIsDevice ? devicePortLabel(ra, "end", a.cid) : ""
         });
         return false;
       }
@@ -205,7 +226,7 @@ export const setupFlowLinkController = (deps = {}) => {
     const targetRectId = toRectId(b.rectId);
     const fromAnchorKey = flowAnchorKey(a);
     const toAnchorKey = flowAnchorKey(b);
-    const allowMultiOutFromController = aIsDevice && deviceType(ra) === "controller" && !bIsDevice;
+    const allowMultiOutFromController = sourceNamedControllerOut || (aIsDevice && aType === "controller" && !bIsDevice);
     for (const ln of linkMeta) {
       const lkFrom = ln.fromAnchor;
       const lkTo = ln.toAnchor;

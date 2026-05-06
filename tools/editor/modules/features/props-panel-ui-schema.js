@@ -25,9 +25,11 @@ export const syncDynamicPanelVisibility = ({ el, rect, multi = false, isShapeRec
   setPanelHidden(el.emptySelectionHint, hasAnySelection);
   setPanelHidden(el.objectNameField, !kind.isObject);
   setPanelHidden(el.rectTextSizeField, !(kind.isScreen || kind.isNote));
+  setPanelHidden(el.noteArtRenderField, !kind.isNote);
   setPanelHidden(el.quickGeoPanel, !kind.isObject);
   setPanelHidden(el.areaM2Field, !kind.isScreen);
   setPanelHidden(el.colorPanel, !kind.isObject);
+  setPanelHidden(el.colorBField, kind.isNote);
   setPanelHidden(el.shapeOpacityField, !kind.isShape);
   setPanelHidden(el.autoContrastField, !kind.isScreen);
   setPanelHidden(el.randomColorField, !kind.isObject);
@@ -48,6 +50,7 @@ export const syncDynamicPanelVisibility = ({ el, rect, multi = false, isShapeRec
 export const mainPropNodes = el => [
   el.name,
   el.rectTextSize,
+  el.propNoteArtRender,
   el.x,
   el.y,
   el.rot,
@@ -90,6 +93,7 @@ export const trackedPropInputNodes = el => [
   el.splitVariant,
   el.rectTextSize
   ,
+  el.propNoteArtRender,
   el.propDeviceType,
   el.propDeviceOrientation,
   el.propDeviceInCount,
@@ -150,6 +154,7 @@ export const changeApplyInputNodes = el => [
   el.splitVariant,
   el.shapePointType
   ,
+  el.propNoteArtRender,
   el.propDeviceType,
   el.propDeviceOrientation,
   el.propFlowLinkOrthogonal,
@@ -178,6 +183,7 @@ export const fieldForPropNode = (el, node) => {
   if (node === el.shapePointX) return "shapePointX";
   if (node === el.shapePointY) return "shapePointY";
   if (node === el.shapePointType) return "shapePointType";
+  if (node === el.propNoteArtRender) return "noteIncludeInArtRender";
   if (node === el.propDeviceType) return "deviceType";
   if (node === el.propDeviceOrientation) return "deviceOrientation";
   if (node === el.propDeviceInCount) return "deviceInCount";

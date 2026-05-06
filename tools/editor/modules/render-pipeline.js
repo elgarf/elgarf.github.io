@@ -129,6 +129,8 @@ export const setupRenderPipeline = (deps = {}) => {
     const origin = getOrigin();
     for (let i = st.rects.length - 1; i >= 0; i--) {
       const rr = st.rects[i];
+      const isNoteRect = String((rr && rr.kind) || "").toLowerCase() === "note";
+      if (isNoteRect && String(st.viewMode || "") === "art" && rr && rr.noteIncludeInArtRender === false) continue;
       const isDeviceRect = String((rr && rr.kind) || "").toLowerCase() === "device";
       const installView = String(st.viewMode || "") === "install";
       const devicesLayerOn = installView && !(st.installLayers && st.installLayers.devices === false);
