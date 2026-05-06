@@ -20,6 +20,44 @@
       width: 100%;
       height: 100%;
       position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .viewer-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 8px 10px 0;
+      background: linear-gradient(180deg, rgba(20, 26, 34, .95) 0%, rgba(14, 19, 26, .9) 100%);
+      border-bottom: 1px solid rgba(255, 255, 255, .1);
+      z-index: 6;
+    }
+    .viewer-tab-btn {
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-bottom-color: rgba(255, 255, 255, .08);
+      background: rgba(255, 255, 255, .06);
+      color: rgba(255, 255, 255, .88);
+      border-radius: 10px 10px 0 0;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 12px 8px;
+      cursor: pointer;
+      transform: translateY(1px);
+      transition: background .12s ease, border-color .12s ease, color .12s ease;
+    }
+    .viewer-tab-btn:hover {
+      background: rgba(255, 255, 255, .1);
+      color: rgba(255, 255, 255, .96);
+    }
+    .viewer-tab-btn.active {
+      background: #111820;
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, .24);
+      border-bottom-color: #111820;
+    }
+    .viewer-content {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
     }
     .viewer-zoom {
       position: absolute;
@@ -42,20 +80,105 @@
       display: block;
       background: #111820;
     }
+    .viewer-spec-panel {
+      position: absolute;
+      inset: 0;
+      overflow: auto;
+      padding: 14px;
+      display: none;
+      background: #111820;
+      color: rgba(255, 255, 255, .92);
+    }
+    .viewer-spec-panel.show {
+      display: block;
+    }
+    .viewer-spec-empty {
+      color: rgba(255, 255, 255, .72);
+      font-size: 13px;
+    }
+    .viewer-spec-panel .spec-mode-manual-edit,
+    .viewer-spec-panel textarea,
+    .viewer-spec-panel .EasyMDEContainer,
+    .viewer-spec-panel .editor-toolbar,
+    .viewer-spec-panel .CodeMirror,
+    .viewer-spec-panel .spec-mode-close,
+    .viewer-spec-panel button {
+      display: none !important;
+    }
+    .viewer-spec-panel .spec-mode-markdown,
+    .viewer-spec-panel .spec-mode-manual-preview {
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .viewer-spec-panel p,
+    .viewer-spec-panel li {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .viewer-spec-panel h1,
+    .viewer-spec-panel h2,
+    .viewer-spec-panel h3,
+    .viewer-spec-panel h4,
+    .viewer-spec-panel h5,
+    .viewer-spec-panel h6 {
+      margin: 0 0 8px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+    .viewer-spec-panel h1 { font-size: 22px; }
+    .viewer-spec-panel h2 { font-size: 20px; }
+    .viewer-spec-panel h3 { font-size: 18px; }
+    .viewer-spec-panel h4 { font-size: 16px; }
+    .viewer-spec-panel h5 { font-size: 20px; }
+    .viewer-spec-panel h6 { font-size: 18px; }
+    .viewer-spec-panel .spec-mode-block {
+      margin: 0 0 10px;
+      border: 1px solid rgba(255, 255, 255, .14);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .03);
+    }
+    .viewer-spec-panel .spec-mode-block > header {
+      padding: 10px 12px;
+      font-weight: 700;
+      border-bottom: 1px solid rgba(255, 255, 255, .1);
+      background: rgba(255, 255, 255, .04);
+    }
+    .viewer-spec-panel .spec-mode-markdown {
+      padding: 10px 12px;
+    }
+    .viewer-spec-panel .viewer-spec-manual-text {
+      padding: 10px 12px;
+      border-top: 1px dashed rgba(255, 255, 255, .2);
+      white-space: pre-wrap;
+      color: rgba(255, 255, 255, .9);
+    }
   </style>
 </head>
 <body>
   <div class="viewer-root">
-    <iframe id="viewerFrame" class="viewer-frame" title="LED project viewer"></iframe>
-    <div id="zoomLabel" class="viewer-zoom">—</div>
+    <div class="viewer-tabs">
+      <button id="tabInstall" class="viewer-tab-btn active" type="button">Монтажный вид</button>
+      <button id="tabSpec" class="viewer-tab-btn" type="button">Спецификация</button>
+    </div>
+    <div class="viewer-content">
+      <iframe id="viewerFrame" class="viewer-frame" title="LED project viewer"></iframe>
+      <div id="specPanel" class="viewer-spec-panel"></div>
+      <div id="zoomLabel" class="viewer-zoom">—</div>
+    </div>
   </div>
 
   <script>
     (() => {
       const frame = document.getElementById("viewerFrame");
       const label = document.getElementById("zoomLabel");
+      const tabInstall = document.getElementById("tabInstall");
+      const tabSpec = document.getElementById("tabSpec");
+      const specPanel = document.getElementById("specPanel");
       let zoomPoll = 0;
       let lastZoomText = "—";
+      let activeTab = "install";
+      let specRenderVersion = 0;
       const q = new URLSearchParams(location.search || "");
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
       const packedProject = (q.get("project") || "").trim();
@@ -140,9 +263,107 @@
         };
         const lockBtn = d.getElementById("lockAllToggle");
         if (lockBtn && lockBtn.getAttribute("aria-pressed") !== "true") lockBtn.click();
-        clickById("viewModeInstall");
+        if (activeTab === "install") clickById("viewModeInstall");
         forceSelectMode();
       };
+      const escapeHtml = s => String(s == null ? "" : s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      const renderInlineMd = value => {
+        const escaped = escapeHtml(value);
+        const linked = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, text, href) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`);
+        return linked.replace(/(^|[\s(])(https?:\/\/[^\s<]+)/g, (_m, lead, href) => `${lead}<a href="${href}" target="_blank" rel="noopener noreferrer">${href}</a>`);
+      };
+      const markdownToHtml = text => {
+        const src = String(text || "").replace(/\r/g, "");
+        if (!src.trim()) return `<div class="viewer-spec-empty">Нет данных для спецификации</div>`;
+        const lines = src.split("\n");
+        const out = [];
+        let listOpen = false;
+        const closeList = () => {
+          if (!listOpen) return;
+          out.push("</ul>");
+          listOpen = false;
+        };
+        for (const raw of lines) {
+          const line = String(raw || "");
+          const heading = line.match(/^(#{1,6})\s+(.+)\s*$/);
+          if (heading) {
+            closeList();
+            const lvl = Math.max(1, Math.min(6, heading[1].length));
+            out.push(`<h${lvl}>${renderInlineMd(heading[2])}</h${lvl}>`);
+            continue;
+          }
+          const bullet = line.match(/^\s*[-*]\s+(.+)\s*$/);
+          if (bullet) {
+            if (!listOpen) {
+              out.push("<ul>");
+              listOpen = true;
+            }
+            out.push(`<li>${renderInlineMd(bullet[1])}</li>`);
+            continue;
+          }
+          if (!line.trim()) {
+            closeList();
+            continue;
+          }
+          closeList();
+          out.push(`<p>${renderInlineMd(line.trim())}</p>`);
+        }
+        closeList();
+        return out.join("");
+      };
+      const renderSpecFlatHtml = async () => {
+        const myVersion = ++specRenderVersion;
+        if (!specPanel) return;
+        let w = null;
+        try { w = frame.contentWindow; } catch (_e) { w = null; }
+        if (!w || typeof w.ledMaskBuildFlatSpecText !== "function") {
+          specPanel.innerHTML = `<div class="viewer-spec-empty">Спецификация недоступна</div>`;
+          return;
+        }
+        let text = "";
+        try {
+          text = await Promise.resolve(w.ledMaskBuildFlatSpecText());
+        } catch (_e) {
+          text = "";
+        }
+        if (myVersion !== specRenderVersion) return;
+        if (!String(text || "").trim()) {
+          specPanel.innerHTML = `<div class="viewer-spec-empty">Нет данных для спецификации</div>`;
+          return;
+        }
+        specPanel.innerHTML = markdownToHtml(text);
+      };
+      const switchTab = next => {
+        activeTab = next === "spec" ? "spec" : "install";
+        const install = activeTab === "install";
+        tabInstall.classList.toggle("active", install);
+        tabSpec.classList.toggle("active", !install);
+        specPanel.classList.toggle("show", !install);
+        frame.style.display = install ? "block" : "none";
+        label.style.display = install ? "block" : "none";
+        let d = null;
+        try { d = frame.contentDocument; } catch (_e) { d = null; }
+        if (d) {
+          const clickById = id => {
+            const n = d.getElementById(id);
+            if (n) n.click();
+          };
+          if (install) {
+            clickById("viewModeInstall");
+          } else {
+            renderSpecFlatHtml();
+            window.setTimeout(renderSpecFlatHtml, 140);
+            window.setTimeout(renderSpecFlatHtml, 420);
+          }
+        } else if (!install) {
+          specPanel.innerHTML = `<div class="viewer-spec-empty">Загрузка спецификации...</div>`;
+        }
+      };
+      tabInstall.addEventListener("click", () => switchTab("install"));
+      tabSpec.addEventListener("click", () => switchTab("spec"));
 
       const updateZoomLabel = () => {
         try {
@@ -163,6 +384,7 @@
           hideEditorUi();
           forceViewerMode();
           updateZoomLabel();
+          if (activeTab === "spec") renderSpecFlatHtml();
         };
         boot();
         window.setTimeout(boot, 150);

@@ -1050,7 +1050,12 @@ const updateViewModeUi = (...args) => {
 };
 const updateLockAllUi = viewThemeLockController.updateLockAllUi;
 const setLockAll = viewThemeLockController.setLockAll;
-const setViewMode = viewThemeLockController.setViewMode;
+const setViewMode = (mode, persist = true) => viewThemeLockController.setViewMode(
+  VIEWER_MODE
+    ? (normalizeViewMode(mode) === "spec" ? "spec" : "install")
+    : mode,
+  persist
+);
 const updateThemeUi = viewThemeLockController.updateThemeUi;
 const applyThemeMode = viewThemeLockController.applyThemeMode;
 const serializeRectForProject = r => {
@@ -1162,6 +1167,7 @@ const {
 const loadProjectIntoActiveState = data => {
   applyProjectData(data || makeEmptyProjectData("Новый проект"), { syncTabSnapshot: false, renderTabs: false });
   if (VIEWER_MODE) {
+    setViewMode("install", false);
     setLockAll(true, false);
     setMode("select");
     st.selSet = new Set();
@@ -2936,6 +2942,18 @@ const {
   });
 })();
 if (typeof buildFlowSpecText === "function") buildFlowSpecTextForView = () => buildFlowSpecText();
+try {
+  if (typeof window !== "undefined") {
+    window.ledMaskBuildFlatSpecText = () => {
+      if (typeof buildFlowSpecText !== "function") return "";
+      return buildFlowSpecText({
+        includeManual: true,
+        cachedOnly: true,
+        viewerUrl: VIEWER_MODE ? " " : undefined
+      });
+    };
+  }
+} catch { /* noop */ }
 updateSpecViewUi(true);
 const appBootstrapDeps = {
   st,
