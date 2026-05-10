@@ -301,6 +301,9 @@
         }
         try {
           const u = new URL(normalized);
+          if (u.protocol === "ws:" && !u.port) {
+            u.port = "8765";
+          }
           if (u.protocol === "wss:" && (!u.pathname || u.pathname === "/")) {
             u.pathname = "/ws-checklist/";
           }
@@ -313,7 +316,7 @@
         q.get("checklistWs")
         || q.get("checklistws")
         || wsUrlFromGlobal
-        || "static.93.189.179.185.ip.webhost1.net:8765"
+        || "static.93.189.179.185.ip.webhost1.net"
       );
       //if (pid) document.title = `LED Mask Viewer #${pid}`;
       const src = new URL("./LEDMaskEditor.html", location.href);
