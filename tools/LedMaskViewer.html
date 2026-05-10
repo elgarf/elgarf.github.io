@@ -291,14 +291,23 @@
         const raw = String(input || "").trim();
         if (!raw) return "";
         const preferredProto = isHttpsPage ? "wss://" : "ws://";
+        let normalized = "";
         if (/^wss?:\/\//i.test(raw)) {
-          if (isHttpsPage) return raw.replace(/^ws:\/\//i, "wss://");
-          return raw;
+          normalized = isHttpsPage ? raw.replace(/^ws:\/\//i, "wss://") : raw;
+        } else if (/^https?:\/\//i.test(raw)) {
+          normalized = raw.replace(/^https?:\/\//i, preferredProto);
+        } else {
+          normalized = `${preferredProto}${raw.replace(/^\/+/, "")}`;
         }
-        if (/^https?:\/\//i.test(raw)) {
-          return raw.replace(/^https?:\/\//i, preferredProto);
+        try {
+          const u = new URL(normalized);
+          if (u.protocol === "wss:" && (!u.pathname || u.pathname === "/")) {
+            u.pathname = "/ws-checklist/";
+          }
+          return u.toString();
+        } catch (_e) {
+          return normalized;
         }
-        return `${preferredProto}${raw.replace(/^\/+/, "")}`;
       };
       const checklistWsUrl = normalizeChecklistWsUrl(
         q.get("checklistWs")
