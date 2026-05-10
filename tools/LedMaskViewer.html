@@ -281,6 +281,7 @@
       let wsUnavailable = false;
       let wsReconnectTimer = 0;
       let wsConnectAttempt = 0;
+      let specRenderDebounceTimer = 0;
       const projectStoreApiUrl = "https://static.93.189.179.185.ip.webhost1.net/project_store.php";
       const q = new URLSearchParams(location.search || "");
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
@@ -316,7 +317,7 @@
         q.get("checklistWs")
         || q.get("checklistws")
         || wsUrlFromGlobal
-        || "static.93.189.179.185.ip.webhost1.net"
+        || "static.93.189.179.185.ip.webhost1.net/ws-checklist/"
       );
       //if (pid) document.title = `LED Mask Viewer #${pid}`;
       const src = new URL("./LEDMaskEditor.html", location.href);
@@ -565,13 +566,16 @@
         closeChecklistWs();
         wsConnectAttempt += 1;
         try {
+          console.info("[checklist-ws] connect", { url: checklistWsUrl, guid: currentProjectGuid });
           checklistWs = new WebSocket(checklistWsUrl);
           wsGuid = currentProjectGuid;
         } catch (_e) {
           wsUnavailable = true;
+          console.warn("[checklist-ws] connect_ctor_failed", _e);
           return;
         }
         checklistWs.addEventListener("open", () => {
+          console.info("[checklist-ws] open", { guid: currentProjectGuid });
           wsReady = true;
           wsUnavailable = false;
           wsConnectAttempt = 0;
@@ -612,15 +616,26 @@
           }
         });
         checklistWs.addEventListener("close", () => {
+          const closeCode = checklistWs ? checklistWs.closeCode : undefined;
+          const closeReason = checklistWs ? checklistWs.closeReason : "";
+          console.warn("[checklist-ws] close", { code: closeCode, reason: closeReason, guid: currentProjectGuid });
           wsReady = false;
           checklistWs = null;
           wsUnavailable = true;
           scheduleWsReconnect();
         });
-        checklistWs.addEventListener("error", () => {
+        checklistWs.addEventListener("error", e => {
+          console.warn("[checklist-ws] error", e);
           wsReady = false;
           wsUnavailable = true;
         });
+      };
+      const scheduleSpecRender = (delayMs = 180) => {
+        if (specRenderDebounceTimer) window.clearTimeout(specRenderDebounceTimer);
+        specRenderDebounceTimer = window.setTimeout(() => {
+          specRenderDebounceTimer = 0;
+          renderSpecFlatHtml();
+        }, Math.max(0, Math.round(Number(delayMs) || 0)));
       };
       const pushCheckboxUpdateToWs = (key, checked) => {
         if (!wsReady || !currentProjectGuid || !key) return false;
@@ -895,12 +910,11 @@
           if (install) {
             clickById("viewModeInstall");
           } else {
-            renderSpecFlatHtml();
-            window.setTimeout(renderSpecFlatHtml, 140);
-            window.setTimeout(renderSpecFlatHtml, 420);
+            scheduleSpecRender(20);
           }
         } else if (!install) {
           specPanel.innerHTML = `<div class="viewer-spec-empty">Загрузка спецификации...</div>`;
+          scheduleSpecRender(220);
         }
       };
       tabInstall.addEventListener("click", () => switchTab("install"));
