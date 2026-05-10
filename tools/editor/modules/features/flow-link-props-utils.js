@@ -9,6 +9,8 @@ export const hasFlowLinkCustomColor = ln => /^#[0-9a-f]{6}$/i.test(String(ln && 
 export const normalizeFlowLinkWidth = value => Math.max(0.5, Math.min(20, Number(value) || 2.2));
 
 export const normalizeFlowLinkLineType = value => String(value || "").toLowerCase() === "dashed" ? "dashed" : "solid";
+export const normalizeFlowLinkIsCommutation = value => !!value;
+export const normalizeFlowLinkCommutationName = value => String(value || "").slice(0, 120);
 
 export const buildDefaultOrthogonalPoints = (ln, findFlowAnchorByEndpoint) => {
   const start = typeof findFlowAnchorByEndpoint === "function" ? findFlowAnchorByEndpoint(ln && ln.from) : null;

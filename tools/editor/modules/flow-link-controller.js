@@ -145,7 +145,7 @@ export const setupFlowLinkController = (deps = {}) => {
   const canLinkFlowAnchors = (a, b) => {
     if (!a || !b) { logCanLinkFlowAnchorsDebug(a, b, false, "missing_anchor"); return false; }
     if (a.rectId === b.rectId) { logCanLinkFlowAnchorsDebug(a, b, false, "same_rect"); return false; }
-    if (a.kind !== "end" || b.kind !== "start") { logCanLinkFlowAnchorsDebug(a, b, false, "invalid_kinds"); return false; }
+    if (a.kind !== "end" || (b.kind !== "start" && b.kind !== "end")) { logCanLinkFlowAnchorsDebug(a, b, false, "invalid_kinds"); return false; }
     const byId = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [toRectId(r && r.id), r]));
     const ra = byId.get(toRectId(a.rectId));
     const rb = byId.get(toRectId(b.rectId));
@@ -154,7 +154,17 @@ export const setupFlowLinkController = (deps = {}) => {
     const bIsDevice = isDeviceRect(rb);
     const aType = aIsDevice ? deviceType(ra) : "";
     const bType = bIsDevice ? deviceType(rb) : "";
+    const targetIsScreenEnd = !bIsDevice && String(b && b.kind || "").toLowerCase() === "end";
     const sourceNamedControllerOut = aIsDevice && aType === "controller" && hasNamedDeviceOutPort(ra, a.cid);
+    const allowControllerToScreenEnd = aIsDevice && !bIsDevice && aType === "controller" && targetIsScreenEnd;
+    if (targetIsScreenEnd && !allowControllerToScreenEnd) {
+      logCanLinkFlowAnchorsDebug(a, b, false, "screen_end_target_requires_controller_out", {
+        fromKind: rectKind(ra),
+        toKind: rectKind(rb),
+        fromDeviceType: aType
+      });
+      return false;
+    }
     if (aIsDevice || bIsDevice) {
       const allowControllerToScreen = aIsDevice && !bIsDevice && aType === "controller";
       const allowNamedControllerOutToDeviceIn = bIsDevice && sourceNamedControllerOut;
@@ -523,7 +533,8 @@ export const setupFlowLinkController = (deps = {}) => {
   const mutateFlowLinkBetween = (a, b, opts = {}) => {
     if (!canLinkFlowAnchors(a, b)) return false;
     const toggle = !!(opts && opts.toggle);
-    const link = { from: { rectId: a.rectId, rid: a.rid, cid: a.cid, kind: "end" }, to: { rectId: b.rectId, rid: b.rid, cid: b.cid, kind: "start" } };
+    const toKind = String(b && b.kind || "").toLowerCase() === "end" ? "end" : "start";
+    const link = { from: { rectId: a.rectId, rid: a.rid, cid: a.cid, kind: "end" }, to: { rectId: b.rectId, rid: b.rid, cid: b.cid, kind: toKind } };
     const key = flowLinkPairKey(link.from, link.to);
     const set = normalizeFlowLinks(st.flowLinks);
     const idx = set.findIndex(it => flowLinkKey(it) === key);
@@ -980,7 +991,13 @@ export const setupFlowLinkController = (deps = {}) => {
     if (!drag || !drag.from) return;
     drag.x = wx;
     drag.y = wy;
-    const target = findFlowLinkAnchorAtPoint(wx, wy, "start");
+    let target = findFlowLinkAnchorAtPoint(wx, wy, "start");
+    if (!target) {
+      const byId = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [toRectId(r && r.id), r]));
+      const srcRect = byId.get(toRectId(drag.from && drag.from.rectId));
+      const srcIsControllerOut = !!(srcRect && isDeviceRect(srcRect) && deviceType(srcRect) === "controller");
+      if (srcIsControllerOut) target = findFlowLinkAnchorAtPoint(wx, wy, "end");
+    }
     drag.target = target || null;
     if (!target) {
       drag.canLink = false;

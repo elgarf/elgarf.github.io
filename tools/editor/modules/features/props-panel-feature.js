@@ -25,7 +25,9 @@ import {
   buildDefaultOrthogonalPoints,
   hasFlowLinkCustomColor,
   normalizeFlowLinkColor,
+  normalizeFlowLinkCommutationName,
   normalizeFlowLinkControlPointCount,
+  normalizeFlowLinkIsCommutation,
   normalizeFlowLinkLineType,
   normalizeFlowLinkWidth
 } from "./flow-link-props-utils.js";
@@ -191,12 +193,64 @@ export const setupPropsPanelFeature = (deps = {}) => {
       : normalizeFlowLinkColor(autoFlowLinkColor(selLink, rectById, isDeviceRect));
     const width = normalizeFlowLinkWidth(selLink && selLink.width);
     const lineType = normalizeFlowLinkLineType(selLink && selLink.lineType);
+    const isCommutation = normalizeFlowLinkIsCommutation(selLink && selLink.isCommutation);
+    const commutationName = normalizeFlowLinkCommutationName(selLink && selLink.commutationName);
+    const collectCommutationNames = () => {
+      const out = [];
+      const seen = new Set();
+      for (const ln of (Array.isArray(st && st.flowLinks) ? st.flowLinks : [])) {
+        if (!normalizeFlowLinkIsCommutation(ln && ln.isCommutation)) continue;
+        const nm = normalizeFlowLinkCommutationName(ln && ln.commutationName);
+        if (!nm || seen.has(nm)) continue;
+        seen.add(nm);
+        out.push(nm);
+      }
+      out.sort((a, b) => String(a).localeCompare(String(b), "ru", { numeric: true }));
+      return out;
+    };
+    const syncCommutationOptions = () => {
+      const menu = el.propFlowLinkCommutationDropdownMenu;
+      if (!menu) return;
+      const names = collectCommutationNames();
+      menu.innerHTML = "";
+      if (!names.length) {
+        const empty = document.createElement("li");
+        const emptyBtn = document.createElement("button");
+        emptyBtn.type = "button";
+        emptyBtn.className = "dropdown-item disabled";
+        emptyBtn.textContent = "Нет сохранённых наименований";
+        empty.appendChild(emptyBtn);
+        menu.appendChild(empty);
+        return;
+      }
+      for (const name of names) {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "dropdown-item";
+        btn.textContent = String(name || "");
+        btn.addEventListener("click", () => {
+          if (el.propFlowLinkCommutationName) {
+            el.propFlowLinkCommutationName.value = String(name || "");
+            el.propFlowLinkCommutationName.dispatchEvent(new Event("input", { bubbles: true }));
+            el.propFlowLinkCommutationName.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        });
+        li.appendChild(btn);
+        menu.appendChild(li);
+      }
+    };
     uiSetValue(el.propFlowLinkControlCount, String(count));
     uiSetChecked(el.propFlowLinkOrthogonal, orthogonal);
     uiSetDisabled(el.propFlowLinkControlCount, orthogonal);
     uiSetValue(el.propFlowLinkColor, color);
     uiSetValue(el.propFlowLinkWidth, String(Math.round(width * 10) / 10));
     uiSetValue(el.propFlowLinkLineType, lineType);
+    uiSetChecked(el.propFlowLinkIsCommutation, isCommutation);
+    uiSetValue(el.propFlowLinkCommutationName, commutationName || "");
+    uiSetDisabled(el.propFlowLinkCommutationName, !isCommutation);
+    uiSetDisabled(el.propFlowLinkCommutationDropdownBtn, !isCommutation);
+    syncCommutationOptions();
     if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, false);
     if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasCustomColor);
     if (showCurveField) {
@@ -470,6 +524,27 @@ export const setupPropsPanelFeature = (deps = {}) => {
         }
         if (shouldApply("flowLinkWidth")) next.width = normalizeFlowLinkWidth(el.propFlowLinkWidth && el.propFlowLinkWidth.value);
         if (shouldApply("flowLinkLineType")) next.lineType = normalizeFlowLinkLineType(el.propFlowLinkLineType && el.propFlowLinkLineType.value);
+        if (shouldApply("flowLinkIsCommutation")) {
+          const checked = normalizeFlowLinkIsCommutation(el.propFlowLinkIsCommutation && el.propFlowLinkIsCommutation.checked);
+          next.isCommutation = checked;
+          if (checked) {
+            const value = normalizeFlowLinkCommutationName(el.propFlowLinkCommutationName && el.propFlowLinkCommutationName.value);
+            next.commutationName = value;
+          } else {
+            try { delete next.commutationName; } catch { next.commutationName = ""; }
+          }
+          uiSetDisabled(el.propFlowLinkCommutationName, !checked);
+          uiSetDisabled(el.propFlowLinkCommutationDropdownBtn, !checked);
+          if (!checked) uiSetValue(el.propFlowLinkCommutationName, "");
+        }
+        if (shouldApply("flowLinkCommutationName")) {
+          const checked = normalizeFlowLinkIsCommutation(el.propFlowLinkIsCommutation && el.propFlowLinkIsCommutation.checked);
+          if (checked) {
+            const value = normalizeFlowLinkCommutationName(el.propFlowLinkCommutationName && el.propFlowLinkCommutationName.value);
+            next.commutationName = value;
+            uiSetValue(el.propFlowLinkCommutationName, next.commutationName);
+          }
+        }
         list[idx] = next;
         st.flowLinks = list;
         if (needPersist) schedulePersist("project");

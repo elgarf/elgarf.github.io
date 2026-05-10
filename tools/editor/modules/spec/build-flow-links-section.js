@@ -182,6 +182,7 @@ const buildScreenSpecSection = (deps = {}) => {
 export const buildFlowLinksSpecText = (deps = {}) => {
   const {
     rects,
+    flowLinks,
     buildInterScreenSpecData,
     parseScreenNameGroup,
     buildRectSpecData,
@@ -198,6 +199,34 @@ export const buildFlowLinksSpecText = (deps = {}) => {
   const allSpecRects = (Array.isArray(rects) ? rects : []).filter(r => isSpecRect(r));
   const screenRects = allSpecRects.filter(r => !isDeviceRect(r));
   const deviceRects = allSpecRects.filter(r => isDeviceRect(r));
+  const rectById = new Map();
+  for (const r of (Array.isArray(rects) ? rects : [])) {
+    const id = Math.max(1, Math.round(Number(r && r.id) || 0));
+    if (!id) continue;
+    rectById.set(id, r);
+  }
+  const commutationGroupCounts = new Map();
+  const commutationNameOf = ln => {
+    const raw = String(ln && ln.commutationName || "").trim();
+    if (raw) return raw;
+    const fromRectId = Math.max(1, Math.round(Number(ln && ln.from && ln.from.rectId) || 0));
+    const toRectId = Math.max(1, Math.round(Number(ln && ln.to && ln.to.rectId) || 0));
+    const fromRect = rectById.get(fromRectId) || null;
+    const toRect = rectById.get(toRectId) || null;
+    const fromName = String(fromRect && parseScreenNameGroup(fromRect).name || "").trim();
+    const toName = String(toRect && parseScreenNameGroup(toRect).name || "").trim();
+    if (fromName && toName) return `${fromName} -> ${toName}`;
+    return t("Коммутация");
+  };
+  for (const ln of (Array.isArray(flowLinks) ? flowLinks : [])) {
+    if (!ln || typeof ln !== "object" || !ln.isCommutation) continue;
+    const name = commutationNameOf(ln);
+    if (!name) continue;
+    commutationGroupCounts.set(name, (commutationGroupCounts.get(name) || 0) + 1);
+  }
+  const commutationNamedLines = [...commutationGroupCounts.entries()]
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0]), "ru", { numeric: true }))
+    .map(([name, count]) => `* ${name} – ${Math.max(1, Math.round(Number(count) || 0))} ${t("шт.")}`);
   const interSpec = buildInterScreenSpecData();
   const manualResolver = includeManual
     ? createManualSectionResolver((specCustomSections && typeof specCustomSections === "object") ? specCustomSections : {})
@@ -356,6 +385,8 @@ export const buildFlowLinksSpecText = (deps = {}) => {
     groupBlocks,
     "",
     commutationHeader,
+    ...commutationNamedLines,
+    ...(commutationNamedLines.length ? [""] : []),
     ...(commutationText ? [commutationText] : []),
     "",
     `##### ${DEVICES_TITLE}`,

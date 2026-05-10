@@ -224,6 +224,7 @@ export const normalizeFlowLinks = raw => {
     return Math.max(lo, Math.min(hi, n));
   };
   const normLineType = v => String(v || "").toLowerCase() === "dashed" ? "dashed" : "solid";
+  const normCommutationName = v => String(v || "").trim().slice(0, 120);
   const normHex = v => {
     const s = String(v || "").trim();
     return /^#[0-9a-f]{6}$/i.test(s) ? s.toLowerCase() : null;
@@ -317,7 +318,7 @@ export const normalizeFlowLinks = raw => {
     const b = mkEnd(to);
     if (!a.rectId || !b.rectId) continue;
     if (a.rectId === b.rectId) continue;
-    if (a.kind !== "end" || b.kind !== "start") continue;
+    if (a.kind !== "end" || (b.kind !== "start" && b.kind !== "end")) continue;
     const key = `${a.rectId}:${a.rid}:${a.cid}:${a.kind}>${b.rectId}:${b.rid}:${b.cid}:${b.kind}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -333,6 +334,8 @@ export const normalizeFlowLinks = raw => {
     const legacyColorMode = String(it.colorMode || "").toLowerCase();
     const color = legacyColorMode === "auto" ? "" : normHex(it.color);
     const width = clamp(it.width, 0.5, 20, 2.2);
+    const isCommutation = !!it.isCommutation;
+    const commutationName = normCommutationName(it.commutationName);
     const orthogonalPoints = normOrthogonalPoints(it.orthogonalPoints);
     const rec = { from: a, to: b };
     if (manualBezier) rec.manualBezier = manualBezier;
@@ -345,6 +348,8 @@ export const normalizeFlowLinks = raw => {
     rec.lineType = lineType;
     if (color) rec.color = color;
     rec.width = width;
+    if (isCommutation) rec.isCommutation = true;
+    if (isCommutation && commutationName) rec.commutationName = commutationName;
     out.push(rec);
   }
   return out;

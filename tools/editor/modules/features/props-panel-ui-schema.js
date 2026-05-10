@@ -79,7 +79,9 @@ const PROP_DEFS = [
   { key: "propFlowLinkControlCount", field: "flowLinkControlPointCount", tracked: true, live: true, change: true },
   { key: "propFlowLinkColor", field: "flowLinkColor", tracked: true, live: true, change: true },
   { key: "propFlowLinkWidth", field: "flowLinkWidth", tracked: true, live: true, change: true },
-  { key: "propFlowLinkLineType", field: "flowLinkLineType", tracked: true, live: true, change: true }
+  { key: "propFlowLinkLineType", field: "flowLinkLineType", tracked: true, live: true, change: true },
+  { key: "propFlowLinkIsCommutation", field: "flowLinkIsCommutation", tracked: true, live: true, change: true },
+  { key: "propFlowLinkCommutationName", field: "flowLinkCommutationName", tracked: true, live: true, change: true, commit: true }
 ];
 
 const collectNodes = (el, flag) => PROP_DEFS.filter(def => !!def[flag]).map(def => el[def.key]);

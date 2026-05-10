@@ -434,6 +434,17 @@
                 <button id="btnFlowLinkColorReset" class="btn btn-outline-secondary btn-sm" type="button">Сброс</button>
               </div>
             </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <label for="propFlowLinkCommutationName">Наименование коммутации</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">
+                  <input id="propFlowLinkIsCommutation" class="form-check-input mt-0" type="checkbox" aria-label="Считать как коммутацию">
+                </span>
+                <input id="propFlowLinkCommutationName" class="form-control" type="text" placeholder="Например: CAT6 10m">
+                <button id="propFlowLinkCommutationDropdownBtn" class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Выбрать наименование коммутации"></button>
+                <ul id="propFlowLinkCommutationDropdownMenu" class="dropdown-menu dropdown-menu-end"></ul>
+              </div>
+            </div>
           </div>
         </div>
         <div id="cabinetToolPanel" class="shape-point-group d-none">

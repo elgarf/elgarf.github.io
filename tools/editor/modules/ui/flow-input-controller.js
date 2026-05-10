@@ -124,7 +124,7 @@ export const setupFlowInputController = (deps = {}) => {
     if (idx < 0) return false;
     const cur = list[idx];
     const preserved = { ...cur };
-    for (const key of ["color", "lineType", "width"]) {
+    for (const key of ["color", "lineType", "width", "isCommutation", "commutationName"]) {
       if (oldLink && Object.prototype.hasOwnProperty.call(oldLink, key)) preserved[key] = oldLink[key];
     }
     preserved.orthogonalPoints = full.slice(1, -1);

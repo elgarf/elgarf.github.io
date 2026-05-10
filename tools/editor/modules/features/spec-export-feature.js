@@ -346,6 +346,7 @@ export const setupSpecExportFeature = (deps = {}) => {
       return String(viewerUrlCache || "") || buildViewerUrlFromCurrentLocation();
     })(),
     rects: st.rects,
+    flowLinks: st.flowLinks,
     isNoteRect,
     buildInterScreenSpecData: () => buildInterScreenSpecData({ cachedOnly: !!(options && options.cachedOnly) }),
     parseScreenNameGroup,

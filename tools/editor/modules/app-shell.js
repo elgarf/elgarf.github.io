@@ -15,7 +15,7 @@ const EDITOR_ELEMENT_IDS = [
   "splitVariantField", "splitVariantControl", "splitVariantManualBadge", "propSplitVariant", "propSplitVariantDec", "propSplitVariantInc",
   "devicePropsPanel", "propDeviceType", "propDeviceOrientation", "propDeviceInCount", "propDeviceOutCount", "devicePortLabelField", "propDevicePortLabel", "btnAutoRouteDeviceOutLinks", "btnImproveDeviceOutLinks",
   "flowLinkCurveField", "propFlowLinkCurveMode",
-  "flowLinkPropsPanel", "propFlowLinkOrthogonal", "propFlowLinkControlCount", "propFlowLinkColor", "btnFlowLinkColorReset", "propFlowLinkWidth", "propFlowLinkLineType",
+  "flowLinkPropsPanel", "propFlowLinkOrthogonal", "propFlowLinkControlCount", "propFlowLinkColor", "btnFlowLinkColorReset", "propFlowLinkWidth", "propFlowLinkLineType", "propFlowLinkIsCommutation", "propFlowLinkCommutationName", "propFlowLinkCommutationDropdownBtn", "propFlowLinkCommutationDropdownMenu",
   "cabinetToolPanel", "cabinetSelectionLabel", "propCabinetDiag", "propCabinetColor", "btnCabinetStyleReset",
   "propSplitVariantLabel", "screenActionsField", "btnClearMasks", "btnResetFlowLocks", "btnResetManualClusters", "convertRegionsField", "btnConvertRegionsToScreens", "rectList",
   "specModePanel", "specAutoBlocks", "specModeClose"
