@@ -212,10 +212,18 @@
       let currentSpecStorageKey = "led-mask-viewer.spec-checks.default";
       let currentProjectGuid = "";
       let serverChecklistState = {};
+      let checklistWs = null;
+      let wsClientId = "";
+      let wsReady = false;
+      let wsUnavailable = false;
+      let wsReconnectTimer = 0;
+      let wsConnectAttempt = 0;
       const projectStoreApiUrl = "https://static.93.189.179.185.ip.webhost1.net/project_store.php";
       const q = new URLSearchParams(location.search || "");
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
       const packedProject = (q.get("project") || "").trim();
+      const wsUrlFromGlobal = typeof window.LED_MASK_CHECKLIST_WS_URL === "string" ? window.LED_MASK_CHECKLIST_WS_URL.trim() : "";
+      const checklistWsUrl = (q.get("checklistWs") || q.get("checklistws") || wsUrlFromGlobal || "ws://static.93.189.179.185.ip.webhost1.net:8765").trim();
       //if (pid) document.title = `LED Mask Viewer #${pid}`;
       const src = new URL("./LEDMaskEditor.html", location.href);
       src.searchParams.set("viewer", "1");
@@ -338,6 +346,114 @@
           localStorage.setItem(currentSpecStorageKey, JSON.stringify(state && typeof state === "object" ? state : {}));
         } catch (_e) { }
       };
+      const applyChecklistStateToDom = state => {
+        if (!specPanel || !state || typeof state !== "object") return;
+        for (const input of Array.from(specPanel.querySelectorAll("input[type='checkbox'][data-check-key]"))) {
+          const key = String(input.getAttribute("data-check-key") || "").trim();
+          if (!key) continue;
+          input.checked = !!state[key];
+        }
+      };
+      const closeChecklistWs = () => {
+        wsReady = false;
+        if (wsReconnectTimer) {
+          window.clearTimeout(wsReconnectTimer);
+          wsReconnectTimer = 0;
+        }
+        if (checklistWs) {
+          if (currentProjectGuid && checklistWs.readyState === WebSocket.OPEN) {
+            try {
+              checklistWs.send(JSON.stringify({
+                type: "unsubscribe",
+                checklistGuid: currentProjectGuid,
+                clientId: wsClientId
+              }));
+            } catch (_e) { }
+          }
+          try { checklistWs.close(); } catch (_e) { }
+          checklistWs = null;
+        }
+      };
+      const scheduleWsReconnect = () => {
+        if (wsReconnectTimer || !currentProjectGuid) return;
+        const delay = Math.min(8000, 500 * (2 ** Math.min(wsConnectAttempt, 4)));
+        wsReconnectTimer = window.setTimeout(() => {
+          wsReconnectTimer = 0;
+          connectChecklistWs();
+        }, delay);
+      };
+      const sendWsMessage = msg => {
+        if (!checklistWs || checklistWs.readyState !== WebSocket.OPEN) return false;
+        try {
+          checklistWs.send(JSON.stringify(msg));
+          return true;
+        } catch (_e) {
+          return false;
+        }
+      };
+      const connectChecklistWs = () => {
+        closeChecklistWs();
+        if (!currentProjectGuid || !checklistWsUrl || typeof WebSocket !== "function") {
+          wsUnavailable = true;
+          return;
+        }
+        wsConnectAttempt += 1;
+        try {
+          checklistWs = new WebSocket(checklistWsUrl);
+        } catch (_e) {
+          wsUnavailable = true;
+          return;
+        }
+        checklistWs.addEventListener("open", () => {
+          wsReady = true;
+          wsUnavailable = false;
+          wsConnectAttempt = 0;
+          sendWsMessage({
+            type: "subscribe",
+            checklistGuid: currentProjectGuid,
+            clientId: wsClientId
+          });
+        });
+        checklistWs.addEventListener("message", e => {
+          let msg = null;
+          try { msg = JSON.parse(String(e.data || "")); } catch (_e) { msg = null; }
+          if (!msg || typeof msg !== "object" || msg.checklistGuid !== currentProjectGuid) return;
+          if (msg.type === "init_state") {
+            const incoming = msg.state && typeof msg.state === "object" ? msg.state : {};
+            saveChecklistState(incoming);
+            applyChecklistStateToDom(incoming);
+            return;
+          }
+          if (msg.type === "checkbox_update") {
+            const key = String(msg.key || "").trim();
+            if (!key) return;
+            const state = loadChecklistState();
+            state[key] = !!msg.checked;
+            saveChecklistState(state);
+            applyChecklistStateToDom(state);
+          }
+        });
+        checklistWs.addEventListener("close", () => {
+          wsReady = false;
+          checklistWs = null;
+          wsUnavailable = true;
+          scheduleWsReconnect();
+        });
+        checklistWs.addEventListener("error", () => {
+          wsReady = false;
+          wsUnavailable = true;
+        });
+      };
+      const pushCheckboxUpdateToWs = (key, checked) => {
+        if (!wsReady || !currentProjectGuid || !key) return false;
+        return sendWsMessage({
+          type: "checkbox_update",
+          checklistGuid: currentProjectGuid,
+          key,
+          checked: !!checked,
+          clientId: wsClientId
+        });
+      };
       const loadChecklistStateFromServer = async guid => {
         const g = String(guid || "").trim();
         if (!g) return null;
@@ -455,12 +571,16 @@
           currentProjectGuid = "";
         }
         if (currentProjectGuid) {
-          const fromServer = await loadChecklistStateFromServer(currentProjectGuid);
-          if (fromServer && typeof fromServer === "object") {
-            serverChecklistState = fromServer;
-            try { localStorage.setItem(currentSpecStorageKey, JSON.stringify(fromServer)); } catch (_e) { }
-          } else {
-            serverChecklistState = loadChecklistState();
+          wsUnavailable = false;
+          connectChecklistWs();
+          if (!wsReady) {
+            const fromServer = await loadChecklistStateFromServer(currentProjectGuid);
+            if (fromServer && typeof fromServer === "object") {
+              serverChecklistState = fromServer;
+              try { localStorage.setItem(currentSpecStorageKey, JSON.stringify(fromServer)); } catch (_e) { }
+            } else {
+              serverChecklistState = loadChecklistState();
+            }
           }
         }
         try {
@@ -483,7 +603,8 @@
         const state = loadChecklistState();
         state[key] = !!input.checked;
         saveChecklistState(state);
-        if (currentProjectGuid) {
+        const pushedToWs = pushCheckboxUpdateToWs(key, !!input.checked);
+        if (currentProjectGuid && (!pushedToWs || wsUnavailable)) {
           saveChecklistStateToServer(currentProjectGuid, state);
         }
       });
@@ -532,6 +653,7 @@
       };
 
       frame.addEventListener("load", () => {
+        wsClientId = `viewer-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
         if (zoomPoll) window.clearInterval(zoomPoll);
         const boot = () => {
           hideEditorUi();
@@ -543,6 +665,12 @@
         window.setTimeout(boot, 150);
         window.setTimeout(boot, 600);
         zoomPoll = window.setInterval(updateZoomLabel, 250);
+      });
+      window.addEventListener("beforeunload", () => {
+        closeChecklistWs();
+      });
+      window.addEventListener("pagehide", () => {
+        closeChecklistWs();
       });
     })();
   </script>
