@@ -615,10 +615,13 @@
             applyChecklistStateToDom(state);
           }
         });
-        checklistWs.addEventListener("close", () => {
-          const closeCode = checklistWs ? checklistWs.closeCode : undefined;
-          const closeReason = checklistWs ? checklistWs.closeReason : "";
-          console.warn("[checklist-ws] close", { code: closeCode, reason: closeReason, guid: currentProjectGuid });
+        checklistWs.addEventListener("close", ev => {
+          console.warn("[checklist-ws] close", {
+            code: ev && ev.code,
+            reason: ev && ev.reason,
+            wasClean: ev && ev.wasClean,
+            guid: currentProjectGuid
+          });
           wsReady = false;
           checklistWs = null;
           wsUnavailable = true;
