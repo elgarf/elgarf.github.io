@@ -143,9 +143,9 @@
       border-top: 1px dashed rgba(255, 255, 255, .2);
       padding-top: 12px;
     }
-    .viewer-spec-panel .viewer-custom-checklist h6 {
+    .viewer-spec-panel .viewer-custom-checklist h5 {
       margin: 0 0 8px;
-      font-size: 14px;
+      font-size: 20px;
     }
     .viewer-spec-panel .viewer-custom-add {
       display: flex;
@@ -286,7 +286,26 @@
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
       const packedProject = (q.get("project") || "").trim();
       const wsUrlFromGlobal = typeof window.LED_MASK_CHECKLIST_WS_URL === "string" ? window.LED_MASK_CHECKLIST_WS_URL.trim() : "";
-      const checklistWsUrl = (q.get("checklistWs") || q.get("checklistws") || wsUrlFromGlobal || "ws://static.93.189.179.185.ip.webhost1.net:8765").trim();
+      const isHttpsPage = String(location.protocol || "").toLowerCase() === "https:";
+      const normalizeChecklistWsUrl = input => {
+        const raw = String(input || "").trim();
+        if (!raw) return "";
+        const preferredProto = isHttpsPage ? "wss://" : "ws://";
+        if (/^wss?:\/\//i.test(raw)) {
+          if (isHttpsPage) return raw.replace(/^ws:\/\//i, "wss://");
+          return raw;
+        }
+        if (/^https?:\/\//i.test(raw)) {
+          return raw.replace(/^https?:\/\//i, preferredProto);
+        }
+        return `${preferredProto}${raw.replace(/^\/+/, "")}`;
+      };
+      const checklistWsUrl = normalizeChecklistWsUrl(
+        q.get("checklistWs")
+        || q.get("checklistws")
+        || wsUrlFromGlobal
+        || "static.93.189.179.185.ip.webhost1.net:8765"
+      );
       //if (pid) document.title = `LED Mask Viewer #${pid}`;
       const src = new URL("./LEDMaskEditor.html", location.href);
       src.searchParams.set("viewer", "1");
@@ -711,7 +730,7 @@
         }
         closeList();
         out.push('<section class="viewer-custom-checklist">');
-        out.push("<h6>Свои пункты</h6>");
+        out.push("<h5>Дополнительно</h5>");
         out.push('<form class="viewer-custom-add" data-custom-add-form>');
         out.push('<input type="text" data-custom-add-input placeholder="Добавить пункт чек-листа">');
         out.push('<button type="submit" class="viewer-custom-action viewer-custom-action-add" data-custom-add-btn title="Добавить пункт" aria-label="Добавить пункт">+</button>');
