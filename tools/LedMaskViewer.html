@@ -282,43 +282,18 @@
       let wsReconnectTimer = 0;
       let wsConnectAttempt = 0;
       let specRenderDebounceTimer = 0;
+      const WS_RECONNECT_ENABLED = false;
       const projectStoreApiUrl = "https://static.93.189.179.185.ip.webhost1.net/project_store.php";
       const q = new URLSearchParams(location.search || "");
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
       const packedProject = (q.get("project") || "").trim();
       const wsUrlFromGlobal = typeof window.LED_MASK_CHECKLIST_WS_URL === "string" ? window.LED_MASK_CHECKLIST_WS_URL.trim() : "";
-      const isHttpsPage = String(location.protocol || "").toLowerCase() === "https:";
-      const normalizeChecklistWsUrl = input => {
-        const raw = String(input || "").trim();
-        if (!raw) return "";
-        const preferredProto = isHttpsPage ? "wss://" : "ws://";
-        let normalized = "";
-        if (/^wss?:\/\//i.test(raw)) {
-          normalized = isHttpsPage ? raw.replace(/^ws:\/\//i, "wss://") : raw;
-        } else if (/^https?:\/\//i.test(raw)) {
-          normalized = raw.replace(/^https?:\/\//i, preferredProto);
-        } else {
-          normalized = `${preferredProto}${raw.replace(/^\/+/, "")}`;
-        }
-        try {
-          const u = new URL(normalized);
-          if (u.protocol === "ws:" && !u.port) {
-            u.port = "8765";
-          }
-          if (u.protocol === "wss:" && (!u.pathname || u.pathname === "/")) {
-            u.pathname = "/ws-checklist/";
-          }
-          return u.toString();
-        } catch (_e) {
-          return normalized;
-        }
+      const resolveChecklistWsUrl = () => {
+        const explicit = String(q.get("checklistWs") || q.get("checklistws") || wsUrlFromGlobal || "").trim();
+        if (explicit) return explicit;
+        return `wss:///static.93.189.179.185.ip.webhost1.net/ws-checklist/`;
       };
-      const checklistWsUrl = normalizeChecklistWsUrl(
-        q.get("checklistWs")
-        || q.get("checklistws")
-        || wsUrlFromGlobal
-        || "static.93.189.179.185.ip.webhost1.net/ws-checklist/"
-      );
+      const checklistWsUrl = resolveChecklistWsUrl();
       //if (pid) document.title = `LED Mask Viewer #${pid}`;
       const src = new URL("./LEDMaskEditor.html", location.href);
       src.searchParams.set("viewer", "1");
@@ -516,6 +491,7 @@
         }
       };
       const closeChecklistWs = () => {
+        console.warn("[checklist-ws] force-close", { guid: currentProjectGuid, stack: String((new Error("force-close")).stack || "") });
         wsReady = false;
         wsGuid = "";
         if (wsReconnectTimer) {
@@ -537,6 +513,7 @@
         }
       };
       const scheduleWsReconnect = () => {
+        if (!WS_RECONNECT_ENABLED) return;
         if (wsReconnectTimer || !currentProjectGuid) return;
         const delay = Math.min(8000, 500 * (2 ** Math.min(wsConnectAttempt, 4)));
         wsReconnectTimer = window.setTimeout(() => {
@@ -558,12 +535,14 @@
           wsUnavailable = true;
           return;
         }
-        if (checklistWs && wsGuid === currentProjectGuid) {
-          if (checklistWs.readyState === WebSocket.CONNECTING || checklistWs.readyState === WebSocket.OPEN) {
-            return;
+        if (checklistWs) {
+          if (wsGuid === currentProjectGuid) {
+            if (checklistWs.readyState === WebSocket.CONNECTING || checklistWs.readyState === WebSocket.OPEN) return;
+            checklistWs = null;
+          } else {
+            closeChecklistWs();
           }
         }
-        closeChecklistWs();
         wsConnectAttempt += 1;
         try {
           console.info("[checklist-ws] connect", { url: checklistWsUrl, guid: currentProjectGuid });
@@ -579,6 +558,7 @@
           wsReady = true;
           wsUnavailable = false;
           wsConnectAttempt = 0;
+          console.info("[checklist-ws] sending subscribe", { guid: currentProjectGuid, clientId: wsClientId });
           sendWsMessage({
             type: "subscribe",
             checklistGuid: currentProjectGuid,
