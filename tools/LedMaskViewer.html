@@ -282,7 +282,7 @@
       let wsReconnectTimer = 0;
       let wsConnectAttempt = 0;
       let specRenderDebounceTimer = 0;
-      const WS_RECONNECT_ENABLED = false;
+      const WS_RECONNECT_ENABLED = true;
       const projectStoreApiUrl = "https://static.93.189.179.185.ip.webhost1.net/project_store.php";
       const q = new URLSearchParams(location.search || "");
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
