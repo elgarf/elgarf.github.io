@@ -291,7 +291,7 @@
       const resolveChecklistWsUrl = () => {
         const explicit = String(q.get("checklistWs") || q.get("checklistws") || wsUrlFromGlobal || "").trim();
         if (explicit) return explicit;
-        return `wss://static.93.189.179.185.ip.webhost1.net/ws-checklist/`;
+        return `wss://static.93.189.179.185.ip.webhost1.net:8765/`;
       };
       const checklistWsUrl = resolveChecklistWsUrl();
       //if (pid) document.title = `LED Mask Viewer #${pid}`;
@@ -544,28 +544,37 @@
           }
         }
         wsConnectAttempt += 1;
+        let socket = null;
         try {
           console.info("[checklist-ws] connect", { url: checklistWsUrl, guid: currentProjectGuid });
-          checklistWs = new WebSocket(checklistWsUrl);
+          socket = new WebSocket(checklistWsUrl);
+          checklistWs = socket;
           wsGuid = currentProjectGuid;
         } catch (_e) {
           wsUnavailable = true;
           console.warn("[checklist-ws] connect_ctor_failed", _e);
           return;
         }
-        checklistWs.addEventListener("open", () => {
+        socket.addEventListener("open", () => {
+          if (checklistWs !== socket) return;
           console.info("[checklist-ws] open", { guid: currentProjectGuid });
           wsReady = true;
           wsUnavailable = false;
           wsConnectAttempt = 0;
           console.info("[checklist-ws] sending subscribe", { guid: currentProjectGuid, clientId: wsClientId });
-          sendWsMessage({
-            type: "subscribe",
-            checklistGuid: currentProjectGuid,
-            clientId: wsClientId
-          });
+          try {
+            socket.send(JSON.stringify({
+              type: "subscribe",
+              checklistGuid: currentProjectGuid,
+              clientId: wsClientId
+            }));
+          } catch (_e) {
+            wsReady = false;
+            wsUnavailable = true;
+          }
         });
-        checklistWs.addEventListener("message", e => {
+        socket.addEventListener("message", e => {
+          if (checklistWs !== socket) return;
           let msg = null;
           try { msg = JSON.parse(String(e.data || "")); } catch (_e) { msg = null; }
           const msgGuid = String((msg && (msg.checklistGuid || msg.checklist_guid)) || "").trim();
@@ -595,7 +604,7 @@
             applyChecklistStateToDom(state);
           }
         });
-        checklistWs.addEventListener("close", ev => {
+        socket.addEventListener("close", ev => {
           console.warn("[checklist-ws] close", {
             code: ev && ev.code,
             reason: ev && ev.reason,
@@ -603,11 +612,12 @@
             guid: currentProjectGuid
           });
           wsReady = false;
-          checklistWs = null;
+          if (checklistWs === socket) checklistWs = null;
           wsUnavailable = true;
           scheduleWsReconnect();
         });
-        checklistWs.addEventListener("error", e => {
+        socket.addEventListener("error", e => {
+          if (checklistWs !== socket) return;
           console.warn("[checklist-ws] error", e);
           wsReady = false;
           wsUnavailable = true;

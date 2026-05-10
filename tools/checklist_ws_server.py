@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
+import ssl
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
@@ -28,6 +30,7 @@ STATE_LOCK = asyncio.Lock()
 PROJECT_STORE_URL = "https://static.93.189.179.185.ip.webhost1.net/project_store.php"
 SAVE_DEBOUNCE_SEC = 0.35
 PERSIST_TASKS: dict[str, asyncio.Task[None]] = {}
+LOG = logging.getLogger("checklist-ws")
 
 
 async def send_json(ws: ServerConnection, payload: dict[str, Any]) -> None:
@@ -212,6 +215,7 @@ async def register_subscription(
             "state": snapshot,
         },
     )
+    LOG.info("subscribe guid=%s client=%s remote=%s", checklist_guid, client_id, getattr(ws, "remote_address", None))
 
 
 async def handle_checkbox_update(
@@ -342,23 +346,59 @@ async def handle_unsubscribe(ws: ServerConnection, checklist_guid: str) -> None:
             CONTEXT_BY_SOCKET.pop(ws, None)
         if checklist_guid in SUBSCRIBERS and not SUBSCRIBERS[checklist_guid]:
             SUBSCRIBERS.pop(checklist_guid, None)
+    LOG.info("unsubscribe guid=%s remote=%s", checklist_guid, getattr(ws, "remote_address", None))
 
 
 async def connection_handler(ws: ServerConnection) -> None:
+    LOG.info("connection_open remote=%s path=%s", getattr(ws, "remote_address", None), getattr(getattr(ws, "request", None), "path", ""))
     try:
         async for message in ws:
             if isinstance(message, str):
                 await handle_message(ws, message)
-    except ConnectionClosed:
-        # Normal for browser tabs/network interruptions; cleanup happens in finally.
-        pass
+    except ConnectionClosed as exc:
+        ctx = CONTEXT_BY_SOCKET.get(ws)
+        code = getattr(exc, "code", None)
+        reason = getattr(exc, "reason", "")
+        close_type = exc.__class__.__name__
+        if int(code or 0) == 1006:
+            LOG.warning(
+                "connection_closed_abnormal code=1006 guid=%s client=%s remote=%s type=%s reason=%s",
+                getattr(ctx, "checklist_guid", ""),
+                getattr(ctx, "client_id", ""),
+                getattr(ws, "remote_address", None),
+                close_type,
+                reason,
+            )
+        else:
+            LOG.info(
+                "connection_closed code=%s guid=%s client=%s remote=%s type=%s reason=%s",
+                code,
+                getattr(ctx, "checklist_guid", ""),
+                getattr(ctx, "client_id", ""),
+                getattr(ws, "remote_address", None),
+                close_type,
+                reason,
+            )
     finally:
         await unregister(ws)
+        LOG.info("connection_cleanup remote=%s", getattr(ws, "remote_address", None))
 
 
-async def run_server(host: str, port: int) -> None:
-    async with serve(connection_handler, host, port, ping_interval=20, ping_timeout=20):
-        print(f"Checklist WS server started on ws://{host}:{port}")
+async def run_server(host: str, port: int, certfile: str | None = None, keyfile: str | None = None) -> None:
+    ssl_ctx: ssl.SSLContext | None = None
+    if certfile and keyfile:
+        ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
+
+    async with serve(connection_handler, host, port, ssl=ssl_ctx, ping_interval=20, ping_timeout=20, origins=[
+        "https://elgarf.github.io",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ], compression=None):
+        scheme = "wss" if ssl_ctx is not None else "ws"
+        print(f"Checklist WS server started on {scheme}://{host}:{port}")
         print(f"Project store URL: {PROJECT_STORE_URL}")
         await asyncio.Future()
 
@@ -378,11 +418,22 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Debounce interval before persisting checklist state",
     )
+    parser.add_argument("--certfile", default="", help="TLS certificate PEM path for WSS")
+    parser.add_argument("--keyfile", default="", help="TLS private key path for WSS")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+    logging.getLogger("websockets.server").setLevel(logging.DEBUG)
     args = parse_args()
     PROJECT_STORE_URL = str(args.project_store_url).strip() or PROJECT_STORE_URL
     SAVE_DEBOUNCE_SEC = max(0.05, int(args.save_debounce_ms) / 1000.0)
-    asyncio.run(run_server(args.host, args.port))
+    certfile = str(args.certfile or "").strip() or None
+    keyfile = str(args.keyfile or "").strip() or None
+    if (certfile and not keyfile) or (keyfile and not certfile):
+        raise SystemExit("Both --certfile and --keyfile must be provided together")
+    asyncio.run(run_server(args.host, args.port, certfile=certfile, keyfile=keyfile))
