@@ -28,6 +28,28 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     const b = parseInt(n.slice(4, 6), 16);
     return `rgba(${r},${g},${b},${alpha})`;
   };
+  const darkenColor = (color, factor = 0.66) => {
+    const src = String(color || "").trim();
+    const hex = src.match(/^#([0-9a-f]{6})$/i);
+    if (hex) {
+      const n = hex[1];
+      const r = Math.max(0, Math.min(255, Math.round(parseInt(n.slice(0, 2), 16) * factor)));
+      const g = Math.max(0, Math.min(255, Math.round(parseInt(n.slice(2, 4), 16) * factor)));
+      const b = Math.max(0, Math.min(255, Math.round(parseInt(n.slice(4, 6), 16) * factor)));
+      const toHex = v => v.toString(16).padStart(2, "0");
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    }
+    const rgba = src.match(/^rgba?\(([^)]+)\)$/i);
+    if (rgba) {
+      const parts = rgba[1].split(",").map(s => s.trim());
+      const r = Math.max(0, Math.min(255, Math.round((Number(parts[0]) || 0) * factor)));
+      const g = Math.max(0, Math.min(255, Math.round((Number(parts[1]) || 0) * factor)));
+      const b = Math.max(0, Math.min(255, Math.round((Number(parts[2]) || 0) * factor)));
+      const a = parts.length > 3 ? Math.max(0, Math.min(1, Number(parts[3]) || 1)) : 1;
+      return `rgba(${r},${g},${b},${a})`;
+    }
+    return src;
+  };
 
   const curveCache = new Map();
   const toNum = v => +v || 0;
@@ -269,18 +291,41 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       c.lineWidth = width;
       c.stroke(path);
     };
-    const drawLinkPath = (path, color, width, lineType = "solid") => {
+    const drawLinkPath = (path, color, width, lineType = "solid", opts = {}) => {
+      const useChecker = !!(opts && opts.checker);
+      const checkerColorA = String((opts && opts.checkerColorA) || color);
+      const checkerColorB = String((opts && opts.checkerColorB) || darkenColor(color, 0.68));
       const dashed = String(lineType || "").toLowerCase() === "dashed";
       const z = exportPass ? 1 : zoomSafe(st.zoom);
-      if (dashed) c.setLineDash([10 / z, 7 / z]);
+      if (!useChecker) {
+        if (dashed) c.setLineDash([10 / z, 7 / z]);
+        strokeOutlinedPath(
+          path,
+          "rgba(12,16,22,.92)",
+          width + outlineWidthForZoom(z),
+          color,
+          width
+        );
+        if (dashed) c.setLineDash([]);
+        return;
+      }
       strokeOutlinedPath(
         path,
         "rgba(12,16,22,.92)",
         width + outlineWidthForZoom(z),
-        color,
+        checkerColorA,
         width
       );
-      if (dashed) c.setLineDash([]);
+      const block = Math.max(6 / z, Math.min(16 / z, width * 1.25));
+      c.save();
+      c.lineCap = "butt";
+      c.lineJoin = "round";
+      c.strokeStyle = checkerColorB;
+      c.lineWidth = width;
+      c.setLineDash([block, block]);
+      c.lineDashOffset = block;
+      c.stroke(path);
+      c.restore();
     };
     const drawOrthogonalEditMarkers = (points, selectedKey) => {
       if (!Array.isArray(points) || points.length < 2 || exportPass || String(st.mode || "") !== "select") return;
@@ -358,6 +403,167 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         drawFlowLinkArrow(c, tail, head, color, st.zoom || 1);
       }
     };
+    const placedLabelBoxes = [];
+    const boxesOverlap = (a, b, pad = 2) => {
+      if (!a || !b) return false;
+      return !(
+        a.x2 + pad < b.x1
+        || b.x2 + pad < a.x1
+        || a.y2 + pad < b.y1
+        || b.y2 + pad < a.y1
+      );
+    };
+    const canPlaceLabelBox = box => !placedLabelBoxes.some(other => boxesOverlap(box, other, 3));
+    const rememberLabelBox = box => {
+      placedLabelBoxes.push(box);
+      if (placedLabelBoxes.length > 400) placedLabelBoxes.shift();
+    };
+    const orientedTextBox = (cx, cy, angle, width, height) => {
+      const hw = width / 2;
+      const hh = height / 2;
+      const ca = Math.cos(angle);
+      const sa = Math.sin(angle);
+      const pts = [
+        { x: cx + (-hw) * ca - (-hh) * sa, y: cy + (-hw) * sa + (-hh) * ca },
+        { x: cx + (hw) * ca - (-hh) * sa, y: cy + (hw) * sa + (-hh) * ca },
+        { x: cx + (hw) * ca - (hh) * sa, y: cy + (hw) * sa + (hh) * ca },
+        { x: cx + (-hw) * ca - (hh) * sa, y: cy + (-hw) * sa + (hh) * ca }
+      ];
+      const xs = pts.map(p => p.x);
+      const ys = pts.map(p => p.y);
+      return { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
+    };
+    const getCommutationLabel = ln => {
+      if (!ln || !ln.isCommutation) return "";
+      const raw = String(ln.commutationName || "");
+      return raw.length ? raw : "Коммутация";
+    };
+    const polylineLength = points => {
+      let len = 0;
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i];
+        const b = points[i + 1];
+        len += Math.hypot(toNum(b.x) - toNum(a.x), toNum(b.y) - toNum(a.y));
+      }
+      return len;
+    };
+    const pointAtDistance = (points, dist) => {
+      if (!Array.isArray(points) || points.length < 2) return null;
+      let left = Math.max(0, Number(dist) || 0);
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i];
+        const b = points[i + 1];
+        const dx = toNum(b.x) - toNum(a.x);
+        const dy = toNum(b.y) - toNum(a.y);
+        const seg = Math.hypot(dx, dy);
+        if (seg <= 1e-6) continue;
+        if (left <= seg) {
+          const t = left / seg;
+          return { x: toNum(a.x) + dx * t, y: toNum(a.y) + dy * t, angle: Math.atan2(dy, dx) };
+        }
+        left -= seg;
+      }
+      const pa = points[points.length - 2];
+      const pb = points[points.length - 1];
+      return { x: toNum(pb.x), y: toNum(pb.y), angle: Math.atan2(toNum(pb.y) - toNum(pa.y), toNum(pb.x) - toNum(pa.x)) };
+    };
+    const drawLabelOnSegment = (text, p0, p1) => {
+      const value = String(text || "").trim();
+      if (!value) return;
+      const dx = toNum(p1.x) - toNum(p0.x);
+      const dy = toNum(p1.y) - toNum(p0.y);
+      const segLen = Math.hypot(dx, dy);
+      if (segLen < 30) return;
+      const z = zoomSafe(st.zoom, 0.35);
+      const fontPx = Math.max(11, Math.min(17, 12 / z + 5));
+      c.save();
+      c.font = `${Math.round(fontPx)}px Roboto, Segoe UI, Arial, sans-serif`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      const w = c.measureText(value).width;
+      if (w + 14 > segLen) { c.restore(); return; }
+      let angle = Math.atan2(dy, dx);
+      if (Math.cos(angle) < 0) angle += Math.PI;
+      const ux = dx / segLen;
+      const uy = dy / segLen;
+      const shifts = [0, 26, -26, 52, -52];
+      let place = null;
+      for (const shift of shifts) {
+        const mx = (toNum(p0.x) + toNum(p1.x)) / 2 + ux * shift;
+        const my = (toNum(p0.y) + toNum(p1.y)) / 2 + uy * shift;
+        const box = orientedTextBox(mx, my, angle, w + 8, fontPx + 6);
+        if (canPlaceLabelBox(box)) { place = { mx, my, box }; break; }
+      }
+      if (!place) { c.restore(); return; }
+      const { mx, my, box } = place;
+      c.translate(mx, my);
+      c.rotate(angle);
+      c.lineWidth = Math.max(2.4, fontPx * 0.32);
+      c.strokeStyle = "rgba(8,12,18,.92)";
+      c.fillStyle = "rgba(245,248,255,.98)";
+      c.strokeText(value, 0, 0);
+      c.fillText(value, 0, 0);
+      c.restore();
+      rememberLabelBox(box);
+    };
+    const drawLabelAlongPath = (text, points) => {
+      const value = String(text || "").trim();
+      if (!value) return;
+      const pts = Array.isArray(points) ? points : [];
+      if (pts.length < 2) return;
+      const z = zoomSafe(st.zoom, 0.35);
+      const fontPx = Math.max(11, Math.min(16, 11 / z + 5));
+      c.save();
+      c.font = `${Math.round(fontPx)}px Roboto, Segoe UI, Arial, sans-serif`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      const chars = Array.from(value);
+      const advance = chars.map(ch => Math.max(2, c.measureText(ch).width));
+      const totalW = advance.reduce((s, x) => s + x, 0);
+      const pathLen = polylineLength(pts);
+      if (pathLen < totalW + 12) { c.restore(); return; }
+      const startBase = (pathLen - totalW) / 2;
+      const pathShifts = [0, 28, -28, 56, -56];
+      let pathShift = null;
+      for (const shift of pathShifts) {
+        let testCursor = startBase + shift;
+        let ok = true;
+        const testBoxes = [];
+        for (let i = 0; i < chars.length; i++) {
+          const w = advance[i];
+          const pos = pointAtDistance(pts, testCursor + w / 2);
+          if (!pos) { ok = false; break; }
+          let angle = pos.angle;
+          if (Math.cos(angle) < 0) angle += Math.PI;
+          const box = orientedTextBox(pos.x, pos.y, angle, w + 4, fontPx + 5);
+          if (!canPlaceLabelBox(box) || testBoxes.some(b => boxesOverlap(b, box, 1))) { ok = false; break; }
+          testBoxes.push(box);
+          testCursor += w;
+        }
+        if (ok) { pathShift = { shift, testBoxes }; break; }
+      }
+      if (!pathShift) { c.restore(); return; }
+      let cursor = startBase + pathShift.shift;
+      for (let i = 0; i < chars.length; i++) {
+        const w = advance[i];
+        const pos = pointAtDistance(pts, cursor + w / 2);
+        if (!pos) { cursor += w; continue; }
+        let angle = pos.angle;
+        if (Math.cos(angle) < 0) angle += Math.PI;
+        c.save();
+        c.translate(pos.x, pos.y);
+        c.rotate(angle);
+        c.lineWidth = Math.max(2.2, fontPx * 0.3);
+        c.strokeStyle = "rgba(8,12,18,.9)";
+        c.fillStyle = "rgba(245,248,255,.98)";
+        c.strokeText(chars[i], 0, 0);
+        c.fillText(chars[i], 0, 0);
+        c.restore();
+        cursor += w;
+      }
+      for (const box of pathShift.testBoxes) rememberLabelBox(box);
+      c.restore();
+    };
     const hoverSegKey = st.flowLinkHover && st.flowLinkHover.key ? String(st.flowLinkHover.key) : "";
     const linkDrag = st.flowLinkDrag || null;
     const dragTargetKey = (linkDrag && linkDrag.target) ? flowAnchorKey(linkDrag.target) : "";
@@ -378,6 +584,10 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const lineType = String(ln && ln.lineType || "").toLowerCase() === "dashed" ? "dashed" : "solid";
       const strokeColorRaw = (key === hoverSegKey) ? "rgba(255,99,99,.98)" : (customColor || baseColor);
       const strokeColor = fromIsDevice ? withAlpha(strokeColorRaw, 0.56) : strokeColorRaw;
+      const commutationVisual = !!(ln && ln.isCommutation);
+      const checkerOpts = commutationVisual
+        ? { checker: true, checkerColorA: strokeColor, checkerColorB: darkenColor(strokeColor, 0.42) }
+        : null;
       c.save();
       const linkWidth = Math.max(0.5, Math.min(20, Number(ln && ln.width) || 2.2));
       const baseW = exportPass
@@ -389,9 +599,30 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         for (let i = 0; i < route.points.length - 1; i++) {
           st.flowLinkSegments.push({ key, a: route.points[i], b: route.points[i + 1], link: ln, orthogonal: true, segmentIndex: i, points: route.points });
         }
-        drawLinkPath(route.path, strokeColor, baseW, lineType);
+        drawLinkPath(route.path, strokeColor, baseW, lineType, checkerOpts);
         drawOrthogonalEditMarkers(route.points, key);
         drawOrthogonalArrows(route.points, strokeColor);
+        const commLabel = getCommutationLabel(ln);
+        if (commLabel) {
+          let bestA = null;
+          let bestB = null;
+          let bestLen = 0;
+          for (let i = 0; i < route.points.length - 1; i++) {
+            const p0 = route.points[i];
+            const p1 = route.points[i + 1];
+            const dx = Math.abs(toNum(p1.x) - toNum(p0.x));
+            const dy = Math.abs(toNum(p1.y) - toNum(p0.y));
+            const isStraight = dx < 0.5 || dy < 0.5;
+            if (!isStraight) continue;
+            const segLen = Math.hypot(toNum(p1.x) - toNum(p0.x), toNum(p1.y) - toNum(p0.y));
+            if (segLen > bestLen) {
+              bestLen = segLen;
+              bestA = p0;
+              bestB = p1;
+            }
+          }
+          if (bestA && bestB) drawLabelOnSegment(commLabel, bestA, bestB);
+        }
         c.restore();
         continue;
       }
@@ -515,7 +746,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         const path = new Path2D();
         path.moveTo(a.x, a.y);
         for (const sg of segs) path.bezierCurveTo(sg.c1.x, sg.c1.y, sg.c2.x, sg.c2.y, sg.p1.x, sg.p1.y);
-        drawLinkPath(path, strokeColor, baseW, lineType);
+        drawLinkPath(path, strokeColor, baseW, lineType, checkerOpts);
         for (const sg of segs) {
           const t0 = sg.legacy ? sg.t0 : sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, 0.48);
           const t1 = sg.legacy ? sg.t1 : sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, 0.52);
@@ -556,6 +787,17 @@ export const setupInterScreenLinksRender = (deps = {}) => {
             drawHandle(handlePoint, `p${i}bend`, anchorPoint, { pointIndex: i, pointCount: controlPointCount, anchor: anchorPoint });
           }
         }
+        const commLabel = getCommutationLabel(ln);
+        if (commLabel) {
+          const pathPoints = [{ x: pStart.x, y: pStart.y }];
+          for (const sg of segs) {
+            const samples = 14;
+            for (let i = 1; i <= samples; i++) {
+              pathPoints.push(sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, i / samples));
+            }
+          }
+          drawLabelAlongPath(commLabel, pathPoints);
+        }
       } else {
         const pts = geom.pts;
         let prev = { x: a.x, y: a.y };
@@ -567,8 +809,13 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         const path = new Path2D();
         path.moveTo(a.x, a.y);
         for (const p of pts) path.lineTo(p.x, p.y);
-        drawLinkPath(path, strokeColor, baseW, lineType);
+        drawLinkPath(path, strokeColor, baseW, lineType, checkerOpts);
         drawFlowLinkArrow(c, geom.t0, geom.t1, strokeColor, st.zoom || 1);
+        const commLabel = getCommutationLabel(ln);
+        if (commLabel) {
+          const pathPoints = [{ x: a.x, y: a.y }, ...pts];
+          drawLabelAlongPath(commLabel, pathPoints);
+        }
       }
       c.restore();
     }
