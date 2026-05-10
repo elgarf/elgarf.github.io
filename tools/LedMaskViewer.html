@@ -291,7 +291,7 @@
       const resolveChecklistWsUrl = () => {
         const explicit = String(q.get("checklistWs") || q.get("checklistws") || wsUrlFromGlobal || "").trim();
         if (explicit) return explicit;
-        return `wss:///static.93.189.179.185.ip.webhost1.net/ws-checklist/`;
+        return `wss://static.93.189.179.185.ip.webhost1.net/ws-checklist/`;
       };
       const checklistWsUrl = resolveChecklistWsUrl();
       //if (pid) document.title = `LED Mask Viewer #${pid}`;
