@@ -1,3 +1,5 @@
+import { drawDeferredOverlayTextBlock } from "./deferred-text-overlay.js";
+
 export const setupDrawRectStagesController = (deps = {}) => {
   const {
     st,
@@ -54,15 +56,7 @@ export const setupDrawRectStagesController = (deps = {}) => {
 
     if (deferredTextOverlay) {
       const ov = deferredTextOverlay;
-      c.textAlign = "center";
-      c.textBaseline = "middle";
-      c.font = `${ov.layout.fs}px ${fontFamilyCss(st.fontFamily)}`;
-      c.fillStyle = ov.txtTheme.bg;
-      c.fillRect(ov.layout.textLeft, ov.layout.textTop, ov.layout.tw, ov.layout.th);
-      c.fillStyle = ov.txtTheme.text;
-      for (let i = 0; i < ov.ls.length; i++) {
-        c.fillText(ov.ls[i], ov.layout.textX, ov.layout.sy + i * ov.layout.lh, ov.maxW);
-      }
+      drawDeferredOverlayTextBlock(c, ov, fontFamilyCss(st.fontFamily));
     }
   };
 

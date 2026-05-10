@@ -34,15 +34,36 @@ export const setupDrawRectBaseController = (deps = {}) => {
     const installCabText = Array.isArray(installExtra.groups) && installExtra.groups.length ? installExtra.groups.join("\n") : "—";
     const meterUnit = t("м");
     const areaUnit = t("м²");
+    const parseNameGroup = value => {
+      const raw = String(value || "").trim();
+      const at = raw.lastIndexOf("@");
+      if (at < 0) return { name: raw, group: "" };
+      return { name: raw.slice(0, at).trim(), group: raw.slice(at + 1).trim() };
+    };
     const screenName = hideScreenGroup
       ? String(r.name || "").split("@")[0].trim() || r.name
       : r.name;
     const lsRaw = installView
       ? [screenName, `${mFmt(wm)} x ${mFmt(hm)} ${meterUnit}`, `${pctFmt(pct)}%`, `${mFmt(installExtra.areaM2)} ${areaUnit}`, installCabText]
       : [screenName, `(${rx}; ${ry}) px`, `${Math.round(r.width)} x ${Math.round(r.height)} px`, `${mFmt(wm)} x ${mFmt(hm)} ${meterUnit}`, `${pctFmt(pct)}%`];
-    return lsRaw
+    const lines = lsRaw
       .flatMap(line => String(line == null ? "" : line).replace(/\r/g, "").split("\n"))
       .filter(line => line.length > 0);
+    const lineScales = lines.map(() => 1);
+    if (!hideScreenGroup && lines.length) {
+      const pg = parseNameGroup(screenName);
+      const n = String(pg.name || "").trim();
+      const g = String(pg.group || "").trim();
+      if (n) {
+        lines[0] = n;
+        lineScales[0] = 1.18;
+        if (g) {
+          lines.splice(1, 0, g);
+          lineScales.splice(1, 0, 0.5);
+        }
+      }
+    }
+    return { lines, lineScales };
   };
 
   function drawRectBase(c, r, sel, z, origin, opts) {
@@ -289,7 +310,9 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const buildDeferredTextOverlay = () => {
         const rx = Math.round(r.x - origin.x), ry = Math.round(r.y - origin.y), baseFs = getRectTextSizePx(r), wm = (r.widthM != null ? r.widthM : r.width / Math.max(1, r.scale || 256)), hm = (r.heightM != null ? r.heightM : r.height / Math.max(1, r.scale || 256)), pct = fillPercent(wm, hm, r.areaM2Px);
         const installExtra = installView ? buildVisibleCabinetSummary(r, cellX, cellY, topo, hs) : { areaM2: 0, groups: [] };
-        const ls = buildRectOverlayLines(r, { installView, hideScreenGroup: !!options.hideScreenGroupInText, mFmt, pctFmt, wm, hm, pct, installExtra, rx, ry });
+        const linesData = buildRectOverlayLines(r, { installView, hideScreenGroup: !!options.hideScreenGroupInText, mFmt, pctFmt, wm, hm, pct, installExtra, rx, ry });
+        const ls = Array.isArray(linesData && linesData.lines) ? linesData.lines : [];
+        const lineScales = Array.isArray(linesData && linesData.lineScales) ? linesData.lineScales : ls.map(() => 1);
         const maxW = Math.max(20, w - 6), localRect = { x: -w / 2, y: -h / 2, width: w, height: h };
         const layoutKey = ["canvas", w, h, cellX, cellY, listSignature(r.hiddenCells), baseFs, maxW, st.fontFamily, ls.join("|")].join("|");
         const layout = getRectTextLayoutCached(r, layoutKey, () => {
@@ -297,7 +320,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
           return chooseTextLayout(localRect, ls, (t, fs) => { c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`; return c.measureText(t).width }, maxW, baseFs, hbs, freeRects);
         });
         const txtTheme = rectTextTheme(r);
-        return { layout, ls, maxW, txtTheme, font: fontFamilyCss(st.fontFamily) };
+        return { layout, ls, lineScales, maxW, txtTheme, font: fontFamilyCss(st.fontFamily) };
       };
       if (installTextMode === "only") {
         if (showInstallTextLayer && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {

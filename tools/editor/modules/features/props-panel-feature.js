@@ -20,6 +20,9 @@ import {
 import { noteTextColorForBackground } from "../utils/color-utils.js";
 import { autoFlowLinkColor, normalizeDeviceOrientation, normalizeDeviceType, normalizePortCount } from "../utils/device-utils.js";
 import { flowLinkKeyOf } from "../utils/flow-link-key-utils.js";
+import { getFlowLinks, getFlowLinksCopy } from "../utils/flow-links-state.js";
+import { getPrimarySelectedFlowLinkKey, getSelectedFlowLinkKeys } from "../utils/flow-link-selection-state.js";
+import { getSelectedFlowLinks as getSelectedFlowLinksByState } from "../utils/selected-flow-links.js";
 import { isDeviceRectKind, isNoteHiddenInArtView } from "../utils/rect-kind-utils.js";
 import {
   buildDefaultOrthogonalPoints,
@@ -124,15 +127,25 @@ export const setupPropsPanelFeature = (deps = {}) => {
     return { rectId, kind, cid };
   };
   const selectedFlowLink = () => {
-    const key = String(st && st.flowLinkSelectedKey || "");
+    const key = getPrimarySelectedFlowLinkKey(st);
     if (!key) return null;
-    const list = Array.isArray(st && st.flowLinks) ? st.flowLinks : [];
+    const list = getFlowLinks(st);
     return list.find(it => flowLinkKeyOf(it) === key) || null;
   };
+  const selectedFlowLinks = () => {
+    const list = getFlowLinks(st);
+    const out = getSelectedFlowLinksByState(st, list);
+    if (!out.length) {
+      const one = selectedFlowLink();
+      if (one) out.push(one);
+    }
+    return out;
+  };
   const hasSelectedFlowLink = () => {
-    const key = String(st && st.flowLinkSelectedKey || "");
-    if (!key) return false;
-    if (selectedFlowLink()) return true;
+    const keys = getSelectedFlowLinkKeys(st);
+    const key = getPrimarySelectedFlowLinkKey(st);
+    if (!key && !keys.length) return false;
+    if (selectedFlowLinks().length) return true;
     const segs = Array.isArray(st && st.flowLinkSegments) ? st.flowLinkSegments : [];
     if (segs.some(s => String(s && s.key || "") === key)) return true;
     return true;
@@ -198,7 +211,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const collectCommutationNames = () => {
       const out = [];
       const seen = new Set();
-      for (const ln of (Array.isArray(st && st.flowLinks) ? st.flowLinks : [])) {
+      for (const ln of getFlowLinks(st)) {
         if (!normalizeFlowLinkIsCommutation(ln && ln.isCommutation)) continue;
         const nm = normalizeFlowLinkCommutationName(ln && ln.commutationName);
         if (!nm || seen.has(nm)) continue;
@@ -396,13 +409,14 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const field = String(o.field || "");
     const shouldApply = id => !field || field === id;
     const flowLinkField = field.startsWith("flowLink");
-    const selectedLink = selectedFlowLink();
-    if (flowLinkField && selectedLink) {
-      const key = String(st && st.flowLinkSelectedKey || "");
-      const list = Array.isArray(st && st.flowLinks) ? st.flowLinks.slice() : [];
-      const idx = list.findIndex(it => flowLinkKeyOf(it) === key);
-      if (idx >= 0) {
+    const selectedLinks = selectedFlowLinks();
+    if (flowLinkField && selectedLinks.length) {
+      const selectedKeySet = new Set(selectedLinks.map(ln => flowLinkKeyOf(ln)));
+      const list = getFlowLinksCopy(st);
+      let changedFlowLinks = false;
+      for (let idx = 0; idx < list.length; idx++) {
         const curLink = list[idx];
+        if (!selectedKeySet.has(flowLinkKeyOf(curLink))) continue;
         const next = { ...curLink };
         if (shouldApply("flowLinkControlPointCount")) {
           const n = normalizeFlowLinkControlPointCount(el.propFlowLinkControlCount && el.propFlowLinkControlCount.value);
@@ -546,6 +560,9 @@ export const setupPropsPanelFeature = (deps = {}) => {
           }
         }
         list[idx] = next;
+        changedFlowLinks = true;
+      }
+      if (changedFlowLinks) {
         st.flowLinks = list;
         if (needPersist) schedulePersist("project");
         if (needRender) render();

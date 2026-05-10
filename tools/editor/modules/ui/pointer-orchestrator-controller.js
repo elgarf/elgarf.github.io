@@ -1,6 +1,9 @@
 import { setupShapeInputController } from "../shape/shape-input-controller.js";
 import { roundDraftSizePx } from "../utils/draft-utils.js";
 import { isDeviceRectKind, isScreenRectKind } from "../utils/rect-kind-utils.js";
+import { runSmartSyncProps } from "../utils/sync-props.js";
+
+import { clearSelectedFlowLinks, getSelectedFlowLinkKeys } from "../utils/flow-link-selection-state.js";
 
 export const setupPointerOrchestratorController = (deps = {}) => {
   const {
@@ -287,7 +290,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       const h = hit(p.x, p.y);
       if ((h && !isScreenRect(h)) || (!h && !isScreenRect(cur()))) {
         clearScreenToolSelection();
-        if (typeof syncPropsSmart === "function") syncPropsSmart();
+        runSmartSyncProps(syncPropsSmart, syncProps);
         render();
         return true;
       }
@@ -351,8 +354,8 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (handlePointerDownCluster(p)) return;
     if (handlePointerDownRig(p)) return;
     if (st.mode !== "select" && handlePointerDownFlow(p, opts)) return;
-    if (st.mode === "select" && st.flowLinkSelectedKey) {
-      st.flowLinkSelectedKey = "";
+    if (st.mode === "select" && getSelectedFlowLinkKeys(st).length) {
+      clearSelectedFlowLinks(st);
       st.flowCurveDrag = null;
       if (typeof syncProps === "function") syncProps();
     }
@@ -384,7 +387,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (st.multiSelectionResize && typeof updateMultiSelectionResize === "function") {
       updateMultiSelectionResize(p, { disableSnap: !!o.ctrlSnap, fromCenter: !!o.altResize });
       setCanvasCursor(multiResizeCursor(st.multiSelectionResize.handle));
-      if (typeof syncPropsSmart === "function") syncPropsSmart();
+      runSmartSyncProps(syncPropsSmart, syncProps);
       render();
       return true;
     }
@@ -433,7 +436,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
         const changed = flowController.moveFlowLinkOrthogonalSegment(st.flowSegmentDrag, p.x, p.y);
         st.flowSegmentDrag.changed = !!(st.flowSegmentDrag.changed || changed);
         if (changed) {
-          if (typeof syncPropsSmart === "function") syncPropsSmart();
+          runSmartSyncProps(syncPropsSmart, syncProps);
           render();
         }
       }
@@ -482,7 +485,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     if (navigationController.handleDraftPointerMove(p)) return true;
     if (navigationController.handleDragPointerMove(p, o)) {
       setCanvasCursor(MOVE_CURSOR);
-      if (typeof syncPropsSmart === "function") syncPropsSmart();
+      runSmartSyncProps(syncPropsSmart, syncProps);
       return true;
     }
     return false;
@@ -516,7 +519,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       st.flowSegmentDrag = null;
       if (changed) {
         schedulePersist("project");
-        if (typeof syncPropsSmart === "function") syncPropsSmart();
+        runSmartSyncProps(syncPropsSmart, syncProps);
       }
       render();
       return true;
@@ -589,7 +592,7 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       if (flowController.deleteFlowLinkOrthogonalSegmentAtPoint(p)) {
         st.flowSegmentDrag = null;
         schedulePersist("project");
-        if (typeof syncPropsSmart === "function") syncPropsSmart();
+        runSmartSyncProps(syncPropsSmart, syncProps);
         render();
         preventDefault();
         return;

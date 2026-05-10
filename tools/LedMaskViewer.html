@@ -100,8 +100,7 @@
     .viewer-spec-panel .EasyMDEContainer,
     .viewer-spec-panel .editor-toolbar,
     .viewer-spec-panel .CodeMirror,
-    .viewer-spec-panel .spec-mode-close,
-    .viewer-spec-panel button {
+    .viewer-spec-panel .spec-mode-close {
       display: none !important;
     }
     .viewer-spec-panel .spec-mode-markdown,
@@ -138,6 +137,68 @@
     .viewer-spec-panel .viewer-spec-check > span {
       display: inline-block;
       flex: 1 1 auto;
+    }
+    .viewer-spec-panel .viewer-custom-checklist {
+      margin-top: 14px;
+      border-top: 1px dashed rgba(255, 255, 255, .2);
+      padding-top: 12px;
+    }
+    .viewer-spec-panel .viewer-custom-checklist h6 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+    .viewer-spec-panel .viewer-custom-add {
+      display: flex;
+      gap: 8px;
+      margin: 8px 0 10px;
+    }
+    .viewer-spec-panel .viewer-custom-add input[type="text"] {
+      flex: 1 1 auto;
+      min-width: 0;
+      background: rgba(255, 255, 255, .06);
+      color: rgba(255, 255, 255, .95);
+      border: 1px solid rgba(255, 255, 255, .2);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .viewer-spec-panel .viewer-custom-add input[type="text"]::placeholder {
+      color: rgba(255, 255, 255, .6);
+    }
+    .viewer-spec-panel .viewer-custom-action {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      min-height: 34px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-size: 16px;
+      line-height: 1;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+    }
+    .viewer-spec-panel .viewer-custom-action-add {
+      background: #2563eb;
+      border-color: #1d4ed8;
+    }
+    .viewer-spec-panel .viewer-custom-action-add:hover {
+      background: #1d4ed8;
+    }
+    .viewer-spec-panel .viewer-custom-action-del {
+      background: #dc2626;
+      border-color: #b91c1c;
+    }
+    .viewer-spec-panel .viewer-custom-action-del:hover {
+      background: #b91c1c;
+    }
+    .viewer-spec-panel .viewer-custom-delete {
+      margin-left: 8px;
+      flex: 0 0 auto;
     }
     .viewer-spec-panel h1,
     .viewer-spec-panel h2,
@@ -211,10 +272,12 @@
       let specRenderVersion = 0;
       let currentSpecStorageKey = "led-mask-viewer.spec-checks.default";
       let currentProjectGuid = "";
-      let serverChecklistState = {};
+      let lastSpecText = "";
+      let serverChecklistState = null;
       let checklistWs = null;
       let wsClientId = "";
       let wsReady = false;
+      let wsGuid = "";
       let wsUnavailable = false;
       let wsReconnectTimer = 0;
       let wsConnectAttempt = 0;
@@ -326,36 +389,103 @@
         }
         return h.toString(36);
       };
-      const loadChecklistState = () => {
-        if (currentProjectGuid && serverChecklistState && typeof serverChecklistState === "object") {
-          return { ...serverChecklistState };
+      const normalizeChecklistState = raw => {
+        const src = raw && typeof raw === "object" ? raw : {};
+        const checks = {};
+        const customItems = [];
+        const applyChecksMap = map => {
+          if (!map || typeof map !== "object") return;
+          for (const [k, v] of Object.entries(map)) {
+            const key = String(k || "").trim();
+            if (!key || key === "checks" || key === "customItems" || key === "__checks" || key === "__customItems") continue;
+            checks[key] = !!v;
+          }
+        };
+        if (src.__checks && typeof src.__checks === "object") {
+          const rawChecks = src.__checks;
+          // Migration: broken payload could contain nested `checks` map under __checks.
+          if (rawChecks.checks && typeof rawChecks.checks === "object") applyChecksMap(rawChecks.checks);
+          applyChecksMap(rawChecks);
+        } else {
+          // Legacy flat format or transitional { checks, customItems } shape.
+          if (src.checks && typeof src.checks === "object") applyChecksMap(src.checks);
+          for (const [k, v] of Object.entries(src)) {
+            if (k === "__customItems" || k === "__checks" || k === "checks" || k === "customItems") continue;
+            const key = String(k || "").trim();
+            if (!key) continue;
+            checks[key] = !!v;
+          }
         }
+        const items = Array.isArray(src.__customItems)
+          ? src.__customItems
+          : (Array.isArray(src.customItems) ? src.customItems : []);
+        for (const it of items) {
+          const id = String(it && it.id || "").trim();
+          const text = String(it && it.text || "").trim();
+          if (!id || !text) continue;
+          customItems.push({ id, text });
+        }
+        return { checks, customItems };
+      };
+      const serializeChecklistState = state => {
+        const model = normalizeChecklistState(state);
+        return {
+          __checks: { ...model.checks },
+          __customItems: model.customItems.map(it => ({ id: it.id, text: it.text }))
+        };
+      };
+      const readChecklistStateFromLocalStorage = () => {
         try {
           const raw = localStorage.getItem(currentSpecStorageKey) || "{}";
           const parsed = JSON.parse(raw);
-          return parsed && typeof parsed === "object" ? parsed : {};
+          return normalizeChecklistState(parsed);
         } catch (_e) {
-          return {};
+          return { checks: {}, customItems: [] };
         }
       };
+      const mergeChecklistStates = (baseState, overlayState) => {
+        const base = normalizeChecklistState(baseState);
+        const overlay = normalizeChecklistState(overlayState);
+        const checks = { ...base.checks, ...overlay.checks };
+        const byId = new Map();
+        for (const it of base.customItems) byId.set(String(it.id), { id: String(it.id), text: String(it.text) });
+        for (const it of overlay.customItems) byId.set(String(it.id), { id: String(it.id), text: String(it.text) });
+        return { checks, customItems: [...byId.values()] };
+      };
+      const isChecklistStateEmpty = state => {
+        const model = normalizeChecklistState(state);
+        return !Object.keys(model.checks).length && !(Array.isArray(model.customItems) && model.customItems.length);
+      };
+      const loadChecklistState = () => {
+        const local = readChecklistStateFromLocalStorage();
+        if (currentProjectGuid && serverChecklistState && typeof serverChecklistState === "object") {
+          return normalizeChecklistState(serverChecklistState);
+        }
+        return local;
+      };
       const saveChecklistState = state => {
+        const model = normalizeChecklistState(state);
+        const serial = serializeChecklistState(model);
         if (currentProjectGuid) {
-          serverChecklistState = state && typeof state === "object" ? { ...state } : {};
+          serverChecklistState = serial;
         }
         try {
-          localStorage.setItem(currentSpecStorageKey, JSON.stringify(state && typeof state === "object" ? state : {}));
+          localStorage.setItem(currentSpecStorageKey, JSON.stringify(serial));
         } catch (_e) { }
       };
       const applyChecklistStateToDom = state => {
         if (!specPanel || !state || typeof state !== "object") return;
+        const model = normalizeChecklistState(state);
+        const checks = model.checks || {};
         for (const input of Array.from(specPanel.querySelectorAll("input[type='checkbox'][data-check-key]"))) {
           const key = String(input.getAttribute("data-check-key") || "").trim();
           if (!key) continue;
-          input.checked = !!state[key];
+          input.checked = !!checks[key];
         }
       };
       const closeChecklistWs = () => {
         wsReady = false;
+        wsGuid = "";
         if (wsReconnectTimer) {
           window.clearTimeout(wsReconnectTimer);
           wsReconnectTimer = 0;
@@ -392,14 +522,20 @@
         }
       };
       const connectChecklistWs = () => {
-        closeChecklistWs();
         if (!currentProjectGuid || !checklistWsUrl || typeof WebSocket !== "function") {
           wsUnavailable = true;
           return;
         }
+        if (checklistWs && wsGuid === currentProjectGuid) {
+          if (checklistWs.readyState === WebSocket.CONNECTING || checklistWs.readyState === WebSocket.OPEN) {
+            return;
+          }
+        }
+        closeChecklistWs();
         wsConnectAttempt += 1;
         try {
           checklistWs = new WebSocket(checklistWsUrl);
+          wsGuid = currentProjectGuid;
         } catch (_e) {
           wsUnavailable = true;
           return;
@@ -417,18 +553,29 @@
         checklistWs.addEventListener("message", e => {
           let msg = null;
           try { msg = JSON.parse(String(e.data || "")); } catch (_e) { msg = null; }
-          if (!msg || typeof msg !== "object" || msg.checklistGuid !== currentProjectGuid) return;
+          const msgGuid = String((msg && (msg.checklistGuid || msg.checklist_guid)) || "").trim();
+          if (!msg || typeof msg !== "object" || msgGuid !== currentProjectGuid) return;
           if (msg.type === "init_state") {
-            const incoming = msg.state && typeof msg.state === "object" ? msg.state : {};
+            const incoming = normalizeChecklistState(msg.state);
             saveChecklistState(incoming);
             applyChecklistStateToDom(incoming);
+            return;
+          }
+          if (msg.type === "state_replace") {
+            const incoming = normalizeChecklistState(msg.state);
+            saveChecklistState(incoming);
+            if (activeTab === "spec") {
+              specPanel.innerHTML = markdownToHtml(lastSpecText);
+            } else {
+              applyChecklistStateToDom(incoming);
+            }
             return;
           }
           if (msg.type === "checkbox_update") {
             const key = String(msg.key || "").trim();
             if (!key) return;
             const state = loadChecklistState();
-            state[key] = !!msg.checked;
+            state.checks[key] = !!msg.checked;
             saveChecklistState(state);
             applyChecklistStateToDom(state);
           }
@@ -449,8 +596,19 @@
         return sendWsMessage({
           type: "checkbox_update",
           checklistGuid: currentProjectGuid,
+          checklist_guid: currentProjectGuid,
           key,
           checked: !!checked,
+          clientId: wsClientId
+        });
+      };
+      const pushChecklistStateToWs = state => {
+        if (!wsReady || !currentProjectGuid) return false;
+        return sendWsMessage({
+          type: "state_replace",
+          checklistGuid: currentProjectGuid,
+          checklist_guid: currentProjectGuid,
+          state: serializeChecklistState(state),
           clientId: wsClientId
         });
       };
@@ -506,7 +664,8 @@
         if (!src.trim()) return `<div class="viewer-spec-empty">Нет данных для спецификации</div>`;
         const lines = src.split("\n");
         const out = [];
-        const checks = loadChecklistState();
+        const model = loadChecklistState();
+        const checks = model.checks || {};
         let listOpen = false;
         let headingTrail = ["spec"];
         const closeList = () => {
@@ -551,6 +710,29 @@
           out.push(`<p>${renderInlineMd(line.trim())}</p>`);
         }
         closeList();
+        out.push('<section class="viewer-custom-checklist">');
+        out.push("<h6>Свои пункты</h6>");
+        out.push('<form class="viewer-custom-add" data-custom-add-form>');
+        out.push('<input type="text" data-custom-add-input placeholder="Добавить пункт чек-листа">');
+        out.push('<button type="submit" class="viewer-custom-action viewer-custom-action-add" data-custom-add-btn title="Добавить пункт" aria-label="Добавить пункт">+</button>');
+        out.push("</form>");
+        out.push('<ul class="viewer-spec-checklist">');
+        for (const item of (Array.isArray(model.customItems) ? model.customItems : [])) {
+          const id = String(item && item.id || "").trim();
+          const textPart = String(item && item.text || "").trim();
+          if (!id || !textPart) continue;
+          const key = `custom:${id}`;
+          const checked = !!checks[key];
+          out.push(
+            `<li><label class="viewer-spec-check">`
+            + `<input type="checkbox" data-check-key="${escapeHtml(key)}"${checked ? " checked" : ""}>`
+            + `<span>${renderInlineMd(textPart)}</span>`
+            + `<button type="button" class="viewer-custom-action viewer-custom-action-del viewer-custom-delete" data-custom-delete-id="${escapeHtml(id)}" title="Удалить пункт" aria-label="Удалить пункт">×</button>`
+            + `</label></li>`
+          );
+        }
+        out.push("</ul>");
+        out.push("</section>");
         return out.join("");
       };
       const renderSpecFlatHtml = async () => {
@@ -576,10 +758,16 @@
           if (!wsReady) {
             const fromServer = await loadChecklistStateFromServer(currentProjectGuid);
             if (fromServer && typeof fromServer === "object") {
-              serverChecklistState = fromServer;
-              try { localStorage.setItem(currentSpecStorageKey, JSON.stringify(fromServer)); } catch (_e) { }
+              const local = readChecklistStateFromLocalStorage();
+              serverChecklistState = serializeChecklistState(fromServer);
+              try { localStorage.setItem(currentSpecStorageKey, JSON.stringify(serializeChecklistState(fromServer))); } catch (_e) { }
+              if (isChecklistStateEmpty(fromServer) && !isChecklistStateEmpty(local)) {
+                saveChecklistStateToServer(currentProjectGuid, serializeChecklistState(local));
+                serverChecklistState = serializeChecklistState(local);
+                try { localStorage.setItem(currentSpecStorageKey, JSON.stringify(serializeChecklistState(local))); } catch (_e) { }
+              }
             } else {
-              serverChecklistState = loadChecklistState();
+              serverChecklistState = null;
             }
           }
         }
@@ -588,6 +776,7 @@
         } catch (_e) {
           text = "";
         }
+        lastSpecText = String(text || "");
         if (myVersion !== specRenderVersion) return;
         if (!String(text || "").trim()) {
           specPanel.innerHTML = `<div class="viewer-spec-empty">Нет данных для спецификации</div>`;
@@ -595,18 +784,65 @@
         }
         specPanel.innerHTML = markdownToHtml(text);
       };
+      const persistChecklistModel = state => {
+        saveChecklistState(state);
+        pushChecklistStateToWs(state);
+        if (currentProjectGuid) {
+          saveChecklistStateToServer(currentProjectGuid, serializeChecklistState(state));
+        }
+      };
+      const addCustomChecklistItem = inputNode => {
+        const value = String(inputNode && inputNode.value || "").trim();
+        if (!value) return false;
+        const state = loadChecklistState();
+        if (!Array.isArray(state.customItems)) state.customItems = [];
+        const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        state.customItems.push({ id, text: value });
+        state.checks[`custom:${id}`] = false;
+        persistChecklistModel(state);
+        if (inputNode) inputNode.value = "";
+        specPanel.innerHTML = markdownToHtml(lastSpecText);
+        return true;
+      };
       specPanel.addEventListener("change", e => {
         const input = e.target && e.target.closest ? e.target.closest("input[type='checkbox'][data-check-key]") : null;
         if (!input) return;
         const key = String(input.getAttribute("data-check-key") || "").trim();
         if (!key) return;
         const state = loadChecklistState();
-        state[key] = !!input.checked;
+        state.checks[key] = !!input.checked;
         saveChecklistState(state);
         const pushedToWs = pushCheckboxUpdateToWs(key, !!input.checked);
         if (currentProjectGuid && (!pushedToWs || wsUnavailable)) {
-          saveChecklistStateToServer(currentProjectGuid, state);
+          saveChecklistStateToServer(currentProjectGuid, serializeChecklistState(state));
         }
+      });
+      specPanel.addEventListener("submit", e => {
+        const form = e.target && e.target.closest ? e.target.closest("form[data-custom-add-form]") : null;
+        if (!form) return;
+        e.preventDefault();
+        const input = form.querySelector("input[data-custom-add-input]");
+        addCustomChecklistItem(input);
+      });
+      specPanel.addEventListener("click", e => {
+        const addBtn = e.target && e.target.closest ? e.target.closest("button[data-custom-add-btn]") : null;
+        if (addBtn) {
+          e.preventDefault();
+          const form = addBtn.closest("form[data-custom-add-form]");
+          const input = form ? form.querySelector("input[data-custom-add-input]") : null;
+          addCustomChecklistItem(input);
+          return;
+        }
+        const btn = e.target && e.target.closest ? e.target.closest("button[data-custom-delete-id]") : null;
+        if (!btn) return;
+        e.preventDefault();
+        const id = String(btn.getAttribute("data-custom-delete-id") || "").trim();
+        if (!id) return;
+        const state = loadChecklistState();
+        state.customItems = (Array.isArray(state.customItems) ? state.customItems : []).filter(it => String(it && it.id || "") !== id);
+        try { delete state.checks[`custom:${id}`]; } catch (_e) { state.checks[`custom:${id}`] = false; }
+        persistChecklistModel(state);
+        specPanel.innerHTML = markdownToHtml(lastSpecText);
       });
       const switchTab = next => {
         activeTab = next === "spec" ? "spec" : "install";

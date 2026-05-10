@@ -1,4 +1,6 @@
-import { flowLinkKeyOf } from "../utils/flow-link-key-utils.js";
+import { clearSelectedFlowLinks, getSelectedFlowLinkKeys } from "../utils/flow-link-selection-state.js";
+import { getFlowLinks } from "../utils/flow-links-state.js";
+import { filterOutSelectedFlowLinks } from "../utils/selected-flow-links.js";
 
 export const setupSelectionActionsFeature = (deps = {}) => {
   const {
@@ -63,13 +65,12 @@ export const setupSelectionActionsFeature = (deps = {}) => {
   const delSel = () => {
     normSelSet();
     if (!st.selSet.size && st.sel == null) {
-      const selectedFlowKey = String(st.flowLinkSelectedKey || "");
-      if (!selectedFlowKey) return;
-      const list = Array.isArray(st.flowLinks) ? st.flowLinks : [];
-      const next = list.filter(link => flowLinkKeyOf(link) !== selectedFlowKey);
+      if (!getSelectedFlowLinkKeys(st).length) return;
+      const list = getFlowLinks(st);
+      const next = filterOutSelectedFlowLinks(st, list);
       if (next.length === list.length) return;
       st.flowLinks = next;
-      st.flowLinkSelectedKey = "";
+      clearSelectedFlowLinks(st);
       st.flowSegmentDrag = null;
       st.flowSegmentHover = null;
       st.flowSegmentPendingTap = null;

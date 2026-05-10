@@ -1,4 +1,12 @@
 import { createEditorHitTest } from "../hit-test/editor-hit-test.js";
+import {
+  clearSelectedFlowLinks,
+  getPrimarySelectedFlowLinkKey,
+  isFlowLinkSelected,
+  setSingleSelectedFlowLink,
+  toggleSelectedFlowLink
+} from "../utils/flow-link-selection-state.js";
+import { runSmartSyncProps } from "../utils/sync-props.js";
 
 export const setupEditingToolsCore = (deps = {}) => {
   const {
@@ -485,7 +493,15 @@ export const setupEditingToolsInput = (deps = {}) => {
     st.flowDragPreview = null;
   };
   const selectFlowLinkOnly = key => {
-    st.flowLinkSelectedKey = String(key || "");
+    setSingleSelectedFlowLink(st, key);
+    if (st.selSet instanceof Set) st.selSet.clear();
+    else st.selSet = new Set();
+    st.sel = null;
+    st.selMultiBase = null;
+    st.devicePortSelection = null;
+  };
+  const toggleFlowLinkSelected = key => {
+    toggleSelectedFlowLink(st, key);
     if (st.selSet instanceof Set) st.selSet.clear();
     else st.selSet = new Set();
     st.sel = null;
@@ -509,18 +525,29 @@ export const setupEditingToolsInput = (deps = {}) => {
         st.flowLinkDrag = null;
         st.flowSegmentDrag = null;
         st.flowDragPreview = null;
-        if (typeof syncPropsSmart === "function") syncPropsSmart();
-        else syncProps();
+        runSmartSyncProps(syncPropsSmart, syncProps);
         render();
         return true;
       }
       const selectedSegmentHit = findFlowLinkAtPoint(p.x, p.y);
       if (selectedSegmentHit && selectedSegmentHit.link && selectedSegmentHit.orthogonal && Array.isArray(selectedSegmentHit.points)) {
         const selectedSegmentKey = flowLinkKeyOf(selectedSegmentHit.link);
-        if (String(st.flowLinkSelectedKey || "") === selectedSegmentKey) {
+        if (opts && opts.shiftToggle) {
+          toggleFlowLinkSelected(selectedSegmentKey);
+          st.flowSegmentDrag = null;
+          st.flowLinkPending = null;
+          st.flowLinkDrag = null;
+          st.flowDragPreview = null;
+          runSmartSyncProps(syncPropsSmart, syncProps);
+          render();
+          return true;
+        }
+        const activeBeforeSegmentDrag = getPrimarySelectedFlowLinkKey(st);
+        if (activeBeforeSegmentDrag === selectedSegmentKey) {
+          const activeKey = activeBeforeSegmentDrag || selectedSegmentKey;
           selectFlowLinkOnly(selectedSegmentKey);
           st.flowSegmentDrag = {
-            key: st.flowLinkSelectedKey,
+            key: activeKey,
             segmentIndex: Math.max(0, Math.round(Number(selectedSegmentHit.segmentIndex) || 0)),
             points: selectedSegmentHit.points.map(pt => ({ x: Number(pt && pt.x) || 0, y: Number(pt && pt.y) || 0 })),
             changed: false
@@ -528,15 +555,14 @@ export const setupEditingToolsInput = (deps = {}) => {
           st.flowLinkPending = null;
           st.flowLinkDrag = null;
           st.flowDragPreview = null;
-          if (typeof syncPropsSmart === "function") syncPropsSmart();
-          else syncProps();
+          runSmartSyncProps(syncPropsSmart, syncProps);
           render();
           return true;
         }
       }
       const endAnchorHit = findFlowLinkAnchorAtPoint(p.x, p.y, "end");
       if (endAnchorHit) {
-        st.flowLinkSelectedKey = "";
+        clearSelectedFlowLinks(st);
         st.devicePortSelection = { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end" };
         st.flowLinkPending = {
           from: { rectId: endAnchorHit.rectId, rid: endAnchorHit.rid, cid: endAnchorHit.cid, kind: "end", x: endAnchorHit.x, y: endAnchorHit.y },
@@ -546,19 +572,29 @@ export const setupEditingToolsInput = (deps = {}) => {
         st.flowLinkDrag = null;
         st.flowSegmentDrag = null;
         st.flowDragPreview = null;
-        if (typeof syncPropsSmart === "function") syncPropsSmart();
-        else syncProps();
+        runSmartSyncProps(syncPropsSmart, syncProps);
         render();
         return true;
       }
       const linkHit = findFlowLinkAtPoint(p.x, p.y);
       if (linkHit && linkHit.link) {
         const nextKey = flowLinkKeyOf(linkHit.link);
-        const wasSelected = String(st.flowLinkSelectedKey || "") === nextKey;
+        if (opts && opts.shiftToggle) {
+          toggleFlowLinkSelected(nextKey);
+          st.flowSegmentDrag = null;
+          st.flowLinkPending = null;
+          st.flowLinkDrag = null;
+          st.flowDragPreview = null;
+          runSmartSyncProps(syncPropsSmart, syncProps);
+          render();
+          return true;
+        }
+        const wasSelected = isFlowLinkSelected(st, nextKey);
         selectFlowLinkOnly(nextKey);
         if (wasSelected && linkHit.orthogonal && Array.isArray(linkHit.points)) {
+          const activeKey = getPrimarySelectedFlowLinkKey(st) || nextKey;
           st.flowSegmentDrag = {
-            key: st.flowLinkSelectedKey,
+            key: activeKey,
             segmentIndex: Math.max(0, Math.round(Number(linkHit.segmentIndex) || 0)),
             points: linkHit.points.map(pt => ({ x: Number(pt && pt.x) || 0, y: Number(pt && pt.y) || 0 })),
             changed: false
@@ -567,13 +603,13 @@ export const setupEditingToolsInput = (deps = {}) => {
           st.flowSegmentDrag = null;
         }
         if (!linkHit.orthogonal && opts && opts.altKey && typeof clearFlowLinkManualBezier === "function") {
-          if (clearFlowLinkManualBezier(st.flowLinkSelectedKey)) schedulePersist("project");
+          const activeKey = getPrimarySelectedFlowLinkKey(st);
+          if (clearFlowLinkManualBezier(activeKey)) schedulePersist("project");
         }
         st.flowLinkPending = null;
         st.flowLinkDrag = null;
         st.flowDragPreview = null;
-        if (typeof syncPropsSmart === "function") syncPropsSmart();
-        else syncProps();
+        runSmartSyncProps(syncPropsSmart, syncProps);
         render();
         return true;
       }
@@ -623,8 +659,9 @@ export const setupEditingToolsInput = (deps = {}) => {
     }
     const linkHit = findFlowLinkAtPoint(p.x, p.y);
     if (linkHit && linkHit.link) {
-      st.flowLinkSelectedKey = flowLinkKeyOf(linkHit.link);
-      const killKey = st.flowLinkSelectedKey;
+      const hitKey = flowLinkKeyOf(linkHit.link);
+      setSingleSelectedFlowLink(st, hitKey);
+      const killKey = getPrimarySelectedFlowLinkKey(st) || hitKey;
       st.flowLinks = normalizeFlowLinks(st.flowLinks).filter(it => flowLinkKeyOf(it) !== killKey);
       clearFlowLinkInteractionState();
       schedulePersist("project");

@@ -11,6 +11,7 @@ from urllib import parse as urlparse
 from urllib import request as urlrequest
 
 from websockets.asyncio.server import ServerConnection, serve
+from websockets.exceptions import ConnectionClosed
 
 
 @dataclass
@@ -20,7 +21,7 @@ class ClientContext:
     client_id: str
 
 
-CHECKLIST_STATE: dict[str, dict[str, bool]] = defaultdict(dict)
+CHECKLIST_STATE: dict[str, dict[str, Any]] = defaultdict(dict)
 SUBSCRIBERS: dict[str, set[ServerConnection]] = defaultdict(set)
 CONTEXT_BY_SOCKET: dict[ServerConnection, ClientContext] = {}
 STATE_LOCK = asyncio.Lock()
@@ -87,7 +88,48 @@ def _http_post_json(url: str, payload: dict[str, Any], timeout_sec: float = 8.0)
         return None
 
 
-async def load_checklist_state_from_store(checklist_guid: str) -> dict[str, bool] | None:
+def normalize_checklist_state(raw: Any) -> dict[str, Any]:
+    parsed = raw if isinstance(raw, dict) else {}
+    def _collect_checks(map_obj: Any) -> dict[str, bool]:
+        out: dict[str, bool] = {}
+        if not isinstance(map_obj, dict):
+            return out
+        for k, v in map_obj.items():
+            key = str(k or "").strip()
+            if not key or key in {"checks", "customItems", "__checks", "__customItems"}:
+                continue
+            out[key] = bool(v)
+        return out
+
+    if "__checks" in parsed or "__customItems" in parsed:
+        checks_raw = parsed.get("__checks")
+        custom_raw = parsed.get("__customItems")
+        checks = checks_raw if isinstance(checks_raw, dict) else {}
+        custom_items = custom_raw if isinstance(custom_raw, list) else []
+        merged_checks = _collect_checks(checks.get("checks")) if isinstance(checks, dict) else {}
+        merged_checks.update(_collect_checks(checks))
+        return {
+            "__checks": merged_checks,
+            "__customItems": [
+                {"id": str(it.get("id", "")).strip(), "text": str(it.get("text", "")).strip()}
+                for it in custom_items
+                if isinstance(it, dict) and str(it.get("id", "")).strip() and str(it.get("text", "")).strip()
+            ],
+        }
+    # Legacy flat format: key -> bool
+    if "checks" in parsed and isinstance(parsed.get("checks"), dict):
+        return {
+            "__checks": _collect_checks(parsed.get("checks")),
+            "__customItems": [
+                {"id": str(it.get("id", "")).strip(), "text": str(it.get("text", "")).strip()}
+                for it in (parsed.get("customItems") if isinstance(parsed.get("customItems"), list) else [])
+                if isinstance(it, dict) and str(it.get("id", "")).strip() and str(it.get("text", "")).strip()
+            ],
+        }
+    return _collect_checks(parsed)
+
+
+async def load_checklist_state_from_store(checklist_guid: str) -> dict[str, Any] | None:
     query = urlparse.urlencode({"checklist_guid": checklist_guid})
     url = f"{PROJECT_STORE_URL}?{query}"
     data = await asyncio.to_thread(_http_get_json, url)
@@ -103,10 +145,10 @@ async def load_checklist_state_from_store(checklist_guid: str) -> dict[str, bool
         return None
     if not isinstance(parsed, dict):
         return None
-    return {str(k): bool(v) for k, v in parsed.items()}
+    return normalize_checklist_state(parsed)
 
 
-async def persist_checklist_state_to_store(checklist_guid: str, state: dict[str, bool]) -> bool:
+async def persist_checklist_state_to_store(checklist_guid: str, state: dict[str, Any]) -> bool:
     payload: dict[str, Any] = {
         "checklistGuid": checklist_guid,
         "checklistData": state,
@@ -183,7 +225,12 @@ async def handle_checkbox_update(
         if ws not in SUBSCRIBERS[checklist_guid]:
             SUBSCRIBERS[checklist_guid].add(ws)
             CONTEXT_BY_SOCKET[ws] = ClientContext(ws=ws, checklist_guid=checklist_guid, client_id=client_id)
-        CHECKLIST_STATE[checklist_guid][key] = checked
+        current = CHECKLIST_STATE.get(checklist_guid, {})
+        if isinstance(current.get("__checks"), dict):
+            current["__checks"][key] = checked
+            CHECKLIST_STATE[checklist_guid] = current
+        else:
+            CHECKLIST_STATE[checklist_guid][key] = checked
     await schedule_persist(checklist_guid)
 
     await broadcast_except(
@@ -193,6 +240,31 @@ async def handle_checkbox_update(
             "checklistGuid": checklist_guid,
             "key": key,
             "checked": checked,
+            "clientId": client_id,
+        },
+        sender=ws,
+    )
+
+
+async def handle_state_replace(
+    ws: ServerConnection,
+    checklist_guid: str,
+    state: dict[str, Any],
+    client_id: str,
+) -> None:
+    normalized = normalize_checklist_state(state)
+    async with STATE_LOCK:
+        if ws not in SUBSCRIBERS[checklist_guid]:
+            SUBSCRIBERS[checklist_guid].add(ws)
+            CONTEXT_BY_SOCKET[ws] = ClientContext(ws=ws, checklist_guid=checklist_guid, client_id=client_id)
+        CHECKLIST_STATE[checklist_guid] = normalized
+    await schedule_persist(checklist_guid)
+    await broadcast_except(
+        checklist_guid,
+        {
+            "type": "state_replace",
+            "checklistGuid": checklist_guid,
+            "state": normalized,
             "clientId": client_id,
         },
         sender=ws,
@@ -235,6 +307,14 @@ async def handle_message(ws: ServerConnection, raw_message: str) -> None:
         await handle_checkbox_update(ws, checklist_guid, key, checked, client_id)
         return
 
+    if message_type == "state_replace":
+        raw_state = payload.get("state")
+        if not isinstance(raw_state, dict):
+            await send_json(ws, {"type": "error", "message": "Missing state object"})
+            return
+        await handle_state_replace(ws, checklist_guid, raw_state, client_id)
+        return
+
     if message_type == "unsubscribe":
         await handle_unsubscribe(ws, checklist_guid)
         return
@@ -269,6 +349,9 @@ async def connection_handler(ws: ServerConnection) -> None:
         async for message in ws:
             if isinstance(message, str):
                 await handle_message(ws, message)
+    except ConnectionClosed:
+        # Normal for browser tabs/network interruptions; cleanup happens in finally.
+        pass
     finally:
         await unregister(ws)
 

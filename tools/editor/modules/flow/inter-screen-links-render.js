@@ -1,6 +1,8 @@
 import { sampleBezier, buildSagBezierControls } from "./bezier-utils.js";
 import { autoFlowLinkColor } from "../utils/device-utils.js";
 import { isDeviceRectKind } from "../utils/rect-kind-utils.js";
+import { isFlowLinkSelected } from "../utils/flow-link-selection-state.js";
+import { getSelectedFlowLinkKeySet } from "../utils/selected-flow-links.js";
 
 export const setupInterScreenLinksRender = (deps = {}) => {
   const {
@@ -329,7 +331,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     };
     const drawOrthogonalEditMarkers = (points, selectedKey) => {
       if (!Array.isArray(points) || points.length < 2 || exportPass || String(st.mode || "") !== "select") return;
-      const selected = String(st.flowLinkSelectedKey || "") === String(selectedKey || "");
+      const selected = isFlowLinkSelected(st, selectedKey);
       const activeDrag = st.flowSegmentDrag && String(st.flowSegmentDrag.key || "") === String(selectedKey || "");
       const activeSegmentIndex = activeDrag ? Math.max(0, Math.round(Number(st.flowSegmentDrag.segmentIndex) || 0)) : -1;
       if (!selected && !activeDrag) return;
@@ -565,6 +567,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       c.restore();
     };
     const hoverSegKey = st.flowLinkHover && st.flowLinkHover.key ? String(st.flowLinkHover.key) : "";
+    const selectedKeySet = getSelectedFlowLinkKeySet(st);
     const linkDrag = st.flowLinkDrag || null;
     const dragTargetKey = (linkDrag && linkDrag.target) ? flowAnchorKey(linkDrag.target) : "";
     for (const ln of links) {
@@ -582,7 +585,10 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const baseColor = autoFlowLinkColor(ln, rectById, isDevice);
       const customColor = /^#[0-9a-f]{6}$/i.test(String(ln && ln.color || "").trim()) ? String(ln.color).trim() : null;
       const lineType = String(ln && ln.lineType || "").toLowerCase() === "dashed" ? "dashed" : "solid";
-      const strokeColorRaw = (key === hoverSegKey) ? "rgba(255,99,99,.98)" : (customColor || baseColor);
+      const isSelected = selectedKeySet.has(key);
+      const strokeColorRaw = (key === hoverSegKey)
+        ? "rgba(255,99,99,.98)"
+        : (isSelected ? "rgba(255,215,80,.98)" : (customColor || baseColor));
       const strokeColor = fromIsDevice ? withAlpha(strokeColorRaw, 0.56) : strokeColorRaw;
       const commutationVisual = !!(ln && ln.isCommutation);
       const checkerOpts = commutationVisual
@@ -592,7 +598,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
       const linkWidth = Math.max(0.5, Math.min(20, Number(ln && ln.width) || 2.2));
       const baseW = exportPass
         ? Math.max(5, linkWidth * 2.4)
-        : strokeWidthForZoom(st.zoom, 1.2, linkWidth);
+        : strokeWidthForZoom(st.zoom, 1.2, isSelected ? (linkWidth + 0.8) : linkWidth);
       const orthogonalMid = Array.isArray(ln && ln.orthogonalPoints) ? ln.orthogonalPoints : [];
       if (orthogonalMid.length) {
         const route = buildRoundedOrthogonalPath([{ x: a.x, y: a.y }, ...orthogonalMid, { x: b.x, y: b.y }]);
@@ -752,7 +758,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
           const t1 = sg.legacy ? sg.t1 : sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, 0.52);
           drawFlowLinkArrow(c, t0, t1, strokeColor, st.zoom || 1);
         }
-        if (!exportPass && String(st.mode || "") === "select" && String(st.flowLinkSelectedKey || "") === key) {
+        if (!exportPass && String(st.mode || "") === "select" && isFlowLinkSelected(st, key)) {
           const segRelSnapshot = segs.map(sg => ({
             c1: { x: (Number(sg.c1 && sg.c1.x) || 0) - (Number(sg.p0 && sg.p0.x) || 0), y: (Number(sg.c1 && sg.c1.y) || 0) - (Number(sg.p0 && sg.p0.y) || 0) },
             c2: { x: (Number(sg.c2 && sg.c2.x) || 0) - (Number(sg.p1 && sg.p1.x) || 0), y: (Number(sg.c2 && sg.c2.y) || 0) - (Number(sg.p1 && sg.p1.y) || 0) }

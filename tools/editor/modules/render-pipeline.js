@@ -1,5 +1,6 @@
 import { isDeviceRectKind, isNoteHiddenInArtView } from "./utils/rect-kind-utils.js";
 import { roundDraftMeters } from "./utils/draft-utils.js";
+import { drawDeferredOverlayTextBlock } from "./render/deferred-text-overlay.js";
 
 export const setupRenderPipeline = (deps = {}) => {
   const {
@@ -107,15 +108,7 @@ export const setupRenderPipeline = (deps = {}) => {
       for (const rc of job.hiddenRects) c.rect(rc.x, rc.y, rc.w, rc.h);
       c.clip("evenodd");
     }
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.font = `${ov.layout.fs}px ${ov.font}`;
-    c.fillStyle = ov.txtTheme.bg;
-    c.fillRect(ov.layout.textLeft, ov.layout.textTop, ov.layout.tw, ov.layout.th);
-    c.fillStyle = ov.txtTheme.text;
-    for (let i = 0; i < ov.ls.length; i++) {
-      c.fillText(ov.ls[i], ov.layout.textX, ov.layout.sy + i * ov.layout.lh, ov.maxW);
-    }
+    drawDeferredOverlayTextBlock(c, ov, String(ov.font || ""));
     c.restore();
   };
 

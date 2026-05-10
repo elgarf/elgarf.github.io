@@ -1,3 +1,5 @@
+import { getFlowLinks, getFlowLinksCopy } from "../utils/flow-links-state.js";
+
 export const setupFlowInputController = (deps = {}) => {
   const {
     st,
@@ -58,7 +60,7 @@ export const setupFlowInputController = (deps = {}) => {
     const rectId = Math.max(1, Math.round(Number(from.rectId) || 0));
     const rid = Math.max(0, Math.round(Number(from.rid) || 0));
     const cid = Math.max(0, Math.round(Number(from.cid) || 0));
-    const list = Array.isArray(st.flowLinks) ? st.flowLinks : [];
+    const list = getFlowLinks(st);
     const removed = [];
     st.flowLinks = list.filter(ln => {
       const src = ln && ln.from;
@@ -111,7 +113,7 @@ export const setupFlowInputController = (deps = {}) => {
       ? { x: Math.round((start.x + end.x) / 2), y: Math.round((start.y + end.y) / 2) }
       : { x: Math.round(end.x), y: Math.round(start.y) };
     const full = routeOrthogonalPoints([start, mid, end]);
-    const list = Array.isArray(st.flowLinks) ? st.flowLinks.slice() : [];
+    const list = getFlowLinksCopy(st);
     const idx = list.findIndex(ln => {
       const a = ln && ln.from, b = ln && ln.to;
       return Math.max(1, Math.round(Number(a && a.rectId) || 0)) === Math.max(1, Math.round(Number(from.rectId) || 0))

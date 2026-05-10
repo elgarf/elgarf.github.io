@@ -1,3 +1,5 @@
+import { clearSelectedFlowLinks } from "../utils/flow-link-selection-state.js";
+
 export const setupTransientStateController = (deps = {}) => {
   const { st } = deps;
 
@@ -84,7 +86,7 @@ export const setupTransientStateController = (deps = {}) => {
       st.manualFlowDrag = null;
       st.flowDragPreview = null;
       st.flowLinkHover = null;
-      st.flowLinkSelectedKey = "";
+      clearSelectedFlowLinks(st);
       st.flowLinkCurveHandles = [];
       st.flowCurveDrag = null;
       st.flowLinkPending = null;

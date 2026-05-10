@@ -131,6 +131,7 @@ export const createInitialEditorState = () => ({
   flowLinkSegments: [],
   flowLinkHover: null,
   flowLinkSelectedKey: "",
+  flowLinkSelectedKeys: [],
   flowLinkCurveHandles: [],
   flowCurveDrag: null,
   flowLinkPending: null,

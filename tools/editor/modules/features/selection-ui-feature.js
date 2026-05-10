@@ -1,4 +1,5 @@
 import { setupRectListController } from "../rect-list-controller.js";
+import { runSmartSyncProps } from "../utils/sync-props.js";
 
 export const setupSelectionUiFeature = (deps = {}) => {
   const {
@@ -67,11 +68,9 @@ export const setupSelectionUiFeature = (deps = {}) => {
   };
 
   const syncSelectionProps = () => {
-    if (typeof syncPropsSmart === "function") syncPropsSmart();
-    else syncProps();
+    runSmartSyncProps(syncPropsSmart, syncProps);
     if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => {
-      if (typeof syncPropsSmart === "function") syncPropsSmart();
-      else syncProps();
+      runSmartSyncProps(syncPropsSmart, syncProps);
     });
   };
 
