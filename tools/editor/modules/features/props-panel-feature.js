@@ -292,6 +292,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (el.btnAutoContrast) uiSetDisabled(el.btnAutoContrast, !on);
     uiSetValue(el.project, st.projectName);
     uiSetValue(el.projectNamePanel, st.projectName);
+    uiSetValue(el.projectGuidPanel, String(st.projectGuid || ""));
     updateThemeUi(); updateViewModeUi(); updateLockAllUi();
     uiSetValue(el.textSize, mFmt(st.textSize));
     uiSetValue(el.font, st.fontFamily);

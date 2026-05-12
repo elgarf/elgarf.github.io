@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>LED Mask Viewer</title>
   <link rel="stylesheet" href="./vendor/bootstrap/bootstrap.min.css">
   <style>
@@ -46,12 +49,40 @@
     .viewer-tabs-list .nav-item {
       flex: 0 0 auto;
     }
+    .viewer-tabs-spacer {
+      margin-left: auto;
+      flex: 1 1 auto;
+      min-width: 8px;
+    }
     .viewer-tab-btn {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       max-width: 240px;
       cursor: pointer;
+    }
+    .viewer-export-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(255, 255, 255, .2);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .06);
+      color: rgba(255, 255, 255, .92);
+      cursor: pointer;
+      flex: 0 0 auto;
+      margin-bottom: 4px;
+    }
+    .viewer-export-btn:hover {
+      background: rgba(255, 255, 255, .12);
+      border-color: rgba(255, 255, 255, .35);
+    }
+    .viewer-export-btn svg {
+      width: 16px;
+      height: 16px;
+      display: block;
     }
     .viewer-content {
       position: relative;
@@ -251,6 +282,14 @@
           <button id="tabSpec" class="viewer-tab-btn nav-link" type="button" role="tab" aria-selected="false">Спецификация</button>
         </li>
       </ul>
+      <div class="viewer-tabs-spacer" aria-hidden="true"></div>
+      <button id="savePngBtn" class="viewer-export-btn" type="button" title="Сохранить PNG" aria-label="Сохранить PNG">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 3h11l3 3v15H5V3z" stroke="currentColor" stroke-width="1.8" />
+          <path d="M8 3v6h8V3" stroke="currentColor" stroke-width="1.8" />
+          <rect x="8" y="13" width="8" height="6" stroke="currentColor" stroke-width="1.8" />
+        </svg>
+      </button>
     </div>
     <div class="viewer-content">
       <iframe id="viewerFrame" class="viewer-frame" title="LED project viewer"></iframe>
@@ -265,6 +304,7 @@
       const label = document.getElementById("zoomLabel");
       const tabInstall = document.getElementById("tabInstall");
       const tabSpec = document.getElementById("tabSpec");
+      const savePngBtn = document.getElementById("savePngBtn");
       const specPanel = document.getElementById("specPanel");
       let zoomPoll = 0;
       let lastZoomText = "—";
@@ -283,6 +323,7 @@
       let wsConnectAttempt = 0;
       let specRenderDebounceTimer = 0;
       const WS_RECONNECT_ENABLED = true;
+      const CHECKLIST_SCHEMA_VERSION = 1;
       const projectStoreApiUrl = "https://static.93.189.179.185.ip.webhost1.net/project_store.php";
       const q = new URLSearchParams(location.search || "");
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
@@ -432,13 +473,20 @@
           if (!id || !text) continue;
           customItems.push({ id, text });
         }
-        return { checks, customItems };
+        const meta = src.__meta && typeof src.__meta === "object" ? src.__meta : {};
+        const revision = Math.max(0, Number(meta.revision || 0) || 0);
+        const updatedAt = String(meta.updatedAt || "").trim();
+        return { checks, customItems, revision, updatedAt };
       };
       const serializeChecklistState = state => {
         const model = normalizeChecklistState(state);
         return {
           __checks: { ...model.checks },
-          __customItems: model.customItems.map(it => ({ id: it.id, text: it.text }))
+          __customItems: model.customItems.map(it => ({ id: it.id, text: it.text })),
+          __meta: {
+            revision: Math.max(0, Number(model.revision || 0) || 0),
+            updatedAt: String(model.updatedAt || "")
+          }
         };
       };
       const readChecklistStateFromLocalStorage = () => {
@@ -447,7 +495,7 @@
           const parsed = JSON.parse(raw);
           return normalizeChecklistState(parsed);
         } catch (_e) {
-          return { checks: {}, customItems: [] };
+          return { checks: {}, customItems: [], revision: 0, updatedAt: "" };
         }
       };
       const mergeChecklistStates = (baseState, overlayState) => {
@@ -457,7 +505,9 @@
         const byId = new Map();
         for (const it of base.customItems) byId.set(String(it.id), { id: String(it.id), text: String(it.text) });
         for (const it of overlay.customItems) byId.set(String(it.id), { id: String(it.id), text: String(it.text) });
-        return { checks, customItems: [...byId.values()] };
+        const revision = Math.max(Number(base.revision || 0) || 0, Number(overlay.revision || 0) || 0);
+        const updatedAt = String(overlay.updatedAt || base.updatedAt || "");
+        return { checks, customItems: [...byId.values()], revision, updatedAt };
       };
       const isChecklistStateEmpty = state => {
         const model = normalizeChecklistState(state);
@@ -479,6 +529,15 @@
         try {
           localStorage.setItem(currentSpecStorageKey, JSON.stringify(serial));
         } catch (_e) { }
+      };
+      const withBumpedRevision = state => {
+        const model = normalizeChecklistState(state);
+        return {
+          checks: { ...model.checks },
+          customItems: (Array.isArray(model.customItems) ? model.customItems : []).map(it => ({ id: it.id, text: it.text })),
+          revision: Math.max(0, Number(model.revision || 0) || 0) + 1,
+          updatedAt: new Date().toISOString()
+        };
       };
       const applyChecklistStateToDom = state => {
         if (!specPanel || !state || typeof state !== "object") return;
@@ -502,6 +561,7 @@
           if (currentProjectGuid && checklistWs.readyState === WebSocket.OPEN) {
             try {
               checklistWs.send(JSON.stringify({
+                schemaVersion: CHECKLIST_SCHEMA_VERSION,
                 type: "unsubscribe",
                 checklistGuid: currentProjectGuid,
                 clientId: wsClientId
@@ -564,6 +624,7 @@
           console.info("[checklist-ws] sending subscribe", { guid: currentProjectGuid, clientId: wsClientId });
           try {
             socket.send(JSON.stringify({
+              schemaVersion: CHECKLIST_SCHEMA_VERSION,
               type: "subscribe",
               checklistGuid: currentProjectGuid,
               clientId: wsClientId
@@ -577,6 +638,8 @@
           if (checklistWs !== socket) return;
           let msg = null;
           try { msg = JSON.parse(String(e.data || "")); } catch (_e) { msg = null; }
+          const schemaVersion = Number(msg && msg.schemaVersion || 0) || 0;
+          if (schemaVersion !== CHECKLIST_SCHEMA_VERSION) return;
           const msgGuid = String((msg && (msg.checklistGuid || msg.checklist_guid)) || "").trim();
           if (!msg || typeof msg !== "object" || msgGuid !== currentProjectGuid) return;
           if (msg.type === "init_state") {
@@ -600,6 +663,7 @@
             if (!key) return;
             const state = loadChecklistState();
             state.checks[key] = !!msg.checked;
+            state.revision = Math.max(Number(state.revision || 0) || 0, Number(msg.revision || 0) || 0);
             saveChecklistState(state);
             applyChecklistStateToDom(state);
           }
@@ -633,6 +697,7 @@
       const pushCheckboxUpdateToWs = (key, checked) => {
         if (!wsReady || !currentProjectGuid || !key) return false;
         return sendWsMessage({
+          schemaVersion: CHECKLIST_SCHEMA_VERSION,
           type: "checkbox_update",
           checklistGuid: currentProjectGuid,
           checklist_guid: currentProjectGuid,
@@ -644,6 +709,7 @@
       const pushChecklistStateToWs = state => {
         if (!wsReady || !currentProjectGuid) return false;
         return sendWsMessage({
+          schemaVersion: CHECKLIST_SCHEMA_VERSION,
           type: "state_replace",
           checklistGuid: currentProjectGuid,
           checklist_guid: currentProjectGuid,
@@ -838,7 +904,7 @@
         const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
         state.customItems.push({ id, text: value });
         state.checks[`custom:${id}`] = false;
-        persistChecklistModel(state);
+        persistChecklistModel(withBumpedRevision(state));
         if (inputNode) inputNode.value = "";
         specPanel.innerHTML = markdownToHtml(lastSpecText);
         return true;
@@ -850,10 +916,11 @@
         if (!key) return;
         const state = loadChecklistState();
         state.checks[key] = !!input.checked;
-        saveChecklistState(state);
+        const nextState = withBumpedRevision(state);
+        saveChecklistState(nextState);
         const pushedToWs = pushCheckboxUpdateToWs(key, !!input.checked);
         if (currentProjectGuid && (!pushedToWs || wsUnavailable)) {
-          saveChecklistStateToServer(currentProjectGuid, serializeChecklistState(state));
+          saveChecklistStateToServer(currentProjectGuid, serializeChecklistState(nextState));
         }
       });
       specPanel.addEventListener("submit", e => {
@@ -880,7 +947,7 @@
         const state = loadChecklistState();
         state.customItems = (Array.isArray(state.customItems) ? state.customItems : []).filter(it => String(it && it.id || "") !== id);
         try { delete state.checks[`custom:${id}`]; } catch (_e) { state.checks[`custom:${id}`] = false; }
-        persistChecklistModel(state);
+        persistChecklistModel(withBumpedRevision(state));
         specPanel.innerHTML = markdownToHtml(lastSpecText);
       });
       const switchTab = next => {
@@ -912,6 +979,23 @@
       };
       tabInstall.addEventListener("click", () => switchTab("install"));
       tabSpec.addEventListener("click", () => switchTab("spec"));
+      const exportPngFromFrame = () => {
+        let d = null;
+        try { d = frame.contentDocument; } catch (_e) { d = null; }
+        if (!d) return false;
+        const btn = d.getElementById("exportPng");
+        if (!btn || typeof btn.click !== "function") return false;
+        btn.click();
+        return true;
+      };
+      if (savePngBtn) {
+        savePngBtn.addEventListener("click", () => {
+          const ok = exportPngFromFrame();
+          if (!ok) {
+            try { alert("Не удалось сохранить PNG: редактор ещё не загружен."); } catch (_e) { }
+          }
+        });
+      }
 
       const updateZoomLabel = () => {
         try {
@@ -920,10 +1004,29 @@
           const raw = z ? String(z.textContent || "").trim() : "";
           if (raw) lastZoomText = raw;
           label.textContent = lastZoomText;
+        } catch (_e) { }
+      };
+      const tryUpdateViewerTitle = () => {
+        try {
+          const d = frame.contentDocument;
           const pn = d && d.getElementById("projectName");
           const name = pn ? String(pn.value || "").trim() : "";
-          if (name != "project") document.title = name;
+          if (name && name !== "project") {
+            document.title = name;
+            return true;
+          }
         } catch (_e) { }
+        return false;
+      };
+      const scheduleViewerTitleUpdate = () => {
+        let attempts = 0;
+        const maxAttempts = 12;
+        const tick = () => {
+          attempts += 1;
+          if (tryUpdateViewerTitle()) return;
+          if (attempts < maxAttempts) window.setTimeout(tick, 250);
+        };
+        tick();
       };
 
       frame.addEventListener("load", () => {
@@ -938,6 +1041,7 @@
         boot();
         window.setTimeout(boot, 150);
         window.setTimeout(boot, 600);
+        scheduleViewerTitleUpdate();
         zoomPoll = window.setInterval(updateZoomLabel, 250);
       });
       window.addEventListener("beforeunload", () => {

@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!--<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">-->
+  <meta http-equiv="Expires" content="0">
   <title>Редактор масок LED экранов</title>
   <style>
     html,
@@ -240,6 +240,14 @@
           <summary>Настройки проекта</summary>
           <div class="field mobile-only"><label for="projectNamePanel">Название проекта</label><input
               id="projectNamePanel" type="text" value="project"></div>
+          <div class="field">
+            <label for="projectGuidPanel">GUID проекта</label>
+            <div class="input-group input-group-sm">
+              <input id="projectGuidPanel" type="text" class="form-control" disabled>
+              <button id="projectGuidRegenerate" type="button" class="btn btn-outline-secondary" title="Сгенерировать новый GUID"
+                aria-label="Сгенерировать новый GUID"><i class="fa-solid fa-dice"></i></button>
+            </div>
+          </div>
           <div class="grid2">
             <div class="field"><label for="globalTextSize">Размер текста (px)</label><input id="globalTextSize"
                 type="text" inputmode="decimal" spellcheck="false" value="32"></div>

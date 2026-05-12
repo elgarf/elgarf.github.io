@@ -53,6 +53,15 @@ export const setupUiBinders = (deps = {}) => {
   const syncProjectNameInputs = () => {
     if (el.project) el.project.value = st.projectName;
     if (el.projectNamePanel) el.projectNamePanel.value = st.projectName;
+    if (el.projectGuidPanel) el.projectGuidPanel.value = String(st.projectGuid || "");
+  };
+  const createProjectGuid = () => {
+    try {
+      if (typeof crypto !== "undefined" && crypto && typeof crypto.randomUUID === "function") {
+        return String(crypto.randomUUID());
+      }
+    } catch { /* noop */ }
+    return `pg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   };
   const applyProjectNameInput = (opts = {}) => {
     const source = opts && opts.source ? opts.source : el.project;
@@ -68,6 +77,13 @@ export const setupUiBinders = (deps = {}) => {
   bindEvent(el.project, "change", () => applyProjectNameInput({ syncProps: true, source: el.project }));
   bindEvent(el.projectNamePanel, "input", () => applyProjectNameInput({ syncProps: false, source: el.projectNamePanel }));
   bindEvent(el.projectNamePanel, "change", () => applyProjectNameInput({ syncProps: true, source: el.projectNamePanel }));
+  bindClick(el.projectGuidRegenerate, () => {
+    st.projectGuid = createProjectGuid();
+    syncProjectNameInputs();
+    syncActiveTabSnapshot();
+    syncProps();
+    schedulePersist("all");
+  });
   bindEvent(el.projectTabAdd, "click", () => createProjectTab(makeEmptyProjectData(t("Новый проект"))));
 
   if (el.themePopup) {
