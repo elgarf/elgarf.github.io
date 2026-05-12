@@ -336,11 +336,13 @@ export const setupI18n = (deps = {}) => {
       const raw = node.nodeValue;
       if (!raw || !/[А-Яа-яЁё]/.test(raw)) return;
       if (!node.parentElement || node.parentElement.closest("script,style,textarea,input")) return;
+      if (node.parentElement.closest("[data-i18n-skip]")) return;
       if (!node.__i18nSource) node.__i18nSource = raw;
       node.nodeValue = translateText(node.__i18nSource, lang);
       return;
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
+    if (node.closest("[data-i18n-skip]")) return;
     for (const attr of ATTRS) {
       const raw = node.getAttribute(attr);
       if (!raw || !/[А-Яа-яЁё]/.test(raw)) continue;

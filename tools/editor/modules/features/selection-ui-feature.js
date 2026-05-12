@@ -106,6 +106,8 @@ export const setupSelectionUiFeature = (deps = {}) => {
   });
 
   const listRects = () => {
+    const listScrollTop = el.list ? el.list.scrollTop : 0;
+    const listScrollLeft = el.list ? el.list.scrollLeft : 0;
     listCtrl.ensureListEvents();
     if (!groupToggleBound && el.list) {
       groupToggleBound = true;
@@ -165,6 +167,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
         head.className = "rect-item-head";
         const title = document.createElement("strong");
         title.className = "rect-item-title";
+        title.setAttribute("data-i18n-skip", "1");
         const lockBtn = document.createElement("button");
         lockBtn.type = "button";
         lockBtn.className = "btn btn-outline-secondary btn-sm rect-item-lock";
@@ -202,6 +205,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
         node.style.background = baseColor;
         node.style.borderColor = baseColor;
         node.style.color = textColor;
+        node.style.setProperty("--rect-active-outline", textColor);
         if (node._meta) node._meta.style.setProperty("color", textColor, "important");
         if (node._lock) {
           node._lock.style.color = textColor;
@@ -212,6 +216,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
         node.style.background = "";
         node.style.borderColor = "";
         node.style.color = "";
+        node.style.removeProperty("--rect-active-outline");
         if (node._meta) node._meta.style.removeProperty("color");
         if (node._lock) {
           node._lock.style.color = "";
@@ -233,6 +238,10 @@ export const setupSelectionUiFeature = (deps = {}) => {
     appendGroup("devices", t("Устройства"), deviceNodes);
     appendGroup("screens", t("Экраны"), screenNodes);
     el.list.replaceChildren(fragment);
+    if (el.list) {
+      el.list.scrollTop = listScrollTop;
+      el.list.scrollLeft = listScrollLeft;
+    }
   };
 
   return {

@@ -144,7 +144,8 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
       if (rowData.group) {
         const name = document.createElement("span");
         name.className = "install-summary-group-name";
-        name.textContent = t(rowData.group.name);
+        name.setAttribute("data-i18n-skip", "1");
+        name.textContent = rowData.group.name;
         row.appendChild(name);
         row.appendChild(document.createTextNode(groupLineRest(rowData.group)));
         for (const item of Array.isArray(rowData.group.cabinetAreaItems) ? rowData.group.cabinetAreaItems : []) {
