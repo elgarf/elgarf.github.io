@@ -1,5 +1,16 @@
-#!/usr/bin/env sh
-set -e
+#!/usr/bin/env node
+const { spawnSync } = require('child_process');
 
-node ./scripts/generate-asset-manifest.js
-git add tools/asset-manifest.json
+const run = (cmd, args) => {
+  const res = spawnSync(cmd, args, { stdio: 'inherit', shell: false });
+  if (res.error) {
+    console.error(`[pre-commit] failed to start: ${cmd}`, res.error.message || res.error);
+    process.exit(1);
+  }
+  if (res.status !== 0) {
+    process.exit(res.status || 1);
+  }
+};
+
+run('node', ['./scripts/generate-asset-manifest.js']);
+run('git', ['add', 'tools/asset-manifest.json']);

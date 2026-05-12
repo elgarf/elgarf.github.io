@@ -20,6 +20,28 @@ export const setupRegionsFlowController = (deps = {}) => {
     updateSplitVariantControl,
     flowDist
   } = deps;
+  const INTERACTIVE_CALC_THROTTLE_MS = 120;
+  const isInteractiveCalcPhase = () => !!(
+    st && (
+      st.pan ||
+      st.drag ||
+      st.draft ||
+      st.clusterDrag ||
+      st.flowDrag ||
+      st.manualFlowDrag ||
+      st.cellKnifeDrag ||
+      st.flowLinkDrag ||
+      st.flowCurveDrag
+    )
+  );
+  const canRunHeavyCalcNow = cache => {
+    if (!isInteractiveCalcPhase()) return true;
+    const now = Date.now();
+    const nextAt = Math.max(0, Number(cache && cache._nextHeavyCalcAt) || 0);
+    if (now < nextAt) return false;
+    if (cache && typeof cache === "object") cache._nextHeavyCalcAt = now + INTERACTIVE_CALC_THROTTLE_MS;
+    return true;
+  };
 
   const applySplitVariantLimitFromRegions = (r, regions) => {
     if (!r) return;
@@ -42,8 +64,16 @@ export const setupRegionsFlowController = (deps = {}) => {
     }
     return { flowCount: list.length, totalFlowLen: Math.round(total * 100) / 100 };
   };
+  const calcDebugEnabled = () => {
+    try {
+      return !!(globalThis && globalThis.__LEDMASK_CALC_DEBUG);
+    } catch {
+      return false;
+    }
+  };
 
   const logFlowCalcSummary = (rectId, key, groups, extra) => {
+    if (!calcDebugEnabled()) return;
     try {
       const stats = flowGroupsStats(groups);
       const dbg = [];
@@ -61,6 +91,10 @@ export const setupRegionsFlowController = (deps = {}) => {
       syncFlowLocksWithRegions(r, cache.regions.value, topo);
       return cache.regions.value;
     }
+    if (!canRunHeavyCalcNow(cache) && cache.regions && cache.regions.value) {
+      syncFlowLocksWithRegions(r, cache.regions.value, topo);
+      return cache.regions.value;
+    }
     const manualRegionsActive = Array.isArray(r && r.manualClusters) && r.manualClusters.length > 0;
     if (manualRegionsActive) {
       try {
@@ -71,6 +105,7 @@ export const setupRegionsFlowController = (deps = {}) => {
         cache.regions = { key, value, pending: false };
         syncFlowLocksWithRegions(r, value, topo);
         if (cache.flow && cache.flow.regionKey !== key) cache.flow = null;
+        if (cache.flowOpts && cache.flowOpts.regionKey !== key) cache.flowOpts = null;
         return value;
       } catch {
         // fallback to async path below
@@ -81,36 +116,50 @@ export const setupRegionsFlowController = (deps = {}) => {
     cache.regions = { key, value, pending: true };
     syncFlowLocksWithRegions(r, value, topo);
     if (cache.flow && cache.flow.regionKey !== key) cache.flow = null;
+    if (cache.flowOpts && cache.flowOpts.regionKey !== key) cache.flowOpts = null;
     scheduleRegionCalcWorker(r, key, cx, cy, topo, hs);
     return value;
   };
 
   const getDataFlowGroups = (r, cx, cy, topo, hs, regions, opts = null) => {
+    const cache = getRectCalcCache(r);
+    const regionKey = (regions && regions._calcKey) || "";
+    const key = flowCalcKey(r, cx, cy, topo, regions);
     const o = (opts && typeof opts === "object") ? opts : {};
     if (regions && regions._timedOut) {
       markCalcMetric("flow", 0, true);
       return [];
     }
     if (Object.keys(o).length) {
+      const optKey = `${key}|ignoreManualOrder:${o.ignoreManualOrder ? 1 : 0}`;
+      if (cache.flowOpts && cache.flowOpts.key === optKey) return cache.flowOpts.value;
+      if (!canRunHeavyCalcNow(cache)) {
+        if (cache.flowOpts && cache.flowOpts.regionKey === regionKey) return cache.flowOpts.value;
+        if (cache.flow && cache.flow.regionKey === regionKey) return cache.flow.value;
+        return [];
+      }
       try {
         const budget = makeCalcBudget();
         budget.deadline = calcNow() + FLOW_WORKER_TIMEOUT_MS;
         const value = getDataFlowGroupsUncached(r, cx, cy, topo, hs, regions, budget, o);
-        return Array.isArray(value) ? value : [];
+        const out = Array.isArray(value) ? value : [];
+        cache.flowOpts = { key: optKey, regionKey, value: out };
+        return out;
       } catch {
+        cache.flowOpts = { key: optKey, regionKey, value: [] };
         return [];
       }
     }
     const manualRegionsActive = Array.isArray(r && r.manualClusters) && r.manualClusters.length > 0;
-    const cache = getRectCalcCache(r);
-    const regionKey = (regions && regions._calcKey) || "";
     if (cache.regions && cache.regions.key === regionKey && cache.regions.pending) {
       if (cache.flow && cache.flow.key === flowCalcKey(r, cx, cy, topo, regions)) return cache.flow.value;
       return [];
     }
-    const key = flowCalcKey(r, cx, cy, topo, regions);
     if (cache.flow && cache.flow.key === key) return cache.flow.value;
     const staleFlow = (cache.flow && Array.isArray(cache.flow.value)) ? cache.flow.value : null;
+    if (!canRunHeavyCalcNow(cache)) {
+      return staleFlow || [];
+    }
     if (manualRegionsActive) {
       try {
         const budget = makeCalcBudget();
@@ -121,10 +170,10 @@ export const setupRegionsFlowController = (deps = {}) => {
         markCalcMetric("flow", 0, timedOut);
         logFlowCalcSummary(r && r.id || 0, key, cache.flow.value, { source: "main-manual", timedOut: !!timedOut, elapsed: 0 });
         return cache.flow.value;
-      } catch {
+      } catch (err) {
         cache.flow = { key, regionKey, value: [], pending: false };
         markCalcMetric("flow", 0, true);
-        logFlowCalcSummary(r && r.id || 0, key, cache.flow.value, { source: "main-manual-error", timedOut: true, elapsed: 0, error: _e && _e.message || String(_e) });
+        logFlowCalcSummary(r && r.id || 0, key, cache.flow.value, { source: "main-manual-error", timedOut: true, elapsed: 0, error: err && err.message || String(err) });
         return [];
       }
     }

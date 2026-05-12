@@ -31,6 +31,42 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
   let flowCalcWorker = null;
   let flowCalcReqSeq = 1;
   const flowCalcPending = new Map();
+  const resolveWorkerBootUrl = () => {
+    const base = String(CALC_WORKER_BOOT_URL || "");
+    if (!base) return base;
+    try {
+      const u = new URL(base, (typeof location !== "undefined" ? location.href : undefined));
+      let v = "";
+      try {
+        v = String((globalThis && globalThis.__LEDMASK_ASSET_VERSION) || "").trim();
+      } catch { /* noop */ }
+      if (!v) {
+        try {
+          const p = new URLSearchParams((typeof location !== "undefined" && location.search) || "");
+          v = String(p.get("v") || "").trim();
+        } catch { /* noop */ }
+      }
+      if (v) u.searchParams.set("v", v);
+      return u.toString();
+    } catch {
+      return base;
+    }
+  };
+  const calcDebugEnabled = () => {
+    try {
+      return !!(globalThis && globalThis.__LEDMASK_CALC_DEBUG);
+    } catch {
+      return false;
+    }
+  };
+  const debugInfo = (...args) => {
+    if (!calcDebugEnabled()) return;
+    try { console.info(...args); } catch { /* noop */ }
+  };
+  const debugWarn = (...args) => {
+    if (!calcDebugEnabled()) return;
+    try { console.warn(...args); } catch { /* noop */ }
+  };
 
   const makeRegionValue = (rr, key, cx, cy, topo, hs, timedOut = false) => {
     let value = buildSingleRegionPlan(rr, cx, cy, topo, hs);
@@ -95,18 +131,32 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
   });
 
   const ensureCalcWorker = (kind) => {
-    if (kind === "regions") {
+      if (kind === "regions") {
       if (regionCalcWorker) return regionCalcWorker;
       try {
-        regionCalcWorker = new Worker(CALC_WORKER_BOOT_URL);
+        regionCalcWorker = new Worker(resolveWorkerBootUrl());
         regionCalcWorker.postMessage({ kind: "boot", script: calcWorkerScript });
       } catch (err) {
-        try { console.warn("[calc-worker:regions] create failed", err); } catch { /* noop */ }
+        debugWarn("[calc-worker:regions] create failed", err);
         regionCalcWorker = null;
         return null;
       }
       regionCalcWorker.onmessage = e => {
         const d = e && e.data ? e.data : {};
+        if (d && d.kind === "boot-error") {
+          debugWarn("[calc-worker:regions] boot-error", d && d.error);
+          for (const req of regionCalcPending.values()) {
+            if (req.timer) clearTimeout(req.timer);
+          }
+          regionCalcPending.clear();
+          try { regionCalcWorker.terminate(); } catch { /* noop */ }
+          regionCalcWorker = null;
+          return;
+        }
+        if (d && d.kind === "booted") {
+          debugInfo("[calc-worker:regions] booted");
+          return;
+        }
         if (isWorkerBootMessage(d)) return;
         if (d.kind !== "regions") return;
         const req = regionCalcPending.get(d.reqId);
@@ -125,13 +175,13 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
             budget.deadline = calcNow() + REGION_WORKER_TIMEOUT_MS;
             value = planNumberRegionsUncached(rr, req.cx, req.cy, req.topo, req.hs, budget);
             timedOut = !!(budget && budget.timedOut) || !!(value && value._timedOut);
-            console.warn("[calc-worker:regions] fallback to main thread");
-          } catch {
-            value = null;
-            timedOut = true;
-            console.warn("[calc-worker:regions] worker/local failed", _e);
-          }
+            debugWarn("[calc-worker:regions] fallback to main thread");
+        } catch (err) {
+          value = null;
+          timedOut = true;
+          debugWarn("[calc-worker:regions] worker/local failed", err);
         }
+      }
         if (timedOut) {
           value = makeRegionValue(rr, req.key, req.cx, req.cy, req.topo, req.hs, true);
         }
@@ -139,17 +189,17 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
           safeDefine(value, "_calcKey", req.key);
           const p = value && value._profile;
           if (p && typeof p === "object" && Number(p.totalMs) > 500) {
-            try { console.info("[regions-profile]", { rectId: req.rectId, key: req.key, ...p }); } catch { /* noop */ }
+            debugInfo("[regions-profile]", { rectId: req.rectId, key: req.key, ...p });
           }
         }
         applyRegionValue(rr, cache, value, req.topo, Math.max(0, Number(d && d.elapsed) || 0), timedOut);
         if (timedOut) {
-          try { console.warn("[regions-timeout] worker returned timedOut", { rectId: req.rectId, key: req.key, elapsed: d && d.elapsed }); } catch { /* noop */ }
+          debugWarn("[regions-timeout] worker returned timedOut", { rectId: req.rectId, key: req.key, elapsed: d && d.elapsed });
         }
         render();
       };
       regionCalcWorker.onerror = (err) => {
-        try { console.warn("[calc-worker:regions] worker error", err); } catch { /* noop */ }
+        debugWarn("[calc-worker:regions] worker error", err);
         for (const req of regionCalcPending.values()) {
           if (req.timer) clearTimeout(req.timer);
           const rr = getRectById(req.rectId);
@@ -169,15 +219,26 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
     }
     if (flowCalcWorker) return flowCalcWorker;
     try {
-      flowCalcWorker = new Worker(CALC_WORKER_BOOT_URL);
+      flowCalcWorker = new Worker(resolveWorkerBootUrl());
       flowCalcWorker.postMessage({ kind: "boot", script: calcWorkerScript });
     } catch (err) {
-      try { console.warn("[calc-worker:flow] create failed", err); } catch { /* noop */ }
+      debugWarn("[calc-worker:flow] create failed", err);
       flowCalcWorker = null;
       return null;
     }
     flowCalcWorker.onmessage = e => {
       const d = e && e.data ? e.data : {};
+      if (d && d.kind === "boot-error") {
+        debugWarn("[calc-worker:flow] boot-error", d && d.error);
+        flowCalcPending.clear();
+        try { flowCalcWorker.terminate(); } catch { /* noop */ }
+        flowCalcWorker = null;
+        return;
+      }
+      if (d && d.kind === "booted") {
+        debugInfo("[calc-worker:flow] booted");
+        return;
+      }
       if (isWorkerBootMessage(d)) return;
       if (d.kind !== "flow") return;
       const req = flowCalcPending.get(d.reqId);
@@ -196,11 +257,11 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
           const hs = req.hs || new Set();
           value = getDataFlowGroupsUncached(rr, req.cx, req.cy, req.topo, hs, req.regions, budget);
           timedOut = !!(budget && budget.timedOut) || !Array.isArray(value);
-          console.warn("[calc-worker:flow] fallback to main thread");
-        } catch {
+          debugWarn("[calc-worker:flow] fallback to main thread");
+        } catch (err) {
           value = null;
           timedOut = true;
-          console.warn("[calc-worker:flow] worker/local failed", _e);
+          debugWarn("[calc-worker:flow] worker/local failed", err);
         }
       }
       applyFlowCacheResult(cache, req.key, value, Math.max(0, Number(d && d.elapsed) || 0), timedOut, {
@@ -210,7 +271,7 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
       render();
     };
     flowCalcWorker.onerror = (err) => {
-      try { console.warn("[calc-worker:flow] worker error", err); } catch { /* noop */ }
+      debugWarn("[calc-worker:flow] worker error", err);
       for (const req of flowCalcPending.values()) {
         const rr = getRectById(req.rectId);
         if (!rr) continue;
@@ -281,17 +342,17 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
         if (timedOut) value = makeRegionValue(rr, key, cx, cy, topo, hs, true);
         safeDefine(value, "_calcKey", key);
         applyRegionValue(rr, cache, value, topo, REGION_WORKER_TIMEOUT_MS, true);
-        try { console.warn("[regions-watchdog] fallback to local", { rectId, key }); } catch { /* noop */ }
+        debugWarn("[regions-watchdog] fallback to local", { rectId, key });
         render();
       } catch (e) {
         const value = makeRegionValue(rr, key, cx, cy, topo, hs, true);
         applyRegionValue(rr, cache, value, topo, REGION_WORKER_TIMEOUT_MS, true);
-        try { console.warn("[regions-watchdog] local failed", { rectId, key, error: e && e.message || String(e) }); } catch { /* noop */ }
+        debugWarn("[regions-watchdog] local failed", { rectId, key, error: e && e.message || String(e) });
         render();
       }
     }, REGION_WORKER_TIMEOUT_MS + 5000);
     regionCalcPending.set(reqId, { rectId, key, cx, cy, topo, hs, timer });
-    try { console.info("[regions-worker] scheduled", { rectId, key }); } catch { /* noop */ }
+    debugInfo("[regions-worker] scheduled", { rectId, key });
     worker.postMessage(buildWorkerMessage("regions", reqId, buildRegionWorkerPayload(r, cx, cy, topo, hs)));
   };
 
@@ -314,10 +375,10 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
           extra: { source: "main", timedOut: !!timedOut, elapsed: 0 }
         });
         render();
-      } catch {
+      } catch (err) {
         applyFlowCacheResult(cache, key, [], 0, true, {
           rectId,
-          extra: { source: "main-error", timedOut: true, elapsed: 0, error: _e && _e.message || String(_e) }
+          extra: { source: "main-error", timedOut: true, elapsed: 0, error: err && err.message || String(err) }
         });
         render();
       }
