@@ -8,6 +8,23 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Редактор масок LED экранов</title>
+  <script>
+    (() => {
+      const q = new URLSearchParams(location.search || "");
+      const v = String(q.get("v") || Math.floor(Date.now() / 1000));
+      const addVersionToUrl = raw => {
+        try {
+          const u = new URL(String(raw || ""), location.href);
+          u.searchParams.set("v", v);
+          return u.toString();
+        } catch (_e) {
+          return String(raw || "");
+        }
+      };
+      window.__LEDMASK_ASSET_VERSION = v;
+      window.__ledMaskVersionedUrl = addVersionToUrl;
+    })();
+  </script>
   <style>
     html,
     body {
@@ -53,11 +70,21 @@
       }
     }
   </style>
-  <link rel="stylesheet" href="./vendor/bootstrap/bootstrap.min.css">
-  <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
-  <link rel="stylesheet" href="./vendor/fonts/roboto/roboto.css">
-  <link rel="stylesheet" href="./vendor/easymde/easymde.min.css">
-  <link rel="stylesheet" href="./editor/styles.css">
+  <script>
+    (() => {
+      const appendStyle = href => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = window.__ledMaskVersionedUrl(href);
+        document.head.appendChild(link);
+      };
+      appendStyle("./vendor/bootstrap/bootstrap.min.css");
+      appendStyle("./vendor/fontawesome/css/all.min.css");
+      appendStyle("./vendor/fonts/roboto/roboto.css");
+      appendStyle("./vendor/easymde/easymde.min.css");
+      appendStyle("./editor/styles.css");
+    })();
+  </script>
 </head>
 
 <body>
@@ -730,11 +757,40 @@
       <i class="fa-solid fa-palette" aria-hidden="true"></i>
     </button>
   </div>
-  <script src="./vendor/bootstrap/bootstrap.bundle.min.js"></script>
-  <script src="./vendor/qrcode-generator/qrcode.js"></script>
-  <script src="./vendor/easymde/easymde.min.js"></script>
-  <script type="module">
-    import(`./editor/main.js`);//?fresh=${Date.now()}
+  <script>
+    (() => {
+      const loadScript = src => new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = window.__ledMaskVersionedUrl(src);
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error(`Script load failed: ${src}`));
+        document.body.appendChild(s);
+      });
+      loadScript("./vendor/bootstrap/bootstrap.bundle.min.js")
+        .then(() => loadScript("./vendor/qrcode-generator/qrcode.js"))
+        .then(() => loadScript("./vendor/easymde/easymde.min.js"))
+        .catch(err => console.error("[assets]", err));
+    })();
+  </script>
+  <script>
+    (() => {
+      const importMain = () => import("./editor/main.js");
+      const manifestUrl = window.__ledMaskVersionedUrl("./asset-manifest.json");
+      fetch(manifestUrl, { cache: "no-store" })
+        .then(r => (r && r.ok ? r.json() : null))
+        .then(manifest => {
+          if (!manifest || typeof manifest !== "object" || !manifest.imports || typeof manifest.imports !== "object") {
+            return importMain();
+          }
+          const mapNode = document.createElement("script");
+          mapNode.type = "importmap";
+          mapNode.textContent = JSON.stringify({ imports: manifest.imports });
+          document.currentScript.parentNode.insertBefore(mapNode, document.currentScript);
+          return importMain();
+        })
+        .catch(() => importMain())
+        .catch(err => console.error("[module-loader]", err));
+    })();
   </script>
 </body>
 

@@ -7,7 +7,31 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>LED Mask Viewer</title>
-  <link rel="stylesheet" href="./vendor/bootstrap/bootstrap.min.css">
+  <script>
+    (() => {
+      const q = new URLSearchParams(location.search || "");
+      const v = String(q.get("v") || Math.floor(Date.now() / 1000));
+      const addVersionToUrl = raw => {
+        try {
+          const u = new URL(String(raw || ""), location.href);
+          u.searchParams.set("v", v);
+          return u.toString();
+        } catch (_e) {
+          return String(raw || "");
+        }
+      };
+      window.__LEDMASK_ASSET_VERSION = v;
+      window.__ledMaskVersionedUrl = addVersionToUrl;
+    })();
+  </script>
+  <script>
+    (() => {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = window.__ledMaskVersionedUrl("./vendor/bootstrap/bootstrap.min.css");
+      document.head.appendChild(link);
+    })();
+  </script>
   <style>
     :root {
       color-scheme: dark;
@@ -31,7 +55,7 @@
       display: flex;
       align-items: flex-end;
       gap: 8px;
-      padding: 8px 10px 0;
+      padding: 8px 8px 0;
       border-bottom: 1px solid var(--bs-border-color);
       background: var(--bs-body-bg);
       overflow-x: auto;
@@ -65,19 +89,21 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 34px;
-      height: 34px;
-      border: 1px solid rgba(255, 255, 255, .2);
+      width: 36px;
+      height: 36px;
+      padding: 8px;
+      border: 1px solid transparent;
       border-radius: 8px;
-      background: rgba(255, 255, 255, .06);
-      color: rgba(255, 255, 255, .92);
+      background: var(--bs-primary);
+      color: #fff;
       cursor: pointer;
       flex: 0 0 auto;
-      margin-bottom: 4px;
+      margin: -2px -2px 4px 0;
+      align-self: flex-end;
     }
     .viewer-export-btn:hover {
-      background: rgba(255, 255, 255, .12);
-      border-color: rgba(255, 255, 255, .35);
+      background: var(--bs-primary-text-emphasis);
+      color: #fff;
     }
     .viewer-export-btn svg {
       width: 16px;
@@ -283,7 +309,7 @@
         </li>
       </ul>
       <div class="viewer-tabs-spacer" aria-hidden="true"></div>
-      <button id="savePngBtn" class="viewer-export-btn" type="button" title="Сохранить PNG" aria-label="Сохранить PNG">
+      <button id="savePngBtn" class="btn btn-primary viewer-export-btn" type="button" title="Сохранить PNG" aria-label="Сохранить PNG">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 3h11l3 3v15H5V3z" stroke="currentColor" stroke-width="1.8" />
           <path d="M8 3v6h8V3" stroke="currentColor" stroke-width="1.8" />
@@ -336,7 +362,7 @@
       };
       const checklistWsUrl = resolveChecklistWsUrl();
       //if (pid) document.title = `LED Mask Viewer #${pid}`;
-      const src = new URL("./LEDMaskEditor.html", location.href);
+      const src = new URL(window.__ledMaskVersionedUrl("./LEDMaskEditor.html"), location.href);
       src.searchParams.set("viewer", "1");
       if (pid) src.searchParams.set("projectid", pid);
       if (packedProject) src.searchParams.set("project", packedProject);

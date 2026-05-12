@@ -12,8 +12,8 @@ $modeRaw = strtolower(trim((string)($_GET['mode'] ?? "viewer")));
 $mode = $modeRaw === "editor" ? "editor" : "viewer";
 
 $projectStoreApiUrl = "https://static.93.189.179.185.ip.webhost1.net/project_store.php";
-$viewerBaseUrl = "https://elgarf.github.io/tools/LedMaskViewer.html";
-$editorBaseUrl = "https://elgarf.github.io/tools/LEDMaskEditor.html";
+$viewerBaseUrl = "https://elgarf.github.io/tools/viewer.php";
+$editorBaseUrl = "https://elgarf.github.io/tools/index.php";
 $shareBaseUrl = "https://static.93.189.179.185.ip.webhost1.net/share.php";
 $ogImageUrl = "https://static.93.189.179.185.ip.webhost1.net/og-default.jpg";
 

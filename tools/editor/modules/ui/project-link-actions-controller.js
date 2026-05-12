@@ -16,6 +16,56 @@ export const setupProjectLinkActionsController = (deps = {}) => {
 
   let currentProjectShareLink = "";
 
+  const parseShareOriginOverride = rawValue => {
+    const raw = String(rawValue || "").trim();
+    if (!raw) return null;
+    const withScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw) ? raw : `https://${raw}`;
+    try {
+      const parsed = new URL(withScheme);
+      const hostInput = withScheme.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, "").split("/")[0].trim();
+      if (!parsed.hostname || !hostInput) return null;
+      const hostForDisplay = (() => {
+        const normalized = hostInput.toLowerCase();
+        if (normalized === "xn--80aakd1abmpcmfoi.xn--p1ai") return "редактормасок.рф";
+        return hostInput;
+      })();
+      const displayOrigin = `${parsed.protocol}//${hostForDisplay}`.replace(/\/+$/, "");
+      const asciiOrigin = `${parsed.protocol}//${parsed.host}`;
+      return { displayOrigin, asciiOrigin };
+    } catch {
+      return null;
+    }
+  };
+
+  const getShareOriginOverride = () => {
+    const fromGlobal = typeof window !== "undefined" && typeof window.LED_MASK_SHARE_ORIGIN === "string"
+      ? window.LED_MASK_SHARE_ORIGIN
+      : "";
+    return parseShareOriginOverride(fromGlobal)
+      || parseShareOriginOverride((typeof location !== "undefined" && location.origin) ? String(location.origin) : "");
+  };
+
+  const resolveHostMode = () => {
+    const host = String((typeof location !== "undefined" && location.hostname) || "").toLowerCase();
+    if (host === "127.0.0.1" || host === "localhost") return "local";
+    if (host === "elgarf.github.io") return "github";
+    return "other";
+  };
+
+  const resolveShareTarget = viewerOnly => {
+    const mode = resolveHostMode();
+    if (mode === "local" || mode === "github") {
+      return {
+        path: viewerOnly ? "/tools/LedMaskViewer.html" : "/tools/LEDMaskEditor.html",
+        idParam: "projectid"
+      };
+    }
+    return {
+      path: viewerOnly ? "/viewer.php" : "/index.php",
+      idParam: "id"
+    };
+  };
+
   const setProjectLinkCopyButtonState = (text, copied = false, disabled = false) => {
     if (!el || !el.projectLinkCopyBtn) return;
     const label = el.projectLinkCopyBtn.querySelector("span");
@@ -86,23 +136,28 @@ export const setupProjectLinkActionsController = (deps = {}) => {
     await withUiErrorBoundary("Ссылка проекта", async () => {
       const viewerOnly = !(el && el.projectLinkViewerOnly) || !!el.projectLinkViewerOnly.checked;
       const value = await encodeProjectToQueryValue(buildPortableProject());
-      const url = new URL(viewerOnly ? "./LedMaskViewer.html" : "./LEDMaskEditor.html", location.href);
+      const target = resolveShareTarget(viewerOnly);
+      const originOverride = getShareOriginOverride();
+      const url = new URL(target.path, originOverride ? `${originOverride.asciiOrigin}/` : location.href);
       let usedServerId = 0;
       try { usedServerId = await saveProjectToServer(getProjectName(), value, getProjectGuid()); } catch { usedServerId = 0; }
       if (usedServerId > 0) {
         url.searchParams.delete(PROJECT_QUERY_PARAM);
-        if (viewerOnly) {
-          url.searchParams.delete(PROJECT_ID_PARAM);
-          url.searchParams.set("projectId", String(usedServerId));
-        } else {
-          url.searchParams.set(PROJECT_ID_PARAM, String(usedServerId));
-        }
+        url.searchParams.delete("id");
+        url.searchParams.delete("projectId");
+        url.searchParams.delete("projectid");
+        url.searchParams.delete(PROJECT_ID_PARAM);
+        url.searchParams.set(target.idParam, String(usedServerId));
       } else {
         url.searchParams.set(PROJECT_QUERY_PARAM, value);
         url.searchParams.delete(PROJECT_ID_PARAM);
         url.searchParams.delete("projectId");
+        url.searchParams.delete("projectid");
+        url.searchParams.delete("id");
       }
-      const link = url.toString();
+      const link = originOverride
+        ? `${originOverride.displayOrigin}${url.pathname}${url.search}${url.hash}`
+        : url.toString();
       currentProjectShareLink = link;
       setProjectLinkCopyButtonState("Скопировать ссылку", false, false);
       showProjectLinkModal(link, { loading: false });
@@ -142,5 +197,3 @@ export const setupProjectLinkActionsController = (deps = {}) => {
     bindProjectLinkHandlers
   };
 };
-
-

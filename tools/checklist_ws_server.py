@@ -15,6 +15,8 @@ from urllib import request as urlrequest
 from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
+SCHEMA_VERSION = 1
+
 
 @dataclass
 class ClientContext:
@@ -34,6 +36,8 @@ LOG = logging.getLogger("checklist-ws")
 
 
 async def send_json(ws: ServerConnection, payload: dict[str, Any]) -> None:
+    if "schemaVersion" not in payload:
+        payload["schemaVersion"] = SCHEMA_VERSION
     await ws.send(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 
 
@@ -46,6 +50,8 @@ async def broadcast_except(
     if not subscribers:
         return
 
+    if "schemaVersion" not in payload:
+        payload["schemaVersion"] = SCHEMA_VERSION
     encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     stale: list[ServerConnection] = []
     for ws in subscribers:
@@ -93,6 +99,9 @@ def _http_post_json(url: str, payload: dict[str, Any], timeout_sec: float = 8.0)
 
 def normalize_checklist_state(raw: Any) -> dict[str, Any]:
     parsed = raw if isinstance(raw, dict) else {}
+    meta_raw = parsed.get("__meta") if isinstance(parsed.get("__meta"), dict) else {}
+    revision = max(0, int(meta_raw.get("revision", 0) or 0))
+    updated_at = str(meta_raw.get("updatedAt", "") or "").strip()
     def _collect_checks(map_obj: Any) -> dict[str, bool]:
         out: dict[str, bool] = {}
         if not isinstance(map_obj, dict):
@@ -118,6 +127,7 @@ def normalize_checklist_state(raw: Any) -> dict[str, Any]:
                 for it in custom_items
                 if isinstance(it, dict) and str(it.get("id", "")).strip() and str(it.get("text", "")).strip()
             ],
+            "__meta": {"revision": revision, "updatedAt": updated_at},
         }
     # Legacy flat format: key -> bool
     if "checks" in parsed and isinstance(parsed.get("checks"), dict):
@@ -128,8 +138,30 @@ def normalize_checklist_state(raw: Any) -> dict[str, Any]:
                 for it in (parsed.get("customItems") if isinstance(parsed.get("customItems"), list) else [])
                 if isinstance(it, dict) and str(it.get("id", "")).strip() and str(it.get("text", "")).strip()
             ],
+            "__meta": {"revision": revision, "updatedAt": updated_at},
         }
-    return _collect_checks(parsed)
+    return {"__checks": _collect_checks(parsed), "__customItems": [], "__meta": {"revision": revision, "updatedAt": updated_at}}
+
+
+def get_state_revision(state: dict[str, Any]) -> int:
+    meta = state.get("__meta")
+    if not isinstance(meta, dict):
+        return 0
+    try:
+        return max(0, int(meta.get("revision", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def bump_state_revision(state: dict[str, Any]) -> dict[str, Any]:
+    from datetime import datetime, timezone
+
+    normalized = normalize_checklist_state(state)
+    normalized["__meta"] = {
+        "revision": get_state_revision(normalized) + 1,
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+    return normalized
 
 
 async def load_checklist_state_from_store(checklist_guid: str) -> dict[str, Any] | None:
@@ -225,16 +257,19 @@ async def handle_checkbox_update(
     checked: bool,
     client_id: str,
 ) -> None:
+    updated_state: dict[str, Any]
     async with STATE_LOCK:
         if ws not in SUBSCRIBERS[checklist_guid]:
             SUBSCRIBERS[checklist_guid].add(ws)
             CONTEXT_BY_SOCKET[ws] = ClientContext(ws=ws, checklist_guid=checklist_guid, client_id=client_id)
-        current = CHECKLIST_STATE.get(checklist_guid, {})
-        if isinstance(current.get("__checks"), dict):
-            current["__checks"][key] = checked
-            CHECKLIST_STATE[checklist_guid] = current
-        else:
-            CHECKLIST_STATE[checklist_guid][key] = checked
+        current = normalize_checklist_state(CHECKLIST_STATE.get(checklist_guid, {}))
+        checks = current.get("__checks")
+        if not isinstance(checks, dict):
+            checks = {}
+            current["__checks"] = checks
+        checks[key] = checked
+        updated_state = bump_state_revision(current)
+        CHECKLIST_STATE[checklist_guid] = updated_state
     await schedule_persist(checklist_guid)
 
     await broadcast_except(
@@ -245,6 +280,7 @@ async def handle_checkbox_update(
             "key": key,
             "checked": checked,
             "clientId": client_id,
+            "revision": get_state_revision(updated_state),
         },
         sender=ws,
     )
@@ -257,11 +293,30 @@ async def handle_state_replace(
     client_id: str,
 ) -> None:
     normalized = normalize_checklist_state(state)
+    incoming_revision = get_state_revision(normalized)
+    accepted = False
+    current_revision = 0
     async with STATE_LOCK:
         if ws not in SUBSCRIBERS[checklist_guid]:
             SUBSCRIBERS[checklist_guid].add(ws)
             CONTEXT_BY_SOCKET[ws] = ClientContext(ws=ws, checklist_guid=checklist_guid, client_id=client_id)
-        CHECKLIST_STATE[checklist_guid] = normalized
+        current = normalize_checklist_state(CHECKLIST_STATE.get(checklist_guid, {}))
+        current_revision = get_state_revision(current)
+        if incoming_revision > current_revision:
+            CHECKLIST_STATE[checklist_guid] = normalized
+            accepted = True
+    if not accepted:
+        await send_json(
+            ws,
+            {
+                "type": "state_rejected",
+                "checklistGuid": checklist_guid,
+                "reason": "stale_revision",
+                "currentRevision": current_revision,
+                "incomingRevision": incoming_revision,
+            },
+        )
+        return
     await schedule_persist(checklist_guid)
     await broadcast_except(
         checklist_guid,
@@ -270,6 +325,7 @@ async def handle_state_replace(
             "checklistGuid": checklist_guid,
             "state": normalized,
             "clientId": client_id,
+            "revision": incoming_revision,
         },
         sender=ws,
     )
@@ -291,8 +347,13 @@ async def handle_message(ws: ServerConnection, raw_message: str) -> None:
         return
 
     message_type = as_non_empty_str(payload.get("type"))
+    schema_version = int(payload.get("schemaVersion", 0) or 0)
     checklist_guid = as_non_empty_str(payload.get("checklistGuid"))
     client_id = as_non_empty_str(payload.get("clientId")) or "anon"
+
+    if schema_version != SCHEMA_VERSION:
+        await send_json(ws, {"type": "error", "message": f"Unsupported schemaVersion: {schema_version}"})
+        return
 
     if not checklist_guid:
         await send_json(ws, {"type": "error", "message": "Missing checklistGuid"})
@@ -396,6 +457,7 @@ async def run_server(host: str, port: int, certfile: str | None = None, keyfile:
         "http://127.0.0.1:8000",
         "http://localhost:8080",
         "http://127.0.0.1:8080",
+        "https://xn--80aakd1abmpcmfoi.xn--p1ai",
     ], compression=None):
         scheme = "wss" if ssl_ctx is not None else "ws"
         print(f"Checklist WS server started on {scheme}://{host}:{port}")

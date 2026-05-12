@@ -5,15 +5,17 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=admin
-Group=admin
+User=root
+Group=root
 WorkingDirectory=/home/admin/web/static.93.189.179.185.ip.webhost1.net/public_html
 EnvironmentFile=/etc/default/led-checklist-ws
-ExecStart=/usr/bin/python3 /home/admin/web/static.93.189.179.185.ip.webhost1.net/public_html/checklist_ws_server.py --host ${WS_HOST} --port ${WS_PORT} --project-store-url ${PROJECT_STORE_URL} --save-debounce-ms ${SAVE_DEBOUNCE_MS}
+ExecStart=/usr/bin/python3 /home/admin/web/static.93.189.179.185.ip.webhost1.net/public_html/checklist_ws_server.py --host ${HOST} --port ${PORT} --project-store-url ${PROJECT_STORE_URL} --save-debounce-ms ${SAVE_DEBOUNCE_MS} --certfile ${CERTFILE} --keyfile ${KEYFILE}
 Restart=always
-RestartSec=3
+RestartSec=2
 NoNewPrivileges=true
 PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
 
 [Install]
 WantedBy=multi-user.target

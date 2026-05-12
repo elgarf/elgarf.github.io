@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -e
+
+node ./scripts/generate-asset-manifest.js
+git add tools/asset-manifest.json

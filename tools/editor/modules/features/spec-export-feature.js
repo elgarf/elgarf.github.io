@@ -281,7 +281,7 @@ export const setupSpecExportFeature = (deps = {}) => {
   const buildViewerUrlFromCurrentLocation = () => {
     try {
       const url = new URL((globalThis.location && globalThis.location.href) || "");
-      const viewer = new URL("./LedMaskViewer.html", url);
+      const viewer = new URL("./LEDMaskViewer.html", url);
       const p = new URLSearchParams(url.search || "");
       const idParam = p.get("projectid") || p.get("projectId") || p.get("id");
       if (idParam) viewer.searchParams.set("projectId", idParam);
@@ -296,7 +296,7 @@ export const setupSpecExportFeature = (deps = {}) => {
   const buildViewerUrlLikeQr = async () => {
     try {
       const value = await encodeProjectToQueryValue(buildPortableProject());
-      const viewer = new URL("./LedMaskViewer.html", (globalThis.location && globalThis.location.href) || "");
+      const viewer = new URL("./LEDMaskViewer.html", (globalThis.location && globalThis.location.href) || "");
       let usedServerId = 0;
       try { usedServerId = await saveProjectToServer(getProjectName(), value, getProjectGuid()); } catch { usedServerId = 0; }
       if (usedServerId > 0) {

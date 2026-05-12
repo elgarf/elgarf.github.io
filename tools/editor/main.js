@@ -3029,6 +3029,10 @@ const appBootstrapDeps = {
   t: editorCtx.ui.t
 };
 setupAppBootstrapFeature(appBootstrapDeps);
+const updateEditorPageTitle = () => {
+  const lang = i18n && typeof i18n.getLanguage === "function" ? String(i18n.getLanguage() || "ru") : "ru";
+  document.title = (lang === "en") ? "LED Mask Editor" : "Редактор масок LED экранов";
+};
 i18n = setupI18n({
   documentRef: document,
   navigatorRef: navigator,
@@ -3039,8 +3043,10 @@ i18n = setupI18n({
     render(true);
     updateToolbarOverflow();
     if (i18n) i18n.translateDom(document.body);
+    updateEditorPageTitle();
   }
 });
 i18n.translateDom(document.body);
+updateEditorPageTitle();
 
 
