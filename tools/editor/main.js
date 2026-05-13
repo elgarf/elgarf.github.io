@@ -2140,18 +2140,8 @@ if (el.propFlowLinkCurveMode) {
 }
 if (el.btnFlowLinkColorReset) {
   bindClick(el.btnFlowLinkColorReset, () => {
-    const key = String(st.flowLinkSelectedKey || "");
-    if (!key) return;
-    const list = Array.isArray(st.flowLinks) ? st.flowLinks.slice() : [];
-    const idx = list.findIndex(it => flowLinkKeyOf(it) === key);
-    if (idx < 0) return;
-    list[idx] = { ...list[idx] };
-    try { delete list[idx].color; } catch { list[idx].color = null; }
-    try { delete list[idx].colorMode; } catch { list[idx].colorMode = null; }
-    st.flowLinks = list;
-    schedulePersist("project");
+    applyProps({ field: "flowLinkColorReset", list: false, persist: true, render: true });
     syncProps();
-    render();
   });
 }
 const routeSelectedDeviceOutLinksOrthogonal = () => {
@@ -2945,6 +2935,7 @@ if (typeof buildFlowSpecText === "function") buildFlowSpecTextForView = () => bu
 try {
   if (typeof window !== "undefined") {
     window.ledMaskGetProjectGuid = () => String(st && st.projectGuid || "");
+    window.ledMaskGetProjectStoreApiUrl = () => String(PROJECT_STORE_API_URL || "./project_store.php");
     window.ledMaskBuildFlatSpecText = () => {
       if (typeof buildFlowSpecText !== "function") return "";
       return buildFlowSpecText({

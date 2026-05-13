@@ -54,6 +54,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
   };
 
   const curveCache = new Map();
+  const orthogonalPathCache = new Map();
   const toNum = v => +v || 0;
   const zoomSafe = (z, min = 0.2) => Math.max(min, toNum(z) || 1);
   const rounded1 = v => Math.round(toNum(v) * 10) / 10;
@@ -74,8 +75,15 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     const value = {
       c1, c2, pts,
       t0: sampleBezier({ x: ax, y: ay }, c1, c2, { x: bx, y: by }, 0.48),
-      t1: sampleBezier({ x: ax, y: ay }, c1, c2, { x: bx, y: by }, 0.52)
+      t1: sampleBezier({ x: ax, y: ay }, c1, c2, { x: bx, y: by }, 0.52),
+      path: null
     };
+    if (typeof Path2D !== "undefined") {
+      const path = new Path2D();
+      path.moveTo(ax, ay);
+      path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, bx, by);
+      value.path = path;
+    }
     if (curveCache.size > 1024) curveCache.clear();
     curveCache.set(key, value);
     return value;
@@ -275,12 +283,24 @@ export const setupInterScreenLinksRender = (deps = {}) => {
     path.lineTo(last.x, last.y);
     return { path, points: pts };
   };
+  const getRoundedOrthogonalPathCached = points => {
+    const key = (Array.isArray(points) ? points : []).map(p => `${rounded1(p && p.x)},${rounded1(p && p.y)}`).join("|");
+    const cached = orthogonalPathCache.get(key);
+    if (cached) return cached;
+    const value = buildRoundedOrthogonalPath(points);
+    if (orthogonalPathCache.size > 512) orthogonalPathCache.clear();
+    orthogonalPathCache.set(key, value);
+    return value;
+  };
 
   const drawInterScreenFlowLinks = (c, force = false) => {
     if (isCellEditMode() || isRigEditMode()) return;
     if (!force && normalizeViewMode(st.viewMode) !== "install" && st.mode !== "flowEdit") return;
     const links = normalizeFlowLinks(st.flowLinks);
     const exportPass = !!force;
+    const interactiveFast = !!(!exportPass && (st.pan || st.flowDrag || (st.drag && st.drag.moved) || st.draft || (st.touch && st.touch.type === "pinch")));
+    const buildHitGeometry = !interactiveFast;
+    const drawLabels = !interactiveFast;
     st.flowLinkSegments = [];
     st.flowLinkCurveHandles = [];
     const strokeOutlinedPath = (path, outlineColor, outlineWidth, color, width) => {
@@ -601,15 +621,17 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         : strokeWidthForZoom(st.zoom, 1.2, isSelected ? (linkWidth + 0.8) : linkWidth);
       const orthogonalMid = Array.isArray(ln && ln.orthogonalPoints) ? ln.orthogonalPoints : [];
       if (orthogonalMid.length) {
-        const route = buildRoundedOrthogonalPath([{ x: a.x, y: a.y }, ...orthogonalMid, { x: b.x, y: b.y }]);
-        for (let i = 0; i < route.points.length - 1; i++) {
-          st.flowLinkSegments.push({ key, a: route.points[i], b: route.points[i + 1], link: ln, orthogonal: true, segmentIndex: i, points: route.points });
+        const route = getRoundedOrthogonalPathCached([{ x: a.x, y: a.y }, ...orthogonalMid, { x: b.x, y: b.y }]);
+        if (buildHitGeometry) {
+          for (let i = 0; i < route.points.length - 1; i++) {
+            st.flowLinkSegments.push({ key, a: route.points[i], b: route.points[i + 1], link: ln, orthogonal: true, segmentIndex: i, points: route.points });
+          }
         }
         drawLinkPath(route.path, strokeColor, baseW, lineType, checkerOpts);
-        drawOrthogonalEditMarkers(route.points, key);
+        if (buildHitGeometry) drawOrthogonalEditMarkers(route.points, key);
         drawOrthogonalArrows(route.points, strokeColor);
         const commLabel = getCommutationLabel(ln);
-        if (commLabel) {
+        if (drawLabels && commLabel) {
           let bestA = null;
           let bestB = null;
           let bestLen = 0;
@@ -734,7 +756,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
             : autoGeom;
           for (let i = 0; i < geom2.pts.length; i++) {
             const p = geom2.pts[i];
-            st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
+            if (buildHitGeometry) st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
             prev = p;
           }
           segs.length = 0;
@@ -744,7 +766,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
             const samples = 12;
             for (let i = 1; i <= samples; i++) {
               const p = sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, i / samples);
-              st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
+              if (buildHitGeometry) st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
               prev = p;
             }
           }
@@ -758,7 +780,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
           const t1 = sg.legacy ? sg.t1 : sampleBezier(sg.p0, sg.c1, sg.c2, sg.p1, 0.52);
           drawFlowLinkArrow(c, t0, t1, strokeColor, st.zoom || 1);
         }
-        if (!exportPass && String(st.mode || "") === "select" && isFlowLinkSelected(st, key)) {
+        if (buildHitGeometry && !exportPass && String(st.mode || "") === "select" && isFlowLinkSelected(st, key)) {
           const segRelSnapshot = segs.map(sg => ({
             c1: { x: (Number(sg.c1 && sg.c1.x) || 0) - (Number(sg.p0 && sg.p0.x) || 0), y: (Number(sg.c1 && sg.c1.y) || 0) - (Number(sg.p0 && sg.p0.y) || 0) },
             c2: { x: (Number(sg.c2 && sg.c2.x) || 0) - (Number(sg.p1 && sg.p1.x) || 0), y: (Number(sg.c2 && sg.c2.y) || 0) - (Number(sg.p1 && sg.p1.y) || 0) }
@@ -794,7 +816,7 @@ export const setupInterScreenLinksRender = (deps = {}) => {
           }
         }
         const commLabel = getCommutationLabel(ln);
-        if (commLabel) {
+        if (drawLabels && commLabel) {
           const pathPoints = [{ x: pStart.x, y: pStart.y }];
           for (const sg of segs) {
             const samples = 14;
@@ -809,16 +831,19 @@ export const setupInterScreenLinksRender = (deps = {}) => {
         let prev = { x: a.x, y: a.y };
         for (let i = 0; i < pts.length; i++) {
           const p = pts[i];
-          st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
+          if (buildHitGeometry) st.flowLinkSegments.push({ key, a: prev, b: p, link: ln });
           prev = p;
         }
-        const path = new Path2D();
-        path.moveTo(a.x, a.y);
-        for (const p of pts) path.lineTo(p.x, p.y);
+        const path = geom.path || (() => {
+          const p = new Path2D();
+          p.moveTo(a.x, a.y);
+          for (const pt of pts) p.lineTo(pt.x, pt.y);
+          return p;
+        })();
         drawLinkPath(path, strokeColor, baseW, lineType, checkerOpts);
         drawFlowLinkArrow(c, geom.t0, geom.t1, strokeColor, st.zoom || 1);
         const commLabel = getCommutationLabel(ln);
-        if (commLabel) {
+        if (drawLabels && commLabel) {
           const pathPoints = [{ x: a.x, y: a.y }, ...pts];
           drawLabelAlongPath(commLabel, pathPoints);
         }

@@ -1,4 +1,4 @@
-import { isDeviceRectKind, isNoteHiddenInArtView } from "./utils/rect-kind-utils.js";
+import { isDeviceRectKind, isNoteHiddenInArtView, isShapeRectKind } from "./utils/rect-kind-utils.js";
 import { roundDraftMeters } from "./utils/draft-utils.js";
 import { drawDeferredOverlayTextBlock } from "./render/deferred-text-overlay.js";
 
@@ -112,6 +112,80 @@ export const setupRenderPipeline = (deps = {}) => {
     c.restore();
   };
 
+  const SPATIAL_CELL_SIZE = 2048;
+  let spatialIndex = null;
+  const rectSpatialSignature = rects => (Array.isArray(rects) ? rects : []).map(r => [
+    r && r.id || 0,
+    Number(r && r.x) || 0,
+    Number(r && r.y) || 0,
+    Number(r && r.width) || 0,
+    Number(r && r.height) || 0,
+    Number(r && r.rotation) || 0,
+    String(r && r.kind || ""),
+    String(r && r.noteIncludeInArtRender || ""),
+    String(r && r.hiddenCells || "")
+  ].join(":")).join("|");
+  const spatialCellKey = (x, y) => `${x},${y}`;
+  const buildSpatialIndex = rects => {
+    const grid = new Map();
+    const entries = [];
+    const list = Array.isArray(rects) ? rects : [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const rr = list[i];
+      const bb = rectAABB(rr);
+      const entry = { rr, bb, order: list.length - 1 - i };
+      entries.push(entry);
+      const x0 = Math.floor(bb.minX / SPATIAL_CELL_SIZE);
+      const x1 = Math.floor(bb.maxX / SPATIAL_CELL_SIZE);
+      const y0 = Math.floor(bb.minY / SPATIAL_CELL_SIZE);
+      const y1 = Math.floor(bb.maxY / SPATIAL_CELL_SIZE);
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const key = spatialCellKey(x, y);
+          let bucket = grid.get(key);
+          if (!bucket) {
+            bucket = [];
+            grid.set(key, bucket);
+          }
+          bucket.push(entry);
+        }
+      }
+    }
+    return { rectsRef: rects, grid, entries, signature: rectSpatialSignature(rects) };
+  };
+  const ensureSpatialIndex = (rects, trustExisting = false) => {
+    if (spatialIndex && spatialIndex.rectsRef === rects && trustExisting) return spatialIndex;
+    const sig = trustExisting ? "" : rectSpatialSignature(rects);
+    if (spatialIndex && spatialIndex.rectsRef === rects && spatialIndex.signature === sig) return spatialIndex;
+    spatialIndex = buildSpatialIndex(rects);
+    if (!trustExisting) spatialIndex.signature = sig;
+    return spatialIndex;
+  };
+  const querySpatialIndex = (index, bounds) => {
+    if (!index || !index.grid) return null;
+    const seen = new Set();
+    const out = [];
+    const x0 = Math.floor(bounds.minX / SPATIAL_CELL_SIZE);
+    const x1 = Math.floor(bounds.maxX / SPATIAL_CELL_SIZE);
+    const y0 = Math.floor(bounds.minY / SPATIAL_CELL_SIZE);
+    const y1 = Math.floor(bounds.maxY / SPATIAL_CELL_SIZE);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const bucket = index.grid.get(spatialCellKey(x, y));
+        if (!bucket) continue;
+        for (const entry of bucket) {
+          if (seen.has(entry)) continue;
+          seen.add(entry);
+          const bb = entry.bb;
+          if (bb.maxX < bounds.minX || bb.minX > bounds.maxX || bb.maxY < bounds.minY || bb.minY > bounds.maxY) continue;
+          out.push(entry);
+        }
+      }
+    }
+    out.sort((a, b) => a.order - b.order);
+    return out;
+  };
+
   const drawVisibleRects = (c, z, forceLowDetail, drawOptions = {}) => {
     const vm = getViewMetrics();
     const vw0 = s2w(0, 0);
@@ -122,16 +196,27 @@ export const setupRenderPipeline = (deps = {}) => {
     const viewMaxX = Math.max(vw0.x, vw1.x) + vmargin;
     const viewMaxY = Math.max(vw0.y, vw1.y) + vmargin;
     const origin = getOrigin();
-    for (let i = st.rects.length - 1; i >= 0; i--) {
-      const rr = st.rects[i];
+    const viewBounds = { minX: viewMinX, minY: viewMinY, maxX: viewMaxX, maxY: viewMaxY };
+    const useTrustedSpatialIndex = !!(st.pan || (st.touch && st.touch.type === "pinch"));
+    const index = ensureSpatialIndex(st.rects, useTrustedSpatialIndex);
+    const candidates = querySpatialIndex(index, viewBounds) || [];
+    const visibleRects = [];
+    const visibleShapeRects = [];
+    for (const entry of candidates) {
+      const rr = entry.rr;
       if (isNoteHiddenInArtView(rr, st.viewMode)) continue;
       const isDeviceRect = isDeviceRectKind(rr);
       const installView = String(st.viewMode || "") === "install";
       const devicesLayerOn = installView && !(st.installLayers && st.installLayers.devices === false);
       if (isDeviceRect && !devicesLayerOn) continue;
-      const bb = rectAABB(rr);
+      const bb = entry.bb;
       if (bb.maxX < viewMinX || bb.minX > viewMaxX || bb.maxY < viewMinY || bb.minY > viewMaxY) continue;
-      drawRect(c, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, shapeFrameId: st.shapeRenderFrame, ...drawOptions });
+      visibleRects.push(rr);
+      if (isShapeRectKind(rr)) visibleShapeRects.unshift(rr);
+    }
+    const shapeOptions = visibleShapeRects.length ? { shapeRectsOverride: visibleShapeRects } : null;
+    for (const rr of visibleRects) {
+      drawRect(c, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, shapeFrameId: st.shapeRenderFrame, ...(shapeOptions || {}), ...drawOptions });
     }
   };
 

@@ -154,6 +154,113 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const ids = getSelectedRects().map(r => Math.max(0, Math.round(Number(r && r.id) || 0))).sort((a, b) => a - b);
     return ids.length ? ids.join(",") : String(cur() && cur().id || "");
   };
+  const normalizeHexColor = value => {
+    const raw = String(value || "").trim();
+    if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(raw)) {
+      return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`.toLowerCase();
+    }
+    return "";
+  };
+  const uniqueColors = values => {
+    const out = [];
+    const seen = new Set();
+    for (const value of Array.isArray(values) ? values : []) {
+      const color = normalizeHexColor(value);
+      if (!color || seen.has(color)) continue;
+      seen.add(color);
+      out.push(color);
+    }
+    return out;
+  };
+  const colorGradient = colors => {
+    const list = uniqueColors(colors);
+    if (!list.length) return "";
+    const step = 100 / list.length;
+    const stops = list.flatMap((color, index) => {
+      const a = Math.round(index * step * 1000) / 1000;
+      const b = Math.round((index + 1) * step * 1000) / 1000;
+      return [`${color} ${a}%`, `${color} ${b}%`];
+    });
+    return `linear-gradient(90deg, ${stops.join(", ")})`;
+  };
+  const createMixedColorInput = ({ input, className = "", label = "Выбрать цвет" } = {}) => {
+    let button = null;
+    const hideSwatch = () => {
+      if (!input || !button) return;
+      button.classList.add("d-none");
+      button.style.background = "";
+      button.title = "";
+      input.classList.remove("has-mixed-color-swatch");
+    };
+    const ensureButton = () => {
+      if (!input || typeof document === "undefined") return null;
+      if (button) return button;
+      button = document.createElement("button");
+      button.type = "button";
+      button.className = `mixed-color-swatch ${className} d-none`.trim();
+      button.setAttribute("aria-label", label);
+      button.addEventListener("click", () => {
+        if (input.dataset) input.dataset.selectionKey = selectionKey();
+        input.click();
+      });
+      input.addEventListener("input", hideSwatch);
+      input.addEventListener("change", hideSwatch);
+      input.insertAdjacentElement("afterend", button);
+      return button;
+    };
+    return {
+      sync(colors, show) {
+        const swatch = ensureButton();
+        if (!input || !swatch) return;
+        const list = uniqueColors(colors);
+        const visible = !!(show && list.length > 1);
+        swatch.classList.toggle("d-none", !visible);
+        input.classList.toggle("has-mixed-color-swatch", visible);
+        if (!visible) {
+          swatch.style.background = "";
+          swatch.title = "";
+          return;
+        }
+        swatch.style.background = colorGradient(list);
+        swatch.title = list.join(" ");
+      }
+    };
+  };
+  let colorInputComponents = null;
+  const getColorInputComponents = () => {
+    if (colorInputComponents) return colorInputComponents;
+    colorInputComponents = {
+      main: createMixedColorInput({
+        input: el.a,
+        label: "Выбрать основной цвет для выделенных объектов"
+      }),
+      secondary: createMixedColorInput({
+        input: el.b,
+        label: "Выбрать дополнительный цвет для выделенных объектов"
+      }),
+      flow: createMixedColorInput({
+        input: el.propFlowLinkColor,
+        className: "mixed-flow-link-color-swatch",
+        label: "Выбрать цвет для выделенных связей"
+      })
+    };
+    return colorInputComponents;
+  };
+  const syncMixedRectColorSwatches = (rects, enabled) => {
+    const list = Array.isArray(rects) ? rects : [];
+    const components = getColorInputComponents();
+    components.main.sync(list.map(rect => rect && rect.colorA), enabled);
+    components.secondary.sync(list.map(rect => rect && rect.colorB), enabled);
+  };
+  const syncMixedFlowLinkColorSwatch = links => {
+    const colors = (Array.isArray(links) ? links : []).map(ln => (
+      hasFlowLinkCustomColor(ln)
+        ? normalizeFlowLinkColor(ln && ln.color)
+        : normalizeFlowLinkColor(autoFlowLinkColor(ln, rectById, isDeviceRect))
+    ));
+    getColorInputComponents().flow.sync(colors, colors.length > 1);
+  };
   const axisCompactSpan = (items, axis) => {
     const EPS = 1e-6;
     const entries = items.map(it => ({
@@ -200,7 +307,9 @@ export const setupPropsPanelFeature = (deps = {}) => {
     uiSetValue(el.propFlowLinkCurveMode, "manual");
     const count = normalizeFlowLinkControlPointCount(selLink && selLink.controlPointCount);
     const orthogonal = !!(selLink && Array.isArray(selLink.orthogonalPoints) && selLink.orthogonalPoints.length);
+    const selectedLinksForColor = selectedFlowLinks();
     const hasCustomColor = hasFlowLinkCustomColor(selLink);
+    const hasAnyCustomColor = selectedLinksForColor.some(ln => hasFlowLinkCustomColor(ln));
     const color = hasCustomColor
       ? normalizeFlowLinkColor(selLink && selLink.color)
       : normalizeFlowLinkColor(autoFlowLinkColor(selLink, rectById, isDeviceRect));
@@ -257,6 +366,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     uiSetChecked(el.propFlowLinkOrthogonal, orthogonal);
     uiSetDisabled(el.propFlowLinkControlCount, orthogonal);
     uiSetValue(el.propFlowLinkColor, color);
+    syncMixedFlowLinkColorSwatch(selectedLinksForColor);
     uiSetValue(el.propFlowLinkWidth, String(Math.round(width * 10) / 10));
     uiSetValue(el.propFlowLinkLineType, lineType);
     uiSetChecked(el.propFlowLinkIsCommutation, isCommutation);
@@ -265,7 +375,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     uiSetDisabled(el.propFlowLinkCommutationDropdownBtn, !isCommutation);
     syncCommutationOptions();
     if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, false);
-    if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasCustomColor);
+    if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasAnyCustomColor);
     if (showCurveField) {
       const hasManual = !!(selLink && ((selLink.manualBezierRel && selLink.manualBezierRel.c1 && selLink.manualBezierRel.c2) || (selLink.manualBezier && selLink.manualBezier.c1 && selLink.manualBezier.c2)));
       uiSetDisabled(el.btnFlowLinkCurveReset, !hasManual);
@@ -274,6 +384,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
   };
   const syncProps = () => {
     const r = cur(), locked = !!(r && isRectLocked(r)), on = !!r && !locked, multi = getSelectedRects().length > 1;
+    const selectedRects = getSelectedRects();
     syncDynamicPanelVisibility({ el, rect: r, multi, isShapeRect, isNoteRect, hasFlowLinkSelection: hasSelectedFlowLink() });
     setMainPropsDisabled({ el, disabled: !on, uiSetDisabled });
     if (el.multiEditBadge) {
@@ -314,6 +425,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       uiSetValue(el.x, ""); uiSetValue(el.y, ""); uiSetValue(el.wm, ""); uiSetValue(el.hm, "");
       uiSetValue(el.rot, "0"); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
       uiSetValue(el.a, "#2fcaaf"); uiSetValue(el.b, autoContrast("#2fcaaf"));
+      syncMixedRectColorSwatches([], false);
       uiSetValue(el.shapeOpacity, "28");
       uiSetChecked(el.propNoteArtRender, true);
       uiSetValue(el.dataFlow, "none"); uiSetChecked(el.dataFlowZ, false); uiSetChecked(el.numCells, false);
@@ -348,6 +460,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     uiSetValue(el.x, r.x); uiSetValue(el.y, r.y); uiSetValue(el.rot, mFmt(r.rotation || 0));
     uiSetValue(el.wm, mFmt(r.widthM)); uiSetValue(el.hm, mFmt(r.heightM)); uiSetValue(el.scale, String(Math.max(1, Math.round(Number(st.globalScale) || 256))));
     uiSetValue(el.a, r.colorA); uiSetValue(el.b, r.colorB);
+    syncMixedRectColorSwatches(selectedRects, on && multi);
     if (isDeviceRect(r)) {
       const inCount = normalizePortCount(r.deviceInCount, 4);
       const outCount = normalizePortCount(r.deviceOutCount, 4);
@@ -536,6 +649,10 @@ export const setupPropsPanelFeature = (deps = {}) => {
           next.color = normalizeFlowLinkColor(el.propFlowLinkColor && el.propFlowLinkColor.value);
           try { delete next.colorMode; } catch { next.colorMode = null; }
           if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, false);
+        }
+        if (shouldApply("flowLinkColorReset")) {
+          try { delete next.color; } catch { next.color = null; }
+          try { delete next.colorMode; } catch { next.colorMode = null; }
         }
         if (shouldApply("flowLinkWidth")) next.width = normalizeFlowLinkWidth(el.propFlowLinkWidth && el.propFlowLinkWidth.value);
         if (shouldApply("flowLinkLineType")) next.lineType = normalizeFlowLinkLineType(el.propFlowLinkLineType && el.propFlowLinkLineType.value);

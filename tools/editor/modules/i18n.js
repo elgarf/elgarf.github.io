@@ -68,6 +68,8 @@ const EN = {
   "Размер текста (px)": "Text size (px)",
   "Шрифт": "Font",
   "Масштаб проекта (px/м)": "Project scale (px/m)",
+  "Перезагрузить приложение": "Reload application",
+  "Перезагрузить приложение и обновить кэш": "Reload application and refresh cache",
   "Снаппинг": "Snapping",
   "Сетка": "Grid",
   "Объекты": "Objects",

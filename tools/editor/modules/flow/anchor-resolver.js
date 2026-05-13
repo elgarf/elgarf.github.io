@@ -13,6 +13,23 @@ export const setupFlowAnchorResolver = (deps = {}) => {
   let renderEpoch = -1;
   let computedByKey = new Map();
   let groupsByRectId = new Map();
+  let directAnchorList = null;
+  let directAnchorLength = -1;
+  let directAnchorMap = new Map();
+
+  const getDirectAnchor = key => {
+    const list = Array.isArray(st && st.flowLinkAnchors) ? st.flowLinkAnchors : [];
+    if (directAnchorList !== list || directAnchorLength !== list.length) {
+      directAnchorList = list;
+      directAnchorLength = list.length;
+      directAnchorMap = new Map();
+      for (const anchor of list) {
+        const anchorKey = flowAnchorKey(anchor);
+        if (!directAnchorMap.has(anchorKey)) directAnchorMap.set(anchorKey, anchor);
+      }
+    }
+    return directAnchorMap.get(key) || null;
+  };
 
   const resetCacheIfNeeded = () => {
     const epoch = Math.max(0, Math.round(Number(getFlowDrawRenderEpoch && getFlowDrawRenderEpoch()) || 0));
@@ -40,8 +57,7 @@ export const setupFlowAnchorResolver = (deps = {}) => {
 
   const findFlowAnchorByEndpoint = ep => {
     const k = flowAnchorKey(ep);
-    const direct = (Array.isArray(st && st.flowLinkAnchors) ? st.flowLinkAnchors : [])
-      .find(a => flowAnchorKey(a) === k) || null;
+    const direct = getDirectAnchor(k);
     if (direct) return direct;
     resetCacheIfNeeded();
     if (computedByKey.has(k)) return computedByKey.get(k);

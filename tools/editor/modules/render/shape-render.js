@@ -36,6 +36,21 @@ export const setupShapeRender = (deps = {}) => {
     const n = Number(r && r.shapeOpacity);
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.72;
   };
+  const shapeRenderVersion = r => Math.max(0, Math.round(Number(r && r._shapeRenderVersion) || 0));
+  const bumpShapeRenderVersion = r => {
+    if (!r || typeof r !== "object") return;
+    const next = (shapeRenderVersion(r) + 1) % 1000000000;
+    try {
+      Object.defineProperty(r, "_shapeRenderVersion", {
+        value: next,
+        enumerable: false,
+        configurable: true,
+        writable: true
+      });
+    } catch {
+      r._shapeRenderVersion = next;
+    }
+  };
   const makeScratchCanvas = (w, h) => {
     if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
     if (typeof document !== "undefined") {
@@ -46,6 +61,54 @@ export const setupShapeRender = (deps = {}) => {
     }
     return null;
   };
+  let shapeFillLayers = null;
+  let shapeFillBitmapCache = { key: "", canvas: null };
+  const getShapeFillLayers = (w, h) => {
+    const ww = Math.max(1, Math.round(Number(w) || 1));
+    const hh = Math.max(1, Math.round(Number(h) || 1));
+    if (!shapeFillLayers || shapeFillLayers.w !== ww || shapeFillLayers.h !== hh) {
+      const colorLayer = makeScratchCanvas(ww, hh);
+      const maskLayer = makeScratchCanvas(ww, hh);
+      const colorCtx = colorLayer && colorLayer.getContext ? colorLayer.getContext("2d") : null;
+      const maskCtx = maskLayer && maskLayer.getContext ? maskLayer.getContext("2d") : null;
+      shapeFillLayers = colorCtx && maskCtx ? { w: ww, h: hh, colorLayer, maskLayer, colorCtx, maskCtx } : null;
+    }
+    if (!shapeFillLayers) return null;
+    for (const layerCtx of [shapeFillLayers.colorCtx, shapeFillLayers.maskCtx]) {
+      if (typeof layerCtx.setTransform === "function") layerCtx.setTransform(1, 0, 0, 1, 0, 0);
+      layerCtx.globalAlpha = 1;
+      layerCtx.globalCompositeOperation = "source-over";
+      layerCtx.clearRect(0, 0, ww, hh);
+    }
+    return shapeFillLayers;
+  };
+  const transformCacheKey = transform => {
+    if (!transform) return "no-transform";
+    return [
+      Number(transform.a) || 0,
+      Number(transform.b) || 0,
+      Number(transform.c) || 0,
+      Number(transform.d) || 0,
+      Number(transform.e) || 0,
+      Number(transform.f) || 0
+    ].map(v => Math.round(v * 1000) / 1000).join(",");
+  };
+  const shapeFillCacheKey = (shapes, w, h, transform) => [
+    w,
+    h,
+    transformCacheKey(transform),
+    (Array.isArray(shapes) ? shapes : []).map(r => [
+      r && r.id || 0,
+      Number(r && r.x) || 0,
+      Number(r && r.y) || 0,
+      Number(r && r.width) || 0,
+      Number(r && r.height) || 0,
+      Number(r && r.rotation) || 0,
+      String(r && r.colorA || ""),
+      shapeOpacity(r),
+      shapeRenderVersion(r)
+    ].join(":")).join("|")
+  ].join("||");
   let shapeHitCtx = null;
   const getShapeHitCtx = () => {
     if (shapeHitCtx) return shapeHitCtx;
@@ -68,6 +131,7 @@ export const setupShapeRender = (deps = {}) => {
     if (!(Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY))) return false;
     const nextW = Math.max(1, Math.round(maxX - minX));
     const nextH = Math.max(1, Math.round(maxY - minY));
+    bumpShapeRenderVersion(r);
     if (Math.abs(minX) < 1e-6 && Math.abs(minY) < 1e-6) {
       r.width = Math.max(1, Math.round(maxX));
       r.height = Math.max(1, Math.round(maxY));
@@ -189,12 +253,18 @@ export const setupShapeRender = (deps = {}) => {
     const canvas = c && c.canvas;
     const w = Math.max(1, Math.ceil(Number(canvas && canvas.width) || 0));
     const h = Math.max(1, Math.ceil(Number(canvas && canvas.height) || 0));
-    const colorLayer = makeScratchCanvas(w, h);
-    const maskLayer = makeScratchCanvas(w, h);
-    const colorCtx = colorLayer && colorLayer.getContext ? colorLayer.getContext("2d") : null;
-    const maskCtx = maskLayer && maskLayer.getContext ? maskLayer.getContext("2d") : null;
-    if (!colorCtx || !maskCtx) return;
     const transform = typeof c.getTransform === "function" ? c.getTransform() : null;
+    const cacheKey = shapeFillCacheKey(shapes, w, h, transform);
+    if (shapeFillBitmapCache.key === cacheKey && shapeFillBitmapCache.canvas) {
+      c.save();
+      if (typeof c.setTransform === "function") c.setTransform(1, 0, 0, 1, 0, 0);
+      c.drawImage(shapeFillBitmapCache.canvas, 0, 0);
+      c.restore();
+      return;
+    }
+    const layers = getShapeFillLayers(w, h);
+    if (!layers) return;
+    const { colorLayer, maskLayer, colorCtx, maskCtx } = layers;
     if (transform && typeof colorCtx.setTransform === "function") colorCtx.setTransform(transform);
     if (transform && typeof maskCtx.setTransform === "function") maskCtx.setTransform(transform);
     for (let i = shapes.length - 1; i >= 0; i--) {
@@ -222,6 +292,7 @@ export const setupShapeRender = (deps = {}) => {
     if (typeof c.setTransform === "function") c.setTransform(1, 0, 0, 1, 0, 0);
     c.drawImage(colorLayer, 0, 0);
     c.restore();
+    shapeFillBitmapCache = { key: cacheKey, canvas: colorLayer };
   };
 
   const drawShapeOutline = (c, r, sel, z) => {
