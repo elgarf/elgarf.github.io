@@ -285,7 +285,8 @@
               inputmode="decimal" spellcheck="false" value="256"></div>
           <div class="field">
             <button id="reloadApplication" type="button" class="btn btn-outline-secondary btn-sm w-100"
-              title="Перезагрузить приложение и обновить кэш">
+              title="Перезагрузить приложение и обновить кэш"
+              onclick="window.ledMaskReloadApplication && window.ledMaskReloadApplication()">
               <i class="fa-solid fa-rotate-right"></i>
               <span>Перезагрузить приложение</span>
             </button>
@@ -765,6 +766,23 @@
     </button>
   </div>
   <script>
+    window.ledMaskReloadApplication = async version => {
+      try {
+        if ("caches" in window && window.caches && typeof window.caches.keys === "function") {
+          const keys = await window.caches.keys();
+          await Promise.all(keys.map(key => window.caches.delete(key)));
+        }
+      } catch (_e) { }
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("v", String(version || Date.now()));
+        window.location.replace(url.toString());
+      } catch (_e) {
+        window.location.reload();
+      }
+    };
+  </script>
+  <script>
     (() => {
       const loadScript = src => new Promise((resolve, reject) => {
         const s = document.createElement("script");
@@ -788,6 +806,22 @@
         .then(manifest => {
           if (!manifest || typeof manifest !== "object" || !manifest.imports || typeof manifest.imports !== "object") {
             return importMain();
+          }
+          const manifestVersion = String(manifest.version || "").trim();
+          const urlVersion = new URLSearchParams(location.search || "").get("v") || "";
+          const reloadKey = "ledMaskManifestReloadVersion";
+          if (manifestVersion && urlVersion !== manifestVersion) {
+            let alreadyTried = false;
+            try {
+              alreadyTried = sessionStorage.getItem(reloadKey) === manifestVersion;
+              if (!alreadyTried) sessionStorage.setItem(reloadKey, manifestVersion);
+            } catch (_e) { }
+            if (!alreadyTried && window.ledMaskReloadApplication) {
+              window.ledMaskReloadApplication(manifestVersion);
+              return null;
+            }
+          } else {
+            try { sessionStorage.removeItem(reloadKey); } catch (_e) { }
           }
           const mapNode = document.createElement("script");
           mapNode.type = "importmap";

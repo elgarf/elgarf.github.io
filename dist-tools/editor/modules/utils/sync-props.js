@@ -1,0 +1,1 @@
+export const runSmartSyncProps=(n,o)=>{"function"==typeof n?n():"function"==typeof o&&o()};

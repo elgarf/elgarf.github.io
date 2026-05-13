@@ -1,0 +1,1 @@
+export const getFlowLinks=o=>Array.isArray(o&&o.flowLinks)?o.flowLinks:[];export const getFlowLinksCopy=o=>getFlowLinks(o).slice();

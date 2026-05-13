@@ -84,22 +84,6 @@ export const setupUiBinders = (deps = {}) => {
     syncProps();
     schedulePersist("all");
   });
-  bindClick(el.reloadApplication, async () => {
-    persistNow();
-    try {
-      if (typeof caches !== "undefined" && caches && typeof caches.keys === "function") {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(key => caches.delete(key)));
-      }
-    } catch { /* noop */ }
-    try {
-      const url = new URL(globalThis.location.href);
-      url.searchParams.set("v", String(Date.now()));
-      globalThis.location.replace(url.toString());
-    } catch {
-      globalThis.location.reload();
-    }
-  });
   bindEvent(el.projectTabAdd, "click", () => createProjectTab(makeEmptyProjectData(t("Новый проект"))));
 
   if (el.themePopup) {

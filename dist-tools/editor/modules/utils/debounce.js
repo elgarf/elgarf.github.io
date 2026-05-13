@@ -1,0 +1,1 @@
+export const createDebounced=(e,t=0)=>{let l=null;const u=()=>{l&&clearTimeout(l),l=null};return{schedule:(...n)=>{u(),l=setTimeout(()=>{l=null,e(...n)},Math.max(0,Math.round(Number(t)||0)))},cancel:u}};

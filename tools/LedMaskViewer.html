@@ -350,7 +350,7 @@
       let specRenderDebounceTimer = 0;
       const WS_RECONNECT_ENABLED = true;
       const CHECKLIST_SCHEMA_VERSION = 1;
-      const projectStoreApiUrl = "https://static.93.189.179.185.ip.webhost1.net/project_store.php";
+      let projectStoreApiUrl = "./project_store.php";
       const q = new URLSearchParams(location.search || "");
       const pid = (q.get("projectId") || q.get("projectid") || "").trim();
       const packedProject = (q.get("project") || "").trim();
@@ -747,7 +747,7 @@
         const g = String(guid || "").trim();
         if (!g) return null;
         try {
-          const u = new URL(projectStoreApiUrl);
+          const u = new URL(resolveProjectStoreApiUrl(), location.href);
           u.searchParams.set("checklist_guid", g);
           const res = await fetch(u.toString(), { method: "GET" });
           if (!res.ok) return null;
@@ -764,7 +764,7 @@
         const g = String(guid || "").trim();
         if (!g) return false;
         try {
-          const res = await fetch(projectStoreApiUrl, {
+          const res = await fetch(resolveProjectStoreApiUrl(), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -789,6 +789,19 @@
           const fallback = String(pid || "").trim() || "default";
           return `led-mask-viewer.spec-checks.${fallback}`;
         }
+      };
+      const resolveProjectStoreApiUrl = () => {
+        try {
+          const w = frame.contentWindow;
+          const fromEditor = w && typeof w.ledMaskGetProjectStoreApiUrl === "function"
+            ? String(w.ledMaskGetProjectStoreApiUrl() || "").trim()
+            : "";
+          if (fromEditor) {
+            projectStoreApiUrl = fromEditor;
+            return fromEditor;
+          }
+        } catch (_e) { /* noop */ }
+        return String(projectStoreApiUrl || "./project_store.php");
       };
       const markdownToHtml = text => {
         const src = String(text || "").replace(/\r/g, "");
@@ -1057,6 +1070,7 @@
 
       frame.addEventListener("load", () => {
         wsClientId = `viewer-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+        resolveProjectStoreApiUrl();
         if (zoomPoll) window.clearInterval(zoomPoll);
         const boot = () => {
           hideEditorUi();

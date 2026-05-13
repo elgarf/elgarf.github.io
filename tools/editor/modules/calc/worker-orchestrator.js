@@ -31,6 +31,9 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
   let flowCalcWorker = null;
   let flowCalcReqSeq = 1;
   const flowCalcPending = new Map();
+  const WORKER_RETRY_BACKOFF_MS = 4000;
+  let regionWorkerRetryAt = 0;
+  let flowWorkerRetryAt = 0;
   const resolveWorkerBootUrl = () => {
     const base = String(CALC_WORKER_BOOT_URL || "");
     if (!base) return base;
@@ -132,6 +135,7 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
 
   const ensureCalcWorker = (kind) => {
       if (kind === "regions") {
+      if (calcNow() < regionWorkerRetryAt) return null;
       if (regionCalcWorker) return regionCalcWorker;
       try {
         regionCalcWorker = new Worker(resolveWorkerBootUrl());
@@ -139,6 +143,7 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
       } catch (err) {
         debugWarn("[calc-worker:regions] create failed", err);
         regionCalcWorker = null;
+        regionWorkerRetryAt = calcNow() + WORKER_RETRY_BACKOFF_MS;
         return null;
       }
       regionCalcWorker.onmessage = e => {
@@ -151,6 +156,7 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
           regionCalcPending.clear();
           try { regionCalcWorker.terminate(); } catch { /* noop */ }
           regionCalcWorker = null;
+          regionWorkerRetryAt = calcNow() + WORKER_RETRY_BACKOFF_MS;
           return;
         }
         if (d && d.kind === "booted") {
@@ -213,10 +219,12 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
         regionCalcPending.clear();
         try { regionCalcWorker.terminate() } catch { /* noop */ }
         regionCalcWorker = null;
+        regionWorkerRetryAt = calcNow() + WORKER_RETRY_BACKOFF_MS;
         render();
       };
       return regionCalcWorker;
     }
+    if (calcNow() < flowWorkerRetryAt) return null;
     if (flowCalcWorker) return flowCalcWorker;
     try {
       flowCalcWorker = new Worker(resolveWorkerBootUrl());
@@ -224,6 +232,7 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
     } catch (err) {
       debugWarn("[calc-worker:flow] create failed", err);
       flowCalcWorker = null;
+      flowWorkerRetryAt = calcNow() + WORKER_RETRY_BACKOFF_MS;
       return null;
     }
     flowCalcWorker.onmessage = e => {
@@ -233,6 +242,7 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
         flowCalcPending.clear();
         try { flowCalcWorker.terminate(); } catch { /* noop */ }
         flowCalcWorker = null;
+        flowWorkerRetryAt = calcNow() + WORKER_RETRY_BACKOFF_MS;
         return;
       }
       if (d && d.kind === "booted") {
@@ -286,6 +296,7 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
       flowCalcPending.clear();
       try { flowCalcWorker.terminate() } catch { /* noop */ }
       flowCalcWorker = null;
+      flowWorkerRetryAt = calcNow() + WORKER_RETRY_BACKOFF_MS;
       render();
     };
     return flowCalcWorker;
@@ -299,6 +310,8 @@ export const setupCalcWorkerOrchestrator = (deps = {}) => {
     if (flowCalcWorker) { try { flowCalcWorker.terminate() } catch { /* noop */ } }
     regionCalcWorker = null;
     flowCalcWorker = null;
+    regionWorkerRetryAt = 0;
+    flowWorkerRetryAt = 0;
   };
 
   const scheduleRegionCalcWorker = (r, key, cx, cy, topo, hs) => {
