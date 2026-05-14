@@ -3,6 +3,15 @@ export const createRectPropSchema = (deps = {}) => {
   const parseAreaM2PxInput = deps.parseAreaM2PxInput || ((v, fb) => (Number(v) || fb));
   const cabinetUiToPx = deps.cabinetUiToPx || ((v, _unit, fb) => (Number(v) || fb));
   const normalizeDataFlow = deps.normalizeDataFlow || (v => String(v || "none"));
+  const parseAreaDims = value => {
+    const s = String(value ?? "").trim();
+    const m = s.match(/^\s*(\d+(?:[.,]\d+)?)\s*[xх×*]\s*(\d+(?:[.,]\d+)?)\s*$/i);
+    if (!m) return null;
+    const w = Number(String(m[1]).replace(",", "."));
+    const h = Number(String(m[2]).replace(",", "."));
+    if (!(w > 0 && h > 0)) return null;
+    return { w, h };
+  };
 
   return Object.freeze([
     {
@@ -37,8 +46,21 @@ export const createRectPropSchema = (deps = {}) => {
     },
     {
       id: "areaM2Px",
-      sync: ({ el, rect, mFmt }) => { if (el.areaM2) el.areaM2.value = mFmt(rect && rect.areaM2Px || 65536); },
-      apply: ({ el, rect }) => { if (el.areaM2) rect.areaM2Px = parseAreaM2PxInput(el.areaM2.value, rect.areaM2Px || 65536); }
+      sync: ({ el, rect, mFmt }) => {
+        const expr = String(rect && rect._areaM2Expression || "").trim();
+        const dims = parseAreaDims(expr);
+        if (el.areaM2Width) el.areaM2Width.value = dims ? mFmt(dims.w) : mFmt(Math.sqrt(Math.max(1, Number(rect && rect.areaM2Px) || 65536)));
+        if (el.areaM2Height) el.areaM2Height.value = dims ? mFmt(dims.h) : mFmt(Math.sqrt(Math.max(1, Number(rect && rect.areaM2Px) || 65536)));
+        if (el.areaM2) el.areaM2.value = `${el.areaM2Width && el.areaM2Width.value || "256"}×${el.areaM2Height && el.areaM2Height.value || "256"}`;
+      },
+      apply: ({ el, rect }) => {
+        if (el.areaM2Width && el.areaM2Height) {
+          rect.areaM2Px = parseAreaM2PxInput(`${el.areaM2Width.value}×${el.areaM2Height.value}`, rect.areaM2Px || 65536);
+          if (el.areaM2) el.areaM2.value = `${el.areaM2Width.value}×${el.areaM2Height.value}`;
+          return;
+        }
+        if (el.areaM2) rect.areaM2Px = parseAreaM2PxInput(el.areaM2.value, rect.areaM2Px || 65536);
+      }
     },
     {
       id: "dataFlow",
@@ -67,4 +89,3 @@ export const createRectPropSchema = (deps = {}) => {
     }
   ]);
 };
-

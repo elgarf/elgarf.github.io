@@ -46,6 +46,8 @@ export const setupSpecExportFeature = (deps = {}) => {
     getGlobalSaveLocationId,
     saveStatus,
     saveBlobWithSystemDialog,
+    enterControllerLayoutMode,
+    exitControllerLayoutMode,
     schedulePersist,
     persistNow,
     flushSpecCustomEditors,
@@ -432,6 +434,8 @@ export const setupSpecExportFeature = (deps = {}) => {
       return buildFlowSpecText({ includeManual: true, cachedOnly: true, viewerUrl });
     },
     ensureExportCaches,
+    enterControllerLayoutMode,
+    exitControllerLayoutMode,
     showMessageModal,
     t
   });
@@ -446,4 +450,3 @@ export const setupSpecExportFeature = (deps = {}) => {
     buildFlowSpecText
   };
 };
-

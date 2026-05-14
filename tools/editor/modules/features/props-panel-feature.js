@@ -102,6 +102,17 @@ export const setupPropsPanelFeature = (deps = {}) => {
     normalizeDataFlow
   });
   const isDeviceRect = rect => isDeviceRectKind(rect);
+  const removeFlowLinksForRectIds = rectIds => {
+    const ids = new Set((Array.isArray(rectIds) ? rectIds : []).map(v => Math.max(1, Math.round(Number(v) || 0))));
+    if (!ids.size || !Array.isArray(st && st.flowLinks)) return false;
+    const prevLen = st.flowLinks.length;
+    st.flowLinks = st.flowLinks.filter(ln => {
+      const fromId = Math.max(1, Math.round(Number(ln && ln.from && ln.from.rectId) || 0));
+      const toId = Math.max(1, Math.round(Number(ln && ln.to && ln.to.rectId) || 0));
+      return !ids.has(fromId) && !ids.has(toId);
+    });
+    return st.flowLinks.length !== prevLen;
+  };
   const dropSelectionForHiddenArtNote = rect => {
     if (!isNoteHiddenInArtView(rect, st && st.viewMode)) return;
     const id = Math.max(1, Math.round(Number(rect.id) || 0));
@@ -393,6 +404,8 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (show) el.multiEditBadge.textContent = locked ? "Текущий экран заблокирован. Разблокируйте слой для редактирования." : "Групповое редактирование: W/H масштабируют расстояния, поворот идёт вокруг центра группы";
     }
     if (el.areaM2) uiSetDisabled(el.areaM2, !on);
+    if (el.areaM2Width) uiSetDisabled(el.areaM2Width, !on);
+    if (el.areaM2Height) uiSetDisabled(el.areaM2Height, !on);
     uiSetDisabled(el.randColor, !on);
     if (el.btnClearMasks) uiSetDisabled(el.btnClearMasks, !on);
     if (el.btnResetFlowLocks) uiSetDisabled(el.btnResetFlowLocks, !on);
@@ -411,7 +424,30 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (el.snapObjects) uiSetChecked(el.snapObjects, !!(st.snap && st.snap.objects));
     if (el.snapCenters) uiSetChecked(el.snapCenters, !!(st.snap && st.snap.centers));
     if (el.snapGaps) uiSetChecked(el.snapGaps, !!(st.snap && st.snap.gaps));
-    if (el.areaM2) uiSetValue(el.areaM2, r ? mFmt(r.areaM2Px || 65536) : "65536");
+    if (r) {
+      const active = (typeof document !== "undefined") ? document.activeElement : null;
+      const userEditingWH = !!(active && (active === el.areaM2Width || active === el.areaM2Height));
+      const typedDims = parseAreaM2Dims(`${el.areaM2Width && el.areaM2Width.value || ""}×${el.areaM2Height && el.areaM2Height.value || ""}`);
+      const presetValues = typeof getAreaM2PresetValues === "function" ? getAreaM2PresetValues() : [];
+      const badgeLabel = typeof getAreaM2BadgeLabel === "function"
+        ? getAreaM2BadgeLabel("", r.areaM2Px || 65536, r._areaM2Expression, presetValues)
+        : "";
+      const dims = (userEditingWH && typedDims)
+        || parseAreaM2Dims(badgeLabel)
+        || parseAreaM2Dims(r._areaM2Expression)
+        || typedDims
+        || (() => {
+          const d = Math.max(1, Math.sqrt(Math.max(1, Number(r.areaM2Px) || 65536)));
+          return { w: d, h: d };
+        })();
+      if (el.areaM2Width) uiSetValue(el.areaM2Width, mFmt(dims.w));
+      if (el.areaM2Height) uiSetValue(el.areaM2Height, mFmt(dims.h));
+      if (el.areaM2) uiSetValue(el.areaM2, `${mFmt(dims.w)}×${mFmt(dims.h)}`);
+    } else {
+      if (el.areaM2Width) uiSetValue(el.areaM2Width, "256");
+      if (el.areaM2Height) uiSetValue(el.areaM2Height, "256");
+      if (el.areaM2) uiSetValue(el.areaM2, "256×256");
+    }
     if (typeof updateAreaM2Badge === "function") {
       updateAreaM2Badge(
         getAreaM2BadgeEl(),
@@ -706,12 +742,17 @@ export const setupPropsPanelFeature = (deps = {}) => {
     if (!multi && shouldApply("name")) r.name = el.name.value || `Rect ${r.id}`;
     if (!multi) {
       let metricChanged = false;
+      let linksChangedByDeviceType = false;
       if (shouldApply("x")) r.x = Math.round(evalExpr(el.x.value, r.x));
       if (shouldApply("y")) r.y = Math.round(evalExpr(el.y.value, r.y));
       if (shouldApply("rotation")) r.rotation = evalExpr(el.rot.value, r.rotation || 0);
       if (shouldApply("widthM")) { r.widthM = Math.max(0.001, evalExpr(el.wm.value, r.widthM || 0.001)); metricChanged = true; }
       if (shouldApply("heightM")) { r.heightM = Math.max(0.001, evalExpr(el.hm.value, r.heightM || 0.001)); metricChanged = true; }
-      if (shouldApply("areaM2Px")) r.areaM2Px = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
+      if (shouldApply("areaM2Px")) {
+        const areaExpr = el.areaM2Width && el.areaM2Height ? `${el.areaM2Width.value}×${el.areaM2Height.value}` : (el.areaM2 && el.areaM2.value);
+        if (el.areaM2) el.areaM2.value = String(areaExpr || "");
+        r.areaM2Px = parseAreaM2PxInput(areaExpr, r.areaM2Px || 65536);
+      }
       if (shouldApply("shapeOpacity") && typeof isShapeRect === "function" && isShapeRect(r)) {
         r.shapeOpacity = shapeOpacityFromTransparencyInput({ inputValue: el.shapeOpacity && el.shapeOpacity.value, fallbackRect: r, evalExpr });
       }
@@ -720,7 +761,12 @@ export const setupPropsPanelFeature = (deps = {}) => {
         dropSelectionForHiddenArtNote(r);
       }
       if (isDeviceRect(r)) {
-        if (shouldApply("deviceType")) r.deviceType = normalizeDeviceType(el.propDeviceType && el.propDeviceType.value || "controller");
+        if (shouldApply("deviceType")) {
+          const prevType = normalizeDeviceType(r.deviceType || "controller");
+          const nextType = normalizeDeviceType(el.propDeviceType && el.propDeviceType.value || "controller");
+          r.deviceType = nextType;
+          if (prevType !== nextType) linksChangedByDeviceType = removeFlowLinksForRectIds([r.id]) || linksChangedByDeviceType;
+        }
         if (shouldApply("deviceOrientation")) r.deviceOrientation = normalizeDeviceOrientation(el.propDeviceOrientation && el.propDeviceOrientation.value || "horizontal");
         if (shouldApply("deviceInCount")) r.deviceInCount = normalizePortCount(el.propDeviceInCount && el.propDeviceInCount.value, r.deviceInCount || 4);
         if (shouldApply("deviceOutCount")) r.deviceOutCount = normalizePortCount(el.propDeviceOutCount && el.propDeviceOutCount.value, r.deviceOutCount || 4);
@@ -747,6 +793,10 @@ export const setupPropsPanelFeature = (deps = {}) => {
         if (typeof isShapeRect === "function" && isShapeRect(r)) {
           scaleShapePointsForRectResize({ rect: r, oldWidth: oldW, oldHeight: oldH, normalizeShapeBounds });
         }
+      }
+      if (linksChangedByDeviceType) {
+        if (needPersist) schedulePersist("project");
+        if (needRender) render();
       }
     } else {
       const ids = [...st.selSet].sort((a, b) => a - b), idsKey = ids.join(",");
@@ -886,7 +936,20 @@ export const setupPropsPanelFeature = (deps = {}) => {
       if (shouldApply("cellY")) t.cellY = cabinetUiToPx(el.cy && el.cy.value, el.cUnit && el.cUnit.value, t.cellY || 128, t);
       if (shouldApply("dataFlowZ")) t.dataFlowZ = !!el.dataFlowZ.checked;
       if (shouldApply("numberCells")) t.numberCells = !!el.numCells.checked;
-      if (shouldApply("areaM2Px")) t.areaM2Px = parseAreaM2PxInput(el.areaM2.value, t.areaM2Px || 65536);
+      if (isDeviceRect(t) && shouldApply("deviceType")) {
+        const prevType = normalizeDeviceType(t.deviceType || "controller");
+        const nextType = normalizeDeviceType(el.propDeviceType && el.propDeviceType.value || "controller");
+        t.deviceType = nextType;
+        if (prevType !== nextType) removeFlowLinksForRectIds([t.id]);
+      }
+      if (isDeviceRect(t) && shouldApply("deviceOrientation")) {
+        t.deviceOrientation = normalizeDeviceOrientation(el.propDeviceOrientation && el.propDeviceOrientation.value || "horizontal");
+      }
+      if (shouldApply("areaM2Px")) {
+        const areaExpr = el.areaM2Width && el.areaM2Height ? `${el.areaM2Width.value}×${el.areaM2Height.value}` : (el.areaM2 && el.areaM2.value);
+        if (el.areaM2) el.areaM2.value = String(areaExpr || "");
+        t.areaM2Px = parseAreaM2PxInput(areaExpr, t.areaM2Px || 65536);
+      }
       const selectedMode = normalizeDataFlow(el.dataFlow.value), rid = (st.mode === "flowEdit" && Number.isFinite(Number(st.flowRegionRid))) ? Math.max(0, Math.round(Number(st.flowRegionRid) || 0)) : null;
       if (shouldApply("dataFlow") && rid != null && t.id === r.id) {
         const cfg = getFlowRegionConfig(t, rid), curMode = normalizeDataFlow(cfg && cfg.mode || "none");
@@ -977,6 +1040,16 @@ export const getAreaM2BadgeLabel = (input, parsedValue, savedExpression = "", pr
   || getAreaM2ExpressionLabel(savedExpression)
   || getAreaM2SqrtLabel(parsedValue)
 );
+
+const parseAreaM2Dims = input => {
+  const source = String(input ?? "").trim().replace(/^≈\s*/u, "");
+  const match = source.match(/^\s*(\d+(?:[.,]\d+)?)\s*[xх×*]\s*(\d+(?:[.,]\d+)?)\s*$/i);
+  if (!match) return null;
+  const w = Number(String(match[1]).replace(",", "."));
+  const h = Number(String(match[2]).replace(",", "."));
+  if (!(w > 0 && h > 0)) return null;
+  return { w, h };
+};
 
 export const setAreaM2ExpressionSource = (rect, input) => {
   if (!rect || typeof rect !== "object") return "";
@@ -1122,6 +1195,16 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
 
   let propsInputRaf = 0;
   const getAreaM2BadgeEl = () => el.propAreaM2Badge || (typeof document !== "undefined" ? document.getElementById("propAreaM2Badge") : null);
+  const getAreaM2InputExpression = () => {
+    const w = String(el.areaM2Width && el.areaM2Width.value || "").trim();
+    const h = String(el.areaM2Height && el.areaM2Height.value || "").trim();
+    if (w && h) return `${w}×${h}`;
+    return String(el.areaM2 && el.areaM2.value || "").trim();
+  };
+  const syncAreaM2HiddenInput = () => {
+    if (!el.areaM2) return;
+    el.areaM2.value = getAreaM2InputExpression();
+  };
   const selectionKey = () => {
     const ids = st && st.selSet && st.selSet.size ? [...st.selSet].map(v => Math.max(0, Math.round(Number(v) || 0))).sort((a, b) => a - b) : [];
     return ids.length ? ids.join(",") : String(cur() && cur().id || "");
@@ -1271,7 +1354,8 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
     if (key && key !== selectionKey()) return;
     const r = cur();
     if (!r || isRectLocked(r)) return;
-    const input = el.areaM2 && el.areaM2.value;
+    const input = getAreaM2InputExpression();
+    syncAreaM2HiddenInput();
     const parsedForBadge = parseAreaM2PxInput(input, r.areaM2Px || 65536);
     const count = applyToTargets(t => {
       t.areaM2Px = parseAreaM2PxInput(input, t.areaM2Px || 65536);
@@ -1283,22 +1367,34 @@ export const setupPropsInputBindingsFeature = (deps = {}) => {
       updateAreaM2Badge(getAreaM2BadgeEl(), getAreaM2BadgeLabel(input, parsedForBadge, r._areaM2Expression, typeof getAreaM2PresetValues === "function" ? getAreaM2PresetValues() : []));
     }
   };
-  if (el.areaM2) {
-    bindEvent(el.areaM2, "input", e => {
-      if (keyForEvent(e) !== selectionKey()) return;
-      const r = cur();
-      if (!r || typeof updateAreaM2Badge !== "function" || typeof getAreaM2BadgeLabel !== "function") return;
-      const parsed = parseAreaM2PxInput(el.areaM2.value, r.areaM2Px || 65536);
-      updateAreaM2Badge(getAreaM2BadgeEl(), getAreaM2BadgeLabel(el.areaM2.value, parsed, r._areaM2Expression, typeof getAreaM2PresetValues === "function" ? getAreaM2PresetValues() : []));
-    });
-  }
+  const onAreaM2Input = e => {
+    if (keyForEvent(e) !== selectionKey()) return;
+    const r = cur();
+    if (!r || typeof updateAreaM2Badge !== "function" || typeof getAreaM2BadgeLabel !== "function") return;
+    syncAreaM2HiddenInput();
+    const expr = getAreaM2InputExpression();
+    const parsed = parseAreaM2PxInput(expr, r.areaM2Px || 65536);
+    updateAreaM2Badge(getAreaM2BadgeEl(), getAreaM2BadgeLabel(expr, parsed, r._areaM2Expression, typeof getAreaM2PresetValues === "function" ? getAreaM2PresetValues() : []));
+  };
+  if (el.areaM2Width) bindEvent(el.areaM2Width, "input", onAreaM2Input);
+  if (el.areaM2Height) bindEvent(el.areaM2Height, "input", onAreaM2Input);
+  if (el.areaM2) bindEvent(el.areaM2, "input", onAreaM2Input);
+  if (el.areaM2Width) bindCommitInput(el.areaM2Width, e => { applyAreaM2Settings(keyForEvent(e)); syncProps(); });
+  if (el.areaM2Height) bindCommitInput(el.areaM2Height, e => { applyAreaM2Settings(keyForEvent(e)); syncProps(); });
   if (el.areaM2) bindCommitInput(el.areaM2, e => { applyAreaM2Settings(keyForEvent(e)); syncProps(); });
 
   for (const btn of document.querySelectorAll("[data-area-m2-preset]")) {
     bindEvent(btn, "click", () => {
-      if (!el.areaM2) return;
-      el.areaM2.value = String(btn.getAttribute("data-area-m2-preset") || "");
-      rememberSelectionKey(el.areaM2);
+      const presetRaw = String(btn.getAttribute("data-area-m2-preset") || "");
+      const dims = parseAreaM2Dims(presetRaw);
+      if (dims) {
+        if (el.areaM2Width) el.areaM2Width.value = String(dims.w);
+        if (el.areaM2Height) el.areaM2Height.value = String(dims.h);
+      } else if (el.areaM2) {
+        el.areaM2.value = presetRaw;
+      }
+      syncAreaM2HiddenInput();
+      rememberSelectionKey(el.areaM2Width || el.areaM2Height || el.areaM2);
       applyAreaM2Settings(selectionKey());
       syncProps();
     });

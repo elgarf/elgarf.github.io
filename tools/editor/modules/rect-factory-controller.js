@@ -89,6 +89,18 @@ export const setupRectFactoryController = (deps = {}) => {
     }
     return out;
   };
+  const normalizeControllerLayoutRegionPositions = value => {
+    const src = (value && typeof value === "object") ? value : {};
+    const out = {};
+    for (const [k, v] of Object.entries(src)) {
+      const key = String(k || "").trim();
+      if (!/^\d+:\d+$/.test(key)) continue;
+      const x = Math.round(Number(v && v.x) || 0);
+      const y = Math.round(Number(v && v.y) || 0);
+      out[key] = { x, y };
+    }
+    return out;
+  };
   const parseProjectRect = (r, i, legacyAreaM2) => {
     const colorA = String(r.colorA || "#2fcaaf");
     const autoB = r.autoContrastB !== false;
@@ -141,7 +153,8 @@ export const setupRectFactoryController = (deps = {}) => {
       deviceInCount: normalizePortCount(r && r.deviceInCount, 4),
       deviceOutCount: normalizePortCount(r && r.deviceOutCount, 4),
       deviceInLabels: [],
-      deviceOutLabels: []
+      deviceOutLabels: [],
+      controllerLayoutRegionPositions: normalizeControllerLayoutRegionPositions(r && r.controllerLayoutRegionPositions)
     };
     if (String(it.kind || "").toLowerCase() === "note") {
       it.noteIncludeInArtRender = !(r && r.noteIncludeInArtRender === false);
@@ -204,7 +217,8 @@ export const setupRectFactoryController = (deps = {}) => {
       deviceInCount: 4,
       deviceOutCount: 4,
       deviceInLabels: ["1", "2", "3", "4"],
-      deviceOutLabels: ["1", "2", "3", "4"]
+      deviceOutLabels: ["1", "2", "3", "4"],
+      controllerLayoutRegionPositions: {}
     };
     metricFromPx(r);
     return r;

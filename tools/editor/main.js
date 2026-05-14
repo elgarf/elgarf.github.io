@@ -173,6 +173,24 @@ let applyBootstrapClasses = () => { };
 let updateToolbarOverflow = () => { };
 let overflowHiddenButtons = [];
 const st = createInitialEditorState();
+st.controllerLayout = {
+  active: false,
+  controllerId: null,
+  rectIds: [],
+  groupsById: null,
+  readOnly: false,
+  nextTempId: 900000000
+};
+let controllerLayoutPrevMode = "select";
+let controllerLayoutPrevView = null;
+const isControllerLayoutModeActive = () => !!(st && st.controllerLayout && st.controllerLayout.active);
+const getControllerLayoutRectIdSet = () => new Set(Array.isArray(st && st.controllerLayout && st.controllerLayout.rectIds) ? st.controllerLayout.rectIds : []);
+const isControllerLayoutRect = rect => {
+  if (!rect) return false;
+  if (!isControllerLayoutModeActive()) return !(rect && rect._controllerLayoutTemp);
+  if (rect && rect._controllerLayoutTemp !== true) return false;
+  return getControllerLayoutRectIdSet().has(Math.max(1, Math.round(Number(rect.id) || 0)));
+};
 let i18n = null;
 const tr = value => translateText(value);
 const ff = value => fontFamilyCss(value);
@@ -1165,6 +1183,7 @@ const {
   schedulePersist: kind => schedulePersist(kind)
 }));
 const loadProjectIntoActiveState = data => {
+  clearControllerLayoutRuntimeState();
   applyProjectData(data || makeEmptyProjectData("Новый проект"), { syncTabSnapshot: false, renderTabs: false });
   if (VIEWER_MODE) {
     setViewMode("install", false);
@@ -1273,6 +1292,622 @@ let mkDevice = (_x, _y, _w, _h) => ({});
 const isNoteRect = r => isNoteRectKind(r);
 let isShapeRect = r => isShapeRectKind(r);
 const isDeviceRect = r => isDeviceRectKind(r);
+const isControllerDevice = rect => {
+  if (!isDeviceRect(rect)) return false;
+  return String(rect && rect.deviceType || "controller").toLowerCase() === "controller";
+};
+const getControllerLayoutLinksToScreens = controllerId => {
+  const rectById = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [Math.max(1, Math.round(Number(r && r.id) || 0)), r]));
+  const links = normalizeFlowLinks(st.flowLinks);
+  const bestByRectId = new Map();
+  for (const link of links) {
+    const from = link && link.from;
+    const to = link && link.to;
+    const fromRectId = Math.max(1, Math.round(Number(from && from.rectId) || 0));
+    const toRectId = Math.max(1, Math.round(Number(to && to.rectId) || 0));
+    if (fromRectId !== controllerId) continue;
+    if (String(from && from.kind || "").toLowerCase() !== "end") continue;
+    const fromRect = rectById.get(fromRectId);
+    const toRect = rectById.get(toRectId);
+    if (!isControllerDevice(fromRect) || !toRect || isDeviceRect(toRect)) continue;
+    const prev = bestByRectId.get(toRectId);
+    const toKind = String(to && to.kind || "").toLowerCase() === "start" ? "start" : "end";
+    if (!prev || (prev.kind !== "start" && toKind === "start")) {
+      bestByRectId.set(toRectId, { rectId: toRectId, kind: toKind });
+    }
+  }
+  return [...bestByRectId.values()].map(v => v.rectId);
+};
+const devicePortLabel = (r, cid) => {
+  const labels = Array.isArray(r && r.deviceOutLabels) ? r.deviceOutLabels : [];
+  const index = Math.max(1, Math.round(Number(cid) || 1)) - 1;
+  const raw = String(labels[index] == null ? "" : labels[index]).trim();
+  return raw || String(index + 1);
+};
+const getControllerLayoutRegionLinks = controllerId => {
+  const links = normalizeFlowLinks(st.flowLinks);
+  const byRegion = new Map();
+  for (const link of links) {
+    const from = link && link.from;
+    const to = link && link.to;
+    const fromRectId = Math.max(1, Math.round(Number(from && from.rectId) || 0));
+    const toRectId = Math.max(1, Math.round(Number(to && to.rectId) || 0));
+    const toRid = Math.max(0, Math.round(Number(to && to.rid) || 0));
+    if (fromRectId !== controllerId) continue;
+    if (String(from && from.kind || "").toLowerCase() !== "end") continue;
+    const key = `${toRectId}:${toRid}`;
+    const toKind = String(to && to.kind || "").toLowerCase() === "start" ? "start" : "end";
+    const prev = byRegion.get(key);
+    if (!prev || (prev.toKind !== "start" && toKind === "start")) {
+      byRegion.set(key, {
+        rectId: toRectId,
+        rid: toRid,
+        cid: Math.max(1, Math.round(Number(from && from.cid) || 1)),
+        toKind
+      });
+    }
+  }
+  return [...byRegion.values()];
+};
+const makeRegionKey = (rectId, rid) => `${Math.max(1, Math.round(Number(rectId) || 0))}:${Math.max(0, Math.round(Number(rid) || 0))}`;
+const parseRegionKey = key => {
+  const parts = String(key || "").split(":");
+  return {
+    rectId: Math.max(1, Math.round(Number(parts[0]) || 0)),
+    rid: Math.max(0, Math.round(Number(parts[1]) || 0))
+  };
+};
+const buildRegionAdjacency = () => {
+  const adj = new Map();
+  const byRectId = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [Math.max(1, Math.round(Number(r && r.id) || 0)), r]));
+  const addEdge = (a, b) => {
+    if (!adj.has(a)) adj.set(a, new Set());
+    if (!adj.has(b)) adj.set(b, new Set());
+    adj.get(a).add(b);
+    adj.get(b).add(a);
+  };
+  for (const ln of normalizeFlowLinks(st.flowLinks)) {
+    const from = ln && ln.from;
+    const to = ln && ln.to;
+    const fromRectId = Math.max(1, Math.round(Number(from && from.rectId) || 0));
+    const toRectId = Math.max(1, Math.round(Number(to && to.rectId) || 0));
+    const fromRect = byRectId.get(fromRectId);
+    const toRect = byRectId.get(toRectId);
+    if (!fromRect || !toRect || isDeviceRect(fromRect) || isDeviceRect(toRect)) continue;
+    const a = makeRegionKey(fromRectId, from && from.rid);
+    const b = makeRegionKey(toRectId, to && to.rid);
+    if (a === b) continue;
+    addEdge(a, b);
+  }
+  return adj;
+};
+const expandControllerLayoutRegionLinks = baseLinks => {
+  const byRegion = new Map();
+  for (const item of (Array.isArray(baseLinks) ? baseLinks : [])) {
+    const key = makeRegionKey(item && item.rectId, item && item.rid);
+    byRegion.set(key, {
+      rectId: Math.max(1, Math.round(Number(item && item.rectId) || 0)),
+      rid: Math.max(0, Math.round(Number(item && item.rid) || 0)),
+      cid: Math.max(1, Math.round(Number(item && item.cid) || 1)),
+      toKind: String(item && item.toKind || "end")
+    });
+  }
+  const adj = buildRegionAdjacency();
+  const q = [...byRegion.keys()];
+  const seen = new Set(q);
+  while (q.length) {
+    const cur = q.shift();
+    const seed = byRegion.get(cur);
+    for (const nx of (adj.get(cur) || [])) {
+      if (!seen.has(nx)) {
+        const parsed = parseRegionKey(nx);
+        byRegion.set(nx, {
+          rectId: parsed.rectId,
+          rid: parsed.rid,
+          cid: seed ? seed.cid : 1,
+          toKind: "end"
+        });
+        seen.add(nx);
+        q.push(nx);
+      }
+    }
+  }
+  return [...byRegion.values()];
+};
+const buildLayoutTempRectLinkComponents = rects => {
+  const list = Array.isArray(rects) ? rects : [];
+  const byTempKey = new Map();
+  for (const r of list) {
+    if (!r || !r._controllerLayoutTemp) continue;
+    const key = makeRegionKey(r._controllerSourceRectId, r._controllerSourceRid);
+    byTempKey.set(key, Math.max(1, Math.round(Number(r.id) || 0)));
+  }
+  const ids = [...byTempKey.values()];
+  const adj = new Map(ids.map(id => [id, new Set()]));
+  const sourceAdj = buildRegionAdjacency();
+  for (const [srcKey, srcTempId] of byTempKey.entries()) {
+    for (const nx of (sourceAdj.get(srcKey) || [])) {
+      const nxTempId = byTempKey.get(nx);
+      if (!nxTempId || nxTempId === srcTempId) continue;
+      adj.get(srcTempId).add(nxTempId);
+      adj.get(nxTempId).add(srcTempId);
+    }
+  }
+  const groupsById = new Map();
+  const seen = new Set();
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    const q = [id];
+    const comp = [];
+    seen.add(id);
+    while (q.length) {
+      const cur = q.shift();
+      comp.push(cur);
+      for (const nx of (adj.get(cur) || [])) {
+        if (seen.has(nx)) continue;
+        seen.add(nx);
+        q.push(nx);
+      }
+    }
+    const group = comp.slice().sort((a, b) => a - b);
+    for (const x of group) groupsById.set(x, group);
+  }
+  return groupsById;
+};
+const getRegionLocalBounds = (rect, rid) => {
+  const targetRid = Math.max(0, Math.round(Number(rid) || 0));
+  const rt = getRectRuntime(rect, { withRegions: true });
+  const regions = rt && rt.regions;
+  const topo = rt && rt.topo;
+  if (!regions || !topo || !Array.isArray(regions.cellToRegion)) return null;
+  const cols = Math.max(1, Math.round(Number(topo.cols) || 1));
+  const rows = Math.max(1, Math.round(Number(topo.rows) || 1));
+  const cellX = drawCellX(rect);
+  const cellY = drawCellY(rect);
+  let minCol = Infinity;
+  let minRow = Infinity;
+  let maxCol = -Infinity;
+  let maxRow = -Infinity;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const idx = row * cols + col;
+      const regionId = Math.max(0, Math.round(Number(regions.cellToRegion[idx]) || 0));
+      if (regionId !== targetRid) continue;
+      minCol = Math.min(minCol, col);
+      minRow = Math.min(minRow, row);
+      maxCol = Math.max(maxCol, col);
+      maxRow = Math.max(maxRow, row);
+    }
+  }
+  if (!Number.isFinite(minCol) || !Number.isFinite(minRow) || !Number.isFinite(maxCol) || !Number.isFinite(maxRow)) return null;
+  const minX = minCol * cellX;
+  const minY = minRow * cellY;
+  const maxX = Math.min(rect.width, (maxCol + 1) * cellX);
+  const maxY = Math.min(rect.height, (maxRow + 1) * cellY);
+  if (!(maxX > minX && maxY > minY)) return null;
+  return { minX, minY, maxX, maxY };
+};
+const getRegionWorldBoundsFromLocalNoRotation = (rect, localBounds) => {
+  if (!rect || !localBounds) return null;
+  const minX = Number(localBounds.minX);
+  const minY = Number(localBounds.minY);
+  const maxX = Number(localBounds.maxX);
+  const maxY = Number(localBounds.maxY);
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return null;
+  const baseX = Number(rect && rect.x) || 0;
+  const baseY = Number(rect && rect.y) || 0;
+  const wMinX = baseX + minX;
+  const wMinY = baseY + minY;
+  const wMaxX = baseX + maxX;
+  const wMaxY = baseY + maxY;
+  return {
+    minX: wMinX,
+    minY: wMinY,
+    maxX: wMaxX,
+    maxY: wMaxY,
+    width: Math.max(1, wMaxX - wMinX),
+    height: Math.max(1, wMaxY - wMinY),
+    cx: (wMinX + wMaxX) / 2,
+    cy: (wMinY + wMaxY) / 2
+  };
+};
+const buildTempRegionGridFromSource = (srcRect, rid, localBounds) => {
+  const rt = getRectRuntime(srcRect, { withRegions: true });
+  const regions = rt && rt.regions;
+  const topo = rt && rt.topo;
+  if (!regions || !topo || !Array.isArray(regions.cellToRegion)) return null;
+  const targetRid = Math.max(0, Math.round(Number(rid) || 0));
+  const srcCols = Math.max(1, Math.round(Number(topo.cols) || 1));
+  const srcRows = Math.max(1, Math.round(Number(topo.rows) || 1));
+  const srcComp = Array.isArray(topo.comp) ? topo.comp : [];
+  const srcCellX = drawCellX(srcRect);
+  const srcCellY = drawCellY(srcRect);
+  const minCol = Math.max(0, Math.floor((Number(localBounds && localBounds.minX) || 0) / srcCellX));
+  const minRow = Math.max(0, Math.floor((Number(localBounds && localBounds.minY) || 0) / srcCellY));
+  const maxCol = Math.min(srcCols - 1, Math.max(minCol, Math.ceil((Number(localBounds && localBounds.maxX) || 0) / srcCellX) - 1));
+  const maxRow = Math.min(srcRows - 1, Math.max(minRow, Math.ceil((Number(localBounds && localBounds.maxY) || 0) / srcCellY) - 1));
+  const cols = Math.max(1, maxCol - minCol + 1);
+  const rows = Math.max(1, maxRow - minRow + 1);
+  const srcHidden = getHiddenSet(srcRect);
+  const hidden = new Set();
+  const visibleCells = [];
+  const toTempIdx = (c, r) => (r - minRow) * cols + (c - minCol);
+  const toTempKey = (c, r) => maskCellKey(c - minCol, r - minRow);
+  const isVisibleRegionCell = (c, r) => {
+    const idx = r * srcCols + c;
+    const regionId = Math.max(0, Math.round(Number(regions.cellToRegion[idx]) || 0));
+    if (regionId !== targetRid) return false;
+    if (srcHidden && srcHidden.has(maskCellKey(c, r))) return false;
+    return true;
+  };
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
+      if (!isVisibleRegionCell(c, r)) hidden.add(toTempKey(c, r));
+      else {
+        const srcIdx = r * srcCols + c;
+        const srcCid = Math.max(0, Math.round(Number(srcComp[srcIdx]) || 0));
+        visibleCells.push({ tr: r - minRow, tc: c - minCol, srcCid });
+      }
+    }
+  }
+  const links = new Set();
+  const srcLinks = new Set(Array.isArray(srcRect && srcRect.cellLinks) ? srcRect.cellLinks.map(String) : []);
+  const addTempLink = (c1, r1, c2, r2) => {
+    const a = toTempIdx(c1, r1);
+    const b = toTempIdx(c2, r2);
+    if (a === b) return;
+    links.add(a < b ? `${a}-${b}` : `${b}-${a}`);
+  };
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
+      if (!isVisibleRegionCell(c, r)) continue;
+      if (c + 1 <= maxCol && isVisibleRegionCell(c + 1, r)) {
+        const a = r * srcCols + c;
+        const b = r * srcCols + (c + 1);
+        const k = a < b ? `${a}-${b}` : `${b}-${a}`;
+        if (srcLinks.has(k)) addTempLink(c, r, c + 1, r);
+      }
+      if (r + 1 <= maxRow && isVisibleRegionCell(c, r + 1)) {
+        const a = r * srcCols + c;
+        const b = (r + 1) * srcCols + c;
+        const k = a < b ? `${a}-${b}` : `${b}-${a}`;
+        if (srcLinks.has(k)) addTempLink(c, r, c, r + 1);
+      }
+    }
+  }
+  return {
+    cols,
+    rows,
+    srcCellX,
+    srcCellY,
+    minCol,
+    minRow,
+    srcCols,
+    srcComp,
+    visibleCells,
+    hiddenCells: [...hidden],
+    cellLinks: [...links]
+  };
+};
+const remapFlowCfgCids = (cfg, cidMap) => {
+  const mapCid = value => {
+    const k = Math.max(0, Math.round(Number(value) || 0));
+    return cidMap.has(k) ? cidMap.get(k) : k;
+  };
+  const src = (cfg && typeof cfg === "object") ? JSON.parse(JSON.stringify(cfg)) : {};
+  if (src.startCid != null) src.startCid = mapCid(src.startCid);
+  if (Array.isArray(src.locks)) {
+    src.locks = src.locks.map(it => ({ ...it, cid: mapCid(it && it.cid) }));
+  }
+  if (Array.isArray(src.manualOrder)) {
+    src.manualOrder = src.manualOrder.map(v => mapCid(v));
+  }
+  return src;
+};
+const componentCellSignatureMap = (comp, cols, visibleCells) => {
+  const vis = Array.isArray(visibleCells) ? visibleCells : [];
+  const byCid = new Map();
+  for (const cell of vis) {
+    const tr = Math.max(0, Math.round(Number(cell && cell.tr) || 0));
+    const tc = Math.max(0, Math.round(Number(cell && cell.tc) || 0));
+    const idx = tr * cols + tc;
+    const cid = Math.max(0, Math.round(Number(comp && comp[idx]) || 0));
+    const arr = byCid.get(cid) || [];
+    arr.push(idx);
+    byCid.set(cid, arr);
+  }
+  const out = new Map();
+  for (const [cid, arr] of byCid.entries()) {
+    arr.sort((a, b) => a - b);
+    out.set(cid, arr.join(","));
+  }
+  return out;
+};
+const buildTempFlowGroupsFromSource = (srcRect, rid, grid, cellXTemp, cellYTemp, cidMap) => {
+  const rt = getRectRuntime(srcRect, { withGroups: true });
+  const groups = Array.isArray(rt && rt.groups) ? rt.groups : [];
+  const srcRid = Math.max(0, Math.round(Number(rid) || 0));
+  const srcGroup = groups.find(g => Math.max(0, Math.round(Number(g && g.rid) || 0)) === srcRid);
+  if (!srcGroup || !Array.isArray(srcGroup.points) || !srcGroup.points.length) return null;
+  const sx = cellXTemp / Math.max(1e-6, grid.srcCellX);
+  const sy = cellYTemp / Math.max(1e-6, grid.srcCellY);
+  const minX = grid.minCol * grid.srcCellX;
+  const minY = grid.minRow * grid.srcCellY;
+  const points = srcGroup.points.map((p, index) => {
+    const u = Number(p && p.u) || 0;
+    const v = Number(p && p.v) || 0;
+    const cidSrc = Math.max(0, Math.round(Number(p && p.cid) || 0));
+    const cid = cidMap && cidMap.has(cidSrc) ? cidMap.get(cidSrc) : cidSrc;
+    return {
+      index: Math.max(0, Math.round(Number(p && p.index) || index)),
+      cid,
+      u: (u - minX) * sx,
+      v: (v - minY) * sy,
+      bw: Math.max(1e-6, (Number(p && p.bw) || grid.srcCellX) * sx),
+      bh: Math.max(1e-6, (Number(p && p.bh) || grid.srcCellY) * sy)
+    };
+  });
+  return [{ ...srcGroup, rid: 0, points }];
+};
+const getScreenDensityPxPerM = rect => {
+  const expr = String(rect && rect._areaM2Expression || "").trim();
+  const match = expr.match(/(\d+(?:[.,]\d+)?)\s*[xх×]\s*(\d+(?:[.,]\d+)?)/i);
+  if (match) {
+    const a = Number(String(match[1]).replace(",", "."));
+    const b = Number(String(match[2]).replace(",", "."));
+    if (Number.isFinite(a) && Number.isFinite(b) && a > 0 && b > 0) {
+      return { x: Math.max(1, a), y: Math.max(1, b) };
+    }
+  }
+  const area = Math.max(1, Number(rect && rect.areaM2Px) || 65536);
+  const d = Math.max(1, Math.sqrt(area));
+  return { x: d, y: d };
+};
+const getRectIdInLayoutFromLink = endpoint => Math.max(1, Math.round(Number(endpoint && endpoint.rectId) || 0));
+const compactControllerLayoutByLinks = (rectIds, opts = {}) => {
+  const preserveGlobalPlacement = !!(opts && opts.preserveGlobalPlacement);
+  const ids = new Set((Array.isArray(rectIds) ? rectIds : []).map(v => Math.max(1, Math.round(Number(v) || 0))));
+  if (!ids.size) return;
+  const byId = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [Math.max(1, Math.round(Number(r && r.id) || 0)), r]));
+  const tempRects = [...ids].map(id => byId.get(id)).filter(r => r && r._controllerLayoutTemp);
+  const tempSourceToId = new Map();
+  for (const r of tempRects) {
+    tempSourceToId.set(makeRegionKey(r._controllerSourceRectId, r._controllerSourceRid), Math.max(1, Math.round(Number(r.id) || 0)));
+  }
+  const links = (tempRects.length === ids.size)
+    ? normalizeFlowLinks(st.flowLinks).flatMap(ln => {
+      const from = ln && ln.from;
+      const to = ln && ln.to;
+      const a = tempSourceToId.get(makeRegionKey(from && from.rectId, from && from.rid));
+      const b = tempSourceToId.get(makeRegionKey(to && to.rectId, to && to.rid));
+      if (!a || !b || a === b) return [];
+      return [{ from: { rectId: a }, to: { rectId: b } }];
+    })
+    : normalizeFlowLinks(st.flowLinks).filter(ln => {
+      const a = getRectIdInLayoutFromLink(ln && ln.from);
+      const b = getRectIdInLayoutFromLink(ln && ln.to);
+      return ids.has(a) && ids.has(b) && a !== b;
+    });
+  const adj = new Map();
+  for (const id of ids) adj.set(id, new Set());
+  for (const ln of links) {
+    const a = getRectIdInLayoutFromLink(ln && ln.from);
+    const b = getRectIdInLayoutFromLink(ln && ln.to);
+    if (!adj.has(a) || !adj.has(b)) continue;
+    adj.get(a).add(b);
+    adj.get(b).add(a);
+  }
+  const comps = [];
+  const seen = new Set();
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    const q = [id];
+    const comp = [];
+    seen.add(id);
+    while (q.length) {
+      const curId = q.shift();
+      comp.push(curId);
+      for (const nx of (adj.get(curId) || [])) {
+        if (seen.has(nx)) continue;
+        seen.add(nx);
+        q.push(nx);
+      }
+    }
+    comps.push(comp);
+  }
+  const packRectanglesMinArea = (items, maxExact = 10) => {
+    const rects = (Array.isArray(items) ? items : [])
+      .map(it => ({ ...it, w: Math.max(1, Math.round(Number(it && it.w) || 1)), h: Math.max(1, Math.round(Number(it && it.h) || 1)) }))
+      .filter(it => it && it.id);
+    if (!rects.length) return { placements: new Map(), w: 0, h: 0, area: 0 };
+    if (rects.length === 1) {
+      const one = rects[0];
+      return { placements: new Map([[one.id, { x: 0, y: 0, w: one.w, h: one.h }]]), w: one.w, h: one.h, area: one.w * one.h };
+    }
+    const sorted = rects.slice().sort((a, b) => (b.w * b.h) - (a.w * a.h) || b.h - a.h || b.w - a.w);
+    const totalArea = sorted.reduce((sum, it) => sum + it.w * it.h, 0);
+    const exact = sorted.length <= maxExact;
+    let best = { area: Infinity, w: Infinity, h: Infinity, placements: new Map() };
+    const overlaps = (a, b) => !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
+    const evalCandidate = placed => {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of placed) {
+        minX = Math.min(minX, p.x);
+        minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x + p.w);
+        maxY = Math.max(maxY, p.y + p.h);
+      }
+      const shiftX = -minX;
+      const shiftY = -minY;
+      const w = maxX - minX;
+      const h = maxY - minY;
+      const area = Math.max(1, w * h);
+      if (area > best.area || (area === best.area && (w > best.w || (w === best.w && h >= best.h)))) return;
+      const placements = new Map();
+      for (const p of placed) placements.set(p.id, { x: p.x + shiftX, y: p.y + shiftY, w: p.w, h: p.h });
+      best = { area, w, h, placements };
+    };
+    const dfs = (idx, placed, maxX, maxY) => {
+      if (idx >= sorted.length) {
+        evalCandidate(placed);
+        return;
+      }
+      const it = sorted[idx];
+      const candidates = [];
+      if (!placed.length) {
+        candidates.push({ x: 0, y: 0 });
+      } else {
+        candidates.push({ x: 0, y: maxY });
+        candidates.push({ x: maxX, y: 0 });
+        for (const p of placed) {
+          candidates.push({ x: p.x + p.w, y: p.y });
+          candidates.push({ x: p.x, y: p.y + p.h });
+        }
+      }
+      const unique = new Map();
+      for (const c of candidates) unique.set(`${c.x}:${c.y}`, c);
+      const ranked = [...unique.values()].sort((a, b) => (a.y - b.y) || (a.x - b.x));
+      for (const c of ranked) {
+        const cand = { id: it.id, x: c.x, y: c.y, w: it.w, h: it.h };
+        let bad = false;
+        for (const p of placed) {
+          if (overlaps(cand, p)) { bad = true; break; }
+        }
+        if (bad) continue;
+        const nextMaxX = Math.max(maxX, cand.x + cand.w);
+        const nextMaxY = Math.max(maxY, cand.y + cand.h);
+        const lowerBoundArea = Math.max(totalArea, nextMaxX * nextMaxY);
+        if (lowerBoundArea > best.area) continue;
+        placed.push(cand);
+        dfs(idx + 1, placed, nextMaxX, nextMaxY);
+        placed.pop();
+        if (!exact && best.area < Infinity && placed.length > 0 && lowerBoundArea >= best.area) break;
+      }
+    };
+    dfs(0, [], 0, 0);
+    if (best.area < Infinity) return best;
+    const placements = new Map();
+    let x = 0;
+    let h = 0;
+    for (const it of sorted) {
+      placements.set(it.id, { x, y: 0, w: it.w, h: it.h });
+      x += it.w;
+      h = Math.max(h, it.h);
+    }
+    return { placements, w: x, h, area: Math.max(1, x * h) };
+  };
+  const compBoxes = comps.map(comp => {
+    const items = [];
+    let origMinX = Infinity;
+    let origMinY = Infinity;
+    let origMaxX = -Infinity;
+    let origMaxY = -Infinity;
+    for (const id of comp) {
+      const r = byId.get(id);
+      if (!r) continue;
+      const bb = rectAABBMasked(r);
+      origMinX = Math.min(origMinX, bb.minX);
+      origMinY = Math.min(origMinY, bb.minY);
+      origMaxX = Math.max(origMaxX, bb.maxX);
+      origMaxY = Math.max(origMaxY, bb.maxY);
+      items.push({ id, w: Math.max(1, Math.round(bb.maxX - bb.minX)), h: Math.max(1, Math.round(bb.maxY - bb.minY)) });
+    }
+    if (!items.length) return null;
+    if (comp.length > 1) {
+      const packed = packRectanglesMinArea(items, 10);
+      const srcCx = (Number.isFinite(origMinX) && Number.isFinite(origMaxX)) ? ((origMinX + origMaxX) / 2) : 0;
+      const srcCy = (Number.isFinite(origMinY) && Number.isFinite(origMaxY)) ? ((origMinY + origMaxY) / 2) : 0;
+      const anchorX = srcCx - packed.w / 2;
+      const anchorY = srcCy - packed.h / 2;
+      for (const item of items) {
+        const r = byId.get(item.id);
+        const p = packed.placements.get(item.id);
+        if (!r || !p) continue;
+        r.x = Math.round(anchorX + p.x);
+        r.y = Math.round(anchorY + p.y);
+      }
+      return { comp, minX: anchorX, minY: anchorY, maxX: anchorX + packed.w, maxY: anchorY + packed.h, w: packed.w, h: packed.h, area: Math.max(1, packed.area) };
+    }
+    const only = items[0];
+    const r0 = byId.get(only.id);
+    if (!r0) return null;
+    const bb0 = rectAABBMasked(r0);
+    return {
+      comp,
+      minX: bb0.minX,
+      minY: bb0.minY,
+      maxX: bb0.maxX,
+      maxY: bb0.maxY,
+      w: Math.max(1, bb0.maxX - bb0.minX),
+      h: Math.max(1, bb0.maxY - bb0.minY),
+      area: Math.max(1, (bb0.maxX - bb0.minX) * (bb0.maxY - bb0.minY))
+    };
+  }).filter(Boolean).sort((a, b) => b.area - a.area);
+  if (!compBoxes.length) return;
+  if (preserveGlobalPlacement) return;
+  const totalArea = compBoxes.reduce((sum, box) => sum + box.area, 0);
+  const rowLimit = Math.max(1, Math.sqrt(totalArea) * 1.2);
+  const gap = Math.max(24, Math.round(Number(st.globalScale) || 256) * 0.08);
+  let cursorX = 0;
+  let cursorY = 0;
+  let rowH = 0;
+  for (const box of compBoxes) {
+    if (cursorX > 0 && cursorX + box.w > rowLimit) {
+      cursorX = 0;
+      cursorY += rowH + gap;
+      rowH = 0;
+    }
+    const dx = cursorX - box.minX;
+    const dy = cursorY - box.minY;
+    for (const id of box.comp) {
+      const r = byId.get(id);
+      if (!r) continue;
+      r.x = Math.round((Number(r.x) || 0) + dx);
+      r.y = Math.round((Number(r.y) || 0) + dy);
+    }
+    cursorX += box.w + gap;
+    rowH = Math.max(rowH, box.h);
+  }
+};
+const applyInitialLayoutByScaleGroups = tempRects => {
+  const list = Array.isArray(tempRects) ? tempRects.filter(r => r && r._controllerLayoutTemp && !r._controllerHasSavedPosition) : [];
+  if (!list.length) return;
+  const groups = new Map();
+  for (const r of list) {
+    const key = String(r._controllerScaleGroupKey || `${Math.max(1, Number(r.scale) || 1)}`);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+  const median = arr => {
+    const xs = (Array.isArray(arr) ? arr : []).map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+    if (!xs.length) return 1;
+    const mid = Math.floor(xs.length / 2);
+    return xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2;
+  };
+  for (const rects of groups.values()) {
+    if (!Array.isArray(rects) || !rects.length) continue;
+    const rx = [];
+    const ry = [];
+    for (const r of rects) {
+      const sx = Number(r._controllerSrcX);
+      const sy = Number(r._controllerSrcY);
+      const sw = Number(r._controllerSrcW);
+      const sh = Number(r._controllerSrcH);
+      if (!Number.isFinite(sx) || !Number.isFinite(sy)) continue;
+      if (Number.isFinite(sw) && sw > 0) rx.push((Number(r.width) || 1) / sw);
+      if (Number.isFinite(sh) && sh > 0) ry.push((Number(r.height) || 1) / sh);
+    }
+    const kx = Math.max(1e-6, median(rx));
+    const ky = Math.max(1e-6, median(ry));
+    for (const r of rects) {
+      const sx = Number(r._controllerSrcX);
+      const sy = Number(r._controllerSrcY);
+      if (!Number.isFinite(sx) || !Number.isFinite(sy)) continue;
+      r.x = Math.round(sx * kx);
+      r.y = Math.round(sy * ky);
+    }
+  }
+};
 const hasRect = id => st.rects.some(v => v.id === id);
 let setMode = (_m) => { };
 let activateToolOrSelect = (_mode) => { };
@@ -1304,6 +1939,16 @@ let toggleRectLockById = (_id) => false;
   updateClusterEditCursor,
   render: () => render()
 }));
+const setModeBase = setMode;
+setMode = mode => {
+  if (isControllerLayoutModeActive() && String(mode || "") !== "select") return setModeBase("select");
+  return setModeBase(mode);
+};
+const activateToolOrSelectBase = activateToolOrSelect;
+activateToolOrSelect = mode => {
+  if (isControllerLayoutModeActive() && String(mode || "") !== "select") return setMode("select");
+  return activateToolOrSelectBase(mode);
+};
 ({
   getRectsBBox,
   normSelSet,
@@ -1327,8 +1972,74 @@ let toggleRectLockById = (_id) => false;
   rectAABB,
   rectAABBMasked,
   rectIntersectsSelectionBoxVisible,
-  refreshPropsListRender
+  refreshPropsListRender,
+  canSelectRect: r => isControllerLayoutRect(r)
 }));
+const setSelectionBase = setSelection;
+const expandSelectionWithControllerGroups = (ids, activeId = null) => {
+  const inIds = Array.isArray(ids) ? ids : (ids == null ? [] : [ids]);
+  if (!isControllerLayoutModeActive()) {
+    const raw = inIds.map(v => Math.max(1, Math.round(Number(v) || 0))).filter(v => v > 0);
+    return { ids: [...new Set(raw)], activeId: activeId == null ? null : Math.max(1, Math.round(Number(activeId) || 0)) };
+  }
+  const groupsById = st && st.controllerLayout && st.controllerLayout.groupsById;
+  if (!(groupsById instanceof Map)) {
+    const raw = inIds.map(v => Math.max(1, Math.round(Number(v) || 0))).filter(v => v > 0);
+    return { ids: [...new Set(raw)], activeId: activeId == null ? null : Math.max(1, Math.round(Number(activeId) || 0)) };
+  }
+  const expanded = new Set();
+  for (const rawId of inIds) {
+    const id = Math.max(1, Math.round(Number(rawId) || 0));
+    const group = groupsById.get(id);
+    if (Array.isArray(group) && group.length) {
+      for (const gid of group) expanded.add(Math.max(1, Math.round(Number(gid) || 0)));
+    } else if (id > 0) {
+      expanded.add(id);
+    }
+  }
+  let nextActive = activeId == null ? null : Math.max(1, Math.round(Number(activeId) || 0));
+  if (nextActive != null && groupsById.has(nextActive)) {
+    const g = groupsById.get(nextActive);
+    if (Array.isArray(g) && g.length) nextActive = Math.max(1, Math.round(Number(g[0]) || nextActive));
+  }
+  return { ids: [...expanded], activeId: nextActive };
+};
+setSelection = (ids, activeId = null) => {
+  const expanded = expandSelectionWithControllerGroups(ids, activeId);
+  return setSelectionBase(expanded.ids, expanded.activeId);
+};
+const selectOnlyBase = selectOnly;
+selectOnly = id => {
+  if (!isControllerLayoutModeActive()) return selectOnlyBase(id);
+  return setSelection(id == null ? [] : [id], id);
+};
+const toggleSelectBase = toggleSelect;
+toggleSelect = id => {
+  if (!isControllerLayoutModeActive()) return toggleSelectBase(id);
+  const target = Math.max(1, Math.round(Number(id) || 0));
+  const groupsById = st && st.controllerLayout && st.controllerLayout.groupsById;
+  const group = (groupsById instanceof Map && Array.isArray(groupsById.get(target))) ? groupsById.get(target) : [target];
+  const hasAll = group.every(gid => st.selSet instanceof Set && st.selSet.has(gid));
+  const next = new Set(st.selSet instanceof Set ? st.selSet : []);
+  if (hasAll) {
+    for (const gid of group) next.delete(gid);
+  } else {
+    for (const gid of group) next.add(gid);
+  }
+  const nextActive = hasAll ? ([...next][0] || null) : target;
+  return setSelection([...next], nextActive);
+};
+const finishSelectionBoxBase = finishSelectionBox;
+finishSelectionBox = () => {
+  const changed = finishSelectionBoxBase();
+  if (!changed || !isControllerLayoutModeActive()) return changed;
+  if (!(st && st.selSet instanceof Set) || !st.selSet.size) return changed;
+  const expanded = expandSelectionWithControllerGroups([...st.selSet], st.sel);
+  const prevKey = [...st.selSet].sort((a, b) => a - b).join(",");
+  const nextKey = expanded.ids.slice().sort((a, b) => a - b).join(",");
+  if (prevKey !== nextKey) setSelectionBase(expanded.ids, expanded.activeId);
+  return changed;
+};
 ({
   isRectLocked,
   getEditableSelectedRects,
@@ -1399,6 +2110,7 @@ const rectHasManualFlow = r => {
   isSelected,
   toggleRectLockById,
   persistProjectAndRender,
+  rectListFilter: r => isControllerLayoutRect(r),
   t: value => translateText(value)
 }));
 const multiSelectionActions = setupMultiSelectionActionsController({
@@ -1415,6 +2127,31 @@ const multiSelectionActions = setupMultiSelectionActionsController({
   getCellTopologyCached: (r, cx, cy) => getCellTopologyCached(r, cx, cy),
   getHiddenSet: r => getHiddenSet(r),
   buildVisibleCabinetSummary: (r, cx, cy, topo, hs) => buildVisibleCabinetSummary(r, cx, cy, topo, hs),
+  isMultiSelectionBlocked: () => {
+    if (!isControllerLayoutModeActive()) return false;
+    const groupsById = st && st.controllerLayout && st.controllerLayout.groupsById;
+    if (!(groupsById instanceof Map) || !(st.selSet instanceof Set) || !st.selSet.size) return false;
+    const selIds = [...st.selSet].map(v => Math.max(1, Math.round(Number(v) || 0)));
+    if (!selIds.length) return false;
+    const group = groupsById.get(selIds[0]);
+    if (!Array.isArray(group) || group.length <= 1) return false;
+    const groupSet = new Set(group.map(v => Math.max(1, Math.round(Number(v) || 0))));
+    if (groupSet.size !== selIds.length) return false;
+    for (const id of selIds) {
+      if (!groupSet.has(id)) return false;
+    }
+    return true;
+  },
+  getCompositeSelectionGroup: rect => {
+    if (!isControllerLayoutModeActive() || !rect || !rect._controllerLayoutTemp) return "";
+    const groupsById = st && st.controllerLayout && st.controllerLayout.groupsById;
+    if (!(groupsById instanceof Map)) return "";
+    const id = Math.max(1, Math.round(Number(rect.id) || 0));
+    const group = groupsById.get(id);
+    if (!Array.isArray(group) || group.length <= 1) return "";
+    const key = group.slice().map(v => Math.max(1, Math.round(Number(v) || 0))).sort((a, b) => a - b).join(",");
+    return key ? `layout-group:${key}` : "";
+  },
   t: value => translateText(value)
 });
 let hit = (_x, _y) => null;
@@ -1477,7 +2214,8 @@ let handleClusterEditAtPoint = (_wx, _wy) => false;
   findManualClusterAtCell,
   nextManualClusterId,
   clusterCanPlace,
-  upsertManualCluster
+  upsertManualCluster,
+  canHitRect: r => isControllerLayoutRect(r)
 }));
 let snap = (_x, _y, _id, _w, _h, _off) => ({ x: Math.round(Number(_x) || 0), y: Math.round(Number(_y) || 0), gx: null, gy: null, dg: null });
 const { drawNoteRect } = setupNoteRender({
@@ -1625,7 +2363,7 @@ const { drawMaskOverlay, drawCellEditOverlay, drawCabinetEditOverlay, drawConten
   listSignature,
   t: value => translateText(value)
 });
-const { drawInstallSummaryOverlay } = setupInstallSummaryOverlay({
+const { drawInstallSummaryOverlay, hideInstallSummaryOverlay } = setupInstallSummaryOverlay({
   st,
   cv,
   wrap,
@@ -1640,7 +2378,8 @@ const { drawInstallSummaryOverlay } = setupInstallSummaryOverlay({
   isNoteRect: r => isNoteRect(r) || isShapeRect(r) || isDeviceRect(r),
   parseScreenNameGroup,
   listSignature,
-  t: value => translateText(value)
+  t: value => translateText(value),
+  isOverlaySuppressed: () => isControllerLayoutModeActive()
 });
 let render = (_immediate = false) => { };
 let renderOverlay = (_immediate = false) => { };
@@ -1674,15 +2413,21 @@ let lastSpecAutoRefreshAt = 0;
   getOrigin,
   isSelected,
   drawRect,
-  drawInterScreenFlowLinks,
+  drawInterScreenFlowLinks: c => { if (!isControllerLayoutModeActive()) drawInterScreenFlowLinks(c); },
   drawFlowLinkCurveHandlesOverlay,
   drawMaskOverlay,
   drawCellEditOverlay,
   drawCabinetEditOverlay,
-  drawContentBounds,
-  drawLayerButtons,
+  drawContentBounds: (c, z) => { if (!isControllerLayoutModeActive()) drawContentBounds(c, z); },
+  drawLayerButtons: (c, z) => { if (!isControllerLayoutModeActive()) drawLayerButtons(c, z); },
   drawMultiSelectionActions: (c, z) => multiSelectionActions.drawActions(c, z),
-  drawInstallSummaryOverlay,
+  drawInstallSummaryOverlay: c => {
+    if (isControllerLayoutModeActive()) {
+      if (typeof hideInstallSummaryOverlay === "function") hideInstallSummaryOverlay();
+      return;
+    }
+    drawInstallSummaryOverlay(c);
+  },
   updateNoteEditorOverlay,
   selBoxBounds,
   resetClusterHoverTransient,
@@ -1702,7 +2447,10 @@ let lastSpecAutoRefreshAt = 0;
   },
   bindWindowEvent,
   bindEvent,
-  zc
+  zc,
+  visibleRectFilter: r => isControllerLayoutRect(r),
+  onAfterMainSceneDraw: (c, z) => drawControllerLayoutOverlay(c, z),
+  onAfterOverlayDraw: (c, z) => drawControllerLayoutHeaderOverlay(c, z)
 }));
 const renderRuntimeBase = render;
 const renderOverlayRuntimeBase = renderOverlay;
@@ -1710,15 +2458,21 @@ const renderNowRuntimeBase = renderNow;
 render = (immediate = false) => {
   updateSelectionActionButtonsAvailability();
   renderRuntimeBase(immediate);
-  if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => drawInstallSummaryOverlay());
-  else drawInstallSummaryOverlay();
+  if (isControllerLayoutModeActive()) {
+    if (typeof hideInstallSummaryOverlay === "function") hideInstallSummaryOverlay();
+  } else {
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => drawInstallSummaryOverlay());
+    else drawInstallSummaryOverlay();
+  }
 };
 renderOverlay = (immediate = false) => {
   renderOverlayRuntimeBase(immediate);
 };
 renderNow = () => {
   renderNowRuntimeBase();
-  drawInstallSummaryOverlay();
+  if (isControllerLayoutModeActive()) {
+    if (typeof hideInstallSummaryOverlay === "function") hideInstallSummaryOverlay();
+  } else drawInstallSummaryOverlay();
 };
 let beginRectDrag = (_target, _p) => { };
 let snapGroup = (_nx, _ny, _drag, _off) => ({ x: Math.round(Number(_nx) || 0), y: Math.round(Number(_ny) || 0), gx: null, gy: null, dg: null });
@@ -1736,7 +2490,8 @@ let moveRectDrag = (_p, _disableSnap) => { };
   normSelSet: () => normSelSet(),
   isSelected: id => isSelected(id),
   selectOnly: id => selectOnly(id),
-  getEditableSelectedRects: () => getEditableSelectedRects()
+  getEditableSelectedRects: () => getEditableSelectedRects(),
+  canSnapRect: r => isControllerLayoutRect(r)
 }));
 let handleFlowEditPointerDown = (_p) => false;
 let handleCabinetEditPointerDown = (_p) => false;
@@ -1942,10 +2697,353 @@ const { dupMirrorSel } = setupMirrorDuplicateFeature({
   setMode: editorCtx.actions.setMode,
   schedulePersist: editorCtx.actions.schedulePersist
 });
-function fit() {
-  const fitRects = (Array.isArray(st.rects) ? st.rects : []).filter(r => !isNoteExcludedFromContentBounds(r));
+const fitRectsOnCanvas = rects => {
+  const fitRects = (Array.isArray(rects) ? rects : []).filter(r => !isNoteExcludedFromContentBounds(r));
   if (!fitRects.length) { st.camX = 0; st.camY = 0; st.zoom = 1; render(); return } let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9; for (const r of fitRects) { const bb = rectAABBMasked(r); minX = Math.min(minX, bb.minX); minY = Math.min(minY, bb.minY); maxX = Math.max(maxX, bb.maxX); maxY = Math.max(maxY, bb.maxY) }
   const vm = getViewMetrics(), w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY), pad = 80; st.zoom = zc(Math.min((vm.viewWidth - pad) / w, (vm.viewHeight - pad) / h)); st.camX = (minX + maxX) / 2; st.camY = (minY + maxY) / 2; render()
+};
+function fit() {
+  const fitRects = isControllerLayoutModeActive()
+    ? (Array.isArray(st.rects) ? st.rects : []).filter(r => isControllerLayoutRect(r))
+    : (Array.isArray(st.rects) ? st.rects : []);
+  fitRectsOnCanvas(fitRects);
+}
+const updateControllerLayoutUiLock = () => {
+  const active = isControllerLayoutModeActive();
+  const readOnly = !!(active && st && st.controllerLayout && st.controllerLayout.readOnly);
+  const toolButtons = [
+    el.toolDraw, el.toolMaskAdd, el.toolCellEdit, el.toolFlowEdit, el.toolClusterEdit, el.toolRigEdit,
+    el.mToolDraw, el.mToolMaskAdd, el.mToolCellEdit, el.mToolFlowEdit, el.mToolClusterEdit, el.mToolRigEdit
+  ];
+  for (const btn of toolButtons) {
+    if (!btn) continue;
+    btn.disabled = !!active;
+    btn.classList.toggle("layout-mode-tool-locked", !!active);
+    btn.setAttribute("aria-disabled", active ? "true" : "false");
+  }
+  if (el.side) el.side.classList.toggle("controller-layout-locked", !!active);
+  if (el.side) el.side.classList.toggle("controller-layout-hidden", !!active);
+  if (el.controllerLayoutBack) el.controllerLayoutBack.classList.toggle("d-none", !active);
+  if (el.btnControllerLayoutReset) el.btnControllerLayoutReset.classList.toggle("d-none", !active || !!readOnly);
+};
+const persistControllerLayoutPositions = () => {
+  if (!isControllerLayoutModeActive()) return false;
+  const controllerId = Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.controllerId) || 0));
+  if (!controllerId) return false;
+  const controllerRect = getRectById(controllerId);
+  if (!controllerRect) return false;
+  const map = {};
+  const ids = getControllerLayoutRectIdSet();
+  for (const r of (Array.isArray(st.rects) ? st.rects : [])) {
+    if (!r || !r._controllerLayoutTemp) continue;
+    if (!ids.has(Math.max(1, Math.round(Number(r.id) || 0)))) continue;
+    const srcRectId = Math.max(1, Math.round(Number(r._controllerSourceRectId) || 0));
+    const srcRid = Math.max(0, Math.round(Number(r._controllerSourceRid) || 0));
+    map[`${srcRectId}:${srcRid}`] = {
+      x: Math.round(Number(r.x) || 0),
+      y: Math.round(Number(r.y) || 0)
+    };
+  }
+  controllerRect.controllerLayoutRegionPositions = map;
+  return true;
+};
+function clearControllerLayoutRuntimeState() {
+  const nextTempId = Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.nextTempId) || 900000000));
+  const list = Array.isArray(st && st.rects) ? st.rects : [];
+  if (list.some(r => r && r._controllerLayoutTemp)) {
+    st.rects = list.filter(r => !r || !r._controllerLayoutTemp);
+  }
+  st.controllerLayout = { active: false, controllerId: null, rectIds: [], groupsById: null, readOnly: false, nextTempId };
+}
+const removeControllerLayoutTempRects = () => {
+  const list = Array.isArray(st.rects) ? st.rects : [];
+  st.rects = list.filter(r => !r || !r._controllerLayoutTemp);
+};
+const exitControllerLayoutMode = (opts = {}) => {
+  if (!isControllerLayoutModeActive()) return;
+  const wasReadOnly = !!(st && st.controllerLayout && st.controllerLayout.readOnly);
+  const skipLayoutPersist = !!(opts && opts.skipLayoutPersist);
+  const controllerId = Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.controllerId) || 0));
+  const nextTempId = Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.nextTempId) || 900000000));
+  const changed = (skipLayoutPersist || wasReadOnly) ? false : persistControllerLayoutPositions();
+  removeControllerLayoutTempRects();
+  st.controllerLayout = { active: false, controllerId: null, rectIds: [], groupsById: null, readOnly: false, nextTempId };
+  if (wasReadOnly) setSelection([], null);
+  else if (controllerId > 0 && getRectById(controllerId)) setSelection([controllerId], controllerId);
+  else setSelection([], null);
+  if (
+    controllerLayoutPrevView
+    && Number.isFinite(Number(controllerLayoutPrevView.camX))
+    && Number.isFinite(Number(controllerLayoutPrevView.camY))
+    && Number.isFinite(Number(controllerLayoutPrevView.zoom))
+  ) {
+    st.camX = Number(controllerLayoutPrevView.camX);
+    st.camY = Number(controllerLayoutPrevView.camY);
+    st.zoom = Number(controllerLayoutPrevView.zoom);
+  }
+  controllerLayoutPrevView = null;
+  updateControllerLayoutUiLock();
+  setMode(controllerLayoutPrevMode || "select");
+  syncProps();
+  listRects();
+  if (changed) schedulePersist("project");
+  render();
+};
+const enterControllerLayoutMode = (controllerRect, opts = {}) => {
+  if (!controllerRect || !isControllerDevice(controllerRect)) return;
+  const readOnly = !!(opts && opts.readOnly);
+  const controllerId = Math.max(1, Math.round(Number(controllerRect.id) || 0));
+  const links = expandControllerLayoutRegionLinks(getControllerLayoutRegionLinks(controllerId));
+  if (!links.length) return;
+  const byId = new Map((Array.isArray(st.rects) ? st.rects : []).map(r => [Math.max(1, Math.round(Number(r && r.id) || 0)), r]));
+  const savedLayout = (controllerRect && controllerRect.controllerLayoutRegionPositions && typeof controllerRect.controllerLayoutRegionPositions === "object")
+    ? controllerRect.controllerLayoutRegionPositions
+    : {};
+  removeControllerLayoutTempRects();
+  const tempRects = [];
+  let savedAppliedCount = 0;
+  for (const item of links) {
+    const srcRect = byId.get(item.rectId);
+    if (!srcRect || isDeviceRect(srcRect)) continue;
+    const local = getRegionLocalBounds(srcRect, item.rid);
+    if (!local) continue;
+    const grid = buildTempRegionGridFromSource(srcRect, item.rid, local);
+    if (!grid) continue;
+    const wb = getRegionWorldBoundsFromLocalNoRotation(srcRect, local);
+    const x = Number(wb && wb.minX) || 0;
+    const y = Number(wb && wb.minY) || 0;
+    const srcRegionPxW = Math.max(1, Number(wb && wb.width) || (grid.cols * grid.srcCellX));
+    const srcRegionPxH = Math.max(1, Number(wb && wb.height) || (grid.rows * grid.srcCellY));
+    const rectScalePxPerM = Math.max(1, Number(srcRect && srcRect.scale) || 256);
+    const layoutDensity = getScreenDensityPxPerM(srcRect);
+    const srcCellMetersX = Math.max(1e-6, grid.srcCellX / rectScalePxPerM);
+    const srcCellMetersY = Math.max(1e-6, grid.srcCellY / rectScalePxPerM);
+    const densityX = Math.max(1, Number(layoutDensity && layoutDensity.x) || 1);
+    const densityY = Math.max(1, Number(layoutDensity && layoutDensity.y) || 1);
+    const cellXTemp = Math.max(1, Math.round(srcCellMetersX * densityX));
+    const cellYTemp = Math.max(1, Math.round(srcCellMetersY * densityY));
+    const w = Math.max(1, grid.cols * cellXTemp);
+    const h = Math.max(1, grid.rows * cellYTemp);
+    const scaleForTemp = Math.max(1, Math.round(Math.sqrt(densityX * densityY)));
+    const srcFlowCfg = getFlowLocksRegion(srcRect, item.rid);
+    const tempId = Math.max(1, Math.round(Number(st.controllerLayout.nextTempId) || 900000000));
+    st.controllerLayout.nextTempId = tempId + 1;
+    const saved = savedLayout[`${item.rectId}:${item.rid}`];
+    const layoutX = Number(saved && saved.x);
+    const layoutY = Number(saved && saved.y);
+    const hasSavedXY = Number.isFinite(layoutX) && Number.isFinite(layoutY);
+    if (hasSavedXY) savedAppliedCount++;
+    const centerX = Number(wb && wb.cx) || (x + srcRegionPxW / 2);
+    const centerY = Number(wb && wb.cy) || (y + srcRegionPxH / 2);
+    const screenMeta = typeof parseScreenNameGroup === "function"
+      ? parseScreenNameGroup(srcRect)
+      : { name: String(srcRect && srcRect.name || ""), group: "" };
+    const screenName = String(screenMeta && screenMeta.name || srcRect && srcRect.name || "").trim();
+    const screenGroup = String(screenMeta && screenMeta.group || "").trim();
+    const regionLabel = screenGroup ? `${screenName}@${screenGroup} · R${item.rid}` : `${screenName} · R${item.rid}`;
+    const tempRect = {
+      id: tempId,
+      kind: "layoutRegion",
+      name: `${String(srcRect.name || "Экран")} · R${item.rid}`,
+      x: Number.isFinite(layoutX) ? Math.round(layoutX) : Math.round(centerX - w / 2),
+      y: Number.isFinite(layoutY) ? Math.round(layoutY) : Math.round(centerY - h / 2),
+      width: w,
+      height: h,
+      rotation: 0,
+      colorA: String(srcRect.colorA || "#2fcaaf"),
+      colorB: String(srcRect.colorB || "#1f3f7e"),
+      scale: scaleForTemp,
+      cellX: cellXTemp,
+      cellY: cellYTemp,
+      areaM2Px: Number(srcRect.areaM2Px) || 65536,
+      dataFlow: String(srcRect && srcRect.dataFlow || "none"),
+      dataFlowZ: !!(srcRect && srcRect.dataFlowZ),
+      numberCells: !!(srcRect && srcRect.numberCells),
+      splitVariant: Math.max(0, Math.round(Number(srcRect && srcRect.splitVariant) || 0)),
+      hiddenCells: Array.isArray(grid.hiddenCells) ? grid.hiddenCells : [],
+      cellLinks: Array.isArray(grid.cellLinks) ? grid.cellLinks : [],
+      flowLocks: {},
+      flowLockRidToSig: {},
+      flowLockCidToSeed: {},
+      _controllerLayoutTemp: true,
+      _controllerHasSavedPosition: hasSavedXY,
+      _controllerSrcX: x,
+      _controllerSrcY: y,
+      _controllerSrcCX: centerX,
+      _controllerSrcCY: centerY,
+      _controllerSrcW: srcRegionPxW,
+      _controllerSrcH: srcRegionPxH,
+      _controllerScaleGroupKey: `${Math.round(densityX)}x${Math.round(densityY)}`,
+      _controllerSourceRectId: item.rectId,
+      _controllerSourceRid: item.rid,
+      _controllerOutCid: item.cid,
+      _controllerPortLabel: devicePortLabel(controllerRect, item.cid),
+      _controllerRegionLabel: regionLabel
+    };
+    const tempTopo = getCellTopology(tempRect, cellXTemp, cellYTemp);
+    const tempComp = Array.isArray(tempTopo && tempTopo.comp) ? tempTopo.comp : [];
+    const tempCols = Math.max(1, Math.round(Number(tempTopo && tempTopo.cols) || grid.cols));
+    const vis = Array.isArray(grid.visibleCells) ? grid.visibleCells : [];
+    const srcSig = componentCellSignatureMap(grid.srcComp, grid.cols, vis);
+    const tempSig = componentCellSignatureMap(tempComp, tempCols, vis);
+    const tempCidBySig = new Map();
+    for (const [tempCid, sig] of tempSig.entries()) tempCidBySig.set(sig, tempCid);
+    const finalCidMap = new Map();
+    const mappedSrc = new Set();
+    const mappedTemp = new Set();
+    for (const [srcCid, sig] of srcSig.entries()) {
+      if (!tempCidBySig.has(sig)) continue;
+      const tempCid = tempCidBySig.get(sig);
+      finalCidMap.set(srcCid, tempCid);
+      mappedSrc.add(srcCid);
+      mappedTemp.add(tempCid);
+    }
+    const srcStats = new Map();
+    const tempStats = new Map();
+    for (const cell of vis) {
+      const tr = Math.max(0, Math.round(Number(cell && cell.tr) || 0));
+      const tc = Math.max(0, Math.round(Number(cell && cell.tc) || 0));
+      const srcCid = Math.max(0, Math.round(Number(cell && cell.srcCid) || 0));
+      const tempIdx = tr * tempCols + tc;
+      const tempCid = Math.max(0, Math.round(Number(tempComp[tempIdx]) || 0));
+      const s = srcStats.get(srcCid) || { n: 0, sumR: 0, sumC: 0 };
+      s.n++;
+      s.sumR += tr;
+      s.sumC += tc;
+      srcStats.set(srcCid, s);
+      const t = tempStats.get(tempCid) || { n: 0, sumR: 0, sumC: 0 };
+      t.n++;
+      t.sumR += tr;
+      t.sumC += tc;
+      tempStats.set(tempCid, t);
+    }
+    const pairs = [];
+    for (const [srcCid, s] of srcStats.entries()) {
+      const sr = s.sumR / Math.max(1, s.n);
+      const sc = s.sumC / Math.max(1, s.n);
+      for (const [tempCid, t] of tempStats.entries()) {
+        const tr = t.sumR / Math.max(1, t.n);
+        const tc = t.sumC / Math.max(1, t.n);
+        const d2 = ((sr - tr) ** 2) + ((sc - tc) ** 2);
+        pairs.push({ srcCid, tempCid, d2 });
+      }
+    }
+    pairs.sort((a, b) => a.d2 - b.d2 || a.srcCid - b.srcCid || a.tempCid - b.tempCid);
+    for (const p of pairs) {
+      if (mappedSrc.has(p.srcCid) || mappedTemp.has(p.tempCid)) continue;
+      mappedSrc.add(p.srcCid);
+      mappedTemp.add(p.tempCid);
+      finalCidMap.set(p.srcCid, p.tempCid);
+    }
+    const tempFlowLocks = { 0: remapFlowCfgCids(srcFlowCfg, finalCidMap) };
+    tempRect.flowLocks = tempFlowLocks;
+    const flowGroupsOverride = buildTempFlowGroupsFromSource(srcRect, item.rid, grid, cellXTemp, cellYTemp, finalCidMap);
+    if (flowGroupsOverride) tempRect._controllerFlowGroupsOverride = flowGroupsOverride;
+    tempRects.push(tempRect);
+  }
+  if (!tempRects.length) return;
+  if (!(savedAppliedCount > 0 && savedAppliedCount === tempRects.length)) {
+    applyInitialLayoutByScaleGroups(tempRects);
+  }
+  st.rects = [...tempRects, ...st.rects.filter(r => !r || !r._controllerLayoutTemp)];
+  if (!(savedAppliedCount > 0 && savedAppliedCount === tempRects.length)) {
+    compactControllerLayoutByLinks(tempRects.map(r => r.id), { preserveGlobalPlacement: true });
+  }
+  const layoutGroupsById = buildLayoutTempRectLinkComponents(tempRects);
+  const rectIds = tempRects.map(r => r.id);
+  controllerLayoutPrevMode = String(st.mode || "select");
+  controllerLayoutPrevView = {
+    camX: Number(st.camX) || 0,
+    camY: Number(st.camY) || 0,
+    zoom: Number(st.zoom) || 1
+  };
+  st.controllerLayout = { active: true, controllerId, rectIds, nextTempId: st.controllerLayout.nextTempId, groupsById: layoutGroupsById, readOnly };
+  // Keep initial region placement close to the main canvas layout.
+  setMode("select");
+  if (readOnly) setSelection([], null);
+  else setSelection(rectIds, rectIds[0]);
+  updateControllerLayoutUiLock();
+  fit();
+  syncProps();
+  listRects();
+  schedulePersist("project");
+  render();
+};
+function drawControllerLayoutOverlay(c, z) {
+  if (!isControllerLayoutModeActive()) return;
+  const rects = (Array.isArray(st.rects) ? st.rects : []).filter(r => isControllerLayoutRect(r));
+  if (!rects.length) return;
+  const bb = getRectsBBox(rects);
+  if (!bb) return;
+  const zSafe = Math.max(1e-6, Number(z) || 1);
+  const ui = 1 / Math.max(0.25, zSafe);
+  const bbW = Math.max(1, Math.round(Number(bb.maxX - bb.minX) || 0));
+  const bbH = Math.max(1, Math.round(Number(bb.maxY - bb.minY) || 0));
+  const bbResText = `${bbW}×${bbH} px`;
+  c.save();
+  c.strokeStyle = "rgba(84, 194, 255, .95)";
+  c.lineWidth = Math.max(1.25 * ui, 0.75 / Math.max(0.25, z || 1));
+  c.setLineDash([6 * ui, 4 * ui]);
+  c.strokeRect(bb.minX, bb.minY, Math.max(1, bb.maxX - bb.minX), Math.max(1, bb.maxY - bb.minY));
+  c.setLineDash([]);
+  c.font = `${12 * ui}px sans-serif`;
+  c.textAlign = "left";
+  c.textBaseline = "bottom";
+  const bbTextW = c.measureText(bbResText).width;
+  const bbTextX = bb.minX + 6 * ui;
+  const bbTextY = bb.minY - 6 * ui;
+  c.fillStyle = "rgba(7, 10, 14, .75)";
+  c.fillRect(bbTextX - 3 * ui, bbTextY - 16 * ui, bbTextW + 6 * ui, 16 * ui);
+  c.fillStyle = "rgba(255,255,255,.95)";
+  c.fillText(bbResText, bbTextX, bbTextY - 2 * ui);
+  c.font = `${12 * ui}px sans-serif`;
+  c.textAlign = "left";
+  c.textBaseline = "top";
+  for (const r of rects) {
+    const rb = rectAABBMasked(r);
+    const dx = Math.round(rb.minX - bb.minX);
+    const dy = Math.round(rb.minY - bb.minY);
+    const coordsText = `${dx}, ${dy}`;
+    const portText = String(r && r._controllerPortLabel || "");
+    const regionText = String(r && r._controllerRegionLabel || "");
+    const topText = `${coordsText} · ${portText}`;
+    const topW = c.measureText(topText).width;
+    const regionW = c.measureText(regionText).width;
+    const boxW = Math.max(topW, regionW);
+    const px = rb.minX + 6 * ui;
+    const py = rb.minY + 6 * ui;
+    c.fillStyle = "rgba(7, 10, 14, .75)";
+    c.fillRect(px - 3 * ui, py - 2 * ui, boxW + 6 * ui, 32 * ui);
+    c.fillStyle = "rgba(255,255,255,.95)";
+    c.fillText(topText, px, py);
+    c.fillText(regionText, px, py + 14 * ui);
+  }
+  c.restore();
+}
+function drawControllerLayoutHeaderOverlay(c, z) {
+  if (!isControllerLayoutModeActive()) return;
+  const controllerId = Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.controllerId) || 0));
+  const controllerRect = getRectById(controllerId);
+  const controllerName = String(controllerRect && controllerRect.name || `Контроллер ${controllerId}`).trim();
+  const vm = getViewMetrics();
+  const zSafe = Math.max(1e-6, Number(z) || 1);
+  const uiFixed = 1 / zSafe;
+  const topLeftWorld = s2w(0, 0);
+  const topRightWorld = s2w(vm.viewWidth, 0);
+  const headerX0 = Number(topLeftWorld && topLeftWorld.x) || 0;
+  const headerY0 = Number(topLeftWorld && topLeftWorld.y) || 0;
+  const headerW = Math.max(1, (Number(topRightWorld && topRightWorld.x) || 0) - headerX0);
+  const headerH = 28 * uiFixed;
+  const headerText = `Контроллер: ${controllerName}`;
+  c.save();
+  c.font = `${13 * uiFixed}px sans-serif`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillStyle = "rgba(7, 10, 14, .75)";
+  c.fillRect(headerX0, headerY0, headerW, headerH);
+  c.fillStyle = "rgba(255,255,255,.96)";
+  c.fillText(headerText, headerX0 + headerW / 2, headerY0 + headerH / 2);
+  c.restore();
 }
 const updateRectTextSizeLabel = r => {
   if (!el.rectTextSizeLabel) return;
@@ -2648,10 +3746,66 @@ if (el.btnAutoRouteDeviceOutLinks) {
 if (el.btnImproveDeviceOutLinks) {
   bindClick(el.btnImproveDeviceOutLinks, () => improveSelectedDeviceOutLinks());
 }
+if (el.btnControllerLayoutEdit) {
+  bindClick(el.btnControllerLayoutEdit, () => {
+    const current = cur();
+    if (!current || !isControllerDevice(current)) return;
+    enterControllerLayoutMode(current);
+  });
+}
+if (el.btnControllerLayoutReset) {
+  bindClick(el.btnControllerLayoutReset, () => {
+    const active = isControllerLayoutModeActive();
+    const controllerId = active
+      ? Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.controllerId) || 0))
+      : Math.max(1, Math.round(Number(cur() && cur().id) || 0));
+    const controllerRect = getRectById(controllerId);
+    if (!controllerRect || !isControllerDevice(controllerRect)) return;
+    controllerRect.controllerLayoutRegionPositions = {};
+    schedulePersist("project");
+    if (active) {
+      exitControllerLayoutMode({ skipLayoutPersist: true });
+      enterControllerLayoutMode(controllerRect);
+      return;
+    }
+    syncProps();
+    render();
+  });
+}
+if (el.controllerLayoutBack) {
+  bindClick(el.controllerLayoutBack, () => exitControllerLayoutMode());
+}
 const syncPropsBase = syncProps;
 syncProps = () => {
+  if (!isControllerLayoutModeActive()) {
+    const hasTemp = (Array.isArray(st.rects) ? st.rects : []).some(r => r && r._controllerLayoutTemp);
+    if (hasTemp) removeControllerLayoutTempRects();
+  }
+  if (isControllerLayoutModeActive()) {
+    const ids = getControllerLayoutRectIdSet();
+    if (!ids.size) {
+      exitControllerLayoutMode();
+      return;
+    }
+    if (String(st.mode || "") !== "select") setModeBase("select");
+  }
   syncPropsBase();
   syncCabinetToolPanel();
+  updateControllerLayoutUiLock();
+  const current = cur();
+  if (el.btnControllerLayoutEdit) {
+    const canEditLayout = !!(current && isControllerDevice(current) && !isControllerLayoutModeActive());
+    el.btnControllerLayoutEdit.disabled = !canEditLayout;
+    el.btnControllerLayoutEdit.setAttribute("aria-disabled", canEditLayout ? "false" : "true");
+  }
+  if (el.btnControllerLayoutReset) {
+    const canResetLayout = !!(
+      (isControllerLayoutModeActive() && Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.controllerId) || 0)) > 0)
+      || (current && isControllerDevice(current) && !isControllerLayoutModeActive())
+    );
+    el.btnControllerLayoutReset.disabled = !canResetLayout;
+    el.btnControllerLayoutReset.setAttribute("aria-disabled", canResetLayout ? "false" : "true");
+  }
 };
 const inputWiringServices = {
   cv, st, el, render, renderOverlay, hit, s2w, zc, getViewMetrics,
@@ -2693,6 +3847,15 @@ const inputWiringServices = {
   beginMultiSelectionResize: (handle, p) => multiSelectionActions.beginResize(handle, p),
   updateMultiSelectionResize: (p, opts) => multiSelectionActions.updateResize(p, opts),
   endMultiSelectionResize: () => multiSelectionActions.endResize(),
+  isControllerLayoutReadOnly: () => !!(isControllerLayoutModeActive() && st && st.controllerLayout && st.controllerLayout.readOnly),
+  canEnterControllerLayoutReadOnly: rect => {
+    if (isControllerLayoutModeActive()) return false;
+    if (!rect || !isControllerDevice(rect)) return false;
+    const map = rect.controllerLayoutRegionPositions;
+    if (!map || typeof map !== "object") return false;
+    return Object.keys(map).length > 0;
+  },
+  enterControllerLayoutReadOnly: rect => enterControllerLayoutMode(rect, { readOnly: true }),
   bindEvent, bindWindowEvent, zoomAt
 };
 setupInputController({ ...inputWiringServices });
@@ -2922,6 +4085,8 @@ const {
       setGlobalSaveLocationId,
       getGlobalSaveLocationId,
       saveStatus,
+      enterControllerLayoutMode: (controllerRect, opts = {}) => enterControllerLayoutMode(controllerRect, opts),
+      exitControllerLayoutMode: opts => exitControllerLayoutMode(opts),
       schedulePersist: uiTailRenderShared.schedulePersist,
       persistNow,
       flushSpecCustomEditors,

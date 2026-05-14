@@ -35,7 +35,10 @@ export const setupRenderRuntimeFeature = (deps = {}) => {
     onBeforeRenderFrame,
     bindWindowEvent,
     bindEvent,
-    zc
+    zc,
+    visibleRectFilter,
+    onAfterMainSceneDraw,
+    onAfterOverlayDraw
   } = deps;
 
   const renderPipeline = setupRenderPipeline({
@@ -61,7 +64,10 @@ export const setupRenderRuntimeFeature = (deps = {}) => {
     updateNoteEditorOverlay,
     selBoxBounds,
     resetClusterHoverTransient,
-    isClusterEditMode
+    isClusterEditMode,
+    visibleRectFilter,
+    onAfterMainSceneDraw,
+    onAfterOverlayDraw
   });
 
   const { render, renderNow, renderOverlay, renderOverlayNow } = setupRenderRuntimeController({

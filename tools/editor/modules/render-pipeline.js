@@ -8,7 +8,10 @@ export const setupRenderPipeline = (deps = {}) => {
     getViewMetrics, s2w, rectAABB, getOrigin, isSelected,
     drawRect, drawInterScreenFlowLinks, drawMaskOverlay, drawCellEditOverlay, drawCabinetEditOverlay, drawContentBounds, drawMultiSelectionActions,
     drawGrid, drawGuides, drawDistanceGuide, drawInstallSummaryOverlay, drawLayerButtons, drawFlowLinkCurveHandlesOverlay, updateNoteEditorOverlay,
-    selBoxBounds, resetClusterHoverTransient, isClusterEditMode
+    selBoxBounds, resetClusterHoverTransient, isClusterEditMode,
+    visibleRectFilter,
+    onAfterMainSceneDraw,
+    onAfterOverlayDraw
   } = deps;
   let drawGridFn = drawGrid;
   let drawGuidesFn = drawGuides;
@@ -204,6 +207,7 @@ export const setupRenderPipeline = (deps = {}) => {
     const visibleShapeRects = [];
     for (const entry of candidates) {
       const rr = entry.rr;
+      if (typeof visibleRectFilter === "function" && !visibleRectFilter(rr)) continue;
       if (isNoteHiddenInArtView(rr, st.viewMode)) continue;
       const isDeviceRect = isDeviceRectKind(rr);
       const installView = String(st.viewMode || "") === "install";
@@ -216,7 +220,16 @@ export const setupRenderPipeline = (deps = {}) => {
     }
     const shapeOptions = visibleShapeRects.length ? { shapeRectsOverride: visibleShapeRects } : null;
     for (const rr of visibleRects) {
-      drawRect(c, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, shapeFrameId: st.shapeRenderFrame, ...(shapeOptions || {}), ...drawOptions });
+      const perRectOptions = { ...(shapeOptions || {}), ...drawOptions };
+      if (rr && rr._controllerLayoutTemp) {
+        perRectOptions.viewModeOverride = "install";
+        perRectOptions.suppressRigOverlay = true;
+        perRectOptions.hideCenterText = true;
+        if (Array.isArray(rr._controllerFlowGroupsOverride) && rr._controllerFlowGroupsOverride.length) {
+          perRectOptions.flowGroupsOverride = rr._controllerFlowGroupsOverride;
+        }
+      }
+      drawRect(c, rr, isSelected(rr.id), z, origin, { designerRender: true, forceLowDetail, shapeFrameId: st.shapeRenderFrame, ...perRectOptions });
     }
   };
 
@@ -292,6 +305,9 @@ export const setupRenderPipeline = (deps = {}) => {
     if (typeof drawFlowLinkCurveHandlesOverlay === "function") {
       profileSection(profile, "flow curve handles", () => drawFlowLinkCurveHandlesOverlay(c));
     }
+    if (typeof onAfterOverlayDraw === "function") {
+      profileSection(profile, "custom overlay topmost", () => onAfterOverlayDraw(c, z));
+    }
     c.restore();
     profileSection(profile, "guides", () => {
       if (typeof drawGuidesFn === "function") drawGuidesFn(c);
@@ -331,6 +347,9 @@ export const setupRenderPipeline = (deps = {}) => {
           if (typeof drawTooltip === "function") drawTooltip();
         }
       });
+    }
+    if (typeof onAfterMainSceneDraw === "function") {
+      profileSection(profile, "custom scene overlay", () => onAfterMainSceneDraw(ctx, z));
     }
     ctx.restore();
     profileSection(profile, "overlay", () => renderOverlay(renderState));

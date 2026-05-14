@@ -48,6 +48,7 @@ export const setupEditingToolsCore = (deps = {}) => {
     clusterCanPlace,
     upsertManualCluster
   } = deps;
+  const { canHitRect } = deps;
   const zoomSafe = z => Math.max(0.25, Number(z) || 1);
   const nearEq = (a, b, eps = 0.001) => Math.abs((+a || 0) - (+b || 0)) < eps;
 
@@ -60,7 +61,8 @@ export const setupEditingToolsCore = (deps = {}) => {
     pointInShape,
     worldToRectUV,
     rectAABBMasked,
-    cellFromWorldPoint
+    cellFromWorldPoint,
+    canHitRect
   });
   const snapMaskNode = (r, wx, wy) => {
     if (!r) return null;

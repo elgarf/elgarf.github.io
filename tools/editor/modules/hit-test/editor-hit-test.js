@@ -57,7 +57,8 @@ export const createEditorHitTest = ({
   pointInShape,
   worldToRectUV,
   rectAABBMasked,
-  cellFromWorldPoint
+  cellFromWorldPoint,
+  canHitRect
 } = {}) => {
   const shapeHitEnabled = () => {
     const mode = String(st && st.mode || "");
@@ -71,6 +72,7 @@ export const createEditorHitTest = ({
     const rects = Array.isArray(st && st.rects) ? st.rects : [];
     for (let i = 0; i < rects.length; i++) {
       const rect = rects[i];
+      if (typeof canHitRect === "function" && !canHitRect(rect)) continue;
       if (isNoteHiddenInArtView(rect, st && st.viewMode)) continue;
       if (typeof isRectLocked === "function" && isRectLocked(rect)) continue;
       {

@@ -25,6 +25,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
     toggleRectLockById,
     persistProjectAndRender,
     syncPropsSmart,
+    rectListFilter,
     t = value => value
   } = deps;
   const groupCollapsed = {
@@ -154,6 +155,7 @@ export const setupSelectionUiFeature = (deps = {}) => {
     const kindOf = r => String((r && r.kind) || "").toLowerCase();
     const live = new Set();
     for (const r of st.rects) {
+      if (typeof rectListFilter === "function" && !rectListFilter(r)) continue;
       const id = Math.round(Number(r.id) || 0);
       if (!id) continue;
       live.add(id);

@@ -795,6 +795,50 @@
       transform: scale(.995)
     }
 
+    .controller-layout-back {
+      position: absolute;
+      left: 12px;
+      top: 40px;
+      z-index: 1080;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .controller-layout-reset {
+      position: absolute;
+      left: 12px;
+      top: 80px;
+      z-index: 1080;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .layout-mode-tool-locked {
+      pointer-events: none;
+      opacity: .55
+    }
+
+    .side.controller-layout-locked {
+      pointer-events: none;
+      opacity: .65
+    }
+
+    .side.controller-layout-hidden {
+      display: none !important;
+    }
+
+    .side.offcanvas.controller-layout-hidden {
+      display: none !important;
+      visibility: hidden !important;
+      width: 0 !important;
+      max-width: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      overflow: hidden !important;
+    }
+
     canvas {
       position: absolute;
       inset: 0;

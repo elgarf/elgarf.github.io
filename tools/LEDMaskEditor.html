@@ -245,6 +245,14 @@
     <div class="main">
       <div id="canvasWrap" class="canvas-wrap" data-mode="select">
         <canvas id="editorCanvas"></canvas>
+        <button id="controllerLayoutBack" type="button" class="btn btn-sm btn-outline-secondary controller-layout-back d-none">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>Вернуться к основной канве</span>
+        </button>
+        <button id="btnControllerLayoutReset" type="button" class="btn btn-sm btn-outline-secondary controller-layout-reset d-none">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span>Сбросить расположение экранов</span>
+        </button>
         <div id="specModePanel" class="spec-mode-panel d-none">
           <button id="specModeClose" type="button" class="btn btn-sm btn-outline-secondary spec-mode-close"
             title="Закрыть спецификацию" aria-label="Закрыть спецификацию"><i class="fa-solid fa-xmark"></i></button>
@@ -346,9 +354,14 @@
             </div>
           </div>
         </div>
-        <div id="areaM2Field" class="field"><label for="propAreaM2">Количество пикселей в 1м² экрана</label>
-            <div class="input-group input-group-sm"><input id="propAreaM2" type="text" spellcheck="false"
-                value="256×256"><span id="propAreaM2Badge" class="area-m2-badge" aria-live="polite" hidden></span><button id="propAreaM2Toggle" type="button"
+        <div id="areaM2Field" class="field"><label for="propAreaM2Width">Размер 1м в пикселях</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">W</span>
+              <input id="propAreaM2Width" type="text" inputmode="decimal" spellcheck="false" value="256" aria-label="Ширина 1м в пикселях">
+              <span class="input-group-text">H</span>
+              <input id="propAreaM2Height" type="text" inputmode="decimal" spellcheck="false" value="256" aria-label="Высота 1м в пикселях">
+              <input id="propAreaM2" type="hidden" value="256×256">
+              <span id="propAreaM2Badge" class="area-m2-badge" aria-live="polite" hidden></span><button id="propAreaM2Toggle" type="button"
                 class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"
                 aria-expanded="false"><span class="visually-hidden">Выбрать пресет</span></button>
               <ul class="dropdown-menu dropdown-menu-end">
@@ -421,6 +434,11 @@
             <div class="field" style="grid-column: 1 / -1;">
               <button id="btnImproveDeviceOutLinks" class="btn btn-outline-secondary btn-sm w-100" type="button">
                 Улучшить связи
+              </button>
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <button id="btnControllerLayoutEdit" class="btn btn-outline-secondary btn-sm w-100" type="button">
+                Редактировать расположение экранов
               </button>
             </div>
           </div>

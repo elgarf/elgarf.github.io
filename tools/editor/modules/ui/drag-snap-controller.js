@@ -7,7 +7,8 @@ export const setupDragSnapController = (deps = {}) => {
     normSelSet,
     isSelected,
     selectOnly,
-    getEditableSelectedRects
+    getEditableSelectedRects,
+    canSnapRect
   } = deps;
   if (st && typeof st.debugSnap === "undefined") st.debugSnap = false;
   const snapDebug = (tag, payload) => {
@@ -424,6 +425,7 @@ export const setupDragSnapController = (deps = {}) => {
   const getDragAnchor = drag => (drag && (drag.anchor || (Array.isArray(drag.items) ? (drag.items.find(it => it.id === drag.id) || drag.items[0]) : null))) || null;
   const buildSnapOthersExcluding = excluded => st.rects
     .filter(r => {
+      if (typeof canSnapRect === "function" && !canSnapRect(r)) return false;
       if (excluded instanceof Set) return !excluded.has(r.id);
       return r.id !== excluded;
     })

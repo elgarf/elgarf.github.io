@@ -28,7 +28,7 @@ export const createExportPackageWriter = (deps = {}) => {
     }
   };
 
-  const writePackageFiles = async ({ pngArt, pngFlow, pngRig, pngFlowOnly, specBlob, projectBlob }, opts = {}) => {
+  const writePackageFiles = async ({ pngArt, pngFlow, pngRig, pngFlowOnly, specBlob, projectBlob, extraPngFiles }, opts = {}) => {
     const baseName = projectFileBase();
     const fileArt = `${baseName}.png`;
     const fileFlow = `${baseName}-flow.png`;
@@ -42,6 +42,14 @@ export const createExportPackageWriter = (deps = {}) => {
       await writeFileToDirectory(dirHandle, fileFlow, pngFlow);
       if (pngRig) await writeFileToDirectory(dirHandle, fileRig, pngRig);
       if (pngFlowOnly) await writeFileToDirectory(dirHandle, fileFlowOnly, pngFlowOnly);
+      if (Array.isArray(extraPngFiles)) {
+        for (const item of extraPngFiles) {
+          const name = String(item && item.name || "").trim();
+          const blob = item && item.blob;
+          if (!name || !blob) continue;
+          await writeFileToDirectory(dirHandle, name, blob);
+        }
+      }
       await writeFileToDirectory(dirHandle, fileSpec, specBlob);
       if (projectBlob) await writeFileToDirectory(dirHandle, fileProject, projectBlob);
       saveStatus.saved(t("Пакет экспортирован"));
@@ -51,6 +59,14 @@ export const createExportPackageWriter = (deps = {}) => {
     await saveBlobWithSystemDialog(pngFlow, fileFlow, "image/png", ".png", "PNG images", st.saveLocationId);
     if (pngRig) await saveBlobWithSystemDialog(pngRig, fileRig, "image/png", ".png", "PNG images", st.saveLocationId);
     if (pngFlowOnly) await saveBlobWithSystemDialog(pngFlowOnly, fileFlowOnly, "image/png", ".png", "PNG images", st.saveLocationId);
+    if (Array.isArray(extraPngFiles)) {
+      for (const item of extraPngFiles) {
+        const name = String(item && item.name || "").trim();
+        const blob = item && item.blob;
+        if (!name || !blob) continue;
+        await saveBlobWithSystemDialog(blob, name, "image/png", ".png", "PNG images", st.saveLocationId);
+      }
+    }
     await saveBlobWithSystemDialog(specBlob, fileSpec, "text/markdown", ".md", "Markdown files", st.saveLocationId);
     if (projectBlob) await saveBlobWithSystemDialog(projectBlob, fileProject, "application/json", ".json", "JSON files", st.saveLocationId);
   };

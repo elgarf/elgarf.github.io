@@ -97,6 +97,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
         const title = String(r.name || `Устройство ${Math.round(Number(r.id) || 0)}`);
         const typeRaw = String(r.deviceType || "controller").toLowerCase();
         const typeLabel = typeRaw === "pc" ? "PC" : typeRaw === "mixer" ? "MIXER" : typeRaw === "camera" ? "CAMERA" : "CONTROLLER";
+        const hasSavedLayout = !!(typeRaw === "controller" && r && r.controllerLayoutRegionPositions && Object.keys(r.controllerLayoutRegionPositions).length);
         const outPurePalette = [
           "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff",
           "#ff8000", "#8000ff", "#00ff80", "#ff0080", "#ffffff"
@@ -223,6 +224,21 @@ export const setupDrawRectBaseController = (deps = {}) => {
             drawOutlinedText(outVals[i], xOut, py - firstLabelLift, "center");
             drawPortDot(xOut, py, "end", i);
           }
+          if (hasSavedLayout) {
+            const ms = Math.max(9, Math.min(14, Math.min(w, h) * 0.12));
+            const mx = w / 2 - 6;
+            const my = -h / 2 + 6;
+            c.fillStyle = "rgba(255, 196, 0, .98)";
+            c.beginPath();
+            c.moveTo(mx, my);
+            c.lineTo(mx - ms, my);
+            c.lineTo(mx, my + ms);
+            c.closePath();
+            c.fill();
+            c.strokeStyle = "rgba(0,0,0,.78)";
+            c.lineWidth = Math.max(1.1, ms * 0.2);
+            c.stroke();
+          }
         } else {
           const plateH = Math.max(18, Math.min(h * 0.28, 34));
           c.fillStyle = "rgba(0,0,0,.42)";
@@ -251,6 +267,21 @@ export const setupDrawRectBaseController = (deps = {}) => {
           const laneRight = w * 0.45;
           drawPortRow("IN", inLabels, inCount, topY, "start", laneLeft, laneRight);
           drawPortRow("OUT", outLabels, outCount, botY, "end", laneLeft, laneRight);
+          if (hasSavedLayout) {
+            const ms = Math.max(9, Math.min(14, Math.min(w, h) * 0.12));
+            const mx = w / 2 - 6;
+            const my = -h / 2 + 6;
+            c.fillStyle = "rgba(255, 196, 0, .98)";
+            c.beginPath();
+            c.moveTo(mx, my);
+            c.lineTo(mx - ms, my);
+            c.lineTo(mx, my + ms);
+            c.closePath();
+            c.fill();
+            c.strokeStyle = "rgba(0,0,0,.78)";
+            c.lineWidth = Math.max(1.1, ms * 0.2);
+            c.stroke();
+          }
         }
         c.restore();
         return;
@@ -263,7 +294,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
         if (String(options.installTextMode || "") !== "only" && showShapeContoursLayer && !options.suppressContoursOverlay) drawShapeRect(c, r, sel, z, options);
         return;
       }
-      const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, installTextMode = String(options.installTextMode || "normal"), flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, hasRegionsOverride = Object.prototype.hasOwnProperty.call(options, "regionsOverride"), viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
+      const cellX = drawCellX(r), cellY = drawCellY(r), hs = getHiddenSet(r), a = rads(r.rotation || 0), center = rectCenter(r), w = r.width, h = r.height, includeFlow = options.includeFlow !== false, designerRender = !!options.designerRender, disableLod = !!options.disableLod, forceLowDetail = !!options.forceLowDetail, installTextMode = String(options.installTextMode || "normal"), flowGroupsOverride = Array.isArray(options.flowGroupsOverride) ? options.flowGroupsOverride : null, hasRegionsOverride = Object.prototype.hasOwnProperty.call(options, "regionsOverride"), viewModeOverride = options && options.viewModeOverride ? normalizeViewMode(options.viewModeOverride) : null, hideCenterText = !!options.hideCenterText; c.save(); c.translate(center.x, center.y); c.rotate(a); c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.clip();
       const skeleton = !st.fontReady;
       const installView = (viewModeOverride || normalizeViewMode(st.viewMode)) === "install";
       const topo = getCellTopologyCached(r, cellX, cellY), maskRender = getMaskRenderDataCached(r, cellX, cellY, hs, topo);
@@ -323,7 +354,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
         return { layout, ls, lineScales, maxW, txtTheme, font: fontFamilyCss(st.fontFamily) };
       };
       if (installTextMode === "only") {
-        if (showInstallTextLayer && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
+        if (!hideCenterText && showInstallTextLayer && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
           drawRectOverlays({
             c, r, sel, z, w, h, cellX, cellY, topo, hs,
             installView, cellEditActive, clusterEditActive, flowEditActive,
@@ -339,6 +370,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
         && installTextMode === "skip"
         && installView
         && showInstallTextLayer
+        && !hideCenterText
         && !skeleton
         && !suppressFlowEditText
         && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)
@@ -432,7 +464,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
               c.fillStyle = txtTheme.text; c.fillText(text, tx, ty);
             }
           }
-          if (installTextMode !== "skip" && showInstallTextLayer && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
+          if (!hideCenterText && installTextMode !== "skip" && showInstallTextLayer && !skeleton && !suppressFlowEditText && !((isMaskMode() || isCellEditMode() || isRigEditMode()) && sel)) {
             deferredTextOverlay = buildDeferredTextOverlay();
           }
         }

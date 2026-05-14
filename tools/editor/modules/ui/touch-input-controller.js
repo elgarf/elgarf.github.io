@@ -11,6 +11,9 @@ export const setupTouchInputController = (deps = {}) => {
     handleCanvasPointerUp,
     hitLayerButton
   } = deps;
+  const DOUBLE_TAP_MS = 330;
+  const DOUBLE_TAP_MAX_DIST = 24;
+  let lastTap = null;
 
   const touchDist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   const touchMid = (a, b, rect) => ({
@@ -41,9 +44,22 @@ export const setupTouchInputController = (deps = {}) => {
     const sx = t.clientX - rect.left;
     const sy = t.clientY - rect.top;
     const p = s2w(sx, sy);
+    const now = Date.now();
+    let clickCount = 1;
+    if (lastTap) {
+      const dt = now - Number(lastTap.ts || 0);
+      const dd = Math.hypot(sx - Number(lastTap.sx || 0), sy - Number(lastTap.sy || 0));
+      if (dt > 0 && dt <= DOUBLE_TAP_MS && dd <= DOUBLE_TAP_MAX_DIST) clickCount = 2;
+    }
+    lastTap = { ts: now, sx, sy };
     st.touch = { type: "single" };
     if (typeof hitLayerButton === "function" && hitLayerButton(p.x, p.y)) {
-      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true });
+      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount });
+      e.preventDefault();
+      return;
+    }
+    if (clickCount >= 2) {
+      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount });
       e.preventDefault();
       return;
     }
@@ -54,7 +70,7 @@ export const setupTouchInputController = (deps = {}) => {
       e.preventDefault();
       return;
     }
-    handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true });
+    handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount });
     e.preventDefault();
   };
 

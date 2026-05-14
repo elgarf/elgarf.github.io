@@ -8,8 +8,10 @@ export const setupSelectionController = (deps = {}) => {
     isShapeRect,
     rectAABBMasked,
     rectIntersectsSelectionBoxVisible,
-    refreshPropsListRender
+    refreshPropsListRender,
+    canSelectRect
   } = deps;
+  const isSelectable = rect => (typeof canSelectRect === "function" ? !!canSelectRect(rect) : true);
 
   const isArtHiddenNote = rect => isNoteHiddenInArtView(rect, st && st.viewMode);
 
@@ -37,11 +39,11 @@ export const setupSelectionController = (deps = {}) => {
     if (!(st.selSet instanceof Set)) st.selSet = new Set();
     for (const id of st.selSet) {
       const rr = getRectById(id);
-      if (!rr || isRectLocked(rr) || isArtHiddenNote(rr)) st.selSet.delete(id);
+      if (!rr || isRectLocked(rr) || isArtHiddenNote(rr) || !isSelectable(rr)) st.selSet.delete(id);
     }
     if (st.sel != null) {
       const sr = getRectById(st.sel);
-      if (sr && !isRectLocked(sr) && !isArtHiddenNote(sr)) st.selSet.add(st.sel);
+      if (sr && !isRectLocked(sr) && !isArtHiddenNote(sr) && isSelectable(sr)) st.selSet.add(st.sel);
     }
     if (!st.selSet.size) st.sel = null;
     if (st.sel != null && !st.selSet.has(st.sel)) st.sel = [...st.selSet][0] || null;
@@ -82,7 +84,7 @@ export const setupSelectionController = (deps = {}) => {
   const setSelection = (ids, activeId = null) => {
     const next = new Set((Array.isArray(ids) ? ids : []).filter(id => {
       const rr = getRectById(id);
-      return !!rr && !isRectLocked(rr);
+      return !!rr && !isRectLocked(rr) && isSelectable(rr);
     }));
     st.selSet = next;
     st.sel = (activeId != null && next.has(activeId)) ? activeId : ([...(next || [])][0] || null);
@@ -154,7 +156,7 @@ export const setupSelectionController = (deps = {}) => {
       return layers.devices !== false;
     };
     const ids = st.rects
-      .filter(r => !isArtHiddenNote(r) && !isRectLocked(r) && shapeSelectableInCurrentView(r) && deviceSelectableInCurrentView(r) && intersects(r, b))
+      .filter(r => !isArtHiddenNote(r) && !isRectLocked(r) && isSelectable(r) && shapeSelectableInCurrentView(r) && deviceSelectableInCurrentView(r) && intersects(r, b))
       .map(r => r.id);
     if (box.append) {
       normSelSet();
@@ -189,7 +191,7 @@ export const setupSelectionController = (deps = {}) => {
     normSelSet();
     if (id == null) return;
     const rr = getRectById(id);
-    if (!rr || isRectLocked(rr)) return;
+    if (!rr || isRectLocked(rr) || !isSelectable(rr)) return;
     if (st.selSet.has(id)) st.selSet.delete(id);
     else st.selSet.add(id);
     st.sel = st.selSet.has(id) ? id : ([...(st.selSet || [])][0] || null);

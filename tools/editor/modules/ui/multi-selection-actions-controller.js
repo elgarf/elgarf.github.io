@@ -17,8 +17,11 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     getCellTopologyCached,
     getHiddenSet,
     buildVisibleCabinetSummary,
+    isMultiSelectionBlocked,
+    getCompositeSelectionGroup,
     t = value => value
   } = deps;
+  const multiBlocked = () => (typeof isMultiSelectionBlocked === "function") && !!isMultiSelectionBlocked();
 
   const ACTIONS = [
     { id: "alignLeft", row: 0, col: 0, title: "Прижать к левому краю", icon: "\ue4b8", rotate: Math.PI / 2, marker: "alignLeft" },
@@ -33,7 +36,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
 
   const selectedItems = () => {
     const rects = typeof getSelectedRects === "function" ? getSelectedRects() : [];
-    return rects
+    const raw = rects
       .filter(r => r && typeof rectAABB === "function")
       .filter(r => !isNoteHiddenInArtView(r, st && st.viewMode))
       .map(r => {
@@ -49,6 +52,41 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
         } : null;
       })
       .filter(Boolean);
+    if (typeof getCompositeSelectionGroup !== "function") {
+      return raw.map((it, idx) => ({ ...it, id: idx + 1, x: it.minX, y: it.minY, members: [it.rect] }));
+    }
+    const byKey = new Map();
+    let seq = 1;
+    for (const it of raw) {
+      const key = String(getCompositeSelectionGroup(it.rect) || `rect:${Math.max(1, Math.round(Number(it.rect && it.rect.id) || 0))}`);
+      if (!byKey.has(key)) {
+        byKey.set(key, {
+          id: seq++,
+          rect: it.rect,
+          minX: it.minX,
+          minY: it.minY,
+          maxX: it.maxX,
+          maxY: it.maxY,
+          width: it.width,
+          height: it.height,
+          x: it.minX,
+          y: it.minY,
+          members: [it.rect]
+        });
+      } else {
+        const g = byKey.get(key);
+        g.minX = Math.min(g.minX, it.minX);
+        g.minY = Math.min(g.minY, it.minY);
+        g.maxX = Math.max(g.maxX, it.maxX);
+        g.maxY = Math.max(g.maxY, it.maxY);
+        g.width = Math.max(0, g.maxX - g.minX);
+        g.height = Math.max(0, g.maxY - g.minY);
+        g.x = g.minX;
+        g.y = g.minY;
+        g.members.push(it.rect);
+      }
+    }
+    return [...byKey.values()];
   };
 
   const itemsBounds = items => {
@@ -65,6 +103,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
   };
 
   const getButtons = (z = 1) => {
+    if (multiBlocked()) return [];
     if (!st || st.mode !== "select" || st.drag || st.selBox || st.pan || st.draft) return [];
     const items = selectedItems();
     const b = itemsBounds(items);
@@ -81,7 +120,10 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     }));
   };
 
-  const getSelectionBounds = () => itemsBounds(selectedItems());
+  const getSelectionBounds = () => {
+    if (multiBlocked()) return null;
+    return itemsBounds(selectedItems());
+  };
 
   const axisClusters = (items, axis) => {
     const entries = (Array.isArray(items) ? items : []).map(it => ({
@@ -99,6 +141,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
   };
 
   const getResizeHandles = (z = 1) => {
+    if (multiBlocked()) return [];
     if (!st || st.mode !== "select" || st.drag || st.selBox || st.pan || st.draft) return [];
     const items = selectedItems();
     const b = itemsBounds(items);
@@ -186,8 +229,12 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
 
   const moveItemTo = (item, axis, nextMin) => {
     const delta = nextMin - (axis === "x" ? item.minX : item.minY);
-    if (axis === "x") item.rect.x = Math.round((Number(item.rect.x) || 0) + delta);
-    else item.rect.y = Math.round((Number(item.rect.y) || 0) + delta);
+    const members = Array.isArray(item.members) && item.members.length ? item.members : [item.rect];
+    for (const rect of members) {
+      if (!rect) continue;
+      if (axis === "x") rect.x = Math.round((Number(rect.x) || 0) + delta);
+      else rect.y = Math.round((Number(rect.y) || 0) + delta);
+    }
   };
 
   const pack = axis => {
@@ -254,6 +301,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
   };
 
   const applyAction = id => {
+    if (multiBlocked()) return false;
     let changed = false;
     if (id === "alignLeft") changed = alignToEdge("left");
     else if (id === "alignRight") changed = alignToEdge("right");
@@ -413,6 +461,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
   };
 
   const beginResize = (handle, p) => {
+    if (multiBlocked()) return false;
     const items = selectedItems().map(it => ({
       id: it.rect.id,
       rect: it.rect,
@@ -422,6 +471,13 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
       minY: it.minY,
       maxX: it.maxX,
       maxY: it.maxY
+      ,
+      members: Array.isArray(it.members) && it.members.length ? it.members.slice() : [it.rect],
+      memberBase: (Array.isArray(it.members) && it.members.length ? it.members : [it.rect]).map(r => ({
+        rect: r,
+        x: Number(r && r.x) || 0,
+        y: Number(r && r.y) || 0
+      }))
     }));
     const bbox = itemsBounds(items);
     if (!bbox || !items.length || !handle) return false;
@@ -439,6 +495,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
   };
 
   const updateResize = (p, opts = {}) => {
+    if (multiBlocked()) return false;
     const drag = st && st.multiSelectionResize;
     if (!drag || !drag.bbox || !Array.isArray(drag.items)) return false;
     const b = drag.bbox;
@@ -469,12 +526,20 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
     const projected = projectedBounds(drag.items, nextX, nextY);
     let changed = false;
     for (const it of drag.items) {
-      const r = it.rect;
-      if (!r) continue;
       const nx = nextX.has(it.id) ? nextX.get(it.id) : it.x;
       const ny = nextY.has(it.id) ? nextY.get(it.id) : it.y;
-      if (r.x !== nx) { r.x = nx; changed = true; }
-      if (r.y !== ny) { r.y = ny; changed = true; }
+      const dx = nx - (Number(it.x) || 0);
+      const dy = ny - (Number(it.y) || 0);
+      if (Math.abs(dx) <= 1e-6 && Math.abs(dy) <= 1e-6) continue;
+      const base = Array.isArray(it.memberBase) && it.memberBase.length ? it.memberBase : [];
+      for (const m of base) {
+        const r = m && m.rect;
+        if (!r) continue;
+        const rx = Math.round((Number(m.x) || 0) + dx);
+        const ry = Math.round((Number(m.y) || 0) + dy);
+        if (r.x !== rx) { r.x = rx; changed = true; }
+        if (r.y !== ry) { r.y = ry; changed = true; }
+      }
     }
     st.g.x = actualGuide("x", xEdge, gx, projected, drag, opts);
     st.g.y = actualGuide("y", yEdge, gy, projected, drag, opts);
@@ -484,6 +549,7 @@ export const setupMultiSelectionActionsController = (deps = {}) => {
   };
 
   const endResize = () => {
+    if (multiBlocked()) return false;
     const changed = !!(st && st.multiSelectionResize && st.multiSelectionResize.changed);
     st.multiSelectionResize = null;
     st.multiSelectionResizeHover = "";

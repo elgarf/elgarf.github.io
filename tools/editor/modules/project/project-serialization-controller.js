@@ -51,7 +51,9 @@ export const setupProjectSerializationController = (deps = {}) => {
     },
     nextId: st.next,
     flowLinks: normalizeFlowLinks(st.flowLinks),
-    rectangles: st.rects.map(serializeRectForProject)
+    rectangles: st.rects
+      .filter(r => !(r && r._controllerLayoutTemp))
+      .map(serializeRectForProject)
   });
 
   const cloneProjectData = data => cloneJson(data, buildProject);

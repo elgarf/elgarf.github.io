@@ -33,6 +33,7 @@ export const setupInputController = (deps = {}) => {
     hitLayerButton, setLayerButtonHover, clearLayerButtonHover,
     hitMultiSelectionAction, hitMultiSelectionResizeHandle, setMultiSelectionActionHover, clearMultiSelectionActionHover, applyMultiSelectionAction,
     beginMultiSelectionResize, updateMultiSelectionResize, endMultiSelectionResize,
+    isControllerLayoutReadOnly, canEnterControllerLayoutReadOnly, enterControllerLayoutReadOnly,
     bindEvent, bindWindowEvent
   } = deps;
 
@@ -178,7 +179,10 @@ export const setupInputController = (deps = {}) => {
     applyMultiSelectionAction,
     beginMultiSelectionResize,
     updateMultiSelectionResize,
-    endMultiSelectionResize
+    endMultiSelectionResize,
+    isControllerLayoutReadOnly,
+    canEnterControllerLayoutReadOnly,
+    enterControllerLayoutReadOnly
   });
   const handleCanvasPointerDown = (p, opts = null) => pointerOrchestrator.handleCanvasPointerDown(p, opts);
   const handleCanvasPointerMove = (p, opts = null) => pointerOrchestrator.handleCanvasPointerMove(p, opts);
@@ -217,6 +221,10 @@ export const setupInputController = (deps = {}) => {
     invalidateCanvasRectCache();
     const { sx, sy, p } = getCanvasPoint(e);
     const clickCount = Math.max(1, Math.round(Number(e.detail) || 1));
+    if (e.button === 0 && clickCount >= 2) {
+      pointerOrchestrator.handleCanvasDoubleClick(p, () => e.preventDefault());
+      return;
+    }
     if (e.button === 0 && typeof hitLayerButton === "function" && hitLayerButton(p.x, p.y)) {
       handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false, clickCount });
       return;

@@ -13,7 +13,8 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
     isNoteRect,
     parseScreenNameGroup,
     listSignature = value => Array.isArray(value) ? value.join(",") : "",
-    t = value => value
+    t = value => value,
+    isOverlaySuppressed
   } = deps;
 
   const cabinetAreaKey = item => `${mFmt(Math.max(0, Number(item && item.w) || 0))}x${mFmt(Math.max(0, Number(item && item.h) || 0))}`;
@@ -114,6 +115,10 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
     bindViewportChange();
     const node = ensureOverlayEl();
     if (!node) return;
+    if (typeof isOverlaySuppressed === "function" && isOverlaySuppressed()) {
+      hideOverlay();
+      return;
+    }
     if (!isInstallView() || !isDesktop()) {
       hideOverlay();
       return;
@@ -192,6 +197,7 @@ export const setupInstallSummaryOverlay = (deps = {}) => {
   };
 
   return {
-    drawInstallSummaryOverlay
+    drawInstallSummaryOverlay,
+    hideInstallSummaryOverlay: hideOverlay
   };
 };

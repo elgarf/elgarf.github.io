@@ -77,7 +77,10 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     applyMultiSelectionAction,
     beginMultiSelectionResize,
     updateMultiSelectionResize,
-    endMultiSelectionResize
+    endMultiSelectionResize,
+    isControllerLayoutReadOnly,
+    canEnterControllerLayoutReadOnly,
+    enterControllerLayoutReadOnly
   } = deps;
   const NOTE_RESIZE_HANDLE_PX = 16;
   const DRAFT_START_MOVE_PX = 2;
@@ -138,6 +141,25 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     else clearCursorIf(NOTE_RESIZE_CURSOR);
   };
   const multiResizeCursor = handle => (handle === "w" || handle === "e") ? "ew-resize" : (handle === "n" || handle === "s") ? "ns-resize" : "nwse-resize";
+  const hitControllerIgnoringLock = p => {
+    if (!p || typeof worldToRectUV !== "function") return null;
+    const rects = Array.isArray(st && st.rects) ? st.rects : [];
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i];
+      if (!r || !isDeviceRectKind(r)) continue;
+      const uv = worldToRectUV(r, p.x, p.y);
+      if (!uv) continue;
+      if (uv.u >= 0 && uv.u <= r.width && uv.v >= 0 && uv.v <= r.height) return r;
+    }
+    return null;
+  };
+  const resolveControllerLayoutDrillTarget = p => {
+    const h = hit(p.x, p.y);
+    if (h && typeof canEnterControllerLayoutReadOnly === "function" && canEnterControllerLayoutReadOnly(h)) return h;
+    const fallback = hitControllerIgnoringLock(p);
+    if (fallback && typeof canEnterControllerLayoutReadOnly === "function" && canEnterControllerLayoutReadOnly(fallback)) return fallback;
+    return null;
+  };
   const shapeInput = setupShapeInputController({
     st,
     render,
@@ -311,6 +333,18 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
 
   const handleCanvasPointerDown = (p, opts = null) => {
+    const clickCount = Math.max(1, Math.round(Number(opts && opts.clickCount) || 1));
+    if (clickCount >= 2) {
+      const drillTarget = resolveControllerLayoutDrillTarget(p);
+      if (drillTarget && typeof enterControllerLayoutReadOnly === "function") {
+        enterControllerLayoutReadOnly(drillTarget);
+        return;
+      }
+    }
+    if (typeof isControllerLayoutReadOnly === "function" && isControllerLayoutReadOnly()) {
+      suppressMoveCursorUntilMouseUp = false;
+      return;
+    }
     suppressMoveCursorUntilMouseUp = false;
     if (typeof hitLayerButton === "function") {
       const layerId = hitLayerButton(p.x, p.y);
@@ -380,8 +414,14 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     return h || cur();
   };
   const handleCanvasPointerMove = (p, opts = null) => {
-    lastPointer = p;
     const o = (opts && typeof opts === "object") ? opts : {};
+    if (typeof isControllerLayoutReadOnly === "function" && isControllerLayoutReadOnly()) {
+      lastPointer = p;
+      if (navigationController.handlePanPointerMove(p, o)) return true;
+      clearCursorIf(MOVE_CURSOR, NOTE_RESIZE_CURSOR, ...RESIZE_CURSORS, "pointer");
+      return false;
+    }
+    lastPointer = p;
     if (navigationController.handlePanPointerMove(p, o)) return true;
     if (navigationController.handleSelectionBoxPointerMove(p)) return true;
     if (st.multiSelectionResize && typeof updateMultiSelectionResize === "function") {
@@ -496,6 +536,19 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   const handlePointerUpFlowDrag = () => flowController.handlePointerUpFlowDrag();
   const roundDraftSize = (value, kind = "rect") => roundDraftSizePx(value, kind, st && st.globalScale);
   const handleCanvasPointerUp = () => {
+    if (typeof isControllerLayoutReadOnly === "function" && isControllerLayoutReadOnly()) {
+      if (st.pan) {
+        st.pan = false;
+        st.panS = null;
+      }
+      st.drag = null;
+      st.selBox = null;
+      st.noteResize = null;
+      st.multiSelectionResize = null;
+      clearCursorIf(MOVE_CURSOR, NOTE_RESIZE_CURSOR, ...RESIZE_CURSORS, "pointer");
+      render();
+      return true;
+    }
     const hadDrag = !!st.drag;
     const hadMovedDrag = !!(st.drag && st.drag.moved);
     const hadMultiSelectionResize = !!(st.multiSelectionResize && st.multiSelectionResize.changed);
@@ -588,6 +641,13 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
 
   const handleCanvasDoubleClick = (p, preventDefault = () => { }) => {
+    const drillTarget = resolveControllerLayoutDrillTarget(p);
+    if (drillTarget && typeof enterControllerLayoutReadOnly === "function") {
+      enterControllerLayoutReadOnly(drillTarget);
+      preventDefault();
+      return;
+    }
+    const h = hit(p.x, p.y);
     if (st.mode === "select" && flowController && typeof flowController.deleteFlowLinkOrthogonalSegmentAtPoint === "function") {
       if (flowController.deleteFlowLinkOrthogonalSegmentAtPoint(p)) {
         st.flowSegmentDrag = null;
@@ -599,7 +659,6 @@ export const setupPointerOrchestratorController = (deps = {}) => {
       }
     }
     if (shapeInput.handleDoubleClickShape(p, preventDefault)) return;
-    const h = hit(p.x, p.y);
     if (!h) return;
     if (shapeInput.handleDoubleClickHitShape(h, p, preventDefault)) return;
     if (isNoteRect(h)) {
