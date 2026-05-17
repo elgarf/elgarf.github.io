@@ -1907,6 +1907,126 @@ const applyInitialLayoutByScaleGroups = tempRects => {
       r.y = Math.round(sy * ky);
     }
   }
+
+  // Build region groups by zero-gap adjacency after initial scaling.
+  const byId = new Map(list.map(r => [Math.max(1, Math.round(Number(r && r.id) || 0)), r]));
+  const ids = [...byId.keys()];
+  if (ids.length <= 1) return;
+  const bboxOf = r => {
+    const bb = rectAABBMasked(r);
+    return {
+      minX: Number(bb && bb.minX) || 0,
+      minY: Number(bb && bb.minY) || 0,
+      maxX: Number(bb && bb.maxX) || 0,
+      maxY: Number(bb && bb.maxY) || 0
+    };
+  };
+  const zeroGap = (a, b) => {
+    const dx = Math.max(0, Math.max(a.minX - b.maxX, b.minX - a.maxX));
+    const dy = Math.max(0, Math.max(a.minY - b.maxY, b.minY - a.maxY));
+    return dx <= 0 && dy <= 0;
+  };
+  const bbs = new Map();
+  for (const id of ids) bbs.set(id, bboxOf(byId.get(id)));
+  const adj = new Map(ids.map(id => [id, new Set()]));
+  for (let i = 0; i < ids.length; i++) {
+    const a = ids[i];
+    const bbA = bbs.get(a);
+    for (let j = i + 1; j < ids.length; j++) {
+      const b = ids[j];
+      const bbB = bbs.get(b);
+      if (!zeroGap(bbA, bbB)) continue;
+      adj.get(a).add(b);
+      adj.get(b).add(a);
+    }
+  }
+  const comps = [];
+  const seen = new Set();
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    const q = [id];
+    const comp = [];
+    seen.add(id);
+    while (q.length) {
+      const cur = q.shift();
+      comp.push(cur);
+      for (const nx of (adj.get(cur) || [])) {
+        if (seen.has(nx)) continue;
+        seen.add(nx);
+        q.push(nx);
+      }
+    }
+    comps.push(comp);
+  }
+  if (comps.length <= 1) return;
+
+  const groupBoxes = comps.map(comp => {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const id of comp) {
+      const bb = bbs.get(id);
+      minX = Math.min(minX, bb.minX);
+      minY = Math.min(minY, bb.minY);
+      maxX = Math.max(maxX, bb.maxX);
+      maxY = Math.max(maxY, bb.maxY);
+    }
+    return {
+      ids: comp.slice(),
+      minX,
+      minY,
+      maxX,
+      maxY,
+      w: Math.max(1, Math.round(maxX - minX)),
+      h: Math.max(1, Math.round(maxY - minY))
+    };
+  }).sort((a, b) => (b.w * b.h) - (a.w * a.h));
+
+  // Pack groups to minimize total area with preference for square footprint.
+  const totalArea = groupBoxes.reduce((s, g) => s + (g.w * g.h), 0);
+  const base = Math.max(1, Math.sqrt(totalArea));
+  const candidates = [];
+  for (const k of [0.85, 1.0, 1.15, 1.35, 1.6, 2.0]) candidates.push(Math.max(1, Math.round(base * k)));
+  let best = null;
+  const gap = 0;
+  for (const rowLimit of candidates) {
+    let x = 0;
+    let y = 0;
+    let rowH = 0;
+    const placed = [];
+    let maxX = 0;
+    let maxY = 0;
+    for (const g of groupBoxes) {
+      if (x > 0 && x + g.w > rowLimit) {
+        x = 0;
+        y += rowH + gap;
+        rowH = 0;
+      }
+      placed.push({ g, x, y });
+      maxX = Math.max(maxX, x + g.w);
+      maxY = Math.max(maxY, y + g.h);
+      x += g.w + gap;
+      rowH = Math.max(rowH, g.h);
+    }
+    const area = Math.max(1, maxX * maxY);
+    const ratio = Math.max(maxX, maxY) / Math.max(1, Math.min(maxX, maxY));
+    const score = area * (1 + (ratio - 1) * 0.35);
+    if (!best || score < best.score) best = { score, placed, maxX, maxY };
+  }
+  if (!best) return;
+
+  for (const slot of best.placed) {
+    const g = slot.g;
+    const dx = Math.round(slot.x - g.minX);
+    const dy = Math.round(slot.y - g.minY);
+    for (const id of g.ids) {
+      const r = byId.get(id);
+      if (!r) continue;
+      r.x = Math.round((Number(r.x) || 0) + dx);
+      r.y = Math.round((Number(r.y) || 0) + dy);
+    }
+  }
 };
 const hasRect = id => st.rects.some(v => v.id === id);
 let setMode = (_m) => { };

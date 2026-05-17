@@ -251,7 +251,7 @@
         </button>
         <button id="btnControllerLayoutReset" type="button" class="btn btn-sm btn-outline-secondary controller-layout-reset d-none">
           <i class="fa-solid fa-rotate-left"></i>
-          <span>Сбросить расположение экранов</span>
+          <span>Сбросить расположение регионов</span>
         </button>
         <div id="specModePanel" class="spec-mode-panel d-none">
           <button id="specModeClose" type="button" class="btn btn-sm btn-outline-secondary spec-mode-close"
@@ -438,7 +438,7 @@
             </div>
             <div class="field" style="grid-column: 1 / -1;">
               <button id="btnControllerLayoutEdit" class="btn btn-outline-secondary btn-sm w-100" type="button">
-                Редактировать расположение экранов
+                Редактировать расположение регионов
               </button>
             </div>
           </div>
@@ -818,36 +818,48 @@
   <script>
     (() => {
       const importMain = () => import("./editor/main.js");
-      const manifestUrl = window.__ledMaskVersionedUrl("./asset-manifest.json");
-      fetch(manifestUrl, { cache: "no-store" })
-        .then(r => (r && r.ok ? r.json() : null))
-        .then(manifest => {
-          if (!manifest || typeof manifest !== "object" || !manifest.imports || typeof manifest.imports !== "object") {
-            return importMain();
-          }
-          const manifestVersion = String(manifest.version || "").trim();
-          const urlVersion = new URLSearchParams(location.search || "").get("v") || "";
-          const reloadKey = "ledMaskManifestReloadVersion";
-          if (manifestVersion && urlVersion !== manifestVersion) {
-            let alreadyTried = false;
-            try {
-              alreadyTried = sessionStorage.getItem(reloadKey) === manifestVersion;
-              if (!alreadyTried) sessionStorage.setItem(reloadKey, manifestVersion);
-            } catch (_e) { }
-            if (!alreadyTried && window.ledMaskReloadApplication) {
-              window.ledMaskReloadApplication(manifestVersion);
-              return null;
+      const importEditorBundle = src => import(String(src || ""));
+      const loadLegacyManifest = () => {
+        const manifestUrl = window.__ledMaskVersionedUrl("./asset-manifest.json");
+        return fetch(manifestUrl, { cache: "no-store" })
+          .then(r => (r && r.ok ? r.json() : null))
+          .then(manifest => {
+            if (!manifest || typeof manifest !== "object" || !manifest.imports || typeof manifest.imports !== "object") {
+              return importMain();
             }
-          } else {
-            try { sessionStorage.removeItem(reloadKey); } catch (_e) { }
-          }
-          const mapNode = document.createElement("script");
-          mapNode.type = "importmap";
-          mapNode.textContent = JSON.stringify({ imports: manifest.imports });
-          document.currentScript.parentNode.insertBefore(mapNode, document.currentScript);
-          return importMain();
+            const manifestVersion = String(manifest.version || "").trim();
+            const urlVersion = new URLSearchParams(location.search || "").get("v") || "";
+            const reloadKey = "ledMaskManifestReloadVersion";
+            if (manifestVersion && urlVersion !== manifestVersion) {
+              let alreadyTried = false;
+              try {
+                alreadyTried = sessionStorage.getItem(reloadKey) === manifestVersion;
+                if (!alreadyTried) sessionStorage.setItem(reloadKey, manifestVersion);
+              } catch (_e) { }
+              if (!alreadyTried && window.ledMaskReloadApplication) {
+                window.ledMaskReloadApplication(manifestVersion);
+                return null;
+              }
+            } else {
+              try { sessionStorage.removeItem(reloadKey); } catch (_e) { }
+            }
+            const mapNode = document.createElement("script");
+            mapNode.type = "importmap";
+            mapNode.textContent = JSON.stringify({ imports: manifest.imports });
+            document.currentScript.parentNode.insertBefore(mapNode, document.currentScript);
+            return importMain();
+          })
+          .catch(() => importMain());
+      };
+
+      fetch("./editor-bundle-manifest.json", { cache: "no-store" })
+        .then(r => (r && r.ok ? r.json() : null))
+        .then(bundleManifest => {
+          const bundlePath = String(bundleManifest && bundleManifest.editorBundle || "").trim();
+          if (!bundlePath) return loadLegacyManifest();
+          return importEditorBundle(bundlePath);
         })
-        .catch(() => importMain())
+        .catch(() => loadLegacyManifest())
         .catch(err => console.error("[module-loader]", err));
     })();
   </script>

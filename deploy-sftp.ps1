@@ -6,7 +6,9 @@ param(
   [string]$RemotePath = "",
   [string]$SshHostKeyFingerprint = "",
   [string]$WinScpPath = "",
-  [string]$BuildId = ""
+  [string]$BuildId = "",
+  [string]$ExcludeMask = "",
+  [switch]$Minify
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,6 +40,12 @@ $ServerHost = Get-RequiredValue -CurrentValue $ServerHost -EnvName "DEPLOY_SFTP_
 $User = Get-RequiredValue -CurrentValue $User -EnvName "DEPLOY_SFTP_USER" -ParamName "User"
 $Password = Get-RequiredValue -CurrentValue $Password -EnvName "DEPLOY_SFTP_PASSWORD" -ParamName "Password"
 $RemotePath = Get-RequiredValue -CurrentValue $RemotePath -EnvName "DEPLOY_SFTP_REMOTE_PATH" -ParamName "RemotePath"
+if ([string]::IsNullOrWhiteSpace($ExcludeMask)) {
+  $ExcludeMask = [string](Get-Item -Path "Env:DEPLOY_SFTP_EXCLUDE_MASK" -ErrorAction SilentlyContinue).Value
+}
+if ([string]::IsNullOrWhiteSpace($ExcludeMask)) {
+  $ExcludeMask = "projects.db"
+}
 if ([string]::IsNullOrWhiteSpace($WinScpPath)) {
   $WinScpPath = [string](Get-Item -Path "Env:DEPLOY_WINSCP_PATH" -ErrorAction SilentlyContinue).Value
 }
@@ -66,7 +74,14 @@ if (-not (Test-Path $srcTools)) {
   throw "Source folder not found: $srcTools"
 }
 
-Require-Command "npx"
+Require-Command "npm"
+Write-Host "[1/6] Build editor bundle..."
+Push-Location $repoRoot
+try {
+  npm run build:editor-bundle | Out-Null
+} finally {
+  Pop-Location
+}
 
 Write-Host "[1/6] Prepare dist folder..."
 if (Test-Path $distTools) {
@@ -115,33 +130,40 @@ $manifestObject = @{
 $manifestJson = $manifestObject | ConvertTo-Json -Depth 8
 Write-Utf8NoBom -Path (Join-Path $distTools "asset-manifest.json") -Content $manifestJson
 
-Write-Host "[3/6] Minify JS..."
-Get-ChildItem $distTools -Recurse -File -Filter *.js | ForEach-Object {
-  $src = $_.FullName
-  $tmp = "$src.tmp-min"
-  npx terser $src -c -m -o $tmp | Out-Null
-  Move-Item -LiteralPath $tmp -Destination $src -Force
-}
+if ($Minify.IsPresent) {
+  Require-Command "npx"
+  Write-Host "[3/6] Minify JS..."
+  Get-ChildItem $distTools -Recurse -File -Filter *.js | ForEach-Object {
+    $src = $_.FullName
+    $tmp = "$src.tmp-min"
+    npx terser $src -c -m -o $tmp | Out-Null
+    Move-Item -LiteralPath $tmp -Destination $src -Force
+  }
 
-Write-Host "[4/6] Minify CSS..."
-Get-ChildItem $distTools -Recurse -File -Filter *.css | ForEach-Object {
-  $src = $_.FullName
-  $tmp = "$src.tmp-min"
-  npx clean-css-cli -O2 $src -o $tmp | Out-Null
-  Move-Item -LiteralPath $tmp -Destination $src -Force
-}
+  Write-Host "[4/6] Minify CSS..."
+  Get-ChildItem $distTools -Recurse -File -Filter *.css | ForEach-Object {
+    $src = $_.FullName
+    $tmp = "$src.tmp-min"
+    npx clean-css-cli -O2 $src -o $tmp | Out-Null
+    Move-Item -LiteralPath $tmp -Destination $src -Force
+  }
 
-Write-Host "[5/6] Minify HTML..."
-Get-ChildItem $distTools -Recurse -File -Filter *.html | ForEach-Object {
-  $src = $_.FullName
-  $tmp = "$src.tmp-min"
-  npx html-minifier-terser `
-    --collapse-whitespace `
-    --remove-comments `
-    --minify-css true `
-    --minify-js true `
-    -o $tmp $src | Out-Null
-  Move-Item -LiteralPath $tmp -Destination $src -Force
+  Write-Host "[5/6] Minify HTML..."
+  Get-ChildItem $distTools -Recurse -File -Filter *.html | ForEach-Object {
+    $src = $_.FullName
+    $tmp = "$src.tmp-min"
+    npx html-minifier-terser `
+      --collapse-whitespace `
+      --remove-comments `
+      --minify-css true `
+      --minify-js true `
+      -o $tmp $src | Out-Null
+    Move-Item -LiteralPath $tmp -Destination $src -Force
+  }
+} else {
+  Write-Host "[3/6] Minify JS... skipped"
+  Write-Host "[4/6] Minify CSS... skipped"
+  Write-Host "[5/6] Minify HTML... skipped"
 }
 
 Write-Host "[6/6] Upload via WinSCP..."
@@ -156,11 +178,16 @@ if ([string]::IsNullOrWhiteSpace($SshHostKeyFingerprint)) {
 
 $scriptPath = Join-Path $env:TEMP "winscp-deploy-script.txt"
 $distToolsWinScp = (Get-Item $distTools).FullName
+if ([string]::IsNullOrWhiteSpace($ExcludeMask)) {
+  $syncCommand = "synchronize remote -delete -criteria=checksum -transfer=binary `"$distToolsWinScp`" `"$RemotePath`""
+} else {
+  $syncCommand = "synchronize remote -delete -criteria=checksum -transfer=binary -filemask=`"| $ExcludeMask`" `"$distToolsWinScp`" `"$RemotePath`""
+}
 Write-Utf8NoBom -Path $scriptPath -Content ((@(
   "option batch continue"
   "option confirm off"
   "open $sessionUrl $hostKeyOpt"
-  "synchronize remote -delete -criteria=checksum -transfer=binary `"$distToolsWinScp`" `"$RemotePath`""
+  $syncCommand
   "exit"
 ) -join "`r`n") + "`r`n")
 
