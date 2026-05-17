@@ -80,7 +80,8 @@ export const setupPointerOrchestratorController = (deps = {}) => {
     endMultiSelectionResize,
     isControllerLayoutReadOnly,
     canEnterControllerLayoutReadOnly,
-    enterControllerLayoutReadOnly
+    enterControllerLayoutReadOnly,
+    hitControllerLayoutLegendAtScreen
   } = deps;
   const NOTE_RESIZE_HANDLE_PX = 16;
   const DRAFT_START_MOVE_PX = 2;
@@ -93,6 +94,10 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   const noteResizePad = () => NOTE_RESIZE_HANDLE_PX / zoomSafe(st.zoom);
   const noteResizeMin = () => Math.max(24, 24 / zoomSafe(st.zoom));
   const draftMovePx = (dx, dy) => Math.hypot(dx, dy) * Math.max(0.1, Number(st.zoom) || 1);
+  const normLegendIndex = value => {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.max(-1, Math.round(n)) : -1;
+  };
   const isSelectedRectId = id => {
     const n = Math.round(Number(id) || 0);
     if (st && st.selSet instanceof Set && st.selSet.has(n)) return true;
@@ -333,7 +338,16 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
 
   const handleCanvasPointerDown = (p, opts = null) => {
-    const clickCount = Math.max(1, Math.round(Number(opts && opts.clickCount) || 1));
+    const oDown = (opts && typeof opts === "object") ? opts : {};
+    if (typeof hitControllerLayoutLegendAtScreen === "function" && Number.isFinite(Number(oDown.sx)) && Number.isFinite(Number(oDown.sy))) {
+      const onLegend = hitControllerLayoutLegendAtScreen(oDown.sx, oDown.sy, { pin: !!oDown.touchLike });
+      if (onLegend) {
+        render();
+        return;
+      }
+      if (oDown.touchLike) hitControllerLayoutLegendAtScreen(-1, -1, { pin: true });
+    }
+    const clickCount = Math.max(1, Math.round(Number(oDown.clickCount) || 1));
     if (clickCount >= 2) {
       const drillTarget = resolveControllerLayoutDrillTarget(p);
       if (drillTarget && typeof enterControllerLayoutReadOnly === "function") {
@@ -415,6 +429,12 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
   const handleCanvasPointerMove = (p, opts = null) => {
     const o = (opts && typeof opts === "object") ? opts : {};
+    if (typeof hitControllerLayoutLegendAtScreen === "function" && Number.isFinite(Number(o.sx)) && Number.isFinite(Number(o.sy))) {
+      const prevHover = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+      hitControllerLayoutLegendAtScreen(o.sx, o.sy, { pin: false });
+      const nextHover = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+      if (prevHover !== nextHover && !st.pan && !st.drag && !st.selBox) render();
+    }
     if (typeof isControllerLayoutReadOnly === "function" && isControllerLayoutReadOnly()) {
       lastPointer = p;
       if (navigationController.handlePanPointerMove(p, o)) return true;
@@ -622,6 +642,12 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   };
 
   const handleCanvasMouseLeave = () => {
+    if (typeof hitControllerLayoutLegendAtScreen === "function") {
+      const prev = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+      hitControllerLayoutLegendAtScreen(-1, -1, { pin: false });
+      const next = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+      if (prev !== next) render();
+    }
     if (typeof clearLayerButtonHover === "function" && clearLayerButtonHover()) renderOverlay();
     if (typeof clearMultiSelectionActionHover === "function" && clearMultiSelectionActionHover()) renderOverlay();
     clearCursorIf("pointer", MOVE_CURSOR, ...RESIZE_CURSORS);

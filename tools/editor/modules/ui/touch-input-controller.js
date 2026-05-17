@@ -54,12 +54,12 @@ export const setupTouchInputController = (deps = {}) => {
     lastTap = { ts: now, sx, sy };
     st.touch = { type: "single" };
     if (typeof hitLayerButton === "function" && hitLayerButton(p.x, p.y)) {
-      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount });
+      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount, sx, sy });
       e.preventDefault();
       return;
     }
     if (clickCount >= 2) {
-      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount });
+      handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount, sx, sy });
       e.preventDefault();
       return;
     }
@@ -70,7 +70,7 @@ export const setupTouchInputController = (deps = {}) => {
       e.preventDefault();
       return;
     }
-    handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount });
+    handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount, sx, sy });
     e.preventDefault();
   };
 

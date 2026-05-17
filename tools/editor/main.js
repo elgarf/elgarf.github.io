@@ -181,9 +181,60 @@ st.controllerLayout = {
   readOnly: false,
   nextTempId: 900000000
 };
+st.controllerLayoutLegendItems = [];
+st.controllerLayoutLegendHoverIndex = -1;
+st.controllerLayoutLegendPinnedIndex = -1;
+st.controllerLayoutLegendHoverBox = null;
+st.controllerLayoutLegendPinnedBox = null;
+st.controllerLayoutLegendScreens = [];
 let controllerLayoutPrevMode = "select";
 let controllerLayoutPrevView = null;
 const isControllerLayoutModeActive = () => !!(st && st.controllerLayout && st.controllerLayout.active);
+const normLegendIndex = value => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(-1, Math.round(n)) : -1;
+};
+const hitControllerLayoutLegendAtScreen = (sx, sy, opts = null) => {
+  if (!isControllerLayoutModeActive()) return false;
+  const x = Number(sx);
+  const y = Number(sy);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const items = Array.isArray(st && st.controllerLayoutLegendItems) ? st.controllerLayoutLegendItems : [];
+  let next = -1;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!it) continue;
+    const ix = Number(it.sx) || 0;
+    const iy = Number(it.sy) || 0;
+    const iw = Math.max(1, Number(it.sw) || 1);
+    const ih = Math.max(1, Number(it.sh) || 1);
+    if (x >= ix && x <= (ix + iw) && y >= iy && y <= (iy + ih)) { next = i; break; }
+  }
+  const o = (opts && typeof opts === "object") ? opts : {};
+  const pin = !!o.pin;
+  if (pin) {
+    st.controllerLayoutLegendPinnedIndex = (next >= 0) ? next : -1;
+    st.controllerLayoutLegendPinnedBox = (next >= 0 && items[next] && items[next].screen)
+      ? {
+          minX: Number(items[next].screen.minX) || 0,
+          minY: Number(items[next].screen.minY) || 0,
+          maxX: Number(items[next].screen.maxX) || 0,
+          maxY: Number(items[next].screen.maxY) || 0
+        }
+      : null;
+  } else {
+    st.controllerLayoutLegendHoverIndex = next;
+    st.controllerLayoutLegendHoverBox = (next >= 0 && items[next] && items[next].screen)
+      ? {
+          minX: Number(items[next].screen.minX) || 0,
+          minY: Number(items[next].screen.minY) || 0,
+          maxX: Number(items[next].screen.maxX) || 0,
+          maxY: Number(items[next].screen.maxY) || 0
+        }
+      : null;
+  }
+  return next >= 0;
+};
 const getControllerLayoutRectIdSet = () => new Set(Array.isArray(st && st.controllerLayout && st.controllerLayout.rectIds) ? st.controllerLayout.rectIds : []);
 const isControllerLayoutRect = rect => {
   if (!rect) return false;
@@ -2874,6 +2925,12 @@ function clearControllerLayoutRuntimeState() {
     st.rects = list.filter(r => !r || !r._controllerLayoutTemp);
   }
   st.controllerLayout = { active: false, controllerId: null, rectIds: [], groupsById: null, readOnly: false, nextTempId };
+  st.controllerLayoutLegendItems = [];
+  st.controllerLayoutLegendHoverIndex = -1;
+  st.controllerLayoutLegendPinnedIndex = -1;
+  st.controllerLayoutLegendHoverBox = null;
+  st.controllerLayoutLegendPinnedBox = null;
+  st.controllerLayoutLegendScreens = [];
 }
 const removeControllerLayoutTempRects = () => {
   const list = Array.isArray(st.rects) ? st.rects : [];
@@ -2888,6 +2945,12 @@ const exitControllerLayoutMode = (opts = {}) => {
   const changed = (skipLayoutPersist || wasReadOnly) ? false : persistControllerLayoutPositions();
   removeControllerLayoutTempRects();
   st.controllerLayout = { active: false, controllerId: null, rectIds: [], groupsById: null, readOnly: false, nextTempId };
+  st.controllerLayoutLegendItems = [];
+  st.controllerLayoutLegendHoverIndex = -1;
+  st.controllerLayoutLegendPinnedIndex = -1;
+  st.controllerLayoutLegendHoverBox = null;
+  st.controllerLayoutLegendPinnedBox = null;
+  st.controllerLayoutLegendScreens = [];
   if (wasReadOnly) setSelection([], null);
   else if (controllerId > 0 && getRectById(controllerId)) setSelection([controllerId], controllerId);
   else setSelection([], null);
@@ -3078,6 +3141,12 @@ const enterControllerLayoutMode = (controllerRect, opts = {}) => {
     zoom: Number(st.zoom) || 1
   };
   st.controllerLayout = { active: true, controllerId, rectIds, nextTempId: st.controllerLayout.nextTempId, groupsById: layoutGroupsById, readOnly };
+  st.controllerLayoutLegendItems = [];
+  st.controllerLayoutLegendHoverIndex = -1;
+  st.controllerLayoutLegendPinnedIndex = -1;
+  st.controllerLayoutLegendHoverBox = null;
+  st.controllerLayoutLegendPinnedBox = null;
+  st.controllerLayoutLegendScreens = [];
   // Keep initial region placement close to the main canvas layout.
   setMode("select");
   if (readOnly) setSelection([], null);
@@ -3198,21 +3267,38 @@ function drawControllerLayoutOverlay(c, z) {
     const regionText = String(r && r._controllerRegionLabel || "");
     const rw = Math.max(1, rb.maxX - rb.minX);
     const rh = Math.max(1, rb.maxY - rb.minY);
-    const fs = Math.max(16, Math.min(32, Math.min(rw, rh) * 0.32));
-    c.font = `${Math.round(fs * 100) / 100}px sans-serif`;
+    const fsMax = Math.max(11, Math.min(32, Math.min(rw, rh) * 0.32));
+    const fsMin = 7;
     const topText = `${coordsText} · ${portText}`;
-    const topW = c.measureText(topText).width;
-    const regionW = c.measureText(regionText).width;
-    const boxW = Math.max(topW, regionW);
-    const lineH = Math.max(24, fs * 1.15);
-    const boxH = lineH * 2 + 8;
+    const maxInnerW = Math.max(12, rw - 12);
+    const maxInnerH = Math.max(16, rh - 12);
+    let fs = fsMax;
+    let lineH = Math.max(10, fs * 1.15);
+    let topW = 0;
+    let regionW = 0;
+    while (fs > fsMin) {
+      c.font = `${Math.round(fs * 100) / 100}px sans-serif`;
+      topW = c.measureText(topText).width;
+      regionW = c.measureText(regionText).width;
+      lineH = Math.max(10, fs * 1.15);
+      const needW = Math.max(topW, regionW);
+      const needH = lineH * 2 + 8;
+      if (needW <= maxInnerW && needH <= maxInnerH) break;
+      fs -= 0.5;
+    }
+    c.font = `${Math.round(fs * 100) / 100}px sans-serif`;
+    topW = c.measureText(topText).width;
+    regionW = c.measureText(regionText).width;
+    lineH = Math.max(10, fs * 1.15);
+    const boxW = Math.min(maxInnerW, Math.max(topW, regionW));
+    const boxH = Math.min(maxInnerH, lineH * 2 + 8);
     const px = rb.minX + 6;
     const py = rb.minY + 6;
     c.fillStyle = "rgba(7, 10, 14, .75)";
     c.fillRect(px - 3, py - 2, boxW + 6, boxH);
     c.fillStyle = "rgba(255,255,255,.95)";
-    c.fillText(topText, px, py);
-    c.fillText(regionText, px, py + lineH);
+    if (topText) c.fillText(topText, px, py);
+    if (regionText && (py + lineH + 2) <= (rb.maxY - 2)) c.fillText(regionText, px, py + lineH);
   }
   // Draw grid in empty cells inside groups of adjacent regions with equal cabinet size.
   {
@@ -3303,7 +3389,192 @@ function drawControllerLayoutOverlay(c, z) {
       c.restore();
     }
   }
+  const layoutScreens = (() => {
+    const ids = [...rectBbById.keys()];
+    const normStep = v => Math.max(1, Math.round(Number(v) || 1));
+    const getGroupKeyByRectId = rid => {
+      const tempRect = getRectById(rid);
+      const srcRectId = Math.max(1, Math.round(Number(tempRect && tempRect._controllerSourceRectId) || 0));
+      const srcRect = srcRectId > 0 ? getRectById(srcRectId) : null;
+      const meta = (typeof parseScreenNameGroup === "function")
+        ? parseScreenNameGroup(srcRect || tempRect || null)
+        : { group: "" };
+      const key = String(meta && meta.group || "").trim();
+      return key || "Общая";
+    };
+    const groupBuckets = new Map();
+    const screens = [];
+    for (const id of ids) {
+      const rb0 = rectBbById.get(id);
+      if (!rb0) continue;
+      const groupKey = getGroupKeyByRectId(id);
+      const arr = groupBuckets.get(groupKey) || [];
+      arr.push(id);
+      groupBuckets.set(groupKey, arr);
+    }
+    for (const comp of groupBuckets.values()) {
+      let gMinX = Infinity;
+      let gMinY = Infinity;
+      let gMaxX = -Infinity;
+      let gMaxY = -Infinity;
+      let minStepX = Infinity;
+      let minStepY = Infinity;
+      for (const rid of comp) {
+        const rb = rectBbById.get(rid);
+        if (!rb) continue;
+        gMinX = Math.min(gMinX, Number(rb.minX) || 0);
+        gMinY = Math.min(gMinY, Number(rb.minY) || 0);
+        gMaxX = Math.max(gMaxX, Number(rb.maxX) || 0);
+        gMaxY = Math.max(gMaxY, Number(rb.maxY) || 0);
+        const step = minCabById.get(rid);
+        if (step) {
+          minStepX = Math.min(minStepX, normStep(step.minW));
+          minStepY = Math.min(minStepY, normStep(step.minH));
+        }
+      }
+      if (!Number.isFinite(gMinX) || !Number.isFinite(gMinY) || !Number.isFinite(gMaxX) || !Number.isFinite(gMaxY)) continue;
+      const stepX = Number.isFinite(minStepX) ? Math.max(1, minStepX) : 1;
+      const stepY = Number.isFinite(minStepY) ? Math.max(1, minStepY) : 1;
+      screens.push({
+        minX: gMinX,
+        minY: gMinY,
+        maxX: gMaxX,
+        maxY: gMaxY,
+        x: Math.round(gMinX - bb.minX),
+        y: Math.round(gMinY - bb.minY),
+        w: Math.max(1, Math.round((gMaxX - gMinX) / Math.max(1, stepX))),
+        h: Math.max(1, Math.round((gMaxY - gMinY) / Math.max(1, stepY)))
+      });
+    }
+    screens.sort((a, b) => a.y - b.y || a.x - b.x || a.w - b.w || a.h - b.h);
+    return screens;
+  })();
+  st.controllerLayoutLegendItems = [];
+  st.controllerLayoutLegendScreens = layoutScreens;
+  const hoverIndex = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+  const pinIndex = normLegendIndex(st.controllerLayoutLegendPinnedIndex);
+  const hi = (pinIndex >= 0) ? pinIndex : hoverIndex;
+  const hotBox = (st.controllerLayoutLegendPinnedBox && typeof st.controllerLayoutLegendPinnedBox === "object")
+    ? st.controllerLayoutLegendPinnedBox
+    : ((st.controllerLayoutLegendHoverBox && typeof st.controllerLayoutLegendHoverBox === "object") ? st.controllerLayoutLegendHoverBox : null);
+  if (hotBox && Number.isFinite(Number(hotBox.minX)) && Number.isFinite(Number(hotBox.minY)) && Number.isFinite(Number(hotBox.maxX)) && Number.isFinite(Number(hotBox.maxY))) {
+    const hs = hotBox;
+    c.save();
+    c.fillStyle = "rgba(255, 214, 10, .34)";
+    c.strokeStyle = "rgba(255, 234, 120, .98)";
+    c.lineWidth = Math.max(3 / Math.max(0.25, z || 1), 2 / Math.max(0.25, z || 1));
+    c.fillRect(hs.minX, hs.minY, Math.max(1, hs.maxX - hs.minX), Math.max(1, hs.maxY - hs.minY));
+    c.strokeRect(hs.minX, hs.minY, Math.max(1, hs.maxX - hs.minX), Math.max(1, hs.maxY - hs.minY));
+    c.restore();
+  } else if (hi >= 0 && hi < layoutScreens.length) {
+    const hs = layoutScreens[hi];
+    c.save();
+    c.fillStyle = "rgba(255, 214, 10, .34)";
+    c.strokeStyle = "rgba(255, 234, 120, .98)";
+    c.lineWidth = Math.max(3 / Math.max(0.25, z || 1), 2 / Math.max(0.25, z || 1));
+    c.fillRect(hs.minX, hs.minY, Math.max(1, hs.maxX - hs.minX), Math.max(1, hs.maxY - hs.minY));
+    c.strokeRect(hs.minX, hs.minY, Math.max(1, hs.maxX - hs.minX), Math.max(1, hs.maxY - hs.minY));
+    c.restore();
+  }
   c.restore();
+}
+function drawControllerLayoutLegendOverlay(c) {
+  if (!isControllerLayoutModeActive()) return;
+  const layoutScreens = Array.isArray(st.controllerLayoutLegendScreens) ? st.controllerLayoutLegendScreens : [];
+  st.controllerLayoutLegendItems = [];
+  if (!layoutScreens.length) return;
+  try {
+    const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+    c.save();
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const pad = 12;
+    const legendX = pad;
+    const resetRect = (el && el.controllerLayoutReset && typeof el.controllerLayoutReset.getBoundingClientRect === "function")
+      ? el.controllerLayoutReset.getBoundingClientRect()
+      : null;
+    const legendY = (resetRect && Number.isFinite(Number(resetRect.top)))
+      ? Math.round(Number(resetRect.top) + 40)
+      : 118;
+    const hoverIndex = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+    const pinIndex = normLegendIndex(st.controllerLayoutLegendPinnedIndex);
+    const hi = (pinIndex >= 0) ? pinIndex : hoverIndex;
+    const titleFs = 13;
+    const lineFs = 12;
+    const rowH = 17;
+    const indent = 14;
+    const cardPadX = 8;
+    const cardPadY = 6;
+    const cardGap = 8;
+    const panelPad = 6;
+    const roundRectPath = (x, y, w, h, r) => {
+      const rr = Math.max(0, Math.min(r, w * 0.5, h * 0.5));
+      c.beginPath();
+      c.moveTo(x + rr, y);
+      c.lineTo(x + w - rr, y);
+      c.arcTo(x + w, y, x + w, y + rr, rr);
+      c.lineTo(x + w, y + h - rr);
+      c.arcTo(x + w, y + h, x + w - rr, y + h, rr);
+      c.lineTo(x + rr, y + h);
+      c.arcTo(x, y + h, x, y + h - rr, rr);
+      c.lineTo(x, y + rr);
+      c.arcTo(x, y, x + rr, y, rr);
+      c.closePath();
+    };
+    const cards = [];
+    for (let i = 0; i < layoutScreens.length; i++) {
+      const s = layoutScreens[i];
+      const lines = [
+        { text: `Экран ${i + 1}`, fs: titleFs, bold: true, dx: 0 },
+        { text: `X: ${s.x}`, fs: lineFs, bold: false, dx: indent },
+        { text: `Y: ${s.y}`, fs: lineFs, bold: false, dx: indent },
+        { text: `W: ${s.w}`, fs: lineFs, bold: false, dx: indent },
+        { text: `H: ${s.h}`, fs: lineFs, bold: false, dx: indent }
+      ];
+      let w = 0;
+      for (const ln of lines) {
+        c.font = `${ln.bold ? 700 : 500} ${ln.fs}px sans-serif`;
+        w = Math.max(w, ln.dx + c.measureText(ln.text).width);
+      }
+      cards.push({
+        index: i, lines, w: Math.ceil(w + cardPadX * 2), h: Math.ceil(lines.length * rowH + cardPadY * 2), screen: s
+      });
+    }
+    let panelW = 0;
+    let panelH = panelPad * 2;
+    for (const card of cards) { panelW = Math.max(panelW, card.w); panelH += card.h; }
+    if (cards.length > 1) panelH += (cards.length - 1) * cardGap;
+    panelW += panelPad * 2;
+    roundRectPath(legendX, legendY, panelW, panelH, 8);
+    c.fillStyle = "rgba(14, 18, 24, .88)";
+    c.shadowColor = "rgba(0,0,0,.24)";
+    c.shadowBlur = 12;
+    c.fill();
+    c.shadowColor = "transparent";
+    c.strokeStyle = "rgba(255,255,255,.22)";
+    c.lineWidth = 1;
+    c.stroke();
+    let y = legendY + panelPad;
+    c.textBaseline = "top";
+    for (const card of cards) {
+      const isHot = (card.index === hi);
+      const x = legendX + panelPad;
+      c.fillStyle = isHot ? "rgba(34, 46, 61, .82)" : "rgba(20, 28, 38, .56)";
+      c.fillRect(x, y, card.w, card.h);
+      c.strokeStyle = isHot ? "rgba(255,255,255,.30)" : "rgba(255,255,255,.16)";
+      c.lineWidth = 1;
+      c.strokeRect(x, y, card.w, card.h);
+      let lineY = y + cardPadY;
+      for (const ln of card.lines) {
+        c.font = `${ln.bold ? 700 : 500} ${ln.fs}px sans-serif`;
+        c.fillStyle = "rgba(255,255,255,.96)";
+        c.fillText(ln.text, x + cardPadX + ln.dx, lineY);
+        lineY += rowH;
+      }
+      st.controllerLayoutLegendItems.push({ sx: x, sy: y, sw: card.w, sh: card.h, index: card.index, screen: card.screen });
+      y += card.h + cardGap;
+    }
+    c.restore();
+  } catch { /* noop */ }
 }
 function drawControllerLayoutHeaderOverlay(c, z) {
   if (!isControllerLayoutModeActive()) return;
@@ -3329,6 +3600,7 @@ function drawControllerLayoutHeaderOverlay(c, z) {
   c.fillStyle = "rgba(255,255,255,.96)";
   c.fillText(headerText, headerX0 + headerW / 2, headerY0 + headerH / 2);
   c.restore();
+  drawControllerLayoutLegendOverlay(c);
 }
 const updateRectTextSizeLabel = r => {
   if (!el.rectTextSizeLabel) return;
@@ -4142,6 +4414,7 @@ const inputWiringServices = {
     return Object.keys(map).length > 0;
   },
   enterControllerLayoutReadOnly: rect => enterControllerLayoutMode(rect, { readOnly: true }),
+  hitControllerLayoutLegendAtScreen: (sx, sy, opts = null) => hitControllerLayoutLegendAtScreen(sx, sy, opts),
   bindEvent, bindWindowEvent, zoomAt
 };
 setupInputController({ ...inputWiringServices });
