@@ -188,6 +188,7 @@ st.controllerLayoutLegendHoverBox = null;
 st.controllerLayoutLegendPinnedBox = null;
 st.controllerLayoutLegendScreens = [];
 st.controllerLayoutScreenModes = {};
+st.controllerLayoutLegendFwDimsByKey = {};
 let controllerLayoutPrevMode = "select";
 let controllerLayoutPrevView = null;
 const isControllerLayoutModeActive = () => !!(st && st.controllerLayout && st.controllerLayout.active);
@@ -2963,7 +2964,7 @@ function clearControllerLayoutRuntimeState() {
   st.controllerLayoutLegendPinnedBox = null;
   st.controllerLayoutLegendScreens = [];
   st.controllerLayoutScreenModes = {};
-  st.controllerLayoutScreenModes = {};
+  st.controllerLayoutLegendFwDimsByKey = {};
 }
 const removeControllerLayoutTempRects = () => {
   const list = Array.isArray(st.rects) ? st.rects : [];
@@ -2985,6 +2986,7 @@ const exitControllerLayoutMode = (opts = {}) => {
   st.controllerLayoutLegendPinnedBox = null;
   st.controllerLayoutLegendScreens = [];
   st.controllerLayoutScreenModes = {};
+  st.controllerLayoutLegendFwDimsByKey = {};
   if (wasReadOnly) setSelection([], null);
   else if (controllerId > 0 && getRectById(controllerId)) setSelection([controllerId], controllerId);
   else setSelection([], null);
@@ -3183,6 +3185,7 @@ const enterControllerLayoutMode = (controllerRect, opts = {}) => {
   st.controllerLayoutLegendPinnedBox = null;
   st.controllerLayoutLegendScreens = [];
   st.controllerLayoutScreenModes = {};
+  st.controllerLayoutLegendFwDimsByKey = {};
   // Keep initial region placement close to the main canvas layout.
   setMode("select");
   if (readOnly) setSelection([], null);
@@ -3532,6 +3535,7 @@ function drawControllerLayoutOverlay(c, z) {
   })();
   // Optional firmware view per screen group.
   {
+    st.controllerLayoutLegendFwDimsByKey = {};
     const byGroupRects = new Map();
     for (const r of rects) {
       const rid = Math.max(1, Math.round(Number(r && r.id) || 0));
@@ -3541,7 +3545,7 @@ function drawControllerLayoutOverlay(c, z) {
       byGroupRects.set(gk, arr);
     }
     for (const [groupKey, groupRects] of byGroupRects.entries()) {
-      if (getControllerLayoutScreenMode(groupKey) !== "firmware") continue;
+      const isFirmwareMode = getControllerLayoutScreenMode(groupKey) === "firmware";
       let screenMinX = Infinity;
       let screenMinY = Infinity;
       let screenMaxX = -Infinity;
@@ -3601,8 +3605,9 @@ function drawControllerLayoutOverlay(c, z) {
           const horizontal = ow > oh;
           const minW = Math.max(1, Number(minCab.minW) || 1);
           const minH = Math.max(1, Number(minCab.minH) || 1);
-          const cw = vertical ? ow : (horizontal ? Math.min(ow, minW) : ow);
-          const ch = vertical ? Math.min(oh, minH) : oh;
+          const minStep = Math.max(1, Math.min(minW, minH));
+          const cw = vertical ? ow : (horizontal ? Math.min(ow, minStep) : ow);
+          const ch = vertical ? Math.min(oh, minStep) : oh;
           const bx = vertical ? ox : (horizontal ? (ox + cw) : ox);
           const by = vertical ? (oy + ch) : oy;
           const bw = vertical ? ow : (horizontal ? Math.max(1, ow - cw) : 0);
@@ -3610,30 +3615,37 @@ function drawControllerLayoutOverlay(c, z) {
           cabs.push({
             cid: Math.max(0, Math.round(Number(rec && rec.cid) || 0)),
             ox, oy, ow, oh, cw, ch,
-            blank: (bw > 2 && bh > 2) ? { x: bx, y: by, w: bw, h: bh, wv: vertical ? Math.round(minW) : 0, hv: vertical ? 0 : Math.round(minH) } : null
+            blank: (bw > 2 && bh > 2) ? { x: bx, y: by, w: bw, h: bh, wv: vertical ? Math.round(minStep) : 0, hv: vertical ? 0 : Math.round(minStep) } : null
           });
         }
-        try {
-          const fgs = Array.isArray(r && r._controllerFlowGroupsOverride)
-            ? r._controllerFlowGroupsOverride
-            : getDataFlowGroups(r, cx, cy, topo, hs);
-          if (Array.isArray(fgs)) {
-            for (const g of fgs) {
-              const pts = Array.isArray(g && g.points) ? g.points : [];
-              if (!pts.length) continue;
-              const rgb = Array.isArray(g && g.rgb) ? g.rgb : [80, 220, 120];
-              const label = String(g && g.label || "");
-              const worldPts = [];
-              for (const p of pts) {
-                const u = Number(p && p.u);
-                const v = Number(p && p.v);
-                if (!Number.isFinite(u) || !Number.isFinite(v)) continue;
-                worldPts.push({ x: fx + u, y: fy + v });
-              }
-              if (worldPts.length > 1) rawFlowPaths.push({ rgb, pts: worldPts, label });
+        if (isFirmwareMode) {
+          try {
+            const fgs = Array.isArray(r && r._controllerFlowGroupsOverride)
+              ? r._controllerFlowGroupsOverride
+              : getDataFlowGroups(r, cx, cy, topo, hs);
+            if (Array.isArray(fgs)) {
+              for (const g of fgs) {
+                const pts = Array.isArray(g && g.points) ? g.points : [];
+                if (!pts.length) continue;
+                const rgb = Array.isArray(g && g.rgb) ? g.rgb : [80, 220, 120];
+                const label = String(g && g.label || "");
+                const worldPts = [];
+                for (const p of pts) {
+                  const u = Number(p && p.u);
+                  const v = Number(p && p.v);
+                  if (!Number.isFinite(u) || !Number.isFinite(v)) continue;
+                  worldPts.push({ x: fx + u, y: fy + v });
+                }
+              if (worldPts.length > 1) rawFlowPaths.push({
+                rgb,
+                pts: worldPts,
+                label,
+                portLabel: String(r && r._controllerPortLabel || "")
+              });
             }
           }
         } catch { /* noop */ }
+        }
       }
       if (!Number.isFinite(screenMinX) || !Number.isFinite(screenMinY) || !Number.isFinite(screenMaxX) || !Number.isFinite(screenMaxY)) continue;
       const gx = Math.max(1, Math.round(Number(groupMinW) || 1));
@@ -3649,79 +3661,191 @@ function drawControllerLayoutOverlay(c, z) {
         const r1 = Math.min(rows - 1, Math.floor(((rect.y + rect.h) - screenMinY - 1e-6) / gy));
         for (let rr = r0; rr <= r1; rr++) {
           for (let cc = c0; cc <= c1; cc++) {
-            cells[rr * cols + cc] = payload;
+            const idx = rr * cols + cc;
+            const prev = cells[idx];
+            if (payload && payload.kind === "blank" && prev && prev.kind === "occ") continue;
+            cells[idx] = payload;
           }
         }
       };
+      let cabAutoId = 1;
       for (const cab of cabs) {
-        markRect({ x: cab.ox, y: cab.oy, w: cab.cw, h: cab.ch }, { kind: "occ", l1: `(${Math.round(cab.ow)}, ${Math.round(cab.oh)})`, l2: null });
+        const rect = { x: cab.ox, y: cab.oy, w: cab.cw, h: cab.ch };
+        const c0 = Math.max(0, Math.floor((rect.x - screenMinX) / gx));
+        const r0 = Math.max(0, Math.floor((rect.y - screenMinY) / gy));
+        const c1 = Math.min(cols - 1, Math.floor(((rect.x + rect.w) - screenMinX - 1e-6) / gx));
+        const r1 = Math.min(rows - 1, Math.floor(((rect.y + rect.h) - screenMinY - 1e-6) / gy));
+        const spanCols = Math.max(1, Math.round((Math.max(1, Number(cab.ow) || 1)) / gx));
+        const spanRows = Math.max(1, Math.round((Math.max(1, Number(cab.oh) || 1)) / gy));
+        const cabId = cabAutoId++;
+        for (let rr = r0; rr <= r1; rr++) {
+          for (let cc = c0; cc <= c1; cc++) {
+            cells[rr * cols + cc] = {
+              kind: "occ",
+              l1: `(${Math.round(cab.ow)}, ${Math.round(cab.oh)})`,
+              l2: null,
+              cabId,
+              spanCols,
+              spanRows,
+              offCol: cc - c0,
+              offRow: rr - r0
+            };
+          }
+        }
       }
       for (const cab of cabs) {
         if (!cab.blank) continue;
         markRect(cab.blank, { kind: "blank", l1: "BLANK", l2: `(${cab.blank.wv}, ${cab.blank.hv})` });
       }
-      c.save();
-      c.fillStyle = "rgba(8, 12, 18, .62)";
-      c.fillRect(screenMinX, screenMinY, Math.max(1, screenMaxX - screenMinX), Math.max(1, screenMaxY - screenMinY));
+      const visualRows = [];
+      const visualCols = [];
+      const rowSpanAt = Array(rows).fill(1);
+      const rowSkip = Array(rows).fill(false);
       for (let rr = 0; rr < rows; rr++) {
+        if (rowSkip[rr]) continue;
+        let target = null;
+        let ok = true;
         for (let cc = 0; cc < cols; cc++) {
-          const x0 = screenMinX + cc * gx;
-          const y0 = screenMinY + rr * gy;
-          const w0 = Math.min(gx, screenMaxX - x0);
-          const h0 = Math.min(gy, screenMaxY - y0);
           const cell = cells[rr * cols + cc];
-          if (cell.kind === "occ") {
-            c.fillStyle = "rgba(56, 189, 248, .24)";
-            c.fillRect(x0, y0, w0, h0);
-            c.strokeStyle = "rgba(125, 211, 252, .98)";
-            c.lineWidth = Math.max(2.1 * ui, 1.3 / Math.max(0.25, z || 1));
-            c.strokeRect(x0, y0, w0, h0);
-            c.fillStyle = "rgba(255,255,255,.92)";
-            drawCenteredFittedText(x0, y0, w0, h0, cell.l1, 12 * ui, 5 * ui);
-          } else {
-            c.fillStyle = "rgba(15, 22, 31, .70)";
-            c.fillRect(x0, y0, w0, h0);
-            c.strokeStyle = "rgba(255,255,255,.18)";
-            c.lineWidth = Math.max(1 * ui, 0.7 / Math.max(0.25, z || 1));
-            c.strokeRect(x0, y0, w0, h0);
-            c.fillStyle = "rgba(255,255,255,.90)";
-            const l2 = cell.l2 || `(${Math.round(w0)}, ${Math.round(h0)})`;
-            drawCenteredFittedTwoLines(x0, y0, w0, h0, "BLANK", l2, 11 * ui, 5 * ui);
-          }
+          if (!cell || cell.kind !== "occ") { ok = false; break; }
+          if (Math.max(0, Math.round(Number(cell.offRow) || 0)) !== 0) { ok = false; break; }
+          const s = Math.max(1, Math.round(Number(cell.spanRows) || 1));
+          if (target == null) target = s;
+          else if (target !== s) { ok = false; break; }
         }
+        if (!ok || !Number.isFinite(target) || target <= 1) continue;
+        rowSpanAt[rr] = target;
+        for (let k = 1; k < target && (rr + k) < rows; k++) rowSkip[rr + k] = true;
       }
-      if (rawFlowPaths.length) {
-        const paths = [];
-        for (const fp of rawFlowPaths) {
-          const seq = Array.isArray(fp.pts) ? fp.pts.filter(p => p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))) : [];
-          if (seq.length < 2) continue;
-          // Re-anchor points that fall into a compressed cabinet to the center of its compacted rect.
-          const mapped = [];
-          for (const p of seq) {
-            let mx = p.x;
-            let my = p.y;
-            for (const cab of cabs) {
-              const ox = Number(cab && cab.ox) || 0;
-              const oy = Number(cab && cab.oy) || 0;
-              const ow = Math.max(0, Number(cab && cab.ow) || 0);
-              const oh = Math.max(0, Number(cab && cab.oh) || 0);
-              if (mx >= ox && mx <= (ox + ow) && my >= oy && my <= (oy + oh)) {
-                const cx = ox + (Math.max(0, Number(cab && cab.cw) || 0) * 0.5);
-                const cy = oy + (Math.max(0, Number(cab && cab.ch) || 0) * 0.5);
-                mx = cx;
-                my = cy;
-                break;
+      for (let rr = 0; rr < rows; rr++) {
+        if (rowSkip[rr]) continue;
+        visualRows.push({ r0: rr, span: Math.max(1, rowSpanAt[rr]) });
+      }
+      const colSpanAt = Array(cols).fill(1);
+      const colSkip = Array(cols).fill(false);
+      for (let cc = 0; cc < cols; cc++) {
+        if (colSkip[cc]) continue;
+        let target = null;
+        let ok = true;
+        for (let rr = 0; rr < rows; rr++) {
+          const cell = cells[rr * cols + cc];
+          if (!cell || cell.kind !== "occ") { ok = false; break; }
+          if (Math.max(0, Math.round(Number(cell.offCol) || 0)) !== 0) { ok = false; break; }
+          const s = Math.max(1, Math.round(Number(cell.spanCols) || 1));
+          if (target == null) target = s;
+          else if (target !== s) { ok = false; break; }
+        }
+        if (!ok || !Number.isFinite(target) || target <= 1) continue;
+        colSpanAt[cc] = target;
+        for (let k = 1; k < target && (cc + k) < cols; k++) colSkip[cc + k] = true;
+      }
+      for (let cc = 0; cc < cols; cc++) {
+        if (colSkip[cc]) continue;
+        visualCols.push({ c0: cc, span: Math.max(1, colSpanAt[cc]) });
+      }
+      if (!st.controllerLayoutLegendFwDimsByKey || typeof st.controllerLayoutLegendFwDimsByKey !== "object") st.controllerLayoutLegendFwDimsByKey = {};
+      st.controllerLayoutLegendFwDimsByKey[String(groupKey || "")] = {
+        w: Math.max(1, visualCols.length),
+        h: Math.max(1, visualRows.length)
+      };
+      if (isFirmwareMode) {
+        c.save();
+        c.fillStyle = "rgba(8, 12, 18, .62)";
+        c.fillRect(screenMinX, screenMinY, Math.max(1, screenMaxX - screenMinX), Math.max(1, screenMaxY - screenMinY));
+        let yCursor = screenMinY;
+        for (const vr of visualRows) {
+          const rr = Math.max(0, Math.min(rows - 1, Math.round(Number(vr && vr.r0) || 0)));
+          const span = Math.max(1, Math.round(Number(vr && vr.span) || 1));
+          const bandH = Math.min(gy * span, screenMaxY - yCursor);
+          if (bandH <= 0.5) continue;
+          let xCursor = screenMinX;
+          for (const vc of visualCols) {
+            const cc = Math.max(0, Math.min(cols - 1, Math.round(Number(vc && vc.c0) || 0)));
+            const cSpan = Math.max(1, Math.round(Number(vc && vc.span) || 1));
+            const x0 = xCursor;
+            const y0 = yCursor;
+            const w0 = Math.min(gx * cSpan, screenMaxX - x0);
+            const h0 = bandH;
+            const cell = cells[rr * cols + cc];
+            if (cell.kind === "occ") {
+              c.fillStyle = "rgba(56, 189, 248, .24)";
+              c.fillRect(x0, y0, w0, h0);
+              c.strokeStyle = "rgba(125, 211, 252, .98)";
+              c.lineWidth = Math.max(2.1 * ui, 1.3 / Math.max(0.25, z || 1));
+              c.strokeRect(x0, y0, w0, h0);
+              c.fillStyle = "rgba(255,255,255,.92)";
+              drawCenteredFittedText(x0, y0, w0, h0, cell.l1, 12 * ui, 5 * ui);
+          } else {
+            const l2 = cell.l2 || `(${Math.round(w0)}, ${Math.round(h0)})`;
+            let mismatch = false;
+            {
+              const m = /^\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)\s*$/.exec(String(l2 || ""));
+              if (m) {
+                const lw = Math.round(Number(m[1]) || 0);
+                const lh = Math.round(Number(m[2]) || 0);
+                const cw = Math.round(Number(w0) || 0);
+                const ch = Math.round(Number(h0) || 0);
+                mismatch = (lw !== cw || lh !== ch);
               }
             }
-            const prev = mapped.length ? mapped[mapped.length - 1] : null;
+            c.fillStyle = mismatch ? "rgba(120, 20, 20, .62)" : "rgba(15, 22, 31, .70)";
+            c.fillRect(x0, y0, w0, h0);
+            c.strokeStyle = mismatch ? "rgba(255, 120, 120, .78)" : "rgba(255,255,255,.18)";
+            c.lineWidth = Math.max(1 * ui, 0.7 / Math.max(0.25, z || 1));
+            c.strokeRect(x0, y0, w0, h0);
+            c.fillStyle = mismatch ? "rgba(255, 235, 235, .98)" : "rgba(255,255,255,.90)";
+            drawCenteredFittedTwoLines(x0, y0, w0, h0, "BLANK", l2, 11 * ui, 5 * ui);
+          }
+            xCursor += w0;
+          }
+          yCursor += bandH;
+        }
+        if (rawFlowPaths.length) {
+          const paths = [];
+          for (const fp of rawFlowPaths) {
+            const seq = Array.isArray(fp.pts) ? fp.pts.filter(p => p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))) : [];
+            if (seq.length < 2) continue;
+            // Re-anchor points that fall into a compressed cabinet to the center of its compacted rect.
+            const mapped = [];
+            for (const p of seq) {
+              let mx = p.x;
+              let my = p.y;
+              for (const cab of cabs) {
+                const ox = Number(cab && cab.ox) || 0;
+                const oy = Number(cab && cab.oy) || 0;
+                const ow = Math.max(0, Number(cab && cab.ow) || 0);
+                const oh = Math.max(0, Number(cab && cab.oh) || 0);
+                if (mx >= ox && mx <= (ox + ow) && my >= oy && my <= (oy + oh)) {
+                  const cx = ox + (Math.max(0, Number(cab && cab.cw) || 0) * 0.5);
+                  const cy = oy + (Math.max(0, Number(cab && cab.ch) || 0) * 0.5);
+                  mx = cx;
+                  my = cy;
+                  break;
+                }
+              }
+              const prev = mapped.length ? mapped[mapped.length - 1] : null;
             if (!prev || Math.hypot(prev.x - mx, prev.y - my) > 0.5) mapped.push({ x: mx, y: my });
           }
           if (mapped.length < 2) continue;
-          paths.push({ rgb: Array.isArray(fp.rgb) ? fp.rgb : [80, 220, 120], seq: mapped, label: String(fp.label || "") });
+          const baseOffsetY = Math.max(1, Math.min(gy * 0.12, gy * 0.22));
+          const shifted = mapped.map(p => {
+            const topBand = Math.floor((p.y - screenMinY) / Math.max(1, gy));
+            const rowTop = screenMinY + Math.max(0, topBand) * gy;
+            const minY = rowTop + Math.max(1, gy * 0.12);
+            const y = Math.max(minY, p.y - baseOffsetY);
+            return { x: p.x, y };
+          });
+          paths.push({
+            rgb: Array.isArray(fp.rgb) ? fp.rgb : [80, 220, 120],
+            seq: shifted,
+            label: String(fp.label || ""),
+            portLabel: String(fp.portLabel || "")
+          });
         }
         if (paths.length) fwFlowOverlays.push({ paths });
       }
-      c.restore();
+        c.restore();
+      }
     }
   }
   st.controllerLayoutLegendItems = [];
@@ -3774,7 +3898,7 @@ function drawControllerLayoutOverlay(c, z) {
         c.lineWidth = Math.max(2.6 * ui, 1.7 / Math.max(0.25, z || 1));
         c.stroke();
         // Direction arrows on segments.
-        const arrowLen = Math.max(28 * ui, 18 / Math.max(0.25, z || 1));
+        const arrowLen = Math.max(21 * ui, 13.5 / Math.max(0.25, z || 1));
         const arrowHalf = arrowLen * 0.45;
         c.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
         for (let i = 1; i < seq.length; i++) {
@@ -3805,10 +3929,31 @@ function drawControllerLayoutOverlay(c, z) {
         const s = seq[0];
         const e = seq[seq.length - 1];
         if (s) {
+          const startR = Math.max((16 / 1.5) * ui, (10 / 1.5) / Math.max(0.25, z || 1));
           c.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
           c.beginPath();
-          c.arc(s.x, s.y, Math.max(8 * ui, 5 / Math.max(0.25, z || 1)), 0, Math.PI * 2);
+          c.arc(s.x, s.y, startR, 0, Math.PI * 2);
           c.fill();
+          const portLabel = String(pth.portLabel || "").trim();
+          if (portLabel) {
+            let fs = Math.max(18 * ui, 11 / Math.max(0.25, z || 1));
+            c.textAlign = "center";
+            c.textBaseline = "middle";
+            const maxW = Math.max(2, startR * 1.7);
+            while (fs > (3.5 * ui)) {
+              c.font = `700 ${fs}px sans-serif`;
+              if (c.measureText(portLabel).width <= maxW) break;
+              fs -= 0.5 * ui;
+            }
+            c.font = `700 ${Math.max(3.5 * ui, fs)}px sans-serif`;
+            const lum = (0.2126 * (Number(rgb[0]) || 0)) + (0.7152 * (Number(rgb[1]) || 0)) + (0.0722 * (Number(rgb[2]) || 0));
+            c.fillStyle = lum > 145 ? "rgba(7,10,14,.98)" : "rgba(255,255,255,.98)";
+            const tm = c.measureText(portLabel);
+            const asc = Number(tm && tm.actualBoundingBoxAscent) || 0;
+            const dsc = Number(tm && tm.actualBoundingBoxDescent) || 0;
+            const yAdj = ((asc - dsc) * 0.5) || 0;
+            c.fillText(portLabel, s.x, s.y + yAdj);
+          }
         }
         if (e) {
           const pPrev = seq[Math.max(0, seq.length - 2)] || s || e;
@@ -3886,12 +4031,22 @@ function drawControllerLayoutLegendOverlay(c) {
     for (let i = 0; i < layoutScreens.length; i++) {
       const s = layoutScreens[i];
       const mode = getControllerLayoutScreenMode(String(s && s.key || ""));
+      const fwDimsMap = (st && st.controllerLayoutLegendFwDimsByKey && typeof st.controllerLayoutLegendFwDimsByKey === "object")
+        ? st.controllerLayoutLegendFwDimsByKey
+        : {};
+      const fwDims = fwDimsMap[String(s && s.key || "")];
+      const wLegend = (fwDims && Number.isFinite(Number(fwDims.w)))
+        ? Math.max(1, Math.round(Number(fwDims.w)))
+        : s.w;
+      const hLegend = (fwDims && Number.isFinite(Number(fwDims.h)))
+        ? Math.max(1, Math.round(Number(fwDims.h)))
+        : s.h;
       const lines = [
         { text: `Экран ${i + 1}`, fs: titleFs, bold: true, dx: 0 },
         { text: `X: ${s.x}`, fs: lineFs, bold: false, dx: indent },
         { text: `Y: ${s.y}`, fs: lineFs, bold: false, dx: indent },
-        { text: `W: ${s.w}`, fs: lineFs, bold: false, dx: indent },
-        { text: `H: ${s.h}`, fs: lineFs, bold: false, dx: indent }
+        { text: `W: ${wLegend}`, fs: lineFs, bold: false, dx: indent },
+        { text: `H: ${hLegend}`, fs: lineFs, bold: false, dx: indent }
       ];
       let w = 0;
       for (const ln of lines) {
