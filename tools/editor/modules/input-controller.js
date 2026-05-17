@@ -228,14 +228,14 @@ export const setupInputController = (deps = {}) => {
       return;
     }
     if (e.button === 0 && typeof hitLayerButton === "function" && hitLayerButton(p.x, p.y)) {
-      handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false, clickCount });
+      handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false, clickCount, sx, sy });
       return;
     }
     const panWithLeft = e.button === 0 && (st.keys.space || st.lockAll);
     const pan = e.button === 1 || e.button === 2 || panWithLeft;
     if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return; }
     if (e.button !== 0) return;
-    handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false, clickCount });
+    handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false, clickCount, sx, sy });
   });
   bindWindowEvent("mousemove", e => {
     const { sx, sy, p } = getCanvasPoint(e);

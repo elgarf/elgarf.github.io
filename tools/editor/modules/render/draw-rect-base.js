@@ -328,7 +328,12 @@ export const setupDrawRectBaseController = (deps = {}) => {
       const showInstallTextLayer = !!(!installView || installLayerState.text !== false);
       const showInstallFlowLayer = !!(!installView || installLayerState.flow !== false || flowEditActive);
       const showInstallRigLayer = !!(!installView || installLayerState.rig !== false || rigEditActive);
-      const flowEnabledByMode = normalizeDataFlow(r.dataFlow) !== "none";
+      const flowModeSuppressedByControllerLayout = !!(
+        r && r._controllerLayoutTemp
+        && st && st.controllerLayout && st.controllerLayout.active
+        && String((st.controllerLayoutScreenModes && st.controllerLayoutScreenModes[String(r._controllerLayoutGroupKey || "")]) || "normal") === "firmware"
+      );
+      const flowEnabledByMode = !flowModeSuppressedByControllerLayout && normalizeDataFlow(r.dataFlow) !== "none";
       const flowInteractivePause = !!(cellEditActive || rigEditActive || st.pan || (st.drag && st.drag.moved) || st.draft || clusterDraggingThisRect || (st.touch && st.touch.type === "pinch") || (lowDetail && !flowEditingThisRect));
       const flowFlags = computeRectRenderFlags({
         stMode: st.mode,
