@@ -3093,10 +3093,52 @@ function drawControllerLayoutOverlay(c, z) {
   if (!isControllerLayoutModeActive()) return;
   const rects = (Array.isArray(st.rects) ? st.rects : []).filter(r => isControllerLayoutRect(r));
   if (!rects.length) return;
+  const getRegionMinCabinetSize = r => {
+    if (!r) return null;
+    const cx = Math.max(1, Math.round(Number(drawCellX(r)) || 1));
+    const cy = Math.max(1, Math.round(Number(drawCellY(r)) || 1));
+    const topo = getCellTopologyCached(r, cx, cy);
+    if (!topo || !Array.isArray(topo.comp) || !topo.comp.length) return null;
+    const cols = Math.max(1, Math.round(Number(topo.cols) || 1));
+    const rows = Math.max(1, Math.round(Number(topo.rows) || 1));
+    const hs = getHiddenSet(r);
+    const colPref = [0];
+    const rowPref = [0];
+    for (let x = 0; x < cols; x++) colPref.push(colPref[x] + Math.min(cx, Math.max(0, (Number(r.width) || 0) - x * cx)));
+    for (let y = 0; y < rows; y++) rowPref.push(rowPref[y] + Math.min(cy, Math.max(0, (Number(r.height) || 0) - y * cy)));
+    const byCid = new Map();
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        if (hs && hs.has(maskCellKey(x, y))) continue;
+        const idx = y * cols + x;
+        const cid = Math.max(0, Math.round(Number(topo.comp[idx]) || 0));
+        const rec = byCid.get(cid) || { c0: x, c1: x + 1, r0: y, r1: y + 1, n: 0 };
+        rec.c0 = Math.min(rec.c0, x);
+        rec.c1 = Math.max(rec.c1, x + 1);
+        rec.r0 = Math.min(rec.r0, y);
+        rec.r1 = Math.max(rec.r1, y + 1);
+        rec.n++;
+        byCid.set(cid, rec);
+      }
+    }
+    let minW = Infinity;
+    let minH = Infinity;
+    for (const rec of byCid.values()) {
+      if (!(rec && rec.n > 0)) continue;
+      const w = Math.max(1, (colPref[rec.c1] || 0) - (colPref[rec.c0] || 0));
+      const h = Math.max(1, (rowPref[rec.r1] || 0) - (rowPref[rec.r0] || 0));
+      minW = Math.min(minW, w);
+      minH = Math.min(minH, h);
+    }
+    if (!Number.isFinite(minW) || !Number.isFinite(minH)) return null;
+    return { minW: Math.max(1, minW), minH: Math.max(1, minH) };
+  };
   const bb = getRectsBBox(rects);
   if (!bb) return;
+  const rectBbById = new Map();
+  const minCabById = new Map();
   const zSafe = Math.max(1e-6, Number(z) || 1);
-  const ui = 1 / Math.max(0.25, zSafe);
+  const ui = 1 / zSafe;
   const bbW = Math.max(1, Math.round(Number(bb.maxX - bb.minX) || 0));
   const bbH = Math.max(1, Math.round(Number(bb.maxY - bb.minY) || 0));
   const bbResText = `${bbW}×${bbH} px`;
@@ -3106,37 +3148,160 @@ function drawControllerLayoutOverlay(c, z) {
   c.setLineDash([6 * ui, 4 * ui]);
   c.strokeRect(bb.minX, bb.minY, Math.max(1, bb.maxX - bb.minX), Math.max(1, bb.maxY - bb.minY));
   c.setLineDash([]);
-  c.font = `${12 * ui}px sans-serif`;
+  c.font = "12px sans-serif";
   c.textAlign = "left";
   c.textBaseline = "bottom";
   const bbTextW = c.measureText(bbResText).width;
-  const bbTextX = bb.minX + 6 * ui;
-  const bbTextY = bb.minY - 6 * ui;
+  const bbTextX = bb.minX + 6;
+  const bbTextY = bb.minY - 6;
   c.fillStyle = "rgba(7, 10, 14, .75)";
-  c.fillRect(bbTextX - 3 * ui, bbTextY - 16 * ui, bbTextW + 6 * ui, 16 * ui);
+  c.fillRect(bbTextX - 3, bbTextY - 16, bbTextW + 6, 16);
   c.fillStyle = "rgba(255,255,255,.95)";
-  c.fillText(bbResText, bbTextX, bbTextY - 2 * ui);
-  c.font = `${12 * ui}px sans-serif`;
+  c.fillText(bbResText, bbTextX, bbTextY - 2);
   c.textAlign = "left";
   c.textBaseline = "top";
   for (const r of rects) {
     const rb = rectAABBMasked(r);
+    const rid = Math.max(1, Math.round(Number(r && r.id) || 0));
+    rectBbById.set(rid, rb);
+    const minCab = getRegionMinCabinetSize(r);
+    if (minCab) minCabById.set(rid, minCab);
+    if (minCab) {
+      const stepX = Math.max(1, Number(minCab.minW) || 1);
+      const stepY = Math.max(1, Number(minCab.minH) || 1);
+      if (stepX * Math.max(0.01, zSafe) >= 4 && stepY * Math.max(0.01, zSafe) >= 4) {
+        c.save();
+        c.strokeStyle = "rgba(84, 194, 255, .65)";
+        c.lineWidth = Math.max(1.6 * ui, 1.05 / Math.max(0.25, z || 1));
+        c.beginPath();
+        for (let x = rb.minX + stepX; x < rb.maxX - 0.5; x += stepX) {
+          c.moveTo(x, rb.minY);
+          c.lineTo(x, rb.maxY);
+        }
+        for (let y = rb.minY + stepY; y < rb.maxY - 0.5; y += stepY) {
+          c.moveTo(rb.minX, y);
+          c.lineTo(rb.maxX, y);
+        }
+        c.stroke();
+        c.restore();
+      }
+    }
+    c.save();
+    c.strokeStyle = "rgba(84, 194, 255, .95)";
+    c.lineWidth = Math.max(1.9 * ui, 1.2 / Math.max(0.25, z || 1));
+    c.strokeRect(rb.minX, rb.minY, Math.max(1, rb.maxX - rb.minX), Math.max(1, rb.maxY - rb.minY));
+    c.restore();
     const dx = Math.round(rb.minX - bb.minX);
     const dy = Math.round(rb.minY - bb.minY);
     const coordsText = `${dx}, ${dy}`;
     const portText = String(r && r._controllerPortLabel || "");
     const regionText = String(r && r._controllerRegionLabel || "");
+    const rw = Math.max(1, rb.maxX - rb.minX);
+    const rh = Math.max(1, rb.maxY - rb.minY);
+    const fs = Math.max(16, Math.min(32, Math.min(rw, rh) * 0.32));
+    c.font = `${Math.round(fs * 100) / 100}px sans-serif`;
     const topText = `${coordsText} · ${portText}`;
     const topW = c.measureText(topText).width;
     const regionW = c.measureText(regionText).width;
     const boxW = Math.max(topW, regionW);
-    const px = rb.minX + 6 * ui;
-    const py = rb.minY + 6 * ui;
+    const lineH = Math.max(24, fs * 1.15);
+    const boxH = lineH * 2 + 8;
+    const px = rb.minX + 6;
+    const py = rb.minY + 6;
     c.fillStyle = "rgba(7, 10, 14, .75)";
-    c.fillRect(px - 3 * ui, py - 2 * ui, boxW + 6 * ui, 32 * ui);
+    c.fillRect(px - 3, py - 2, boxW + 6, boxH);
     c.fillStyle = "rgba(255,255,255,.95)";
     c.fillText(topText, px, py);
-    c.fillText(regionText, px, py + 14 * ui);
+    c.fillText(regionText, px, py + lineH);
+  }
+  // Draw grid in empty cells inside groups of adjacent regions with equal cabinet size.
+  {
+    const ids = [...rectBbById.keys()];
+    const normStep = v => Math.max(1, Math.round(Number(v) || 1));
+    const sameStep = (a, b) => a && b && normStep(a.minW) === normStep(b.minW) && normStep(a.minH) === normStep(b.minH);
+    const touchOrOverlap = (a, b) => {
+      const dx = Math.max(0, Math.max(a.minX - b.maxX, b.minX - a.maxX));
+      const dy = Math.max(0, Math.max(a.minY - b.maxY, b.minY - a.maxY));
+      return dx <= 0 && dy <= 0;
+    };
+    const adj = new Map(ids.map(id => [id, new Set()]));
+    for (let i = 0; i < ids.length; i++) {
+      const aId = ids[i];
+      const aBb = rectBbById.get(aId);
+      const aStep = minCabById.get(aId);
+      if (!aBb || !aStep) continue;
+      for (let j = i + 1; j < ids.length; j++) {
+        const bId = ids[j];
+        const bBb = rectBbById.get(bId);
+        const bStep = minCabById.get(bId);
+        if (!bBb || !bStep) continue;
+        if (!sameStep(aStep, bStep)) continue;
+        if (!touchOrOverlap(aBb, bBb)) continue;
+        adj.get(aId).add(bId);
+        adj.get(bId).add(aId);
+      }
+    }
+    const seen = new Set();
+    for (const id of ids) {
+      if (seen.has(id)) continue;
+      const step = minCabById.get(id);
+      if (!step) continue;
+      const q = [id];
+      const comp = [];
+      seen.add(id);
+      while (q.length) {
+        const cur = q.shift();
+        comp.push(cur);
+        for (const nx of (adj.get(cur) || [])) {
+          if (seen.has(nx)) continue;
+          seen.add(nx);
+          q.push(nx);
+        }
+      }
+      if (comp.length < 2) continue;
+      let gMinX = Infinity;
+      let gMinY = Infinity;
+      let gMaxX = -Infinity;
+      let gMaxY = -Infinity;
+      const memberRects = [];
+      for (const rid of comp) {
+        const rb = rectBbById.get(rid);
+        if (!rb) continue;
+        memberRects.push(rb);
+        gMinX = Math.min(gMinX, Number(rb.minX) || 0);
+        gMinY = Math.min(gMinY, Number(rb.minY) || 0);
+        gMaxX = Math.max(gMaxX, Number(rb.maxX) || 0);
+        gMaxY = Math.max(gMaxY, Number(rb.maxY) || 0);
+      }
+      const stepX = normStep(step.minW);
+      const stepY = normStep(step.minH);
+      if (!memberRects.length) continue;
+      if (!Number.isFinite(gMinX) || !Number.isFinite(gMinY) || !Number.isFinite(gMaxX) || !Number.isFinite(gMaxY)) continue;
+      if (stepX * Math.max(0.01, zSafe) < 4 || stepY * Math.max(0.01, zSafe) < 4) continue;
+      c.save();
+      const holes = new Path2D();
+      holes.rect(gMinX, gMinY, Math.max(1, gMaxX - gMinX), Math.max(1, gMaxY - gMinY));
+      for (const rb of memberRects) holes.rect(rb.minX, rb.minY, Math.max(1, rb.maxX - rb.minX), Math.max(1, rb.maxY - rb.minY));
+      try {
+        c.clip(holes, "evenodd");
+      } catch {
+        c.restore();
+        continue;
+      }
+      c.strokeStyle = "rgba(84, 194, 255, .55)";
+      c.lineWidth = Math.max(1.3 * ui, 0.95 / Math.max(0.25, z || 1));
+      c.beginPath();
+      for (let x = gMinX + stepX; x < gMaxX - 0.5; x += stepX) {
+        c.moveTo(x, gMinY);
+        c.lineTo(x, gMaxY);
+      }
+      for (let y = gMinY + stepY; y < gMaxY - 0.5; y += stepY) {
+        c.moveTo(gMinX, y);
+        c.lineTo(gMaxX, y);
+      }
+      c.stroke();
+      c.restore();
+    }
   }
   c.restore();
 }
@@ -3970,6 +4135,7 @@ const inputWiringServices = {
   isControllerLayoutReadOnly: () => !!(isControllerLayoutModeActive() && st && st.controllerLayout && st.controllerLayout.readOnly),
   canEnterControllerLayoutReadOnly: rect => {
     if (isControllerLayoutModeActive()) return false;
+    if (!(st && st.lockAll)) return false;
     if (!rect || !isControllerDevice(rect)) return false;
     const map = rect.controllerLayoutRegionPositions;
     if (!map || typeof map !== "object") return false;

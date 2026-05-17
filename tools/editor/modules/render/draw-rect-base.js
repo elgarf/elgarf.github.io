@@ -98,6 +98,7 @@ export const setupDrawRectBaseController = (deps = {}) => {
         const typeRaw = String(r.deviceType || "controller").toLowerCase();
         const typeLabel = typeRaw === "pc" ? "PC" : typeRaw === "mixer" ? "MIXER" : typeRaw === "camera" ? "CAMERA" : "CONTROLLER";
         const hasSavedLayout = !!(typeRaw === "controller" && r && r.controllerLayoutRegionPositions && Object.keys(r.controllerLayoutRegionPositions).length);
+        const showLayoutDrillHint = !!(hasSavedLayout && st && st.lockAll);
         const outPurePalette = [
           "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff",
           "#ff8000", "#8000ff", "#00ff80", "#ff0080", "#ffffff"
@@ -225,18 +226,15 @@ export const setupDrawRectBaseController = (deps = {}) => {
             drawPortDot(xOut, py, "end", i);
           }
           if (hasSavedLayout) {
-            const ms = Math.max(9, Math.min(14, Math.min(w, h) * 0.12));
-            const mx = w / 2 - 6;
-            const my = -h / 2 + 6;
-            c.fillStyle = "rgba(255, 196, 0, .98)";
+            const dotR = Math.max(4.5, Math.min(8.5, Math.min(w, h) * 0.08));
+            const mx = w / 2 - dotR - 6;
+            const my = -h / 2 + dotR + 6;
+            c.fillStyle = "rgba(255, 48, 48, 1)";
             c.beginPath();
-            c.moveTo(mx, my);
-            c.lineTo(mx - ms, my);
-            c.lineTo(mx, my + ms);
-            c.closePath();
+            c.arc(mx, my, dotR, 0, Math.PI * 2);
             c.fill();
-            c.strokeStyle = "rgba(0,0,0,.78)";
-            c.lineWidth = Math.max(1.1, ms * 0.2);
+            c.strokeStyle = "rgba(0,0,0,.92)";
+            c.lineWidth = Math.max(0.8, dotR * 0.18);
             c.stroke();
           }
         } else {
@@ -268,20 +266,41 @@ export const setupDrawRectBaseController = (deps = {}) => {
           drawPortRow("IN", inLabels, inCount, topY, "start", laneLeft, laneRight);
           drawPortRow("OUT", outLabels, outCount, botY, "end", laneLeft, laneRight);
           if (hasSavedLayout) {
-            const ms = Math.max(9, Math.min(14, Math.min(w, h) * 0.12));
-            const mx = w / 2 - 6;
-            const my = -h / 2 + 6;
-            c.fillStyle = "rgba(255, 196, 0, .98)";
+            const dotR = Math.max(4.5, Math.min(8.5, Math.min(w, h) * 0.08));
+            const mx = w / 2 - dotR - 6;
+            const my = -h / 2 + dotR + 6;
+            c.fillStyle = "rgba(255, 48, 48, 1)";
             c.beginPath();
-            c.moveTo(mx, my);
-            c.lineTo(mx - ms, my);
-            c.lineTo(mx, my + ms);
-            c.closePath();
+            c.arc(mx, my, dotR, 0, Math.PI * 2);
             c.fill();
-            c.strokeStyle = "rgba(0,0,0,.78)";
-            c.lineWidth = Math.max(1.1, ms * 0.2);
+            c.strokeStyle = "rgba(0,0,0,.92)";
+            c.lineWidth = Math.max(0.8, dotR * 0.18);
             c.stroke();
           }
+        }
+        if (showLayoutDrillHint) {
+          const hint = "2× клик/тап, чтобы открыть";
+          const fs = Math.max(10, Math.min(16, Math.min(w, h) * 0.13));
+          c.font = `700 ${fs}px ${fontFamilyCss(st.fontFamily)}`;
+          const tw = Math.max(1, c.measureText(hint).width);
+          const padX = Math.max(6, fs * 0.5);
+          const padY = Math.max(3, fs * 0.35);
+          const bw = tw + padX * 2;
+          const bh = fs + padY * 2;
+          const headerH = orientation === "vertical"
+            ? Math.max(18, Math.min(w * 0.3, 36))
+            : Math.max(18, Math.min(h * 0.28, 34));
+          const bx = -w / 2 + 6;
+          const by = (-h / 2) + (headerH - bh) / 2;
+          c.fillStyle = "rgba(12, 16, 24, .78)";
+          c.fillRect(bx, by, bw, bh);
+          c.strokeStyle = "rgba(255,255,255,.45)";
+          c.lineWidth = Math.max(1, fs * 0.12);
+          c.strokeRect(bx, by, bw, bh);
+          c.fillStyle = "rgba(255,255,255,.98)";
+          c.textAlign = "left";
+          c.textBaseline = "middle";
+          c.fillText(hint, bx + padX, by + bh / 2);
         }
         c.restore();
         return;
