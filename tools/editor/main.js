@@ -2648,6 +2648,41 @@ let lastSpecAutoRefreshAt = 0;
       }
     }
   },
+  getGridAnchorBounds: () => {
+    const all = Array.isArray(st.rects) ? st.rects : [];
+    const vpLt = s2w(0, 0);
+    const vpRb = s2w(cv.clientWidth, cv.clientHeight);
+    const vMinX = Math.min(Number(vpLt && vpLt.x) || 0, Number(vpRb && vpRb.x) || 0);
+    const vMinY = Math.min(Number(vpLt && vpLt.y) || 0, Number(vpRb && vpRb.y) || 0);
+    const vMaxX = Math.max(Number(vpLt && vpLt.x) || 0, Number(vpRb && vpRb.x) || 0);
+    const vMaxY = Math.max(Number(vpLt && vpLt.y) || 0, Number(vpRb && vpRb.y) || 0);
+    const intersectsViewport = bb => {
+      if (!bb) return false;
+      return !(bb.maxX < vMinX || bb.minX > vMaxX || bb.maxY < vMinY || bb.minY > vMaxY);
+    };
+    const list = isControllerLayoutModeActive()
+      ? all.filter(r => isControllerLayoutRect(r))
+      : all.filter(r => !isDeviceRectKind(r) && !isNoteExcludedFromContentBounds(r));
+    if (!list.length) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    let count = 0;
+    for (const r of list) {
+      const bb = rectAABBMasked(r);
+      if (!intersectsViewport(bb)) continue;
+      if (!bb) continue;
+      minX = Math.min(minX, Number(bb.minX) || 0);
+      minY = Math.min(minY, Number(bb.minY) || 0);
+      maxX = Math.max(maxX, Number(bb.maxX) || 0);
+      maxY = Math.max(maxY, Number(bb.maxY) || 0);
+      count++;
+    }
+    if (count <= 0) return null;
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null;
+    return { minX, minY, maxX, maxY };
+  },
   bindWindowEvent,
   bindEvent,
   zc,
@@ -3295,6 +3330,7 @@ function drawControllerLayoutOverlay(c, z) {
   };
   const zSafe = Math.max(1e-6, Number(z) || 1);
   const ui = 1 / zSafe;
+  const layoutGridLineW = Math.max(1.35 * ui, 0.95 / Math.max(0.25, z || 1));
   const bbW = Math.max(1, Math.round(Number(bb.maxX - bb.minX) || 0));
   const bbH = Math.max(1, Math.round(Number(bb.maxY - bb.minY) || 0));
   const bbResText = `${bbW}×${bbH} px`;
@@ -3304,16 +3340,17 @@ function drawControllerLayoutOverlay(c, z) {
   c.setLineDash([6 * ui, 4 * ui]);
   c.strokeRect(bb.minX, bb.minY, Math.max(1, bb.maxX - bb.minX), Math.max(1, bb.maxY - bb.minY));
   c.setLineDash([]);
-  c.font = "12px sans-serif";
+  const bbFs = Math.max(12 * ui, 10 / Math.max(0.25, z || 1));
+  c.font = `${bbFs}px sans-serif`;
   c.textAlign = "left";
   c.textBaseline = "bottom";
   const bbTextW = c.measureText(bbResText).width;
   const bbTextX = bb.minX + 6;
   const bbTextY = bb.minY - 6;
   c.fillStyle = "rgba(7, 10, 14, .75)";
-  c.fillRect(bbTextX - 3, bbTextY - 16, bbTextW + 6, 16);
+  c.fillRect(bbTextX - 4 * ui, bbTextY - (bbFs + 8 * ui), bbTextW + 8 * ui, bbFs + 8 * ui);
   c.fillStyle = "rgba(255,255,255,.95)";
-  c.fillText(bbResText, bbTextX, bbTextY - 2);
+  c.fillText(bbResText, bbTextX, bbTextY - 3 * ui);
   c.textAlign = "left";
   c.textBaseline = "top";
   for (const r of rects) {
@@ -3329,26 +3366,35 @@ function drawControllerLayoutOverlay(c, z) {
       if (stepX * Math.max(0.01, zSafe) >= 4 && stepY * Math.max(0.01, zSafe) >= 4) {
         c.save();
         c.strokeStyle = "rgba(84, 194, 255, .65)";
-        c.lineWidth = Math.max(1.6 * ui, 1.05 / Math.max(0.25, z || 1));
+        c.lineWidth = layoutGridLineW;
+        const half = c.lineWidth * 0.5;
+        const xMin = rb.minX + half;
+        const xMax = rb.maxX - half;
+        const yMin = rb.minY + half;
+        const yMax = rb.maxY - half;
         c.beginPath();
-        for (let x = rb.minX + stepX; x < rb.maxX - 0.5; x += stepX) {
-          c.moveTo(x, rb.minY);
-          c.lineTo(x, rb.maxY);
+        for (let x = rb.minX; x <= rb.maxX + 0.5; x += stepX) {
+          const xxRaw = Math.min(rb.maxX, Math.max(rb.minX, x));
+          const xx = Math.min(xMax, Math.max(xMin, xxRaw));
+          c.moveTo(xx, yMin);
+          c.lineTo(xx, yMax);
         }
-        for (let y = rb.minY + stepY; y < rb.maxY - 0.5; y += stepY) {
-          c.moveTo(rb.minX, y);
-          c.lineTo(rb.maxX, y);
+        for (let y = rb.minY; y <= rb.maxY + 0.5; y += stepY) {
+          const yyRaw = Math.min(rb.maxY, Math.max(rb.minY, y));
+          const yy = Math.min(yMax, Math.max(yMin, yyRaw));
+          c.moveTo(xMin, yy);
+          c.lineTo(xMax, yy);
         }
         c.stroke();
         c.restore();
       }
     }
+    c.save();
+    c.strokeStyle = "rgba(84, 194, 255, .95)";
+    c.lineWidth = Math.max(1.9 * ui, 1.2 / Math.max(0.25, z || 1));
+    c.strokeRect(rb.minX, rb.minY, Math.max(1, rb.maxX - rb.minX), Math.max(1, rb.maxY - rb.minY));
+    c.restore();
     if (!fwModeForRect) {
-      c.save();
-      c.strokeStyle = "rgba(84, 194, 255, .95)";
-      c.lineWidth = Math.max(1.9 * ui, 1.2 / Math.max(0.25, z || 1));
-      c.strokeRect(rb.minX, rb.minY, Math.max(1, rb.maxX - rb.minX), Math.max(1, rb.maxY - rb.minY));
-      c.restore();
       const dx = Math.round(rb.minX - bb.minX);
       const dy = Math.round(rb.minY - bb.minY);
       const coordsText = `${dx}, ${dy}`;
@@ -3465,15 +3511,24 @@ function drawControllerLayoutOverlay(c, z) {
         continue;
       }
       c.strokeStyle = "rgba(84, 194, 255, .55)";
-      c.lineWidth = Math.max(1.3 * ui, 0.95 / Math.max(0.25, z || 1));
+      c.lineWidth = layoutGridLineW;
+      const half = c.lineWidth * 0.5;
+      const xMin = gMinX + half;
+      const xMax = gMaxX - half;
+      const yMin = gMinY + half;
+      const yMax = gMaxY - half;
       c.beginPath();
-      for (let x = gMinX + stepX; x < gMaxX - 0.5; x += stepX) {
-        c.moveTo(x, gMinY);
-        c.lineTo(x, gMaxY);
+      for (let x = gMinX; x <= gMaxX + 0.5; x += stepX) {
+        const xxRaw = Math.min(gMaxX, Math.max(gMinX, x));
+        const xx = Math.min(xMax, Math.max(xMin, xxRaw));
+        c.moveTo(xx, yMin);
+        c.lineTo(xx, yMax);
       }
-      for (let y = gMinY + stepY; y < gMaxY - 0.5; y += stepY) {
-        c.moveTo(gMinX, y);
-        c.lineTo(gMaxX, y);
+      for (let y = gMinY; y <= gMaxY + 0.5; y += stepY) {
+        const yyRaw = Math.min(gMaxY, Math.max(gMinY, y));
+        const yy = Math.min(yMax, Math.max(yMin, yyRaw));
+        c.moveTo(xMin, yy);
+        c.lineTo(xMax, yy);
       }
       c.stroke();
       c.restore();
@@ -3835,9 +3890,130 @@ function drawControllerLayoutOverlay(c, z) {
             const y = Math.max(minY, p.y - baseOffsetY);
             return { x: p.x, y };
           });
+          // If a flow node lies exactly on a line between neighbors, nudge it so the whole path remains readable.
+          const readable = shifted.map(p => ({ x: p.x, y: p.y }));
+          const nudge = Math.max(2, Math.min(gx, gy) * 0.18);
+          const pointOnForeignSegment = (pt, a, b) => {
+            const vx = b.x - a.x;
+            const vy = b.y - a.y;
+            const wx = pt.x - a.x;
+            const wy = pt.y - a.y;
+            const vv = (vx * vx) + (vy * vy);
+            if (vv < 1e-6) return { hit: false };
+            const t = ((wx * vx) + (wy * vy)) / vv;
+            if (t <= 0.04 || t >= 0.96) return { hit: false };
+            const projX = a.x + vx * t;
+            const projY = a.y + vy * t;
+            const dist = Math.hypot(pt.x - projX, pt.y - projY);
+            const eps = Math.max(1.2, Math.min(gx, gy) * 0.06);
+            if (dist > eps) return { hit: false };
+            return { hit: true, vx, vy };
+          };
+          const segsIntersect = (a, b, c, d) => {
+            const cross = (p1, p2, p3) => ((p2.x - p1.x) * (p3.y - p1.y)) - ((p2.y - p1.y) * (p3.x - p1.x));
+            const onSeg = (p1, p2, p) => (
+              Math.min(p1.x, p2.x) - 1e-6 <= p.x && p.x <= Math.max(p1.x, p2.x) + 1e-6
+              && Math.min(p1.y, p2.y) - 1e-6 <= p.y && p.y <= Math.max(p1.y, p2.y) + 1e-6
+            );
+            const d1 = cross(a, b, c);
+            const d2 = cross(a, b, d);
+            const d3 = cross(c, d, a);
+            const d4 = cross(c, d, b);
+            if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+            if (Math.abs(d1) <= 1e-6 && onSeg(a, b, c)) return true;
+            if (Math.abs(d2) <= 1e-6 && onSeg(a, b, d)) return true;
+            if (Math.abs(d3) <= 1e-6 && onSeg(c, d, a)) return true;
+            if (Math.abs(d4) <= 1e-6 && onSeg(c, d, b)) return true;
+            return false;
+          };
+          const selfCrossCount = pts => {
+            let n = 0;
+            for (let i = 1; i < pts.length; i++) {
+              const a = pts[i - 1];
+              const b = pts[i];
+              for (let j = i + 2; j < pts.length; j++) {
+                if (j === i + 1) continue;
+                if (i === 1 && j === pts.length - 1) continue;
+                const c = pts[j - 1];
+                const d = pts[j];
+                if (segsIntersect(a, b, c, d)) n++;
+              }
+            }
+            return n;
+          };
+          const polylineLength = pts => {
+            let s = 0;
+            for (let i = 1; i < pts.length; i++) s += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+            return s;
+          };
+          const pickBestNudge = (basePts, idx, nx, ny, step) => {
+            const scales = [0.6, 1, 1.4, 1.9];
+            let best = null;
+            for (const sign of [1, -1]) {
+              for (const k of scales) {
+                const d = step * k * sign;
+                const cand = basePts.map((p, i) => i === idx ? { x: p.x + nx * d, y: p.y + ny * d } : { x: p.x, y: p.y });
+                const crosses = selfCrossCount(cand);
+                const len = polylineLength(cand);
+                const score = crosses * 1e6 + len;
+                if (!best || score < best.score) best = { score, cand };
+              }
+            }
+            return best ? best.cand[idx] : basePts[idx];
+          };
+          for (let i = 1; i < (readable.length - 1); i++) {
+            const a = readable[i - 1];
+            const b = readable[i];
+            const d = readable[i + 1];
+            const abx = b.x - a.x;
+            const aby = b.y - a.y;
+            const bdx = d.x - b.x;
+            const bdy = d.y - b.y;
+            const cross = (abx * bdy) - (aby * bdx);
+            const dot = (abx * bdx) + (aby * bdy);
+            if (Math.abs(cross) > 1e-3) continue;
+            if (dot <= 0) continue;
+            const dirX = d.x - a.x;
+            const dirY = d.y - a.y;
+            const len = Math.hypot(dirX, dirY);
+            if (len < 1e-3) continue;
+            const nx = -dirY / len;
+            const ny = dirX / len;
+            const best = pickBestNudge(readable, i, nx, ny, nudge);
+            b.x = best.x;
+            b.y = best.y;
+          }
+          // Handle points that lie on any non-adjacent segment (e.g. 1-2 line passing through point 3).
+          for (let i = 1; i < (readable.length - 1); i++) {
+            const p = readable[i];
+            let moved = false;
+            for (let k = 1; k < readable.length; k++) {
+              const a = readable[k - 1];
+              const b = readable[k];
+              // Skip segments incident to this point.
+              if (k === i || (k - 1) === i) continue;
+              const hit = pointOnForeignSegment(p, a, b);
+              if (!hit.hit) continue;
+              const len = Math.hypot(hit.vx, hit.vy);
+              if (len < 1e-6) continue;
+              const nx = -hit.vy / len;
+              const ny = hit.vx / len;
+              const best = pickBestNudge(readable, i, nx, ny, nudge);
+              p.x = best.x;
+              p.y = best.y;
+              moved = true;
+              break;
+            }
+            if (moved) {
+              const topBand = Math.floor((p.y - screenMinY) / Math.max(1, gy));
+              const rowTop = screenMinY + Math.max(0, topBand) * gy;
+              const minY = rowTop + Math.max(1, gy * 0.12);
+              p.y = Math.max(minY, p.y);
+            }
+          }
           paths.push({
             rgb: Array.isArray(fp.rgb) ? fp.rgb : [80, 220, 120],
-            seq: shifted,
+            seq: readable,
             label: String(fp.label || ""),
             portLabel: String(fp.portLabel || "")
           });
@@ -3900,6 +4076,7 @@ function drawControllerLayoutOverlay(c, z) {
         // Direction arrows on segments.
         const arrowLen = Math.max(21 * ui, 13.5 / Math.max(0.25, z || 1));
         const arrowHalf = arrowLen * 0.45;
+        const nodeR = Math.max(arrowLen * 0.28, 2.2 / Math.max(0.25, z || 1));
         c.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
         for (let i = 1; i < seq.length; i++) {
           const a = seq[i - 1];
@@ -3971,14 +4148,22 @@ function drawControllerLayoutOverlay(c, z) {
             const ey1 = e.y + ny * half;
             const ex2 = e.x - nx * half;
             const ey2 = e.y - ny * half;
-            c.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
-            c.lineWidth = Math.max(4 * ui, 2.4 / Math.max(0.25, z || 1));
-            c.beginPath();
-            c.moveTo(ex1, ey1);
-            c.lineTo(ex2, ey2);
-            c.stroke();
-          }
+          c.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
+          c.lineWidth = Math.max(4 * ui, 2.4 / Math.max(0.25, z || 1));
+          c.beginPath();
+          c.moveTo(ex1, ey1);
+          c.lineTo(ex2, ey2);
+          c.stroke();
         }
+        // Mark every cabinet on the path with a circle marker.
+        for (let i = 1; i < seq.length - 1; i++) {
+          const n = seq[i];
+          c.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
+          c.beginPath();
+          c.arc(n.x, n.y, nodeR, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
       }
       c.restore();
     }
@@ -4063,6 +4248,7 @@ function drawControllerLayoutLegendOverlay(c) {
     for (const card of cards) { panelW = Math.max(panelW, card.w); panelH += card.h; }
     if (cards.length > 1) panelH += (cards.length - 1) * cardGap;
     panelW += panelPad * 2;
+    const unifiedCardW = Math.max(1, panelW - panelPad * 2);
     roundRectPath(legendX, legendY, panelW, panelH, 8);
     c.fillStyle = "rgba(14, 18, 24, .88)";
     c.shadowColor = "rgba(0,0,0,.24)";
@@ -4078,13 +4264,13 @@ function drawControllerLayoutLegendOverlay(c) {
       const isHot = (card.index === hi);
       const x = legendX + panelPad;
       c.fillStyle = isHot ? "rgba(34, 46, 61, .82)" : "rgba(20, 28, 38, .56)";
-      c.fillRect(x, y, card.w, card.h);
+      c.fillRect(x, y, unifiedCardW, card.h);
       c.strokeStyle = isHot ? "rgba(255,255,255,.30)" : "rgba(255,255,255,.16)";
       c.lineWidth = 1;
-      c.strokeRect(x, y, card.w, card.h);
+      c.strokeRect(x, y, unifiedCardW, card.h);
       const toggleW = 54;
       const toggleH = 18;
-      const toggleX = x + card.w - toggleW - 6;
+      const toggleX = x + unifiedCardW - toggleW - 6;
       const toggleY = y + 6;
       c.fillStyle = card.mode === "firmware" ? "rgba(56, 189, 248, .95)" : "rgba(71, 85, 105, .95)";
       c.fillRect(toggleX, toggleY, toggleW, toggleH);
@@ -4103,7 +4289,7 @@ function drawControllerLayoutLegendOverlay(c) {
         lineY += rowH;
       }
       st.controllerLayoutLegendItems.push({
-        sx: x, sy: y, sw: card.w, sh: card.h, index: card.index, screen: card.screen,
+        sx: x, sy: y, sw: unifiedCardW, sh: card.h, index: card.index, screen: card.screen,
         toggle: { sx: toggleX, sy: toggleY, sw: toggleW, sh: toggleH }
       });
       y += card.h + cardGap;

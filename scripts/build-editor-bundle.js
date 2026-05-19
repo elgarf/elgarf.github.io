@@ -13,7 +13,7 @@ const main = async () => {
   let esbuild;
   try {
     esbuild = require("esbuild");
-  } catch (err) {
+  } catch {
     console.error("[bundle] esbuild is not installed. Run: npm i -D esbuild");
     process.exit(1);
   }
@@ -43,7 +43,7 @@ const main = async () => {
 
   for (const fileName of fs.readdirSync(outDir)) {
     if (/^app\.[a-f0-9]{10}\.js$/i.test(fileName)) {
-      try { fs.unlinkSync(path.join(outDir, fileName)); } catch (_) { }
+      fs.rmSync(path.join(outDir, fileName), { force: true });
     }
   }
 
@@ -62,4 +62,3 @@ main().catch(err => {
   console.error("[bundle] failed:", err && err.message ? err.message : err);
   process.exit(1);
 });
-

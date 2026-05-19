@@ -6,36 +6,44 @@ export const setupRenderRuntimeController = (deps = {}) => {
     cv,
     overlayCanvas,
     wrap,
-    s2w,
     w2s,
     fontFamilyCss,
     el,
     renderPipeline,
-    onBeforeRenderFrame
+    onBeforeRenderFrame,
+    getGridAnchorBounds
   } = deps;
 
   const drawGrid = () => {
     let step = Math.max(1, Math.round((Number(st.globalScale) || 256) * 0.5));
-    const lt = s2w(0, 0);
-    const rb = s2w(cv.clientWidth, cv.clientHeight);
-    const sx = Math.floor(lt.x / step) * step;
-    const ex = Math.ceil(rb.x / step) * step;
-    const sy = Math.floor(lt.y / step) * step;
-    const ey = Math.ceil(rb.y / step) * step;
+    let anchorX = 0;
+    let anchorY = 0;
+    if (typeof getGridAnchorBounds === "function") {
+      const bb = getGridAnchorBounds();
+      if (bb && Number.isFinite(Number(bb.minX)) && Number.isFinite(Number(bb.minY))) {
+        anchorX = Number(bb.minX) || 0;
+        anchorY = Number(bb.minY) || 0;
+      }
+    }
+    const zoom = Math.max(1e-6, Number(st.zoom) || 1);
+    const pxStep = Math.max(1e-6, step * zoom);
+    const anchorScreen = w2s(anchorX, anchorY);
+    const sx = anchorScreen.x + Math.floor((0 - anchorScreen.x) / pxStep) * pxStep;
+    const ex = anchorScreen.x + Math.ceil((cv.clientWidth - anchorScreen.x) / pxStep) * pxStep;
+    const sy = anchorScreen.y + Math.floor((0 - anchorScreen.y) / pxStep) * pxStep;
+    const ey = anchorScreen.y + Math.ceil((cv.clientHeight - anchorScreen.y) / pxStep) * pxStep;
     ctx.save();
     ctx.strokeStyle = "rgba(147,177,207,.09)";
     ctx.lineWidth = 1;
     const vPath = new Path2D();
-    for (let x = sx; x <= ex; x += step) {
-      const px = w2s(x, 0).x;
+    for (let px = sx; px <= ex; px += pxStep) {
       const xp = Math.round(px) + .5;
       vPath.moveTo(xp, 0);
       vPath.lineTo(xp, cv.clientHeight);
     }
     ctx.stroke(vPath);
     const hPath = new Path2D();
-    for (let y = sy; y <= ey; y += step) {
-      const py = w2s(0, y).y;
+    for (let py = sy; py <= ey; py += pxStep) {
       const yp = Math.round(py) + .5;
       hPath.moveTo(0, yp);
       hPath.lineTo(cv.clientWidth, yp);

@@ -7,7 +7,9 @@ module.exports = [
     ignores: [
       "node_modules/**",
       "tools/vendor/**",
-      "tools/editor/main.js"
+      "tools/editor/main.js",
+      "dist-tools/**",
+      "tools/editor/app.*.js"
     ]
   },
   js.configs.recommended,

@@ -33,6 +33,7 @@ export const setupRenderRuntimeFeature = (deps = {}) => {
     fontFamilyCss,
     el,
     onBeforeRenderFrame,
+    getGridAnchorBounds,
     bindWindowEvent,
     bindEvent,
     zc,
@@ -82,7 +83,8 @@ export const setupRenderRuntimeFeature = (deps = {}) => {
     fontFamilyCss,
     el,
     renderPipeline,
-    onBeforeRenderFrame
+    onBeforeRenderFrame,
+    getGridAnchorBounds
   });
 
   const viewportResizeController = setupViewportResizeController({
