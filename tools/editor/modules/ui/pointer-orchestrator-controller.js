@@ -340,10 +340,10 @@ export const setupPointerOrchestratorController = (deps = {}) => {
   const handleCanvasPointerDown = (p, opts = null) => {
     const oDown = (opts && typeof opts === "object") ? opts : {};
     if (typeof hitControllerLayoutLegendAtScreen === "function" && Number.isFinite(Number(oDown.sx)) && Number.isFinite(Number(oDown.sy))) {
-      const onLegend = hitControllerLayoutLegendAtScreen(oDown.sx, oDown.sy, { pin: !!oDown.touchLike, toggleModeSwitch: true });
+      const onLegend = hitControllerLayoutLegendAtScreen(oDown.sx, oDown.sy, { pin: !!oDown.touchLike, toggleModeSwitch: true, touchLike: !!oDown.touchLike });
       if (onLegend) {
         render();
-        return;
+        return true;
       }
       if (oDown.touchLike) hitControllerLayoutLegendAtScreen(-1, -1, { pin: true });
     }

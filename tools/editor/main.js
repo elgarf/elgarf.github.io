@@ -111,6 +111,7 @@ import {
   PROJECT_QUERY_PARAM, PROJECT_ID_PARAM, PROJECT_QUERY_VERSION, PROJECT_STORE_API_URL,
   PNG_PROJECT_META_KEY
 } from "./modules/constants.js";
+
 const VIEWER_MODE = (() => {
   try {
     const p = new URLSearchParams(location.search || "");
@@ -211,11 +212,14 @@ const setControllerLayoutScreenMode = (screenKey, mode) => {
 };
 const hitControllerLayoutLegendAtScreen = (sx, sy, opts = null) => {
   if (!isControllerLayoutModeActive()) return false;
-  const x = Number(sx);
-  const y = Number(sy);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const sxNum = Number(sx);
+  const syNum = Number(sy);
+  if (!Number.isFinite(sxNum) || !Number.isFinite(syNum)) return false;
+  const x = sxNum;
+  const y = syNum;
   const items = Array.isArray(st && st.controllerLayoutLegendItems) ? st.controllerLayoutLegendItems : [];
   let next = -1;
+  let onToggle = false;
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     if (!it) continue;
@@ -223,36 +227,48 @@ const hitControllerLayoutLegendAtScreen = (sx, sy, opts = null) => {
     const iy = Number(it.sy) || 0;
     const iw = Math.max(1, Number(it.sw) || 1);
     const ih = Math.max(1, Number(it.sh) || 1);
-    if (x >= ix && x <= (ix + iw) && y >= iy && y <= (iy + ih)) { next = i; break; }
+    if (x >= ix && x <= (ix + iw) && y >= iy && y <= (iy + ih)) {
+      next = i;
+      const t = it.toggle;
+      const tx = Number(t && t.sx);
+      const ty = Number(t && t.sy);
+      const tw = Number(t && t.sw);
+      const th = Number(t && t.sh);
+      const touchLike = !!(opts && opts.touchLike);
+      const pad = touchLike ? (12 / Math.max(0.25, Number(st && st.zoom) || 1)) : 0;
+      if (Number.isFinite(tx) && Number.isFinite(ty) && Number.isFinite(tw) && Number.isFinite(th)) {
+        onToggle = (x >= (tx - pad) && x <= (tx + tw + pad) && y >= (ty - pad) && y <= (ty + th + pad));
+      }
+      break;
+    }
   }
   const o = (opts && typeof opts === "object") ? opts : {};
   const allowToggle = !!o.toggleModeSwitch;
-  if (allowToggle && next >= 0 && items[next]) {
-    const t = items[next].toggle;
-    const tx = Number(t && t.sx);
-    const ty = Number(t && t.sy);
-    const tw = Number(t && t.sw);
-    const th = Number(t && t.sh);
-    if (Number.isFinite(tx) && Number.isFinite(ty) && Number.isFinite(tw) && Number.isFinite(th)) {
-      if (x >= tx && x <= (tx + tw) && y >= ty && y <= (ty + th)) {
-        const screen = items[next].screen || {};
-        const skey = String(screen.key || "");
-        const curMode = getControllerLayoutScreenMode(skey);
-        const nextMode = curMode === "firmware" ? "normal" : "firmware";
-        setControllerLayoutScreenMode(skey, nextMode);
-      }
-    }
+  if (allowToggle && next >= 0 && items[next] && onToggle) {
+    const screen = items[next].screen || {};
+    const skey = String(screen.key || "");
+    const curMode = getControllerLayoutScreenMode(skey);
+    const nextMode = curMode === "firmware" ? "normal" : "firmware";
+    setControllerLayoutScreenMode(skey, nextMode);
+    // Strict priority: toggle tap must not affect card highlight.
+    return true;
   }
   const pin = !!o.pin;
   if (pin) {
-    st.controllerLayoutLegendPinnedIndex = (next >= 0) ? next : -1;
-    st.controllerLayoutLegendPinnedBox = (next >= 0 && items[next] && items[next].screen)
+    const currentPinned = normLegendIndex(st.controllerLayoutLegendPinnedIndex);
+    const nextPinned = (next >= 0 && currentPinned === next) ? -1 : ((next >= 0) ? next : -1);
+    st.controllerLayoutLegendPinnedIndex = nextPinned;
+    st.controllerLayoutLegendPinnedBox = (nextPinned >= 0 && items[nextPinned] && items[nextPinned].screen)
       ? {
-          minX: Number(items[next].screen.minX) || 0,
-          minY: Number(items[next].screen.minY) || 0,
-          maxX: Number(items[next].screen.maxX) || 0,
-          maxY: Number(items[next].screen.maxY) || 0
+          minX: Number(items[nextPinned].screen.minX) || 0,
+          minY: Number(items[nextPinned].screen.minY) || 0,
+          maxX: Number(items[nextPinned].screen.maxX) || 0,
+          maxY: Number(items[nextPinned].screen.maxY) || 0
         }
+      : null;
+    st.controllerLayoutLegendHoverIndex = nextPinned;
+    st.controllerLayoutLegendHoverBox = st.controllerLayoutLegendPinnedBox
+      ? { ...st.controllerLayoutLegendPinnedBox }
       : null;
   } else {
     st.controllerLayoutLegendHoverIndex = next;
@@ -2688,7 +2704,9 @@ let lastSpecAutoRefreshAt = 0;
   zc,
   visibleRectFilter: r => isControllerLayoutRect(r),
   onAfterMainSceneDraw: (c, z) => drawControllerLayoutOverlay(c, z),
-  onAfterOverlayDraw: (c, z) => drawControllerLayoutHeaderOverlay(c, z)
+  onAfterOverlayDraw: (c, z) => {
+    drawControllerLayoutHeaderOverlay(c, z);
+  }
 }));
 const renderRuntimeBase = render;
 const renderOverlayRuntimeBase = renderOverlay;
@@ -5031,8 +5049,7 @@ if (el.btnControllerLayoutEdit) {
     enterControllerLayoutMode(current);
   });
 }
-if (el.btnControllerLayoutReset) {
-  bindClick(el.btnControllerLayoutReset, () => {
+const handleControllerLayoutReset = () => {
     const active = isControllerLayoutModeActive();
     const controllerId = active
       ? Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.controllerId) || 0))
@@ -5044,6 +5061,25 @@ if (el.btnControllerLayoutReset) {
     if (active) {
       exitControllerLayoutMode({ skipLayoutPersist: true });
       enterControllerLayoutMode(controllerRect);
+      return;
+    }
+    syncProps();
+    render();
+};
+if (el.btnControllerLayoutReset) bindClick(el.btnControllerLayoutReset, handleControllerLayoutReset);
+if (el.btnControllerLayoutResetInline) {
+  bindClick(el.btnControllerLayoutResetInline, () => {
+    const active = isControllerLayoutModeActive();
+    const controllerId = active
+      ? Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.controllerId) || 0))
+      : Math.max(1, Math.round(Number(cur() && cur().id) || 0));
+    const controllerRect = getRectById(controllerId);
+    if (!controllerRect || !isControllerDevice(controllerRect)) return;
+    // Full reset: remove saved layout from controller.
+    controllerRect.controllerLayoutRegionPositions = {};
+    schedulePersist("project");
+    if (active) {
+      exitControllerLayoutMode({ skipLayoutPersist: true });
       return;
     }
     syncProps();
@@ -5083,6 +5119,14 @@ syncProps = () => {
     );
     el.btnControllerLayoutReset.disabled = !canResetLayout;
     el.btnControllerLayoutReset.setAttribute("aria-disabled", canResetLayout ? "false" : "true");
+  }
+  if (el.btnControllerLayoutResetInline) {
+    const canResetLayout = !!(
+      (isControllerLayoutModeActive() && Math.max(1, Math.round(Number(st && st.controllerLayout && st.controllerLayout.controllerId) || 0)) > 0)
+      || (current && isControllerDevice(current) && !isControllerLayoutModeActive())
+    );
+    el.btnControllerLayoutResetInline.disabled = !canResetLayout;
+    el.btnControllerLayoutResetInline.setAttribute("aria-disabled", canResetLayout ? "false" : "true");
   }
 };
 const inputWiringServices = {

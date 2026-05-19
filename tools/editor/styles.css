@@ -448,22 +448,7 @@
     }
 
     .save-indicator {
-      position: fixed;
-      right: 12px;
-      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-      z-index: 1060;
-      font-size: 11px;
-      line-height: 1;
-      white-space: nowrap;
-      max-width: min(72vw, 260px);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      padding: 7px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--bs-border-color);
-      background: var(--bs-tertiary-bg);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, .22);
-      pointer-events: none
+      display: none !important
     }
 
     .overflow-group {
@@ -666,6 +651,29 @@
       justify-content: center
     }
 
+    @media (max-width: 768px) {
+      .project-link-modal .modal-dialog {
+        max-width: min(96vw, 420px)
+      }
+
+      .project-link-modal .qr-wrap {
+        height: auto;
+        min-height: 0;
+        padding: 8px;
+        margin-bottom: 8px
+      }
+
+      .project-link-modal .qr-image {
+        width: min(72vw, 320px);
+        height: min(72vw, 320px);
+        border-width: 6px
+      }
+
+      .project-link-modal .qr-loading {
+        min-height: min(72vw, 320px)
+      }
+    }
+
     .help-sub {
       margin: 0 0 12px;
       color: var(--bs-secondary-color);
@@ -793,6 +801,49 @@
     .canvas-wrap.tab-switching {
       opacity: .5;
       transform: scale(.995)
+    }
+
+    .app-canvas-badge {
+      position: absolute;
+      z-index: 1085;
+      left: 8px;
+      bottom: 8px;
+      display: inline-flex;
+      align-items: center;
+      color: #f3f7ff;
+      font-size: 11px;
+      font-weight: 400;
+      font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+      line-height: 1.15;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: rgba(9, 13, 18, .78);
+      border: none;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+      letter-spacing: 0;
+    }
+
+    .app-canvas-badge-sep {
+      opacity: .72;
+      margin: 0 6px;
+    }
+
+    .app-canvas-badge .save-secondary {
+      color: #f3f7ff;
+    }
+
+    .app-canvas-badge .save-success {
+      color: #7ef0a8;
+    }
+
+    .app-canvas-badge .save-warning {
+      color: #ffe180;
+    }
+
+    .app-canvas-badge .save-danger {
+      color: #ff8c8c;
     }
 
     .controller-layout-back {

@@ -64,6 +64,11 @@ export const setupTouchInputController = (deps = {}) => {
       return;
     }
     if (st.lockAll) {
+      const handledUiTap = !!handleCanvasPointerDown(p, { shiftToggle: false, touchLike: true, clickCount, sx, sy });
+      if (handledUiTap) {
+        e.preventDefault();
+        return;
+      }
       st.pan = true;
       st.panS = { sx, sy, cx: st.camX, cy: st.camY };
       render();

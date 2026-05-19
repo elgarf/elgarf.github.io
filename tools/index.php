@@ -64,5 +64,17 @@ header('Expires: 0');
 </head>
 <body>
   <iframe class="app-frame" src="<?= htmlspecialchars($target, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <script>
+    (function () {
+      try {
+        if (!window.history || typeof window.history.replaceState !== "function") return;
+        if (!window.location || !window.location.search) return;
+        var cleanUrl = window.location.pathname + (window.location.hash || "");
+        window.history.replaceState(null, document.title, cleanUrl);
+      } catch (_) {
+        // noop
+      }
+    })();
+  </script>
 </body>
 </html>

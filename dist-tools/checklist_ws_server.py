@@ -164,6 +164,43 @@ def bump_state_revision(state: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def merge_checklist_states(base_state: dict[str, Any], overlay_state: dict[str, Any]) -> dict[str, Any]:
+    base = normalize_checklist_state(base_state)
+    overlay = normalize_checklist_state(overlay_state)
+    merged_checks: dict[str, bool] = {}
+    merged_checks.update(base.get("__checks") if isinstance(base.get("__checks"), dict) else {})
+    merged_checks.update(overlay.get("__checks") if isinstance(overlay.get("__checks"), dict) else {})
+    by_id: dict[str, dict[str, str]] = {}
+    for it in (base.get("__customItems") if isinstance(base.get("__customItems"), list) else []):
+        if not isinstance(it, dict):
+            continue
+        cid = str(it.get("id", "")).strip()
+        txt = str(it.get("text", "")).strip()
+        if cid and txt:
+            by_id[cid] = {"id": cid, "text": txt}
+    for it in (overlay.get("__customItems") if isinstance(overlay.get("__customItems"), list) else []):
+        if not isinstance(it, dict):
+            continue
+        cid = str(it.get("id", "")).strip()
+        txt = str(it.get("text", "")).strip()
+        if cid and txt:
+            by_id[cid] = {"id": cid, "text": txt}
+    return {
+        "__checks": merged_checks,
+        "__customItems": list(by_id.values()),
+        "__meta": {
+            "revision": max(get_state_revision(base), get_state_revision(overlay)),
+            "updatedAt": str(
+                (
+                    (overlay.get("__meta") if isinstance(overlay.get("__meta"), dict) else {}).get("updatedAt")
+                    or (base.get("__meta") if isinstance(base.get("__meta"), dict) else {}).get("updatedAt")
+                    or ""
+                )
+            ),
+        },
+    }
+
+
 async def load_checklist_state_from_store(checklist_guid: str) -> dict[str, Any] | None:
     query = urlparse.urlencode({"checklist_guid": checklist_guid})
     url = f"{PROJECT_STORE_URL}?{query}"
@@ -286,6 +323,47 @@ async def handle_checkbox_update(
     )
 
 
+async def handle_custom_item_delete(
+    ws: ServerConnection,
+    checklist_guid: str,
+    item_id: str,
+    client_id: str,
+) -> None:
+    updated_state: dict[str, Any]
+    async with STATE_LOCK:
+        if ws not in SUBSCRIBERS[checklist_guid]:
+            SUBSCRIBERS[checklist_guid].add(ws)
+            CONTEXT_BY_SOCKET[ws] = ClientContext(ws=ws, checklist_guid=checklist_guid, client_id=client_id)
+        current = normalize_checklist_state(CHECKLIST_STATE.get(checklist_guid, {}))
+        custom_items = current.get("__customItems")
+        if not isinstance(custom_items, list):
+            custom_items = []
+        current["__customItems"] = [
+            it
+            for it in custom_items
+            if isinstance(it, dict) and str(it.get("id", "")).strip() != item_id
+        ]
+        checks = current.get("__checks")
+        if not isinstance(checks, dict):
+            checks = {}
+            current["__checks"] = checks
+        checks.pop(f"custom:{item_id}", None)
+        updated_state = bump_state_revision(current)
+        CHECKLIST_STATE[checklist_guid] = updated_state
+    await schedule_persist(checklist_guid)
+    await broadcast_except(
+        checklist_guid,
+        {
+            "type": "custom_item_delete",
+            "checklistGuid": checklist_guid,
+            "id": item_id,
+            "clientId": client_id,
+            "revision": get_state_revision(updated_state),
+        },
+        sender=ws,
+    )
+
+
 async def handle_state_replace(
     ws: ServerConnection,
     checklist_guid: str,
@@ -294,8 +372,9 @@ async def handle_state_replace(
 ) -> None:
     normalized = normalize_checklist_state(state)
     incoming_revision = get_state_revision(normalized)
-    accepted = False
-    current_revision = 0
+    effective_state = normalized
+    effective_revision = incoming_revision
+    was_merged_conflict = False
     async with STATE_LOCK:
         if ws not in SUBSCRIBERS[checklist_guid]:
             SUBSCRIBERS[checklist_guid].add(ws)
@@ -304,31 +383,37 @@ async def handle_state_replace(
         current_revision = get_state_revision(current)
         if incoming_revision > current_revision:
             CHECKLIST_STATE[checklist_guid] = normalized
-            accepted = True
-    if not accepted:
-        await send_json(
-            ws,
-            {
-                "type": "state_rejected",
-                "checklistGuid": checklist_guid,
-                "reason": "stale_revision",
-                "currentRevision": current_revision,
-                "incomingRevision": incoming_revision,
-            },
-        )
-        return
+        else:
+            # Resolve concurrent edits by merge instead of hard reject.
+            merged = merge_checklist_states(current, normalized)
+            merged = bump_state_revision(merged)
+            effective_state = merged
+            effective_revision = get_state_revision(merged)
+            CHECKLIST_STATE[checklist_guid] = merged
+            was_merged_conflict = True
     await schedule_persist(checklist_guid)
     await broadcast_except(
         checklist_guid,
         {
             "type": "state_replace",
             "checklistGuid": checklist_guid,
-            "state": normalized,
+            "state": effective_state,
             "clientId": client_id,
-            "revision": incoming_revision,
+            "revision": effective_revision,
         },
         sender=ws,
     )
+    if was_merged_conflict:
+        await send_json(
+            ws,
+            {
+                "type": "state_replace",
+                "checklistGuid": checklist_guid,
+                "state": effective_state,
+                "clientId": client_id,
+                "revision": effective_revision,
+            },
+        )
 
 
 def as_non_empty_str(value: Any) -> str:
@@ -370,6 +455,14 @@ async def handle_message(ws: ServerConnection, raw_message: str) -> None:
             return
         checked = bool(payload.get("checked"))
         await handle_checkbox_update(ws, checklist_guid, key, checked, client_id)
+        return
+
+    if message_type == "custom_item_delete":
+        item_id = as_non_empty_str(payload.get("id"))
+        if not item_id:
+            await send_json(ws, {"type": "error", "message": "Missing id"})
+            return
+        await handle_custom_item_delete(ws, checklist_guid, item_id, client_id)
         return
 
     if message_type == "state_replace":

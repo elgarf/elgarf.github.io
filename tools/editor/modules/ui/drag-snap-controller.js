@@ -10,6 +10,15 @@ export const setupDragSnapController = (deps = {}) => {
     getEditableSelectedRects,
     canSnapRect
   } = deps;
+
+  const flowEndpointRectId = endpoint => Math.max(1, Math.round(Number(endpoint && endpoint.rectId) || 0));
+  const flowEndpointCid = endpoint => Math.max(0, Math.round(Number(endpoint && endpoint.cid) || 0));
+  const flowLinkDragKey = link => {
+    const from = link && link.from;
+    const to = link && link.to;
+    if (!from || !to) return "";
+    return `${flowEndpointRectId(from)}:${flowEndpointCid(from)}>${flowEndpointRectId(to)}:${flowEndpointCid(to)}`;
+  };
   if (st && typeof st.debugSnap === "undefined") st.debugSnap = false;
   const snapDebug = (tag, payload) => {
     if (!st || !st.debugSnap) return;
@@ -559,7 +568,23 @@ export const setupDragSnapController = (deps = {}) => {
     const snapOthers = buildSnapOthersExcluding(selectedIds);
     const anchor = items.find(it => it.id === target.id) || items[0] || null;
     const snapStats = calcOthersStats(snapOthers);
-    st.drag = { id: target.id, sx: p.x, sy: p.y, moved: false, items, anchor, groupBb: { minX, minY, maxX, maxY }, selectedIds, snapOthers, snapStats };
+    const startPosById = new Map(items.map(it => [Math.max(1, Math.round(Number(it.id) || 0)), { x: Number(it.rx) || 0, y: Number(it.ry) || 0 }]));
+    const orthogonalByKey = new Map();
+    const links = Array.isArray(st.flowLinks) ? st.flowLinks : [];
+    for (const ln of links) {
+      if (!Array.isArray(ln && ln.orthogonalPoints) || !ln.orthogonalPoints.length) continue;
+      const fromRectId = flowEndpointRectId(ln && ln.from);
+      const toRectId = flowEndpointRectId(ln && ln.to);
+      if (!startPosById.has(fromRectId) && !startPosById.has(toRectId)) continue;
+      const key = flowLinkDragKey(ln);
+      if (!key) continue;
+      orthogonalByKey.set(key, ln.orthogonalPoints.map(pt => ({ x: Number(pt && pt.x) || 0, y: Number(pt && pt.y) || 0 })));
+    }
+    st.drag = {
+      id: target.id, sx: p.x, sy: p.y, moved: false, items, anchor,
+      groupBb: { minX, minY, maxX, maxY }, selectedIds, snapOthers, snapStats,
+      startPosById, orthogonalByKey
+    };
   };
 
   const snapGroup = (nx, ny, drag, off) => {
@@ -597,6 +622,64 @@ export const setupDragSnapController = (deps = {}) => {
       if (!rr) continue;
       rr.x = Math.round(it.rx + dx);
       rr.y = Math.round(it.ry + dy);
+    }
+    // Keep orthogonal path intermediate points attached to moved endpoints.
+    {
+      const links = Array.isArray(st.flowLinks) ? st.flowLinks : null;
+      const startPosById = st.drag && st.drag.startPosById instanceof Map ? st.drag.startPosById : null;
+      const orthogonalByKey = st.drag && st.drag.orthogonalByKey instanceof Map ? st.drag.orthogonalByKey : null;
+      if (links && startPosById && orthogonalByKey && orthogonalByKey.size) {
+        const currentPosDelta = rectId => {
+          const base = startPosById.get(rectId);
+          const rr = getRectById(rectId);
+          if (!base || !rr) return null;
+          return {
+            dx: (Number(rr.x) || 0) - (Number(base.x) || 0),
+            dy: (Number(rr.y) || 0) - (Number(base.y) || 0)
+          };
+        };
+        for (const ln of links) {
+          if (!Array.isArray(ln && ln.orthogonalPoints) || !ln.orthogonalPoints.length) continue;
+          const key = flowLinkDragKey(ln);
+          if (!key || !orthogonalByKey.has(key)) continue;
+          const original = orthogonalByKey.get(key);
+          if (!Array.isArray(original) || !original.length) continue;
+          const fromRectId = flowEndpointRectId(ln && ln.from);
+          const toRectId = flowEndpointRectId(ln && ln.to);
+          const dFrom = currentPosDelta(fromRectId);
+          const dTo = currentPosDelta(toRectId);
+          const eps = 0.5;
+          const fromDx = Number(dFrom && dFrom.dx) || 0;
+          const fromDy = Number(dFrom && dFrom.dy) || 0;
+          const toDx = Number(dTo && dTo.dx) || 0;
+          const toDy = Number(dTo && dTo.dy) || 0;
+          const movedFrom = !!dFrom && (Math.abs(fromDx) > eps || Math.abs(fromDy) > eps);
+          const movedTo = !!dTo && (Math.abs(toDx) > eps || Math.abs(toDy) > eps);
+          if (!movedFrom && !movedTo) continue;
+          const n = original.length;
+          const midL = Math.floor((n - 1) / 2);
+          const midR = Math.ceil((n - 1) / 2);
+          ln.orthogonalPoints = original.map((pt, idx) => {
+            let sx = 0;
+            let sy = 0;
+            if (idx < midL) {
+              if (movedFrom) { sx = fromDx; sy = fromDy; }
+            } else if (idx > midR) {
+              if (movedTo) { sx = toDx; sy = toDy; }
+            } else {
+              // Central point(s): move only when both endpoints move.
+              if (movedFrom && movedTo) {
+                sx = (fromDx + toDx) * 0.5;
+                sy = (fromDy + toDy) * 0.5;
+              }
+            }
+            return {
+              x: (Number(pt && pt.x) || 0) + sx,
+              y: (Number(pt && pt.y) || 0) + sy
+            };
+          });
+        }
+      }
     }
     st.g.x = sn.gx; st.g.y = sn.gy; st.dg = sn.dg;
   };

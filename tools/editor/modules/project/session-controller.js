@@ -171,6 +171,11 @@ export const setupProjectSessionController = (deps = {}) => {
     el.saveIndicator.setAttribute("aria-label", text);
     el.saveIndicator.classList.remove("text-secondary", "text-success", "text-warning", "text-danger");
     el.saveIndicator.classList.add(`text-${tone}`);
+    try {
+      if (typeof globalThis !== "undefined" && typeof globalThis.ledMaskSetAutosaveBadge === "function") {
+        globalThis.ledMaskSetAutosaveBadge(text, tone);
+      }
+    } catch { /* noop */ }
   };
   const saveStatus = {
     saving() { setSaveIndicator("Сохранение...", "warning"); },

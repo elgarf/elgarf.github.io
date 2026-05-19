@@ -11,7 +11,7 @@
   <script>
     (() => {
       const q = new URLSearchParams(location.search || "");
-      const v = String(q.get("v") || Math.floor(Date.now() / 1000));
+      const v = String(q.get("v") || "").trim();
       const addVersionToUrl = raw => {
         try {
           const u = new URL(String(raw || ""), location.href);
@@ -22,6 +22,7 @@
         }
       };
       window.__LEDMASK_ASSET_VERSION = v;
+      window.__LEDMASK_APP_BUNDLE_HASH = "";
       window.__ledMaskVersionedUrl = addVersionToUrl;
     })();
   </script>
@@ -245,6 +246,11 @@
     <div class="main">
       <div id="canvasWrap" class="canvas-wrap" data-mode="select">
         <canvas id="editorCanvas"></canvas>
+        <div id="appVersionBadge" class="app-canvas-badge" aria-live="polite">
+          <span id="appVersionBadgeVersion">v —</span>
+          <span class="app-canvas-badge-sep">|</span>
+          <span id="appVersionBadgeAutosave" class="save-secondary">Автосейв</span>
+        </div>
         <button id="controllerLayoutBack" type="button" class="btn btn-sm btn-outline-secondary controller-layout-back d-none">
           <i class="fa-solid fa-arrow-left"></i>
           <span>Вернуться к основной канве</span>
@@ -437,9 +443,14 @@
               </button>
             </div>
             <div class="field" style="grid-column: 1 / -1;">
-              <button id="btnControllerLayoutEdit" class="btn btn-outline-secondary btn-sm w-100" type="button">
-                Редактировать расположение регионов
-              </button>
+              <div class="d-flex gap-2">
+                <button id="btnControllerLayoutEdit" class="btn btn-outline-secondary btn-sm flex-fill" type="button">
+                  Редактировать расположение регионов
+                </button>
+                <button id="btnControllerLayoutResetInline" class="btn btn-warning btn-sm flex-fill" type="button">
+                  Сбросить расположение регионов
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -784,6 +795,59 @@
     </button>
   </div>
   <script>
+    (() => {
+      let autosaveText = "Автосейв";
+      let autosaveTone = "secondary";
+      const isViewerMode = (() => {
+        try {
+          const p = new URLSearchParams(location.search || "");
+          const byParam = p.get("viewer") === "1";
+          const path = String(location.pathname || "").toLowerCase();
+          const byPath = path.endsWith("/ledmaskviewer.html") || path.endsWith("ledmaskviewer.html");
+          return byParam || byPath;
+        } catch (_e) {
+          return false;
+        }
+      })();
+      const TONE_CLASS_LIST = ["save-secondary", "save-success", "save-warning", "save-danger"];
+      const applyVersionBadge = () => {
+        const node = document.getElementById("appVersionBadge");
+        const versionNode = document.getElementById("appVersionBadgeVersion");
+        const sepNode = node ? node.querySelector(".app-canvas-badge-sep") : null;
+        const autosaveNode = document.getElementById("appVersionBadgeAutosave");
+        if (!node || !versionNode || !autosaveNode || !sepNode) return;
+        const hash = String(window.__LEDMASK_APP_BUNDLE_HASH || "").trim();
+        const fallback = String(window.__LEDMASK_ASSET_VERSION || "").trim();
+        const versionText = `v ${hash || fallback || "—"}`;
+        const saveText = String(autosaveText || "").trim() || "Автосейв";
+        versionNode.textContent = versionText;
+        if (isViewerMode) {
+          autosaveNode.style.display = "none";
+          sepNode.style.display = "none";
+        } else {
+          autosaveNode.style.display = "";
+          sepNode.style.display = "";
+          autosaveNode.textContent = saveText;
+          autosaveNode.classList.remove(...TONE_CLASS_LIST);
+          autosaveNode.classList.add(`save-${autosaveTone}`);
+        }
+      };
+      const setAutosaveBadge = (text, tone = "secondary") => {
+        autosaveText = String(text || "").trim() || "Автосейв";
+        const t = String(tone || "").trim().toLowerCase();
+        autosaveTone = (t === "success" || t === "warning" || t === "danger") ? t : "secondary";
+        applyVersionBadge();
+      };
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", applyVersionBadge, { once: true });
+      } else {
+        applyVersionBadge();
+      }
+      window.ledMaskSetAppVersionBadge = applyVersionBadge;
+      window.ledMaskSetAutosaveBadge = setAutosaveBadge;
+    })();
+  </script>
+  <script>
     window.ledMaskReloadApplication = async version => {
       try {
         if ("caches" in window && window.caches && typeof window.caches.keys === "function") {
@@ -819,6 +883,13 @@
     (() => {
       const importMain = () => import("./editor/main.js");
       const importEditorBundle = src => import(String(src || ""));
+      const applyBundleHashFromPath = rawPath => {
+        const s = String(rawPath || "").trim();
+        const m = s.match(/app\.([a-f0-9]{8,})\.js(?:$|[?#])/i);
+        const hash = m ? String(m[1] || "").toLowerCase() : "";
+        window.__LEDMASK_APP_BUNDLE_HASH = hash;
+        if (typeof window.ledMaskSetAppVersionBadge === "function") window.ledMaskSetAppVersionBadge();
+      };
       const loadLegacyManifest = () => {
         const manifestUrl = window.__ledMaskVersionedUrl("./asset-manifest.json");
         return fetch(manifestUrl, { cache: "no-store" })
@@ -847,6 +918,10 @@
             mapNode.type = "importmap";
             mapNode.textContent = JSON.stringify({ imports: manifest.imports });
             document.currentScript.parentNode.insertBefore(mapNode, document.currentScript);
+            try {
+              const appImport = manifest.imports && typeof manifest.imports === "object" ? String(manifest.imports["./editor/main.js"] || "") : "";
+              applyBundleHashFromPath(appImport);
+            } catch (_e) { }
             return importMain();
           })
           .catch(() => importMain());
@@ -857,6 +932,7 @@
         .then(bundleManifest => {
           const bundlePath = String(bundleManifest && bundleManifest.editorBundle || "").trim();
           if (!bundlePath) return loadLegacyManifest();
+          applyBundleHashFromPath(bundlePath);
           return importEditorBundle(bundlePath);
         })
         .catch(() => loadLegacyManifest())
