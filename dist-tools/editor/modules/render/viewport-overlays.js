@@ -1,1 +1,532 @@
-import{drawCanvasTooltip}from"./canvas-tooltip.js";import{drawCanvasUiButton}from"./canvas-ui.js";import{isDeviceRectKind,isNoteExcludedFromContentBounds}from"../utils/rect-kind-utils.js";export const setupViewportOverlays=(t={})=>{const{st:e,isMaskMode:a,isCellEditMode:r,cur:o,getMaskNodeAxes:i,rectUVToWorld:n,drawCellX:l,drawCellY:s,getCellTopologyCached:h,buildVisibleCabinetSummary:m,getHiddenSet:c,fontFamilyCss:u,rectAABBMasked:d,listSignature:x,t:M=t=>t}=t,f=[{id:"text",icon:"",title:"Текст"},{id:"contours",icon:"",title:"Контуры"},{id:"flow",icon:"",title:"Потоки"},{id:"devices",icon:"",title:"Устройства"},{id:"rig",icon:"",title:"Риг"}],y={key:"",value:[]},b={key:"",value:null},g={key:"",gridPath:null,borderPath:null},v={key:"",dot:0,path:null},k={key:"",value:null},w=(...t)=>t.join("|"),N=(t,e=0)=>Math.max(e,Math.round(Number(t)||0)),p=t=>N(t,1),P=()=>"dark"===(document.documentElement.getAttribute("data-bs-theme")||"light"),S=(t,e,a,r,o,i,n=!0)=>{for(let l=0;l<=e;l+=a)if(n){const e=Math.min(r.w,l*o),a=-r.w/2+e;t.moveTo(a,-r.h/2),t.lineTo(a,r.h/2)}else{const e=Math.min(r.h,l*i),a=-r.h/2+e;t.moveTo(-r.w/2,a),t.lineTo(r.w/2,a)}if(e%a!==0)if(n){const e=-r.w/2+r.w;t.moveTo(e,-r.h/2),t.lineTo(e,r.h/2)}else{const e=-r.h/2+r.h;t.moveTo(-r.w/2,e),t.lineTo(r.w/2,e)}},H=()=>{const t=(Array.isArray(e.rects)?e.rects:[]).filter(t=>!isDeviceRectKind(t)&&!isNoteExcludedFromContentBounds(t));if(!t.length)return null;const a=t.map(t=>[N(t&&t.id,0),t&&t.x||0,t&&t.y||0,t&&t.width||0,t&&t.height||0,Number(t&&t.rotation)||0,p(l(t)),p(s(t)),x(t&&t.hiddenCells)].join(":")).join("|");if(k.key===a&&k.value)return k.value;let r=1e9,o=1e9,i=-1e9,n=-1e9;for(const e of t){const t=d(e);r=Math.min(r,t.minX),o=Math.min(o,t.minY),i=Math.max(i,t.maxX),n=Math.max(n,t.maxY)}const h={minX:r,minY:o,maxX:i,maxY:n,w:Math.ceil(i-r),h:Math.ceil(n-o)};return k.key=a,k.value=h,h},T=(t=1)=>{if("install"!==String(e.viewMode||""))return[];const a=H();if(!a)return[];const r=Math.max(.25,Number(t)||Number(e.zoom)||1),o=Math.max(24,30/r),i=Math.max(6,7/r),n=a.minX-o-i,l=a.minY;return f.map((t,e)=>({...t,x:n,y:l+e*(o+i),size:o}))},C=(t,e,a=1)=>{for(const r of T(a))if(t>=r.x&&t<=r.x+r.size&&e>=r.y&&e<=r.y+r.size)return r.id;return""};return{drawMaskOverlay:(t,r)=>{if(!a())return;const h=o();if(!h)return;const m=P(),c=m?"rgba(255,255,255,.18)":"rgba(0,0,0,.34)",u=m?"rgba(255,255,255,.9)":"rgba(0,0,0,.85)",d=i(h),x=Math.max(1.8,2.6/r),M=Math.max(1,Math.round(100*(Number(r)||1))/100),f=w(N(h&&h.id,0),N(h&&h.x,0),N(h&&h.y,0),p(h&&h.width),p(h&&h.height),N(h&&h.rotation,0),p(l(h)),p(s(h)),M);if("undefined"!=typeof Path2D){if(v.key!==f||!v.path||Math.abs((v.dot||0)-x)>1e-6){const t=new Path2D;for(const e of d.ys)for(const a of d.xs){const r=n(h,a,e);t.moveTo(r.x+x,r.y),t.arc(r.x,r.y,x,0,2*Math.PI)}v.key=f,v.dot=x,v.path=t}t.fillStyle=c,t.fill(v.path)}else for(const e of d.ys)for(const a of d.xs){const r=n(h,a,e);t.fillStyle=c,t.beginPath(),t.arc(r.x,r.y,x,0,2*Math.PI),t.fill()}if(e.maskPath.length){const a="rgba(120,205,255,.95)";t.strokeStyle=a,t.lineWidth=Math.max(1.2,1.8/r),t.fillStyle="rgba(120,205,255,.18)",t.beginPath(),t.moveTo(e.maskPath[0].x,e.maskPath[0].y);for(let a=1;a<e.maskPath.length;a++)t.lineTo(e.maskPath[a].x,e.maskPath[a].y);e.maskHover&&t.lineTo(e.maskHover.x,e.maskHover.y),t.stroke(),e.maskPath.length>=3&&(t.closePath(),t.fill());for(const o of e.maskPath)t.fillStyle=a,t.beginPath(),t.arc(o.x,o.y,Math.max(2.8,3.4/r),0,2*Math.PI),t.fill()}e.maskHover&&(t.fillStyle=u,t.beginPath(),t.arc(e.maskHover.x,e.maskHover.y,Math.max(2.4,3/r),0,2*Math.PI),t.fill())},drawCellEditOverlay:(t,a)=>{if(!r())return;const i=o();if(!i)return;const n=P(),d=n?"rgba(255,255,255,.18)":"rgba(0,0,0,.28)",f=n?"rgba(255,255,255,.9)":"rgba(0,0,0,.78)",v=l(i),k=s(i),H=h(i,v,k),T=Math.max(1,Number(i.width)||1),C=Math.max(1,Number(i.height)||1),B=Math.max(1,Math.round(Number(H&&H.cols)||Math.ceil(T/v))),A=Math.max(1,Math.round(Number(H&&H.rows)||Math.ceil(C/k))),L=(Number(i.x)||0)+T/2,z=(Number(i.y)||0)+C/2,F=(Number(i.rotation)||0)*Math.PI/180;t.save(),t.translate(L,z),t.rotate(F);const E=Array.isArray(i&&i.cellLinks)&&i.cellLinks.length>0,I=Math.max(1,Math.round(100*(Number(a)||1))/100),R=w(N(i&&i.id,0),p(T),p(C),p(v),p(k),p(B),p(A),I,x(i&&i.cellLinks));if(g.key!==R||!g.gridPath||!g.borderPath){const t=6,e=Math.max(1,Math.ceil(t/Math.max(1e-6,v*Math.max(.01,a)))),r=Math.max(1,Math.ceil(t/Math.max(1e-6,k*Math.max(.01,a)))),o=1400,n=Math.max(1,Math.ceil((Math.max(0,Math.ceil(B/e))+Math.max(0,Math.ceil(A/r)))/o)),l=e*n,s=r*n,h=new Path2D,m={w:T,h:C};S(h,B,l,m,v,k,!0),S(h,A,s,m,v,k,!1);const c=new Path2D;if(E){const t=((t,e,a,r)=>{const o=w(N(t&&t.id,0),p(t&&t.width),p(t&&t.height),p(e),p(a),p(r&&r.cols),p(r&&r.rows),x(t&&t.cellLinks));if(y.key===o&&Array.isArray(y.value))return y.value;const i=[],n=p(t&&t.width),l=p(t&&t.height),s=p(r&&r.cols),h=p(r&&r.rows),m=Array.isArray(r&&r.comp)?r.comp:[],c=(t,e)=>m[e*s+t];for(let t=0;t<=h;t++){let r=-1;const o=e=>0===t||t===h||c(e,t-1)!==c(e,t);for(let h=0;h<=s;h++){const m=h<s&&o(h);if(m&&r<0&&(r=h),(!m||h===s)&&r>=0){const o=r*e,s=Math.min(n,h*e),m=Math.min(l,t*a);i.push({x1:-n/2+o,y1:-l/2+m,x2:-n/2+s,y2:-l/2+m}),r=-1}}}for(let t=0;t<=s;t++){let r=-1;const o=e=>0===t||t===s||c(t-1,e)!==c(t,e);for(let s=0;s<=h;s++){const m=s<h&&o(s);if(m&&r<0&&(r=s),(!m||s===h)&&r>=0){const o=r*a,h=Math.min(l,s*a),m=Math.min(n,t*e);i.push({x1:-n/2+m,y1:-l/2+o,x2:-n/2+m,y2:-l/2+h}),r=-1}}}return y.key=o,y.value=i,i})(i,v,k,H);for(const e of t)c.moveTo(e.x1,e.y1),c.lineTo(e.x2,e.y2)}else c.rect(-T/2,-C/2,T,C);g.key=R,g.gridPath=h,g.borderPath=c}const W=Math.max(.01,Number(a)||1);t.strokeStyle=d,t.lineWidth=1.1/W,t.stroke(g.gridPath),E?(t.strokeStyle=f,t.lineWidth=2.2/W,t.stroke(g.borderPath)):(t.strokeStyle=f,t.lineWidth=2/W,t.stroke(g.borderPath)),t.restore(),e.cellHover&&e.cellHover.p1&&e.cellHover.p2&&(t.strokeStyle=e.cellHover.canToggle?e.cellHover.exists?"rgba(255,205,92,.95)":"rgba(94,220,143,.95)":"rgba(255,106,106,.95)",t.lineWidth=Math.max(2.4,3.4/a),t.beginPath(),t.moveTo(e.cellHover.p1.x,e.cellHover.p1.y),t.lineTo(e.cellHover.p2.x,e.cellHover.p2.y),t.stroke());const $=e.cellHoverPos;if($&&Number.isFinite(Number($.x))&&Number.isFinite(Number($.y))){const r=w(N(i&&i.id,0),p(i&&i.width),p(i&&i.height),p(v),p(k),p(H&&H.cols),p(H&&H.rows),p(i&&i.scale),x(i&&i.hiddenCells),x(i&&i.cellLinks));b.key===r&&b.value||(b.key=r,b.value=m(i,v,k,H,c(i)));const o=b.value,l=[`${M("Кабинетов")}: ${Math.max(0,Math.round(Number(o&&o.totalCount)||0))}`];for(const t of o&&o.groups?o.groups:[])l.push(String(t||""));const s=Math.max(8,11/Math.max(.45,a||1)),h=s+Math.max(2,3/Math.max(.45,a||1));t.font=`${s}px ${u(e.fontFamily)}`,t.textAlign="left",t.textBaseline="top";let d=0;for(const e of l)d=Math.max(d,t.measureText(e).width);const f=Math.max(4,6/Math.max(.45,a||1)),y=d+2*f,g=l.length*h+2*f,P=Math.max(8,12/Math.max(.45,a||1));let S=(+$.x||0)+P,T=(+$.y||0)+P;const C=i.x-10/Math.max(.45,a||1),B=i.y-10/Math.max(.45,a||1),A=i.x+i.width-y+10/Math.max(.45,a||1),L=i.y+i.height-g+10/Math.max(.45,a||1);S>A&&(S=(+$.x||0)-y-P),T>L&&(T=(+$.y||0)-g-P),S=Math.max(C,Math.min(A,S)),T=Math.max(B,Math.min(L,T)),t.fillStyle=n?"rgba(14,18,24,.92)":"rgba(255,255,255,.94)",t.strokeStyle=n?"rgba(255,255,255,.35)":"rgba(0,0,0,.32)",t.lineWidth=Math.max(1,1.2/Math.max(.45,a||1)),t.fillRect(S,T,y,g),t.strokeRect(S,T,y,g),t.fillStyle=n?"rgba(255,255,255,.96)":"rgba(17,24,39,.96)";for(let e=0;e<l.length;e++)t.fillText(l[e],S+f,T+f+e*h)}},drawCabinetEditOverlay:(t,a)=>{const r=e.cabinetCellSelection;if(!r||!Number.isFinite(Number(r.rectId))||!Number.isFinite(Number(r.cid)))return;const o=(Array.isArray(e.rects)?e.rects:[]).find(t=>Math.round(Number(t&&t.id)||0)===Math.round(Number(r.rectId)||0));if(!o)return;const i=l(o),n=s(o),m=h(o,i,n);if(!m||!Array.isArray(m.comp))return;const c=Math.max(1,Math.round(Number(m.cols)||Math.ceil((Number(o.width)||1)/i))),u=Math.max(1,Math.round(Number(m.rows)||Math.ceil((Number(o.height)||1)/n))),d=Math.round(Number(r.cid)||0),x=Math.max(1,Number(o.width)||1),M=Math.max(1,Number(o.height)||1);t.save(),t.translate((Number(o.x)||0)+x/2,(Number(o.y)||0)+M/2),t.rotate((Number(o.rotation)||0)*Math.PI/180);const f=Math.max(0,Math.round(Number(r.col)||0)),y=Math.max(0,Math.round(Number(r.row)||0)),b=-x/2+f*i,g=-M/2+y*n,v=Math.max(1,Math.min(i,x-f*i)),k=Math.max(1,Math.min(n,M-y*n));v>0&&k>0&&(t.save(),t.fillStyle="rgba(236,72,153,.24)",t.fillRect(b,g,v,k),t.restore()),t.fillStyle="rgba(250,204,21,.32)",t.beginPath();let w=!1,N=1/0,p=1/0,P=-1/0,S=-1/0;for(let e=0;e<u;e++)for(let a=0;a<c;a++){const r=e*c+a;if((0|m.comp[r])!==d)continue;const o=-x/2+a*i,l=-M/2+e*n,s=Math.min(i,x-a*i),h=Math.min(n,M-e*n);s>0&&h>0&&(w=!0,N=Math.min(N,o),p=Math.min(p,l),P=Math.max(P,o+s),S=Math.max(S,l+h),t.rect(o,l,s,h))}w&&t.fill(),t.restore()},drawContentBounds:(t,a)=>{const r=H();if(!r)return;const{minX:o,minY:i,w:n,h:l}=r,s=P(),h=s?"rgba(255,255,255,.5)":"rgba(0,0,0,.55)",m=s?"rgba(15,19,24,.85)":"rgba(255,255,255,.88)",c=s?"rgba(255,255,255,.92)":"rgba(17,24,39,.95)";if(t.save(),t.strokeStyle=h,t.lineWidth=1.5/a,t.setLineDash([]),t.strokeRect(o,i,n,l),e.fontReady){const r=`${n} x ${l} px`;t.font=`${Math.max(10,12/a)}px ${u(e.fontFamily)}`;const s=t.measureText(r).width+10,h=Math.max(16,16/a),d=i+l+4/a;t.fillStyle=m,t.fillRect(o,d,s,h),t.fillStyle=c,t.textAlign="left",t.textBaseline="middle",t.fillText(r,o+5,d+h/2)}t.restore()},drawLayerButtons:(t,a)=>{const r=T(a);if(!r.length)return;const o=e.installLayers||{},i={contours:!1,text:!1,flow:"flowEdit"===e.mode,devices:!1,rig:"rigEdit"===e.mode};t.save();for(const n of r){const r=i[n.id]||!1!==o[n.id],l=e.installLayerButtonHover===n.id;drawCanvasUiButton(t,{x:n.x,y:n.y,size:n.size,z:a,active:r,hover:l,icon:n.icon,iconSize:Math.max(12,.5*n.size)})}const n=r.find(t=>e.installLayerButtonHover===t.id);n&&drawCanvasTooltip(t,M(n.title),n.x+n.size,n.y+n.size/2,a),t.restore()},hitLayerButton:C,setLayerButtonHover:(t,a,r=1)=>{const o=String(e.installLayerButtonHover||""),i=C(t,a,r);return e.installLayerButtonHover=i,o!==i},clearLayerButtonHover:()=>{const t=!!e.installLayerButtonHover;return e.installLayerButtonHover="",t}}};
+/* build:1779222473 */
+import { drawCanvasTooltip } from "./canvas-tooltip.js";
+import { drawCanvasUiButton } from "./canvas-ui.js";
+import { isDeviceRectKind, isNoteExcludedFromContentBounds } from "../utils/rect-kind-utils.js";
+
+export const setupViewportOverlays = (deps = {}) => {
+  const {
+    st,
+    isMaskMode,
+    isCellEditMode,
+    cur,
+    getMaskNodeAxes,
+    rectUVToWorld,
+    drawCellX,
+    drawCellY,
+    getCellTopologyCached,
+    buildVisibleCabinetSummary,
+    getHiddenSet,
+    fontFamilyCss,
+    rectAABBMasked,
+    listSignature,
+    t = value => value
+  } = deps;
+
+  const LAYER_BUTTONS = [
+    { id: "text", icon: "\uf031", title: "Текст" },
+    { id: "contours", icon: "\uf5cb", title: "Контуры" },
+    { id: "flow", icon: "\uf542", title: "Потоки" },
+    { id: "devices", icon: "\uf2db", title: "Устройства" },
+    { id: "rig", icon: "\uf0ad", title: "Риг" }
+  ];
+
+  const cellBoundaryCache = { key: "", value: [] };
+  const cellSummaryCache = { key: "", value: null };
+  const cellOverlayPathCache = { key: "", gridPath: null, borderPath: null };
+  const maskNodesPathCache = { key: "", dot: 0, path: null };
+  const contentBoundsCache = { key: "", value: null };
+  const keyOf = (...parts) => parts.join("|");
+  const toIntMin = (v, min = 0) => Math.max(min, Math.round(Number(v) || 0));
+  const toPosInt = v => toIntMin(v, 1);
+  const darkThemeOn = () => (document.documentElement.getAttribute("data-bs-theme") || "light") === "dark";
+  const appendGridLines = (path, count, step, extent, cx, cy, vertical = true) => {
+    for (let i = 0; i <= count; i += step) {
+      if (vertical) {
+        const x = Math.min(extent.w, i * cx);
+        const lx = -extent.w / 2 + x;
+        path.moveTo(lx, -extent.h / 2);
+        path.lineTo(lx, extent.h / 2);
+      } else {
+        const y = Math.min(extent.h, i * cy);
+        const ly = -extent.h / 2 + y;
+        path.moveTo(-extent.w / 2, ly);
+        path.lineTo(extent.w / 2, ly);
+      }
+    }
+    if (count % step !== 0) {
+      if (vertical) {
+        const lx = -extent.w / 2 + extent.w;
+        path.moveTo(lx, -extent.h / 2);
+        path.lineTo(lx, extent.h / 2);
+      } else {
+        const ly = -extent.h / 2 + extent.h;
+        path.moveTo(-extent.w / 2, ly);
+        path.lineTo(extent.w / 2, ly);
+      }
+    }
+  };
+
+  const getComponentBoundarySegmentsLocalCached = (r, cx, cy, topo) => {
+    const key = keyOf(
+      toIntMin(r && r.id, 0),
+      toPosInt(r && r.width),
+      toPosInt(r && r.height),
+      toPosInt(cx),
+      toPosInt(cy),
+      toPosInt(topo && topo.cols),
+      toPosInt(topo && topo.rows),
+      listSignature(r && r.cellLinks)
+    );
+    if (cellBoundaryCache.key === key && Array.isArray(cellBoundaryCache.value)) return cellBoundaryCache.value;
+    const segs = [];
+    const w = toPosInt(r && r.width);
+    const h = toPosInt(r && r.height);
+    const cols = toPosInt(topo && topo.cols);
+    const rows = toPosInt(topo && topo.rows);
+    const comp = Array.isArray(topo && topo.comp) ? topo.comp : [];
+    const compAt = (x, y) => comp[y * cols + x];
+    for (let ky = 0; ky <= rows; ky++) {
+      let run = -1;
+      const isBoundary = x => {
+        if (ky === 0 || ky === rows) return true;
+        return compAt(x, ky - 1) !== compAt(x, ky);
+      };
+      for (let x = 0; x <= cols; x++) {
+        const on = x < cols && isBoundary(x);
+        if (on && run < 0) run = x;
+        if ((!on || x === cols) && run >= 0) {
+          const u1 = run * cx, u2 = Math.min(w, x * cx), v = Math.min(h, ky * cy);
+          segs.push({ x1: -w / 2 + u1, y1: -h / 2 + v, x2: -w / 2 + u2, y2: -h / 2 + v });
+          run = -1;
+        }
+      }
+    }
+    for (let kx = 0; kx <= cols; kx++) {
+      let run = -1;
+      const isBoundary = y => {
+        if (kx === 0 || kx === cols) return true;
+        return compAt(kx - 1, y) !== compAt(kx, y);
+      };
+      for (let y = 0; y <= rows; y++) {
+        const on = y < rows && isBoundary(y);
+        if (on && run < 0) run = y;
+        if ((!on || y === rows) && run >= 0) {
+          const v1 = run * cy, v2 = Math.min(h, y * cy), u = Math.min(w, kx * cx);
+          segs.push({ x1: -w / 2 + u, y1: -h / 2 + v1, x2: -w / 2 + u, y2: -h / 2 + v2 });
+          run = -1;
+        }
+      }
+    }
+    cellBoundaryCache.key = key;
+    cellBoundaryCache.value = segs;
+    return segs;
+  };
+
+  const getContentBounds = () => {
+    const rects = (Array.isArray(st.rects) ? st.rects : []).filter(r => !isDeviceRectKind(r) && !isNoteExcludedFromContentBounds(r));
+    if (!rects.length) return null;
+    const key = rects.map(r => [
+      toIntMin(r && r.id, 0),
+      r && r.x || 0,
+      r && r.y || 0,
+      r && r.width || 0,
+      r && r.height || 0,
+      Number(r && r.rotation) || 0,
+      toPosInt(drawCellX(r)),
+      toPosInt(drawCellY(r)),
+      listSignature(r && r.hiddenCells)
+    ].join(":")).join("|");
+    if (contentBoundsCache.key === key && contentBoundsCache.value) return contentBoundsCache.value;
+    let minX = 1e9;
+    let minY = 1e9;
+    let maxX = -1e9;
+    let maxY = -1e9;
+    for (const r of rects) {
+      const bb = rectAABBMasked(r);
+      minX = Math.min(minX, bb.minX);
+      minY = Math.min(minY, bb.minY);
+      maxX = Math.max(maxX, bb.maxX);
+      maxY = Math.max(maxY, bb.maxY);
+    }
+    const value = { minX, minY, maxX, maxY, w: Math.ceil(maxX - minX), h: Math.ceil(maxY - minY) };
+    contentBoundsCache.key = key;
+    contentBoundsCache.value = value;
+    return value;
+  };
+
+  const drawMaskOverlay = (c, z) => {
+    if (!isMaskMode()) return;
+    const r = cur();
+    if (!r) return;
+    const darkTheme = darkThemeOn();
+    const nodeCol = darkTheme ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.34)";
+    const hoverCol = darkTheme ? "rgba(255,255,255,.9)" : "rgba(0,0,0,.85)";
+    const axes = getMaskNodeAxes(r);
+    const dot = Math.max(1.8, 2.6 / z);
+    const zq = Math.max(1, Math.round((Number(z) || 1) * 100) / 100);
+    const nodeKey = keyOf(
+      toIntMin(r && r.id, 0),
+      toIntMin(r && r.x, 0),
+      toIntMin(r && r.y, 0),
+      toPosInt(r && r.width),
+      toPosInt(r && r.height),
+      toIntMin(r && r.rotation, 0),
+      toPosInt(drawCellX(r)),
+      toPosInt(drawCellY(r)),
+      zq
+    );
+    if (typeof Path2D !== "undefined") {
+      if (maskNodesPathCache.key !== nodeKey || !maskNodesPathCache.path || Math.abs((maskNodesPathCache.dot || 0) - dot) > 1e-6) {
+        const p = new Path2D();
+        for (const gy of axes.ys) {
+          for (const gx of axes.xs) {
+            const wp = rectUVToWorld(r, gx, gy);
+            p.moveTo(wp.x + dot, wp.y);
+            p.arc(wp.x, wp.y, dot, 0, Math.PI * 2);
+          }
+        }
+        maskNodesPathCache.key = nodeKey;
+        maskNodesPathCache.dot = dot;
+        maskNodesPathCache.path = p;
+      }
+      c.fillStyle = nodeCol;
+      c.fill(maskNodesPathCache.path);
+    } else {
+      for (const gy of axes.ys) {
+        for (const gx of axes.xs) {
+          const p = rectUVToWorld(r, gx, gy);
+          c.fillStyle = nodeCol;
+          c.beginPath();
+          c.arc(p.x, p.y, dot, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+    }
+    if (st.maskPath.length) {
+      const col = "rgba(120,205,255,.95)";
+      c.strokeStyle = col;
+      c.lineWidth = Math.max(1.2, 1.8 / z);
+      c.fillStyle = "rgba(120,205,255,.18)";
+      c.beginPath();
+      c.moveTo(st.maskPath[0].x, st.maskPath[0].y);
+      for (let i = 1; i < st.maskPath.length; i++) c.lineTo(st.maskPath[i].x, st.maskPath[i].y);
+      if (st.maskHover) c.lineTo(st.maskHover.x, st.maskHover.y);
+      c.stroke();
+      if (st.maskPath.length >= 3) {
+        c.closePath();
+        c.fill();
+      }
+      for (const p of st.maskPath) {
+        c.fillStyle = col;
+        c.beginPath();
+        c.arc(p.x, p.y, Math.max(2.8, 3.4 / z), 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    if (st.maskHover) {
+      c.fillStyle = hoverCol;
+      c.beginPath();
+      c.arc(st.maskHover.x, st.maskHover.y, Math.max(2.4, 3 / z), 0, Math.PI * 2);
+      c.fill();
+    }
+  };
+
+  const drawCellEditOverlay = (c, z) => {
+    if (!isCellEditMode()) return;
+    const r = cur();
+    if (!r) return;
+    const darkTheme = darkThemeOn();
+    const gridCol = darkTheme ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.28)";
+    const boundCol = darkTheme ? "rgba(255,255,255,.9)" : "rgba(0,0,0,.78)";
+    const cx = drawCellX(r);
+    const cy = drawCellY(r);
+    const topo = getCellTopologyCached(r, cx, cy);
+    const w = Math.max(1, Number(r.width) || 1);
+    const h = Math.max(1, Number(r.height) || 1);
+    const cols = Math.max(1, Math.round(Number(topo && topo.cols) || Math.ceil(w / cx)));
+    const rows = Math.max(1, Math.round(Number(topo && topo.rows) || Math.ceil(h / cy)));
+    const centerX = (Number(r.x) || 0) + w / 2;
+    const centerY = (Number(r.y) || 0) + h / 2;
+    const ang = (Number(r.rotation) || 0) * Math.PI / 180;
+    c.save();
+    c.translate(centerX, centerY);
+    c.rotate(ang);
+    const hasLinks = Array.isArray(r && r.cellLinks) && r.cellLinks.length > 0;
+    const zQuant = Math.max(1, Math.round((Number(z) || 1) * 100) / 100);
+    const pathKey = keyOf(
+      toIntMin(r && r.id, 0),
+      toPosInt(w),
+      toPosInt(h),
+      toPosInt(cx),
+      toPosInt(cy),
+      toPosInt(cols),
+      toPosInt(rows),
+      zQuant,
+      listSignature(r && r.cellLinks)
+    );
+    if (cellOverlayPathCache.key !== pathKey || !cellOverlayPathCache.gridPath || !cellOverlayPathCache.borderPath) {
+      const pxStepMin = 6;
+      const lineStepX = Math.max(1, Math.ceil(pxStepMin / Math.max(1e-6, cx * Math.max(0.01, z))));
+      const lineStepY = Math.max(1, Math.ceil(pxStepMin / Math.max(1e-6, cy * Math.max(0.01, z))));
+      const maxLines = 1400;
+      const capStep = Math.max(
+        1,
+        Math.ceil((Math.max(0, Math.ceil(cols / lineStepX)) + Math.max(0, Math.ceil(rows / lineStepY))) / maxLines)
+      );
+      const xStep = lineStepX * capStep;
+      const yStep = lineStepY * capStep;
+      const gridPath = new Path2D();
+      const extent = { w, h };
+      appendGridLines(gridPath, cols, xStep, extent, cx, cy, true);
+      appendGridLines(gridPath, rows, yStep, extent, cx, cy, false);
+      const borderPath = new Path2D();
+      if (hasLinks) {
+        const bounds = getComponentBoundarySegmentsLocalCached(r, cx, cy, topo);
+        for (const s of bounds) {
+          borderPath.moveTo(s.x1, s.y1);
+          borderPath.lineTo(s.x2, s.y2);
+        }
+      } else {
+        borderPath.rect(-w / 2, -h / 2, w, h);
+      }
+      cellOverlayPathCache.key = pathKey;
+      cellOverlayPathCache.gridPath = gridPath;
+      cellOverlayPathCache.borderPath = borderPath;
+    }
+    const zoomSafe = Math.max(0.01, Number(z) || 1);
+    c.strokeStyle = gridCol;
+    c.lineWidth = 1.1 / zoomSafe;
+    c.stroke(cellOverlayPathCache.gridPath);
+    if (hasLinks) {
+      c.strokeStyle = boundCol;
+      c.lineWidth = 2.2 / zoomSafe;
+      c.stroke(cellOverlayPathCache.borderPath);
+    } else {
+      // Fast path for large unlinked grids: draw only outer border, skip component-boundary pass.
+      c.strokeStyle = boundCol;
+      c.lineWidth = 2 / zoomSafe;
+      c.stroke(cellOverlayPathCache.borderPath);
+    }
+    c.restore();
+    if (st.cellHover && st.cellHover.p1 && st.cellHover.p2) {
+      c.strokeStyle = st.cellHover.canToggle
+        ? (st.cellHover.exists ? "rgba(255,205,92,.95)" : "rgba(94,220,143,.95)")
+        : "rgba(255,106,106,.95)";
+      c.lineWidth = Math.max(2.4, 3.4 / z);
+      c.beginPath();
+      c.moveTo(st.cellHover.p1.x, st.cellHover.p1.y);
+      c.lineTo(st.cellHover.p2.x, st.cellHover.p2.y);
+      c.stroke();
+    }
+    const hp = st.cellHoverPos;
+    if (hp && Number.isFinite(Number(hp.x)) && Number.isFinite(Number(hp.y))) {
+      const summaryKey = keyOf(
+        toIntMin(r && r.id, 0),
+        toPosInt(r && r.width),
+        toPosInt(r && r.height),
+        toPosInt(cx),
+        toPosInt(cy),
+        toPosInt(topo && topo.cols),
+        toPosInt(topo && topo.rows),
+        toPosInt(r && r.scale),
+        listSignature(r && r.hiddenCells),
+        listSignature(r && r.cellLinks)
+      );
+      if (cellSummaryCache.key !== summaryKey || !cellSummaryCache.value) {
+        cellSummaryCache.key = summaryKey;
+        cellSummaryCache.value = buildVisibleCabinetSummary(r, cx, cy, topo, getHiddenSet(r));
+      }
+      const summary = cellSummaryCache.value;
+      const lines = [`${t("Кабинетов")}: ${Math.max(0, Math.round(Number(summary && summary.totalCount) || 0))}`];
+      for (const row of (summary && summary.groups ? summary.groups : [])) lines.push(String(row || ""));
+      const fs = Math.max(8, 11 / Math.max(0.45, z || 1));
+      const lh = fs + Math.max(2, 3 / Math.max(0.45, z || 1));
+      c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`;
+      c.textAlign = "left";
+      c.textBaseline = "top";
+      let tw = 0;
+      for (const line of lines) tw = Math.max(tw, c.measureText(line).width);
+      const pad = Math.max(4, 6 / Math.max(0.45, z || 1));
+      const bw = tw + pad * 2;
+      const bh = lines.length * lh + pad * 2;
+      const off = Math.max(8, 12 / Math.max(0.45, z || 1));
+      let bx = (+hp.x || 0) + off;
+      let by = (+hp.y || 0) + off;
+      const minX = r.x - 10 / Math.max(0.45, z || 1);
+      const minY = r.y - 10 / Math.max(0.45, z || 1);
+      const maxX = r.x + r.width - bw + 10 / Math.max(0.45, z || 1);
+      const maxY = r.y + r.height - bh + 10 / Math.max(0.45, z || 1);
+      if (bx > maxX) bx = (+hp.x || 0) - bw - off;
+      if (by > maxY) by = (+hp.y || 0) - bh - off;
+      bx = Math.max(minX, Math.min(maxX, bx));
+      by = Math.max(minY, Math.min(maxY, by));
+      c.fillStyle = darkTheme ? "rgba(14,18,24,.92)" : "rgba(255,255,255,.94)";
+      c.strokeStyle = darkTheme ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.32)";
+      c.lineWidth = Math.max(1, 1.2 / Math.max(0.45, z || 1));
+      c.fillRect(bx, by, bw, bh);
+      c.strokeRect(bx, by, bw, bh);
+      c.fillStyle = darkTheme ? "rgba(255,255,255,.96)" : "rgba(17,24,39,.96)";
+      for (let i = 0; i < lines.length; i++) c.fillText(lines[i], bx + pad, by + pad + i * lh);
+    }
+  };
+  const drawCabinetEditOverlay = (c, _z) => {
+    const sel = st.cabinetCellSelection;
+    if (!sel || !Number.isFinite(Number(sel.rectId)) || !Number.isFinite(Number(sel.cid))) return;
+    const r = (Array.isArray(st.rects) ? st.rects : []).find(it => Math.round(Number(it && it.id) || 0) === Math.round(Number(sel.rectId) || 0));
+    if (!r) return;
+    const cx = drawCellX(r);
+    const cy = drawCellY(r);
+    const topo = getCellTopologyCached(r, cx, cy);
+    if (!topo || !Array.isArray(topo.comp)) return;
+    const cols = Math.max(1, Math.round(Number(topo.cols) || Math.ceil((Number(r.width) || 1) / cx)));
+    const rows = Math.max(1, Math.round(Number(topo.rows) || Math.ceil((Number(r.height) || 1) / cy)));
+    const targetCid = Math.round(Number(sel.cid) || 0);
+    const w = Math.max(1, Number(r.width) || 1);
+    const h = Math.max(1, Number(r.height) || 1);
+    c.save();
+    c.translate((Number(r.x) || 0) + w / 2, (Number(r.y) || 0) + h / 2);
+    c.rotate((Number(r.rotation) || 0) * Math.PI / 180);
+    const sc = Math.max(0, Math.round(Number(sel.col) || 0));
+    const sr = Math.max(0, Math.round(Number(sel.row) || 0));
+    const sx = -w / 2 + sc * cx;
+    const sy = -h / 2 + sr * cy;
+    const sw = Math.max(1, Math.min(cx, w - sc * cx));
+    const sh = Math.max(1, Math.min(cy, h - sr * cy));
+    if (sw > 0 && sh > 0) {
+      c.save();
+      c.fillStyle = "rgba(236,72,153,.24)";
+      c.fillRect(sx, sy, sw, sh);
+      c.restore();
+    }
+    c.fillStyle = "rgba(250,204,21,.32)";
+    c.beginPath();
+    let hasCells = false;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const idx = row * cols + col;
+        if ((topo.comp[idx] | 0) !== targetCid) continue;
+        const x = -w / 2 + col * cx;
+        const y = -h / 2 + row * cy;
+        const cw = Math.min(cx, w - col * cx);
+        const ch = Math.min(cy, h - row * cy);
+        if (!(cw > 0 && ch > 0)) continue;
+        hasCells = true;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + cw);
+        maxY = Math.max(maxY, y + ch);
+        c.rect(x, y, cw, ch);
+      }
+    }
+    if (hasCells) {
+      c.fill();
+    }
+    c.restore();
+  };
+
+  const drawContentBounds = (c, z) => {
+    const b = getContentBounds();
+    if (!b) return;
+    const { minX, minY, w, h } = b;
+    const darkTheme = darkThemeOn();
+    const stroke = darkTheme ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.55)";
+    const labelBg = darkTheme ? "rgba(15,19,24,.85)" : "rgba(255,255,255,.88)";
+    const labelFg = darkTheme ? "rgba(255,255,255,.92)" : "rgba(17,24,39,.95)";
+    c.save();
+    c.strokeStyle = stroke;
+    c.lineWidth = 1.5 / z;
+    c.setLineDash([]);
+    c.strokeRect(minX, minY, w, h);
+    if (st.fontReady) {
+      const label = `${w} x ${h} px`;
+      c.font = `${Math.max(10, 12 / z)}px ${fontFamilyCss(st.fontFamily)}`;
+      const tw = c.measureText(label).width + 10;
+      const th = Math.max(16, 16 / z);
+      const y0 = minY + h + 4 / z;
+      c.fillStyle = labelBg;
+      c.fillRect(minX, y0, tw, th);
+      c.fillStyle = labelFg;
+      c.textAlign = "left";
+      c.textBaseline = "middle";
+      c.fillText(label, minX + 5, y0 + th / 2);
+    }
+    c.restore();
+  };
+
+  const layerButtonRects = (z = 1) => {
+    if (String(st.viewMode || "") !== "install") return [];
+    const b = getContentBounds();
+    if (!b) return [];
+    const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
+    const size = Math.max(24, 30 / zoom);
+    const gap = Math.max(6, 7 / zoom);
+    const x = b.minX - size - gap;
+    const y0 = b.minY;
+    return LAYER_BUTTONS.map((btn, i) => ({ ...btn, x, y: y0 + i * (size + gap), size }));
+  };
+
+  const drawLayerButtons = (c, z) => {
+    const buttons = layerButtonRects(z);
+    if (!buttons.length) return;
+    const layers = st.installLayers || {};
+    const force = {
+      contours: false,
+      text: false,
+      flow: st.mode === "flowEdit",
+      devices: false,
+      rig: st.mode === "rigEdit"
+    };
+    c.save();
+    for (const btn of buttons) {
+      const on = force[btn.id] || layers[btn.id] !== false;
+      const hover = st.installLayerButtonHover === btn.id;
+      drawCanvasUiButton(c, {
+        x: btn.x,
+        y: btn.y,
+        size: btn.size,
+        z,
+        active: on,
+        hover,
+        icon: btn.icon,
+        iconSize: Math.max(12, btn.size * 0.5)
+      });
+    }
+    const hoveredButton = buttons.find(btn => st.installLayerButtonHover === btn.id);
+    if (hoveredButton) {
+      drawCanvasTooltip(c, t(hoveredButton.title), hoveredButton.x + hoveredButton.size, hoveredButton.y + hoveredButton.size / 2, z);
+    }
+    c.restore();
+  };
+
+  const hitLayerButton = (x, y, z = 1) => {
+    for (const btn of layerButtonRects(z)) {
+      if (x >= btn.x && x <= btn.x + btn.size && y >= btn.y && y <= btn.y + btn.size) return btn.id;
+    }
+    return "";
+  };
+
+  const setLayerButtonHover = (x, y, z = 1) => {
+    const prev = String(st.installLayerButtonHover || "");
+    const next = hitLayerButton(x, y, z);
+    st.installLayerButtonHover = next;
+    return prev !== next;
+  };
+
+  const clearLayerButtonHover = () => {
+    const had = !!st.installLayerButtonHover;
+    st.installLayerButtonHover = "";
+    return had;
+  };
+
+  return {
+    drawMaskOverlay,
+    drawCellEditOverlay,
+    drawCabinetEditOverlay,
+    drawContentBounds,
+    drawLayerButtons,
+    hitLayerButton,
+    setLayerButtonHover,
+    clearLayerButtonHover
+  };
+};

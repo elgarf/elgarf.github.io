@@ -1,1 +1,55 @@
-export const setupProjectLifecycleController=(e={})=>{const{st:t,el:o,setSelection:s,resetTransientState:a,setMode:c,refreshPanels:n,syncActiveTabSnapshot:r,renderProjectTabs:i,commitUiUpdate:l,updateViewModeUi:d,setGlobalSaveLocationId:m,getGlobalSaveLocationId:p,genSaveLocationId:S,t:u=e=>e}=e,v=()=>{t.rects=[],t.flowLinks=[],t.next=1,t.camX=0,t.camY=0,t.zoom=1,t.projectName=u("Новый проект"),t.saveLocationId=m(p()||S(t.projectName)),t.viewMode="art",t.specCustomText="",t.specCustomSections={},t.textSize=32,t.fontFamily="Roboto",t.globalScale=256,t.installLayers={contours:!0,text:!0,flow:!0,devices:!0,rig:!0},o.cUnit&&(o.cUnit.value="m"),s([],null),a(!0)};return{resetProjectCore:v,newProject:()=>{v(),d(),n(),c("select"),r(),i(),l({persist:!0,persistKind:"all",render:!0})}}};
+/* build:1779222473 */
+export const setupProjectLifecycleController = (deps = {}) => {
+  const {
+    st,
+    el,
+    setSelection,
+    resetTransientState,
+    setMode,
+    refreshPanels,
+    syncActiveTabSnapshot,
+    renderProjectTabs,
+    commitUiUpdate,
+    updateViewModeUi,
+    setGlobalSaveLocationId,
+    getGlobalSaveLocationId,
+    genSaveLocationId,
+    t = value => value
+  } = deps;
+
+  const resetProjectCore = () => {
+    st.rects = [];
+    st.flowLinks = [];
+    st.next = 1;
+    st.camX = 0;
+    st.camY = 0;
+    st.zoom = 1;
+    st.projectName = t("Новый проект");
+    st.saveLocationId = setGlobalSaveLocationId(getGlobalSaveLocationId() || genSaveLocationId(st.projectName));
+    st.viewMode = "art";
+    st.specCustomText = "";
+    st.specCustomSections = {};
+    st.textSize = 32;
+    st.fontFamily = "Roboto";
+    st.globalScale = 256;
+    st.installLayers = { contours: true, text: true, flow: true, devices: true, rig: true };
+    if (el.cUnit) el.cUnit.value = "m";
+    setSelection([], null);
+    resetTransientState(true);
+  };
+
+  const newProject = () => {
+    resetProjectCore();
+    updateViewModeUi();
+    refreshPanels();
+    setMode("select");
+    syncActiveTabSnapshot();
+    renderProjectTabs();
+    commitUiUpdate({ persist: true, persistKind: "all", render: true });
+  };
+
+  return {
+    resetProjectCore,
+    newProject
+  };
+};

@@ -1,1 +1,386 @@
-import{controlIn,controlOut,drawShapePath,flattenShapeSegment,flattenShapePoints,isBezierPoint,makeShapePath2D,num}from"../shape/shape-path-utils.js";import{isShapeRectKind}from"../utils/rect-kind-utils.js";export const setupShapeRender=(e={})=>{const{st:t,rectUVToWorld:n,worldToRectUV:r,pointInPoly:a,distToSegment:o}=e,i=e=>isShapeRectKind(e),u=e=>Array.isArray(e&&e.shapePoints)?e.shapePoints:[],s=e=>u(e).map(t=>{const r=Number(t.x)||0,a=Number(t.y)||0,o=n(e,r,a);if(!isBezierPoint(t))return{...t,x:o.x,y:o.y};const i=n(e,r+num(t.inX,-48),a+num(t.inY,0)),u=n(e,r+num(t.outX,48),a+num(t.outY,0));return{...t,x:o.x,y:o.y,inX:i.x-o.x,inY:i.y-o.y,outX:u.x-o.x,outY:u.y-o.y}}),h=e=>{const t=Number(e&&e.shapeOpacity);return Number.isFinite(t)?Math.max(0,Math.min(1,t)):.72},m=e=>Math.max(0,Math.round(Number(e&&e._shapeRenderVersion)||0)),l=(e,t)=>{if("undefined"!=typeof OffscreenCanvas)return new OffscreenCanvas(e,t);if("undefined"!=typeof document){const n=document.createElement("canvas");return n.width=e,n.height=t,n}return null};let f=null,c={key:"",canvas:null};const b=e=>e?[Number(e.a)||0,Number(e.b)||0,Number(e.c)||0,Number(e.d)||0,Number(e.e)||0,Number(e.f)||0].map(e=>Math.round(1e3*e)/1e3).join(","):"no-transform";let d=null;let p=null;const y=(e,n,r=null)=>{const a=(r&&Array.isArray(r.shapeRectsOverride)?r.shapeRectsOverride:Array.isArray(t&&t.rects)?t.rects:[]).filter(i);if(!a.length)return;const o=e&&e.canvas,u=Math.max(1,Math.ceil(Number(o&&o.width)||0)),d=Math.max(1,Math.ceil(Number(o&&o.height)||0)),p="function"==typeof e.getTransform?e.getTransform():null,y=((e,t,n,r)=>[t,n,b(r),(Array.isArray(e)?e:[]).map(e=>[e&&e.id||0,Number(e&&e.x)||0,Number(e&&e.y)||0,Number(e&&e.width)||0,Number(e&&e.height)||0,Number(e&&e.rotation)||0,String(e&&e.colorA||""),h(e),m(e)].join(":")).join("|")].join("||"))(a,u,d,p);if(c.key===y&&c.canvas)return e.save(),"function"==typeof e.setTransform&&e.setTransform(1,0,0,1,0,0),e.drawImage(c.canvas,0,0),void e.restore();const x=((e,t)=>{const n=Math.max(1,Math.round(Number(e)||1)),r=Math.max(1,Math.round(Number(t)||1));if(!f||f.w!==n||f.h!==r){const e=l(n,r),t=l(n,r),a=e&&e.getContext?e.getContext("2d"):null,o=t&&t.getContext?t.getContext("2d"):null;f=a&&o?{w:n,h:r,colorLayer:e,maskLayer:t,colorCtx:a,maskCtx:o}:null}if(!f)return null;for(const e of[f.colorCtx,f.maskCtx])"function"==typeof e.setTransform&&e.setTransform(1,0,0,1,0,0),e.globalAlpha=1,e.globalCompositeOperation="source-over",e.clearRect(0,0,n,r);return f})(u,d);if(!x)return;const{colorLayer:N,maskLayer:M,colorCtx:g,maskCtx:P}=x;p&&"function"==typeof g.setTransform&&g.setTransform(p),p&&"function"==typeof P.setTransform&&P.setTransform(p);for(let e=a.length-1;e>=0;e--){const t=a[e],n=s(t);n.length<3||(g.fillStyle=String(t.colorA||"#2fcaaf"),g.globalAlpha=h(t),g.beginPath(),drawShapePath(g,n),g.fill())}g.globalAlpha=1,P.beginPath();for(let e=a.length-1;e>=0;e--)drawShapePath(P,s(a[e]));P.fillStyle="#fff",P.fill("evenodd"),"function"==typeof g.setTransform&&g.setTransform(1,0,0,1,0,0),g.globalCompositeOperation="destination-in",g.drawImage(M,0,0),g.globalCompositeOperation="source-over",e.save(),"function"==typeof e.setTransform&&e.setTransform(1,0,0,1,0,0),e.drawImage(N,0,0),e.restore(),c={key:y,canvas:N}},x=(e,r,a,o)=>{const i=u(r),h=s(r);if(!(h.length<3)){if(e.save(),e.strokeStyle=a?"rgba(13,110,253,.96)":"rgba(31,41,55,.82)",e.lineWidth=Math.max(1,1.4/Math.max(.25,Number(o)||1)),e.beginPath(),drawShapePath(e,h),e.stroke(),a){const a=Math.round(Number(t&&t.shapePointSel&&t.shapePointSel.id)||0)===Math.round(Number(r.id)||0)?Math.round(Number(t.shapePointSel.index)||0):-1,u=Math.max(4,5/Math.max(.25,Number(o)||1));if(a>=0&&isBezierPoint(i[a])){const t=i[a],u=n(r,Number(t.x)||0,Number(t.y)||0),s=n(r,(Number(t.x)||0)+num(t.inX,-48),(Number(t.y)||0)+num(t.inY,0)),h=n(r,(Number(t.x)||0)+num(t.outX,48),(Number(t.y)||0)+num(t.outY,0));e.strokeStyle="rgba(255,193,7,.72)",e.lineWidth=Math.max(1,1/Math.max(.25,Number(o)||1)),e.beginPath(),e.moveTo(s.x,s.y),e.lineTo(u.x,u.y),e.lineTo(h.x,h.y),e.stroke()}for(let t=0;t<h.length;t++)e.beginPath(),e.arc(h[t].x,h[t].y,u,0,2*Math.PI),e.fillStyle=t===a?"rgba(255,193,7,.98)":"rgba(13,110,253,.95)",e.strokeStyle="rgba(255,255,255,.95)",e.lineWidth=Math.max(1,1/Math.max(.25,Number(o)||1)),e.fill(),e.stroke();if(a>=0&&isBezierPoint(i[a])){const t=i[a],s=[n(r,(Number(t.x)||0)+num(t.inX,-48),(Number(t.y)||0)+num(t.inY,0)),n(r,(Number(t.x)||0)+num(t.outX,48),(Number(t.y)||0)+num(t.outY,0))],h=1.08*u;for(const t of s)e.beginPath(),e.moveTo(t.x,t.y-h),e.lineTo(t.x+h,t.y),e.lineTo(t.x,t.y+h),e.lineTo(t.x-h,t.y),e.closePath(),e.fillStyle="rgba(255,193,7,.98)",e.strokeStyle="rgba(40,40,40,.82)",e.lineWidth=Math.max(1,1.15/Math.max(.25,Number(o)||1)),e.fill(),e.stroke()}}e.restore()}};return{isShapeRect:i,normalizeShapeBounds:e=>{if(!i(e))return!1;const t=u(e);if(t.length<3)return!1;let r=1/0,a=1/0,o=-1/0,s=-1/0;for(const e of t)r=Math.min(r,Number(e.x)||0),a=Math.min(a,Number(e.y)||0),o=Math.max(o,Number(e.x)||0),s=Math.max(s,Number(e.y)||0);if(!(Number.isFinite(r)&&Number.isFinite(a)&&Number.isFinite(o)&&Number.isFinite(s)))return!1;const h=Math.max(1,Math.round(o-r)),l=Math.max(1,Math.round(s-a));if((e=>{if(!e||"object"!=typeof e)return;const t=(m(e)+1)%1e9;try{Object.defineProperty(e,"_shapeRenderVersion",{value:t,enumerable:!1,configurable:!0,writable:!0})}catch{e._shapeRenderVersion=t}})(e),Math.abs(r)<1e-6&&Math.abs(a)<1e-6)return e.width=Math.max(1,Math.round(o)),e.height=Math.max(1,Math.round(s)),!0;const f=n(e,r,a);e.shapePoints=t.map(e=>({...e,x:Math.round((Number(e.x)||0)-r),y:Math.round((Number(e.y)||0)-a)})),e.width=h,e.height=l;const c=n(e,0,0);return e.x=Math.round((Number(e.x)||0)+(Number(f.x)||0)-(Number(c.x)||0)),e.y=Math.round((Number(e.y)||0)+(Number(f.y)||0)-(Number(c.y)||0)),!0},pointInShape:(e,t,n)=>{if(!i(e))return!1;const o=r(e,t,n),s=(()=>{if(d)return d;const e=l(1,1);return d=e&&"function"==typeof e.getContext?e.getContext("2d"):null,d})(),h=s&&makeShapePath2D(u(e));return h&&"function"==typeof s.isPointInPath?!!s.isPointInPath(h,o.u,o.v):a(o.u,o.v,((e,t=16)=>flattenShapePoints(u(e),t))(e,48))},shapePointHit:(e,t,n,a=1)=>{if(!i(e))return-1;const o=u(e),s=r(e,t,n),h=9/Math.max(.25,Number(a)||1);for(let e=o.length-1;e>=0;e--)if(Math.hypot((Number(o[e].x)||0)-s.u,(Number(o[e].y)||0)-s.v)<=h)return e;return-1},shapePointHits:(e,t,n,a=1)=>{if(!i(e))return[];const o=u(e),s=r(e,t,n),h=9/Math.max(.25,Number(a)||1),m=[];for(let e=o.length-1;e>=0;e--)Math.hypot((Number(o[e].x)||0)-s.u,(Number(o[e].y)||0)-s.v)<=h&&m.push(e);return m},shapeEditHits:(e,n,a,o=1)=>{if(!i(e))return[];const s=u(e),h=r(e,n,a),m=9/Math.max(.25,Number(o)||1),l=[],f=[],c=t&&t.shapePointSel,b=c&&Math.round(Number(c.id)||0)===Math.round(Number(e&&e.id)||0)?Math.round(Number(c.index)||0):-1;for(let e=s.length-1;e>=0;e--){const t=s[e];if(isBezierPoint(t)&&e===b){const n=controlIn(t),r=controlOut(t);Math.hypot(r.x-h.u,r.y-h.v)<=m&&l.push({index:e,handle:"out"}),Math.hypot(n.x-h.u,n.y-h.v)<=m&&l.push({index:e,handle:"in"})}Math.hypot((Number(t.x)||0)-h.u,(Number(t.y)||0)-h.v)<=m&&f.push({index:e,handle:""})}return l.concat(f)},shapeControlHit:(e,n,a,o=1)=>{if(!i(e))return null;const s=t&&t.shapePointSel;if(!s||Math.round(Number(s.id)||0)!==Math.round(Number(e.id)||0))return null;const h=u(e),m=Math.round(Number(s.index)||0),l=h[m];if(!isBezierPoint(l))return null;const f=r(e,n,a),c=9/Math.max(.25,Number(o)||1),b=controlIn(l),d=controlOut(l);return Math.hypot(b.x-f.u,b.y-f.v)<=c?{index:m,handle:"in"}:Math.hypot(d.x-f.u,d.y-f.v)<=c?{index:m,handle:"out"}:null},shapeSegmentHit:(e,t,n,a=1)=>{if(!i(e))return-1;const s=u(e);if(s.length<3)return-1;const h=r(e,t,n),m=8/Math.max(.25,Number(a)||1);let l=-1,f=1/0;for(let e=0;e<s.length;e++){const t=s[e],n=s[(e+1)%s.length],r=flattenShapeSegment(t,n,14);let a=1/0;for(let e=0;e<r.length-1;e++){const t="function"==typeof o?o(h.u,h.v,r[e].x,r[e].y,r[e+1].x,r[e+1].y):1/0;a=Math.min(a,t)}a<=m&&a<f&&(f=a,l=e)}return l},drawShapeRect:(e,t,n,r,a=null)=>{const o=a&&Object.prototype.hasOwnProperty.call(a,"shapeFrameId")?a.shapeFrameId:null;if(null!=o)return p!==o&&(p=o,y(e,0,a)),void x(e,t,n,r);y(e,0,a),x(e,t,n,r)}}};
+/* build:1779222473 */
+import {
+  controlIn,
+  controlOut,
+  drawShapePath,
+  flattenShapeSegment,
+  flattenShapePoints,
+  isBezierPoint,
+  makeShapePath2D,
+  num
+} from "../shape/shape-path-utils.js";
+
+import { isShapeRectKind } from "../utils/rect-kind-utils.js";
+
+export const setupShapeRender = (deps = {}) => {
+  const {
+    st,
+    rectUVToWorld,
+    worldToRectUV,
+    pointInPoly,
+    distToSegment
+  } = deps;
+
+  const isShapeRect = r => isShapeRectKind(r);
+  const shapePoints = r => Array.isArray(r && r.shapePoints) ? r.shapePoints : [];
+  const shapeWorldPathPoints = r => shapePoints(r).map(p => {
+    const x = Number(p.x) || 0;
+    const y = Number(p.y) || 0;
+    const w = rectUVToWorld(r, x, y);
+    if (!isBezierPoint(p)) return { ...p, x: w.x, y: w.y };
+    const ci = rectUVToWorld(r, x + num(p.inX, -48), y + num(p.inY, 0));
+    const co = rectUVToWorld(r, x + num(p.outX, 48), y + num(p.outY, 0));
+    return { ...p, x: w.x, y: w.y, inX: ci.x - w.x, inY: ci.y - w.y, outX: co.x - w.x, outY: co.y - w.y };
+  });
+  const shapeFlattenedUvPoints = (r, steps = 16) => flattenShapePoints(shapePoints(r), steps);
+  const shapeOpacity = r => {
+    const n = Number(r && r.shapeOpacity);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.72;
+  };
+  const shapeRenderVersion = r => Math.max(0, Math.round(Number(r && r._shapeRenderVersion) || 0));
+  const bumpShapeRenderVersion = r => {
+    if (!r || typeof r !== "object") return;
+    const next = (shapeRenderVersion(r) + 1) % 1000000000;
+    try {
+      Object.defineProperty(r, "_shapeRenderVersion", {
+        value: next,
+        enumerable: false,
+        configurable: true,
+        writable: true
+      });
+    } catch {
+      r._shapeRenderVersion = next;
+    }
+  };
+  const makeScratchCanvas = (w, h) => {
+    if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
+    if (typeof document !== "undefined") {
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      return canvas;
+    }
+    return null;
+  };
+  let shapeFillLayers = null;
+  let shapeFillBitmapCache = { key: "", canvas: null };
+  const getShapeFillLayers = (w, h) => {
+    const ww = Math.max(1, Math.round(Number(w) || 1));
+    const hh = Math.max(1, Math.round(Number(h) || 1));
+    if (!shapeFillLayers || shapeFillLayers.w !== ww || shapeFillLayers.h !== hh) {
+      const colorLayer = makeScratchCanvas(ww, hh);
+      const maskLayer = makeScratchCanvas(ww, hh);
+      const colorCtx = colorLayer && colorLayer.getContext ? colorLayer.getContext("2d") : null;
+      const maskCtx = maskLayer && maskLayer.getContext ? maskLayer.getContext("2d") : null;
+      shapeFillLayers = colorCtx && maskCtx ? { w: ww, h: hh, colorLayer, maskLayer, colorCtx, maskCtx } : null;
+    }
+    if (!shapeFillLayers) return null;
+    for (const layerCtx of [shapeFillLayers.colorCtx, shapeFillLayers.maskCtx]) {
+      if (typeof layerCtx.setTransform === "function") layerCtx.setTransform(1, 0, 0, 1, 0, 0);
+      layerCtx.globalAlpha = 1;
+      layerCtx.globalCompositeOperation = "source-over";
+      layerCtx.clearRect(0, 0, ww, hh);
+    }
+    return shapeFillLayers;
+  };
+  const transformCacheKey = transform => {
+    if (!transform) return "no-transform";
+    return [
+      Number(transform.a) || 0,
+      Number(transform.b) || 0,
+      Number(transform.c) || 0,
+      Number(transform.d) || 0,
+      Number(transform.e) || 0,
+      Number(transform.f) || 0
+    ].map(v => Math.round(v * 1000) / 1000).join(",");
+  };
+  const shapeFillCacheKey = (shapes, w, h, transform) => [
+    w,
+    h,
+    transformCacheKey(transform),
+    (Array.isArray(shapes) ? shapes : []).map(r => [
+      r && r.id || 0,
+      Number(r && r.x) || 0,
+      Number(r && r.y) || 0,
+      Number(r && r.width) || 0,
+      Number(r && r.height) || 0,
+      Number(r && r.rotation) || 0,
+      String(r && r.colorA || ""),
+      shapeOpacity(r),
+      shapeRenderVersion(r)
+    ].join(":")).join("|")
+  ].join("||");
+  let shapeHitCtx = null;
+  const getShapeHitCtx = () => {
+    if (shapeHitCtx) return shapeHitCtx;
+    const canvas = makeScratchCanvas(1, 1);
+    shapeHitCtx = canvas && typeof canvas.getContext === "function" ? canvas.getContext("2d") : null;
+    return shapeHitCtx;
+  };
+
+  const normalizeShapeBounds = r => {
+    if (!isShapeRect(r)) return false;
+    const pts = shapePoints(r);
+    if (pts.length < 3) return false;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of pts) {
+      minX = Math.min(minX, Number(p.x) || 0);
+      minY = Math.min(minY, Number(p.y) || 0);
+      maxX = Math.max(maxX, Number(p.x) || 0);
+      maxY = Math.max(maxY, Number(p.y) || 0);
+    }
+    if (!(Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY))) return false;
+    const nextW = Math.max(1, Math.round(maxX - minX));
+    const nextH = Math.max(1, Math.round(maxY - minY));
+    bumpShapeRenderVersion(r);
+    if (Math.abs(minX) < 1e-6 && Math.abs(minY) < 1e-6) {
+      r.width = Math.max(1, Math.round(maxX));
+      r.height = Math.max(1, Math.round(maxY));
+      return true;
+    }
+    const topLeftWorld = rectUVToWorld(r, minX, minY);
+    r.shapePoints = pts.map(p => ({ ...p, x: Math.round((Number(p.x) || 0) - minX), y: Math.round((Number(p.y) || 0) - minY) }));
+    r.width = nextW;
+    r.height = nextH;
+    const originWorld = rectUVToWorld(r, 0, 0);
+    r.x = Math.round((Number(r.x) || 0) + (Number(topLeftWorld.x) || 0) - (Number(originWorld.x) || 0));
+    r.y = Math.round((Number(r.y) || 0) + (Number(topLeftWorld.y) || 0) - (Number(originWorld.y) || 0));
+    return true;
+  };
+
+  const pointInShape = (r, wx, wy) => {
+    if (!isShapeRect(r)) return false;
+    const p = worldToRectUV(r, wx, wy);
+    const ctx = getShapeHitCtx();
+    const path = ctx && makeShapePath2D(shapePoints(r));
+    if (path && typeof ctx.isPointInPath === "function") return !!ctx.isPointInPath(path, p.u, p.v);
+    return pointInPoly(p.u, p.v, shapeFlattenedUvPoints(r, 48));
+  };
+
+  const shapePointHit = (r, wx, wy, z = 1) => {
+    if (!isShapeRect(r)) return -1;
+    const pts = shapePoints(r);
+    const p = worldToRectUV(r, wx, wy);
+    const d = 9 / Math.max(0.25, Number(z) || 1);
+    for (let i = pts.length - 1; i >= 0; i--) {
+      if (Math.hypot((Number(pts[i].x) || 0) - p.u, (Number(pts[i].y) || 0) - p.v) <= d) return i;
+    }
+    return -1;
+  };
+  const shapePointHits = (r, wx, wy, z = 1) => {
+    if (!isShapeRect(r)) return [];
+    const pts = shapePoints(r);
+    const p = worldToRectUV(r, wx, wy);
+    const d = 9 / Math.max(0.25, Number(z) || 1);
+    const out = [];
+    for (let i = pts.length - 1; i >= 0; i--) {
+      if (Math.hypot((Number(pts[i].x) || 0) - p.u, (Number(pts[i].y) || 0) - p.v) <= d) out.push(i);
+    }
+    return out;
+  };
+  const shapeEditHits = (r, wx, wy, z = 1) => {
+    if (!isShapeRect(r)) return [];
+    const pts = shapePoints(r);
+    const p = worldToRectUV(r, wx, wy);
+    const d = 9 / Math.max(0.25, Number(z) || 1);
+    const handleHits = [];
+    const pointHits = [];
+    const sel = st && st.shapePointSel;
+    const selectedIndex = sel && Math.round(Number(sel.id) || 0) === Math.round(Number(r && r.id) || 0)
+      ? Math.round(Number(sel.index) || 0)
+      : -1;
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const point = pts[i];
+      if (isBezierPoint(point) && i === selectedIndex) {
+        const ci = controlIn(point);
+        const co = controlOut(point);
+        if (Math.hypot(co.x - p.u, co.y - p.v) <= d) handleHits.push({ index: i, handle: "out" });
+        if (Math.hypot(ci.x - p.u, ci.y - p.v) <= d) handleHits.push({ index: i, handle: "in" });
+      }
+      if (Math.hypot((Number(point.x) || 0) - p.u, (Number(point.y) || 0) - p.v) <= d) pointHits.push({ index: i, handle: "" });
+    }
+    return handleHits.concat(pointHits);
+  };
+  const shapeControlHit = (r, wx, wy, z = 1) => {
+    if (!isShapeRect(r)) return null;
+    const sel = st && st.shapePointSel;
+    if (!sel || Math.round(Number(sel.id) || 0) !== Math.round(Number(r.id) || 0)) return null;
+    const pts = shapePoints(r);
+    const index = Math.round(Number(sel.index) || 0);
+    const point = pts[index];
+    if (!isBezierPoint(point)) return null;
+    const p = worldToRectUV(r, wx, wy);
+    const d = 9 / Math.max(0.25, Number(z) || 1);
+    const ci = controlIn(point);
+    const co = controlOut(point);
+    if (Math.hypot(ci.x - p.u, ci.y - p.v) <= d) return { index, handle: "in" };
+    if (Math.hypot(co.x - p.u, co.y - p.v) <= d) return { index, handle: "out" };
+    return null;
+  };
+  const shapeSegmentHit = (r, wx, wy, z = 1) => {
+    if (!isShapeRect(r)) return -1;
+    const pts = shapePoints(r);
+    if (pts.length < 3) return -1;
+    const p = worldToRectUV(r, wx, wy);
+    const d = 8 / Math.max(0.25, Number(z) || 1);
+    let bestIndex = -1;
+    let bestDist = Infinity;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % pts.length];
+      const flat = flattenShapeSegment(a, b, 14);
+      let dd = Infinity;
+      for (let j = 0; j < flat.length - 1; j++) {
+        const cur = typeof distToSegment === "function"
+          ? distToSegment(p.u, p.v, flat[j].x, flat[j].y, flat[j + 1].x, flat[j + 1].y)
+          : Infinity;
+        dd = Math.min(dd, cur);
+      }
+      if (dd <= d && dd < bestDist) {
+        bestDist = dd;
+        bestIndex = i;
+      }
+    }
+    return bestIndex;
+  };
+
+  let lastShapeFillFrame = null;
+  const drawShapeFillPass = (c, z, opts = null) => {
+    const sourceRects = opts && Array.isArray(opts.shapeRectsOverride)
+      ? opts.shapeRectsOverride
+      : (Array.isArray(st && st.rects) ? st.rects : []);
+    const shapes = sourceRects.filter(isShapeRect);
+    if (!shapes.length) return;
+    const canvas = c && c.canvas;
+    const w = Math.max(1, Math.ceil(Number(canvas && canvas.width) || 0));
+    const h = Math.max(1, Math.ceil(Number(canvas && canvas.height) || 0));
+    const transform = typeof c.getTransform === "function" ? c.getTransform() : null;
+    const cacheKey = shapeFillCacheKey(shapes, w, h, transform);
+    if (shapeFillBitmapCache.key === cacheKey && shapeFillBitmapCache.canvas) {
+      c.save();
+      if (typeof c.setTransform === "function") c.setTransform(1, 0, 0, 1, 0, 0);
+      c.drawImage(shapeFillBitmapCache.canvas, 0, 0);
+      c.restore();
+      return;
+    }
+    const layers = getShapeFillLayers(w, h);
+    if (!layers) return;
+    const { colorLayer, maskLayer, colorCtx, maskCtx } = layers;
+    if (transform && typeof colorCtx.setTransform === "function") colorCtx.setTransform(transform);
+    if (transform && typeof maskCtx.setTransform === "function") maskCtx.setTransform(transform);
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      const r = shapes[i];
+      const pts = shapeWorldPathPoints(r);
+      if (pts.length < 3) continue;
+      colorCtx.fillStyle = String(r.colorA || "#2fcaaf");
+      colorCtx.globalAlpha = shapeOpacity(r);
+      colorCtx.beginPath();
+      drawShapePath(colorCtx, pts);
+      colorCtx.fill();
+    }
+    colorCtx.globalAlpha = 1;
+    maskCtx.beginPath();
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      drawShapePath(maskCtx, shapeWorldPathPoints(shapes[i]));
+    }
+    maskCtx.fillStyle = "#fff";
+    maskCtx.fill("evenodd");
+    if (typeof colorCtx.setTransform === "function") colorCtx.setTransform(1, 0, 0, 1, 0, 0);
+    colorCtx.globalCompositeOperation = "destination-in";
+    colorCtx.drawImage(maskLayer, 0, 0);
+    colorCtx.globalCompositeOperation = "source-over";
+    c.save();
+    if (typeof c.setTransform === "function") c.setTransform(1, 0, 0, 1, 0, 0);
+    c.drawImage(colorLayer, 0, 0);
+    c.restore();
+    shapeFillBitmapCache = { key: cacheKey, canvas: colorLayer };
+  };
+
+  const drawShapeOutline = (c, r, sel, z) => {
+    const srcPts = shapePoints(r);
+    const pts = shapeWorldPathPoints(r);
+    if (pts.length < 3) return;
+    c.save();
+    c.strokeStyle = sel ? "rgba(13,110,253,.96)" : "rgba(31,41,55,.82)";
+    c.lineWidth = Math.max(1, 1.4 / Math.max(0.25, Number(z) || 1));
+    c.beginPath();
+    drawShapePath(c, pts);
+    c.stroke();
+    if (sel) {
+      const selectedIndex = Math.round(Number(st && st.shapePointSel && st.shapePointSel.id) || 0) === Math.round(Number(r.id) || 0)
+        ? Math.round(Number(st.shapePointSel.index) || 0)
+        : -1;
+      const radius = Math.max(4, 5 / Math.max(0.25, Number(z) || 1));
+      if (selectedIndex >= 0 && isBezierPoint(srcPts[selectedIndex])) {
+        const p = srcPts[selectedIndex];
+        const pw = rectUVToWorld(r, Number(p.x) || 0, Number(p.y) || 0);
+        const ci = rectUVToWorld(r, (Number(p.x) || 0) + num(p.inX, -48), (Number(p.y) || 0) + num(p.inY, 0));
+        const co = rectUVToWorld(r, (Number(p.x) || 0) + num(p.outX, 48), (Number(p.y) || 0) + num(p.outY, 0));
+        c.strokeStyle = "rgba(255,193,7,.72)";
+        c.lineWidth = Math.max(1, 1 / Math.max(0.25, Number(z) || 1));
+        c.beginPath();
+        c.moveTo(ci.x, ci.y);
+        c.lineTo(pw.x, pw.y);
+        c.lineTo(co.x, co.y);
+        c.stroke();
+      }
+      for (let i = 0; i < pts.length; i++) {
+        c.beginPath();
+        c.arc(pts[i].x, pts[i].y, radius, 0, Math.PI * 2);
+        c.fillStyle = i === selectedIndex ? "rgba(255,193,7,.98)" : "rgba(13,110,253,.95)";
+        c.strokeStyle = "rgba(255,255,255,.95)";
+        c.lineWidth = Math.max(1, 1 / Math.max(0.25, Number(z) || 1));
+        c.fill();
+        c.stroke();
+      }
+      if (selectedIndex >= 0 && isBezierPoint(srcPts[selectedIndex])) {
+        const p = srcPts[selectedIndex];
+        const handles = [
+          rectUVToWorld(r, (Number(p.x) || 0) + num(p.inX, -48), (Number(p.y) || 0) + num(p.inY, 0)),
+          rectUVToWorld(r, (Number(p.x) || 0) + num(p.outX, 48), (Number(p.y) || 0) + num(p.outY, 0))
+        ];
+        const rr = radius * 1.08;
+        for (const hp of handles) {
+          c.beginPath();
+          c.moveTo(hp.x, hp.y - rr);
+          c.lineTo(hp.x + rr, hp.y);
+          c.lineTo(hp.x, hp.y + rr);
+          c.lineTo(hp.x - rr, hp.y);
+          c.closePath();
+          c.fillStyle = "rgba(255,193,7,.98)";
+          c.strokeStyle = "rgba(40,40,40,.82)";
+          c.lineWidth = Math.max(1, 1.15 / Math.max(0.25, Number(z) || 1));
+          c.fill();
+          c.stroke();
+        }
+      }
+    }
+    c.restore();
+  };
+
+  const drawShapeRect = (c, r, sel, z, opts = null) => {
+    const frameId = opts && Object.prototype.hasOwnProperty.call(opts, "shapeFrameId") ? opts.shapeFrameId : null;
+    if (frameId != null) {
+      if (lastShapeFillFrame !== frameId) {
+        lastShapeFillFrame = frameId;
+        drawShapeFillPass(c, z, opts);
+      }
+      drawShapeOutline(c, r, sel, z);
+      return;
+    }
+    drawShapeFillPass(c, z, opts);
+    drawShapeOutline(c, r, sel, z);
+  };
+
+  return {
+    isShapeRect,
+    normalizeShapeBounds,
+    pointInShape,
+    shapePointHit,
+    shapePointHits,
+    shapeEditHits,
+    shapeControlHit,
+    shapeSegmentHit,
+    drawShapeRect
+  };
+};

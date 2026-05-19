@@ -1,1 +1,100 @@
-export const setupProjectSerializationController=(e={})=>{const{st:t,normalizeViewMode:o,normalizeFlowLinks:s,serializeRectForProject:a,genSaveLocationId:n,cloneJson:r,t:c=e=>e}=e,i=()=>{try{if("undefined"!=typeof crypto&&crypto&&"function"==typeof crypto.randomUUID)return String(crypto.randomUUID())}catch{}return`pg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`},l=()=>{return{version:1,projectGuid:(e=t.projectGuid,String(e||"").trim()||i()),projectName:t.projectName,saveLocationId:t.saveLocationId,camera:{x:t.camX,y:t.camY,zoom:t.zoom},settings:{textSize:t.textSize,fontFamily:t.fontFamily,scale:Math.max(1,Math.round(Number(t.globalScale)||256)),viewMode:o(t.viewMode),specCustomText:String(t.specCustomText||""),specCustomSections:t.specCustomSections&&"object"==typeof t.specCustomSections?{...t.specCustomSections}:{},lockAll:!!t.lockAll,installLayers:{contours:!(t.installLayers&&!1===t.installLayers.contours),text:!(t.installLayers&&!1===t.installLayers.text),flow:!(t.installLayers&&!1===t.installLayers.flow),devices:!(t.installLayers&&!1===t.installLayers.devices),rig:!(t.installLayers&&!1===t.installLayers.rig)},snap:{grid:!(!t.snap||!t.snap.grid),objects:!(!t.snap||!t.snap.objects),centers:!(!t.snap||!t.snap.centers),gaps:!(!t.snap||!t.snap.gaps)}},nextId:t.next,flowLinks:s(t.flowLinks),rectangles:t.rects.filter(e=>!(e&&e._controllerLayoutTemp)).map(a)};var e};return{buildProject:l,cloneProjectData:e=>r(e,l),makeEmptyProjectData:(e=c("Новый проект"))=>({version:1,projectGuid:i(),projectName:e,saveLocationId:n(e),camera:{x:0,y:0,zoom:1},settings:{textSize:32,fontFamily:"Roboto",scale:256,viewMode:"art",specCustomText:"",specCustomSections:{},lockAll:!1,installLayers:{contours:!0,text:!0,flow:!0,devices:!0,rig:!0},snap:{grid:!1,objects:!0,centers:!0,gaps:!0}},nextId:1,flowLinks:[],rectangles:[]}),buildPortableProject:e=>{const t=e(l());return t&&"object"==typeof t&&delete t.camera,t}}};
+/* build:1779222473 */
+export const setupProjectSerializationController = (deps = {}) => {
+  const {
+    st,
+    normalizeViewMode,
+    normalizeFlowLinks,
+    serializeRectForProject,
+    genSaveLocationId,
+    cloneJson,
+    t = value => value
+  } = deps;
+  const createProjectGuid = () => {
+    try {
+      if (typeof crypto !== "undefined" && crypto && typeof crypto.randomUUID === "function") {
+        return String(crypto.randomUUID());
+      }
+    } catch { /* noop */ }
+    return `pg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  };
+  const ensureProjectGuid = value => {
+    const v = String(value || "").trim();
+    return v || createProjectGuid();
+  };
+
+  const buildProject = () => ({
+    version: 1,
+    projectGuid: ensureProjectGuid(st.projectGuid),
+    projectName: st.projectName,
+    saveLocationId: st.saveLocationId,
+    camera: { x: st.camX, y: st.camY, zoom: st.zoom },
+    settings: {
+      textSize: st.textSize,
+      fontFamily: st.fontFamily,
+      scale: Math.max(1, Math.round(Number(st.globalScale) || 256)),
+      viewMode: normalizeViewMode(st.viewMode),
+      specCustomText: String(st.specCustomText || ""),
+      specCustomSections: (st.specCustomSections && typeof st.specCustomSections === "object") ? { ...st.specCustomSections } : {},
+      lockAll: !!st.lockAll,
+      installLayers: {
+        contours: !(st.installLayers && st.installLayers.contours === false),
+        text: !(st.installLayers && st.installLayers.text === false),
+        flow: !(st.installLayers && st.installLayers.flow === false),
+        devices: !(st.installLayers && st.installLayers.devices === false),
+        rig: !(st.installLayers && st.installLayers.rig === false)
+      },
+      snap: {
+        grid: !!(st.snap && st.snap.grid),
+        objects: !!(st.snap && st.snap.objects),
+        centers: !!(st.snap && st.snap.centers),
+        gaps: !!(st.snap && st.snap.gaps)
+      }
+    },
+    nextId: st.next,
+    flowLinks: normalizeFlowLinks(st.flowLinks),
+    rectangles: st.rects
+      .filter(r => !(r && r._controllerLayoutTemp))
+      .map(serializeRectForProject)
+  });
+
+  const cloneProjectData = data => cloneJson(data, buildProject);
+
+  const DEFAULT_TEXT_SIZE = 32;
+  const DEFAULT_FONT_FAMILY = "Roboto";
+  const DEFAULT_SCALE = 256;
+
+  const makeEmptyProjectData = (name = t("Новый проект")) => ({
+    version: 1,
+    projectGuid: createProjectGuid(),
+    projectName: name,
+    saveLocationId: genSaveLocationId(name),
+    camera: { x: 0, y: 0, zoom: 1 },
+    settings: {
+      textSize: DEFAULT_TEXT_SIZE,
+      fontFamily: DEFAULT_FONT_FAMILY,
+      scale: DEFAULT_SCALE,
+      viewMode: "art",
+      specCustomText: "",
+      specCustomSections: {},
+      lockAll: false,
+      installLayers: { contours: true, text: true, flow: true, devices: true, rig: true },
+      snap: { grid: false, objects: true, centers: true, gaps: true }
+    },
+    nextId: 1,
+    flowLinks: [],
+    rectangles: []
+  });
+
+  const buildPortableProject = stripProjectCaches => {
+    const out = stripProjectCaches(buildProject());
+    if (out && typeof out === "object") delete out.camera;
+    return out;
+  };
+
+  return {
+    buildProject,
+    cloneProjectData,
+    makeEmptyProjectData,
+    buildPortableProject
+  };
+};

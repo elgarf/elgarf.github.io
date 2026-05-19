@@ -1,1 +1,40 @@
-"use strict";let booted=!1;const preBootQueue=[],flushQueue=()=>{if(booted)for(;preBootQueue.length;){const e=preBootQueue.shift();try{"function"==typeof self.onmessage&&self.onmessage(e)}catch{}}};self.addEventListener("message",e=>{const t=e&&e.data?e.data:{};if(booted)try{"function"==typeof self.onmessage&&self.onmessage(e)}catch{}else{if(t&&"boot"===t.kind&&"string"==typeof t.script&&t.script.trim()){try{(0,eval)(String(t.script)),booted=!0,self.postMessage({kind:"booted"}),flushQueue()}catch(e){self.postMessage({kind:"boot-error",error:String(e&&e.message||e)})}return}preBootQueue.push(e)}});
+/* build:1779222473 */
+"use strict";
+
+let booted = false;
+const preBootQueue = [];
+
+const flushQueue = () => {
+  if (!booted) return;
+  while (preBootQueue.length) {
+    const evt = preBootQueue.shift();
+    try {
+      if (typeof self.onmessage === "function") self.onmessage(evt);
+    } catch { /* noop */ }
+  }
+};
+
+self.addEventListener("message", evt => {
+  const data = evt && evt.data ? evt.data : {};
+  if (!booted) {
+    if (data && data.kind === "boot" && typeof data.script === "string" && data.script.trim()) {
+      try {
+        (0, eval)(String(data.script));
+        booted = true;
+        self.postMessage({ kind: "booted" });
+        flushQueue();
+      } catch (err) {
+        self.postMessage({ kind: "boot-error", error: String((err && err.message) || err) });
+      }
+      return;
+    }
+    preBootQueue.push(evt);
+    return;
+  }
+  try {
+    if (typeof self.onmessage === "function") self.onmessage(evt);
+  } catch { /* noop */ }
+});
+
+
+

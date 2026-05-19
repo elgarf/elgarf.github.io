@@ -1,1 +1,24 @@
-export const normalizeSemanticToken=e=>String(e||"").toLowerCase().replace(/\s+/g," ").trim().replace(/[^a-zа-я0-9@._ -]+/gi,"").replace(/\s+/g,"-");export const createSectionKeySequencer=()=>{const e=new Map;return(n,t,r)=>{if((Number(n)||0)<=5){const n=`h5:${normalizeSemanticToken(r)}`,t=(e.get(n)||0)+1;return e.set(n,t),`${n}:${t}`}const o=`h6:${normalizeSemanticToken(t)}:${normalizeSemanticToken(r)}`,a=(e.get(o)||0)+1;return e.set(o,a),`${o}:${a}`}};
+/* build:1779222473 */
+export const normalizeSemanticToken = raw => String(raw || "")
+  .toLowerCase()
+  .replace(/\s+/g, " ")
+  .trim()
+  .replace(/[^a-zа-я0-9@._ -]+/gi, "")
+  .replace(/\s+/g, "-");
+
+export const createSectionKeySequencer = () => {
+  const counts = new Map();
+  return (level, parentTitle, title) => {
+    const lvl = Number(level) || 0;
+    if (lvl <= 5) {
+      const sem = `h5:${normalizeSemanticToken(title)}`;
+      const occ = (counts.get(sem) || 0) + 1;
+      counts.set(sem, occ);
+      return `${sem}:${occ}`;
+    }
+    const sem = `h6:${normalizeSemanticToken(parentTitle)}:${normalizeSemanticToken(title)}`;
+    const occ = (counts.get(sem) || 0) + 1;
+    counts.set(sem, occ);
+    return `${sem}:${occ}`;
+  };
+};

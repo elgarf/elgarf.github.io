@@ -1,1 +1,54 @@
-export const setupResetActionsFeature=(e={})=>{const{el:l,st:s,bindClick:t,applyToTargetsAndRender:r,hiddenCache:n,invalidateRectCache:o,clearFlowLockMemory:a,getRectCalcCache:c,clearRectRegionsAndFlow:u}=e;t(l.btnClearMasks,()=>{r(e=>{e.hiddenCells=[],n.set(e,{src:e.hiddenCells,set:new Set}),o(e,"topology")},{persist:!0},()=>{s.maskPath=[],s.maskHover=null})}),t(l.btnResetFlowLocks,()=>{r(e=>{e.flowLocks={},a(e);const l=c(e);l&&(l.flow=null)},{persist:!0},()=>{s.flowHover=null,s.flowDirHover=null,s.flowDrag=null,s.flowDragPreview=null})}),t(l.btnResetManualClusters,()=>{r(e=>{e.manualClusters=[],e.splitVariant=0,u(e)},{syncProps:!0,persist:!0},()=>{s.clusterActiveId=null,s.clusterHandleHover=null,s.clusterCellHover=null,s.clusterStartHover=null,s.clusterBorderHover=null,s.clusterDrag=null})})};
+/* build:1779222473 */
+export const setupResetActionsFeature = (deps = {}) => {
+  const {
+    el,
+    st,
+    bindClick,
+    applyToTargetsAndRender,
+    hiddenCache,
+    invalidateRectCache,
+    clearFlowLockMemory,
+    getRectCalcCache,
+    clearRectRegionsAndFlow
+  } = deps;
+
+  bindClick(el.btnClearMasks, () => {
+    applyToTargetsAndRender(r => {
+      r.hiddenCells = [];
+      hiddenCache.set(r, { src: r.hiddenCells, set: new Set() });
+      invalidateRectCache(r, "topology");
+    }, { persist: true }, () => {
+      st.maskPath = [];
+      st.maskHover = null;
+    });
+  });
+
+  bindClick(el.btnResetFlowLocks, () => {
+    applyToTargetsAndRender(r => {
+      r.flowLocks = {};
+      clearFlowLockMemory(r);
+      const cache = getRectCalcCache(r);
+      if (cache) cache.flow = null;
+    }, { persist: true }, () => {
+      st.flowHover = null;
+      st.flowDirHover = null;
+      st.flowDrag = null;
+      st.flowDragPreview = null;
+    });
+  });
+
+  bindClick(el.btnResetManualClusters, () => {
+    applyToTargetsAndRender(r => {
+      r.manualClusters = [];
+      r.splitVariant = 0;
+      clearRectRegionsAndFlow(r);
+    }, { syncProps: true, persist: true }, () => {
+      st.clusterActiveId = null;
+      st.clusterHandleHover = null;
+      st.clusterCellHover = null;
+      st.clusterStartHover = null;
+      st.clusterBorderHover = null;
+      st.clusterDrag = null;
+    });
+  });
+};

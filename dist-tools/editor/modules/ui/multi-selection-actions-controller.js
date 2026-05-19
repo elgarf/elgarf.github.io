@@ -1,1 +1,655 @@
-import{drawCanvasTooltip}from"../render/canvas-tooltip.js";import{drawCanvasUiBadge,drawCanvasUiButton}from"../render/canvas-ui.js";import{isNoteHiddenInArtView}from"../utils/rect-kind-utils.js";export const setupMultiSelectionActionsController=(e={})=>{const{st:t,getSelectedRects:i,rectAABB:n,refreshMultiSelectionBase:m,refreshPanels:r,schedulePersist:a,render:o,mFmt:s,drawCellX:l,drawCellY:u,getCellTopologyCached:c,getHiddenSet:x,buildVisibleCabinetSummary:h,isMultiSelectionBlocked:d,getCompositeSelectionGroup:f,t:b=e=>e}=e,g=()=>"function"==typeof d&&!!d(),y=[{id:"alignLeft",row:0,col:0,title:"Прижать к левому краю",icon:"",rotate:Math.PI/2,marker:"alignLeft"},{id:"alignRight",row:0,col:1,title:"Прижать к правому краю",icon:"",rotate:-Math.PI/2,marker:"alignRight"},{id:"alignTop",row:0,col:2,title:"Прижать к верхнему краю",icon:"",rotate:Math.PI,marker:"alignTop"},{id:"alignBottom",row:0,col:3,title:"Прижать к нижнему краю",icon:"",rotate:0,marker:"alignBottom"},{id:"packX",row:1,col:0,title:"Расставить рядом по горизонтали",icon:"",marker:"packX"},{id:"packY",row:1,col:1,title:"Расставить рядом по вертикали",icon:"",marker:"packY"},{id:"distX",row:1,col:2,title:"Распределить по горизонтали",icon:"",marker:"distX"},{id:"distY",row:1,col:3,title:"Распределить по вертикали",icon:"",marker:"distY"}],M=()=>{const e=("function"==typeof i?i():[]).filter(e=>e&&"function"==typeof n).filter(e=>!isNoteHiddenInArtView(e,t&&t.viewMode)).map(e=>{const t=n(e);return t?{rect:e,minX:t.minX,minY:t.minY,maxX:t.maxX,maxY:t.maxY,width:Math.max(0,t.maxX-t.minX),height:Math.max(0,t.maxY-t.minY)}:null}).filter(Boolean);if("function"!=typeof f)return e.map((e,t)=>({...e,id:t+1,x:e.minX,y:e.minY,members:[e.rect]}));const m=new Map;let r=1;for(const t of e){const e=String(f(t.rect)||`rect:${Math.max(1,Math.round(Number(t.rect&&t.rect.id)||0))}`);if(m.has(e)){const i=m.get(e);i.minX=Math.min(i.minX,t.minX),i.minY=Math.min(i.minY,t.minY),i.maxX=Math.max(i.maxX,t.maxX),i.maxY=Math.max(i.maxY,t.maxY),i.width=Math.max(0,i.maxX-i.minX),i.height=Math.max(0,i.maxY-i.minY),i.x=i.minX,i.y=i.minY,i.members.push(t.rect)}else m.set(e,{id:r++,rect:t.rect,minX:t.minX,minY:t.minY,maxX:t.maxX,maxY:t.maxY,width:t.width,height:t.height,x:t.minX,y:t.minY,members:[t.rect]})}return[...m.values()]},X=e=>{if(!e||e.length<2)return null;let t=1/0,i=1/0,n=-1/0,m=-1/0;for(const r of e)t=Math.min(t,r.minX),i=Math.min(i,r.minY),n=Math.max(n,r.maxX),m=Math.max(m,r.maxY);return Number.isFinite(t)&&Number.isFinite(i)&&Number.isFinite(n)&&Number.isFinite(m)?{minX:t,minY:i,maxX:n,maxY:m}:null},p=(e=1)=>{if(g())return[];if(!t||"select"!==t.mode||t.drag||t.selBox||t.pan||t.draft)return[];const i=M(),n=X(i);if(!n)return[];const m=Math.max(.25,Number(e)||Number(t.zoom)||1),r=Math.max(22,28/m),a=Math.max(4,5/m),o=n.minY-2*r-2*a;return y.map(e=>({...e,x:n.minX+(Number(e.col)||0)*(r+a),y:o+(Number(e.row)||0)*(r+a),size:r}))},Y=(e,t)=>{const i=(Array.isArray(e)?e:[]).map(e=>({min:"x"===t?e.minX:e.minY,max:"x"===t?e.maxX:e.maxY})).sort((e,t)=>e.min-t.min||e.max-t.max),n=[];for(const e of i){const t=n[n.length-1];!t||e.min>=t.max-1e-6?n.push({min:e.min,max:e.max}):t.max=Math.max(t.max,e.max)}return n},z=(e=1)=>{if(g())return[];if(!t||"select"!==t.mode||t.drag||t.selBox||t.pan||t.draft)return[];const i=M(),n=X(i);if(!n)return[];const m=Math.max(.25,Number(e)||Number(t.zoom)||1),r=Math.max(9,12/m),a=r/2,o=(n.minX+n.maxX)/2,s=(n.minY+n.maxY)/2,l=[];return Y(i,"x").length>1&&(l.push({id:"w",cursor:"ew-resize",x:n.minX-a,y:s-a,size:r}),l.push({id:"e",cursor:"ew-resize",x:n.maxX-a,y:s-a,size:r})),Y(i,"y").length>1&&(l.push({id:"n",cursor:"ns-resize",x:o-a,y:n.minY-a,size:r}),l.push({id:"s",cursor:"ns-resize",x:o-a,y:n.maxY-a,size:r})),l},N=(e,t,i=1)=>{for(const n of p(i))if(e>=n.x&&e<=n.x+n.size&&t>=n.y&&t<=n.y+n.size)return n.id;return""},v=(e,t,i=1)=>{for(const n of z(i))if(e>=n.x&&e<=n.x+n.size&&t>=n.y&&t<=n.y+n.size)return n.id;return""},w=(e,t,i)=>{const n=i-("x"===t?e.minX:e.minY),m=Array.isArray(e.members)&&e.members.length?e.members:[e.rect];for(const e of m)e&&("x"===t?e.x=Math.round((Number(e.x)||0)+n):e.y=Math.round((Number(e.y)||0)+n))},S=e=>{const t=M().sort((t,i)=>("x"===e?t.minX:t.minY)-("x"===e?i.minX:i.minY)||t.rect.id-i.rect.id);if(t.length<2)return!1;let i="x"===e?t[0].minX:t[0].minY;for(const n of t)w(n,e,i),i+="x"===e?n.width:n.height;return!0},A=e=>{const t=M().sort((t,i)=>{const n="x"===e?t.minX:t.minY,m="x"===e?i.minX:i.minY,r="x"===e?t.minY:t.minX,a="x"===e?i.minY:i.minX;return n-m||r-a||t.rect.id-i.rect.id});if(t.length<3)return!1;const i="x"===e?t[0].minX:t[0].minY,n=(("x"===e?t[t.length-1].maxX:t[t.length-1].maxY)-i-t.reduce((t,i)=>t+("x"===e?i.width:i.height),0))/Math.max(1,t.length-1);let m=i;for(const i of t)w(i,e,m),m+=("x"===e?i.width:i.height)+n;return!0},k=e=>{const t=M(),i=X(t);if(!i)return!1;let n=!1;for(const m of t){let t="x",r=m.minX;if("left"===e)r=i.minX;else if("right"===e)r=i.maxX-m.width;else if("top"===e)t="y",r=i.minY;else{if("bottom"!==e)continue;t="y",r=i.maxY-m.height}const a="x"===t?m.minX:m.minY;Math.abs(r-a)<=1e-6||(w(m,t,r),n=!0)}return n},R=(e,t)=>Math.max(1,Y(e,t).reduce((e,t)=>e+Math.max(0,t.max-t.min),0)),H=(e,t,i,n)=>{const m=e.map(e=>{const i="x"===t?e.minX:e.minY,n="x"===t?e.maxX:e.maxY,m="x"===t?e.x:e.y;return{id:e.id,min:i,max:n,pos:m}}).sort((e,t)=>e.min-t.min||e.max-t.max||e.id-t.id),r=[],a=1e-6;for(const e of m){const t=r[r.length-1];!t||e.min>=t.max-a?r.push({min:e.min,max:e.max,members:[e]}):(t.max=Math.max(t.max,e.max),t.members.push(e))}let o=0,s=0;for(let e=0;e<r.length;e++)o+=Math.max(0,r[e].max-r[e].min),e+1<r.length&&(s+=Math.max(0,r[e+1].min-r[e].max));const l=Math.max(0,n-o),u=s>a?l/s:0,c=s>a||r.length<2?null:l/Math.max(1,r.length-1),x=new Map;let h=i;for(let e=0;e<r.length;e++){const t=r[e],i=h-t.min;for(const e of t.members)x.set(e.id,Math.round(e.pos+i));const n=Math.max(0,t.max-t.min),m=e+1<r.length?Math.max(0,r[e+1].min-t.max):0;h+=n+(null==c?m*u:c)}return x},B=(e,i,m,r={})=>{const a=t&&t.snap?t.snap:{grid:!1,objects:!0,centers:!0,gaps:!0};if(r.disableSnap||!(a.grid||a.objects||a.centers))return{value:i,guide:null};const o=8/Math.max(.25,Number(t&&t.zoom)||1),s=new Set((m.items||[]).map(e=>e.id)),l=[];if(a.grid){const e=10;l.push(Math.round(i/e)*e)}if(a.objects||a.centers){const i=Array.isArray(t&&t.rects)?t.rects:[];for(const t of i){if(!t||s.has(t.id)||"function"!=typeof n)continue;const i=n(t);i&&("x"===e?(a.objects&&l.push(i.minX,i.maxX),a.centers&&l.push((i.minX+i.maxX)/2)):(a.objects&&l.push(i.minY,i.maxY),a.centers&&l.push((i.minY+i.maxY)/2)))}}let u=null;for(const e of l){if(!Number.isFinite(Number(e)))continue;const t=Number(e)-i;Math.abs(t)>o||(!u||Math.abs(t)<Math.abs(u.d))&&(u={d:t,guide:Number(e)})}return u?{value:i+u.d,guide:u.guide}:{value:i,guide:null}},C=(e,t,i,n,m,r={})=>{const a=n.bbox,o=!!r.fromCenter,s="x"===e?a.minX:a.minY,l="x"===e?a.maxX:a.maxY;if(o){const a=(s+l)/2,o=Math.max(m/2,Math.abs((Number(i)||0)-a)),u=B(e,"min"===t?a-o:a+o,n,r),c=Math.max(m/2,Math.abs(u.value-a));return{min:a-c,span:2*c,guide:c>m/2+1e-6?u.guide:null}}const u=B(e,Number(i)||0,n,r);if("min"===t){const e=Math.min(l-m,u.value);return{min:e,span:l-e,guide:l-u.value>=m?u.guide:null}}return{min:s,span:Math.max(m,u.value-s),guide:u.value-s>=m?u.guide:null}},T=(e,t,i,n,m,r={})=>{if(!(Number.isFinite(Number(i))&&n&&m&&m.bbox))return null;const a=!!r.fromCenter,o=.75;if("x"===e){const e=m.bbox.minX,r=m.bbox.maxX;if(a){const m=Math.abs(n.minX-e)>o||Math.abs(n.maxX-r)>o,a="min"===t?n.minX:n.maxX;return m&&Math.abs(a-i)<=o?i:null}const s="min"===t?n.minX:n.maxX,l="min"===t?e:r;return Math.abs(s-l)>o&&Math.abs(s-i)<=o?i:null}const s=m.bbox.minY,l=m.bbox.maxY;if(a){const e=Math.abs(n.minY-s)>o||Math.abs(n.maxY-l)>o,m="min"===t?n.minY:n.maxY;return e&&Math.abs(m-i)<=o?i:null}const u="min"===t?n.minY:n.maxY,c="min"===t?s:l;return Math.abs(u-c)>o&&Math.abs(u-i)<=o?i:null},F=(e,i)=>{const n=t.multiSelectionActionHover===i.id;e.save(),e.font=`900 ${Math.max(12,.52*i.size)}px "Font Awesome 6 Free", "FontAwesome"`,e.textAlign="center",e.textBaseline="middle",e.fillStyle=n?"rgba(255,255,255,1)":"rgba(255,255,255,.95)";const m=i.x+i.size/2,r=i.y+i.size/2+.03*i.size;Number(i.rotate)?(e.translate(m,r),e.rotate(Number(i.rotate)||0),e.fillText(i.icon,0,0)):e.fillText(i.icon,m,r),"distX"!==i.marker&&"distY"!==i.marker||(e.strokeStyle=n?"rgba(255,255,255,.95)":"rgba(255,255,255,.72)",e.lineWidth=Math.max(1,.055*i.size),e.beginPath(),"distX"===i.marker?(e.moveTo(i.x+.2*i.size,i.y+.22*i.size),e.lineTo(i.x+.2*i.size,i.y+.78*i.size),e.moveTo(i.x+.8*i.size,i.y+.22*i.size),e.lineTo(i.x+.8*i.size,i.y+.78*i.size)):"distY"===i.marker&&(e.moveTo(i.x+.22*i.size,i.y+.2*i.size),e.lineTo(i.x+.78*i.size,i.y+.2*i.size),e.moveTo(i.x+.22*i.size,i.y+.8*i.size),e.lineTo(i.x+.78*i.size,i.y+.8*i.size)),e.stroke()),e.restore()};return{drawActions:(e,i=1)=>{const n=p(i),m=g()?null:X(M());if(!n.length&&!m)return;if(e.save(),m){const n=Math.max(.25,Number(i)||Number(t.zoom)||1);e.strokeStyle="rgba(255,224,138,.95)",e.lineWidth=Math.max(1.2,1.6/n),e.setLineDash([7/n,5/n]),e.strokeRect(m.minX,m.minY,m.maxX-m.minX,m.maxY-m.minY),e.setLineDash([]);for(const m of z(i)){const i=t.multiSelectionResizeHover===m.id||t.multiSelectionResize&&t.multiSelectionResize.handle===m.id;drawCanvasUiButton(e,{x:m.x,y:m.y,size:m.size,z:n,hover:i,active:i,icon:""})}}for(const m of n){const n=t.multiSelectionActionHover===m.id;drawCanvasUiButton(e,{x:m.x,y:m.y,size:m.size,z:i,hover:n,active:n}),F(e,m)}if(n.length){const m=Math.max(.25,Number(i)||Number(t.zoom)||1),r=n[n.length-1],a=`${(e=>{if("function"==typeof s)return s(e);const t=Math.round(1e4*(Number(e)||0))/1e4;return Number.isInteger(t),String(t)})(M().reduce((e,t)=>{const i=t&&t.rect;if(!i||["note","shape"].includes(String(i.kind||"").toLowerCase()))return e;if("function"==typeof l&&"function"==typeof u&&"function"==typeof c&&"function"==typeof x&&"function"==typeof h){const t=l(i),n=u(i),m=c(i,t,n),r=h(i,t,n,m,x(i));return e+Math.max(0,Number(r&&r.areaM2)||0)}const n=Math.max(1,Math.round(Number(i.scale)||256)),m=Number(i.widthM)>0?Number(i.widthM):Math.max(0,Number(i.width)||0)/n,r=Number(i.heightM)>0?Number(i.heightM):Math.max(0,Number(i.height)||0)/n;return e+Math.max(0,m*r)},0))} ${"undefined"!=typeof document&&/^en\b/i.test(document.documentElement.getAttribute("lang")||"")?"m²":"м²"}`,o=12/m,d=7/m,f=7/m,b=r.x+r.size+f,g=r.y+(r.size-22/m)/2;drawCanvasUiBadge(e,a,b,g,m,{fontSize:o,padX:d,height:22/m})}const r=n.find(e=>t.multiSelectionActionHover===e.id);r&&drawCanvasTooltip(e,b(r.title),r.x+r.size/2,r.y+r.size,i,{align:"below"}),e.restore()},hitAction:N,hitResizeHandle:v,setHover:(e,i,n=1)=>{const m=String(t.multiSelectionActionHover||""),r=String(t.multiSelectionResizeHover||""),a=v(e,i,n),o=a?"":N(e,i,n);return t.multiSelectionResizeHover=a,t.multiSelectionActionHover=o,m!==o||r!==a},clearHover:()=>{const e=!!t.multiSelectionActionHover||!!t.multiSelectionResizeHover;return t.multiSelectionActionHover="",t.multiSelectionResizeHover="",e},applyAction:e=>{if(g())return!1;let t=!1;return"alignLeft"===e?t=k("left"):"alignRight"===e?t=k("right"):"alignTop"===e?t=k("top"):"alignBottom"===e?t=k("bottom"):"packX"===e?t=S("x"):"packY"===e?t=S("y"):"distX"===e?t=A("x"):"distY"===e&&(t=A("y")),!!t&&("function"==typeof m&&m(),"function"==typeof r&&r(),"function"==typeof a&&a("project"),"function"==typeof o&&o(),!0)},beginResize:(e,i)=>{if(g())return!1;const n=M().map(e=>({id:e.rect.id,rect:e.rect,x:Number(e.rect.x)||0,y:Number(e.rect.y)||0,minX:e.minX,minY:e.minY,maxX:e.maxX,maxY:e.maxY,members:Array.isArray(e.members)&&e.members.length?e.members.slice():[e.rect],memberBase:(Array.isArray(e.members)&&e.members.length?e.members:[e.rect]).map(e=>({rect:e,x:Number(e&&e.x)||0,y:Number(e&&e.y)||0}))})),m=X(n);return!!(m&&n.length&&e)&&(t.multiSelectionResize={handle:e,sx:Number(i&&i.x)||0,sy:Number(i&&i.y)||0,bbox:m,items:n,changed:!1},t.multiSelectionActionHover="",t.multiSelectionResizeHover=e,!0)},updateResize:(e,i={})=>{if(g())return!1;const n=t&&t.multiSelectionResize;if(!n||!n.bbox||!Array.isArray(n.items))return!1;const m=n.bbox;let r=Math.max(1,m.maxX-m.minX),a=Math.max(1,m.maxY-m.minY),o=m.minX,s=m.minY,l=null,u=null,c="max",x="max";if("w"===n.handle||"e"===n.handle){c="w"===n.handle?"min":"max";const t=C("x",c,e&&e.x,n,R(n.items,"x"),i);o=t.min,r=t.span,l=t.guide}if("n"===n.handle||"s"===n.handle){x="n"===n.handle?"min":"max";const t=C("y",x,e&&e.y,n,R(n.items,"y"),i);s=t.min,a=t.span,u=t.guide}const h=H(n.items,"x",o,r),d=H(n.items,"y",s,a),f=((e,t,i)=>{let n=1/0,m=1/0,r=-1/0,a=-1/0;for(const o of e){const e=t.has(o.id)?t.get(o.id):o.x,s=i.has(o.id)?i.get(o.id):o.y,l=e-o.x,u=s-o.y;n=Math.min(n,o.minX+l),m=Math.min(m,o.minY+u),r=Math.max(r,o.maxX+l),a=Math.max(a,o.maxY+u)}return Number.isFinite(n)&&Number.isFinite(m)&&Number.isFinite(r)&&Number.isFinite(a)?{minX:n,minY:m,maxX:r,maxY:a}:null})(n.items,h,d);let b=!1;for(const e of n.items){const t=h.has(e.id)?h.get(e.id):e.x,i=d.has(e.id)?d.get(e.id):e.y,n=t-(Number(e.x)||0),m=i-(Number(e.y)||0);if(Math.abs(n)<=1e-6&&Math.abs(m)<=1e-6)continue;const r=Array.isArray(e.memberBase)&&e.memberBase.length?e.memberBase:[];for(const e of r){const t=e&&e.rect;if(!t)continue;const i=Math.round((Number(e.x)||0)+n),r=Math.round((Number(e.y)||0)+m);t.x!==i&&(t.x=i,b=!0),t.y!==r&&(t.y=r,b=!0)}}return t.g.x=T("x",c,l,f,n,i),t.g.y=T("y",x,u,f,n,i),t.dg=null,n.changed=n.changed||b,!0},endResize:()=>{if(g())return!1;const e=!!(t&&t.multiSelectionResize&&t.multiSelectionResize.changed);return t.multiSelectionResize=null,t.multiSelectionResizeHover="",t.g.x=null,t.g.y=null,t.dg=null,!!e&&("function"==typeof m&&m(),"function"==typeof r&&r(),"function"==typeof a&&a("project"),!0)}}};
+/* build:1779222473 */
+import { drawCanvasTooltip } from "../render/canvas-tooltip.js";
+import { drawCanvasUiBadge, drawCanvasUiButton } from "../render/canvas-ui.js";
+import { isNoteHiddenInArtView } from "../utils/rect-kind-utils.js";
+
+export const setupMultiSelectionActionsController = (deps = {}) => {
+  const {
+    st,
+    getSelectedRects,
+    rectAABB,
+    refreshMultiSelectionBase,
+    refreshPanels,
+    schedulePersist,
+    render,
+    mFmt,
+    drawCellX,
+    drawCellY,
+    getCellTopologyCached,
+    getHiddenSet,
+    buildVisibleCabinetSummary,
+    isMultiSelectionBlocked,
+    getCompositeSelectionGroup,
+    t = value => value
+  } = deps;
+  const multiBlocked = () => (typeof isMultiSelectionBlocked === "function") && !!isMultiSelectionBlocked();
+
+  const ACTIONS = [
+    { id: "alignLeft", row: 0, col: 0, title: "Прижать к левому краю", icon: "\ue4b8", rotate: Math.PI / 2, marker: "alignLeft" },
+    { id: "alignRight", row: 0, col: 1, title: "Прижать к правому краю", icon: "\ue4b8", rotate: -Math.PI / 2, marker: "alignRight" },
+    { id: "alignTop", row: 0, col: 2, title: "Прижать к верхнему краю", icon: "\ue4b8", rotate: Math.PI, marker: "alignTop" },
+    { id: "alignBottom", row: 0, col: 3, title: "Прижать к нижнему краю", icon: "\ue4b8", rotate: 0, marker: "alignBottom" },
+    { id: "packX", row: 1, col: 0, title: "Расставить рядом по горизонтали", icon: "\uf07e", marker: "packX" },
+    { id: "packY", row: 1, col: 1, title: "Расставить рядом по вертикали", icon: "\uf07d", marker: "packY" },
+    { id: "distX", row: 1, col: 2, title: "Распределить по горизонтали", icon: "\uf337", marker: "distX" },
+    { id: "distY", row: 1, col: 3, title: "Распределить по вертикали", icon: "\uf338", marker: "distY" }
+  ];
+
+  const selectedItems = () => {
+    const rects = typeof getSelectedRects === "function" ? getSelectedRects() : [];
+    const raw = rects
+      .filter(r => r && typeof rectAABB === "function")
+      .filter(r => !isNoteHiddenInArtView(r, st && st.viewMode))
+      .map(r => {
+        const bb = rectAABB(r);
+        return bb ? {
+          rect: r,
+          minX: bb.minX,
+          minY: bb.minY,
+          maxX: bb.maxX,
+          maxY: bb.maxY,
+          width: Math.max(0, bb.maxX - bb.minX),
+          height: Math.max(0, bb.maxY - bb.minY)
+        } : null;
+      })
+      .filter(Boolean);
+    if (typeof getCompositeSelectionGroup !== "function") {
+      return raw.map((it, idx) => ({ ...it, id: idx + 1, x: it.minX, y: it.minY, members: [it.rect] }));
+    }
+    const byKey = new Map();
+    let seq = 1;
+    for (const it of raw) {
+      const key = String(getCompositeSelectionGroup(it.rect) || `rect:${Math.max(1, Math.round(Number(it.rect && it.rect.id) || 0))}`);
+      if (!byKey.has(key)) {
+        byKey.set(key, {
+          id: seq++,
+          rect: it.rect,
+          minX: it.minX,
+          minY: it.minY,
+          maxX: it.maxX,
+          maxY: it.maxY,
+          width: it.width,
+          height: it.height,
+          x: it.minX,
+          y: it.minY,
+          members: [it.rect]
+        });
+      } else {
+        const g = byKey.get(key);
+        g.minX = Math.min(g.minX, it.minX);
+        g.minY = Math.min(g.minY, it.minY);
+        g.maxX = Math.max(g.maxX, it.maxX);
+        g.maxY = Math.max(g.maxY, it.maxY);
+        g.width = Math.max(0, g.maxX - g.minX);
+        g.height = Math.max(0, g.maxY - g.minY);
+        g.x = g.minX;
+        g.y = g.minY;
+        g.members.push(it.rect);
+      }
+    }
+    return [...byKey.values()];
+  };
+
+  const itemsBounds = items => {
+    if (!items || items.length < 2) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const it of items) {
+      minX = Math.min(minX, it.minX);
+      minY = Math.min(minY, it.minY);
+      maxX = Math.max(maxX, it.maxX);
+      maxY = Math.max(maxY, it.maxY);
+    }
+    if (!(Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY))) return null;
+    return { minX, minY, maxX, maxY };
+  };
+
+  const getButtons = (z = 1) => {
+    if (multiBlocked()) return [];
+    if (!st || st.mode !== "select" || st.drag || st.selBox || st.pan || st.draft) return [];
+    const items = selectedItems();
+    const b = itemsBounds(items);
+    if (!b) return [];
+    const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
+    const size = Math.max(22, 28 / zoom);
+    const gap = Math.max(4, 5 / zoom);
+    const y = b.minY - size * 2 - gap * 2;
+    return ACTIONS.map(action => ({
+      ...action,
+      x: b.minX + (Number(action.col) || 0) * (size + gap),
+      y: y + (Number(action.row) || 0) * (size + gap),
+      size
+    }));
+  };
+
+  const getSelectionBounds = () => {
+    if (multiBlocked()) return null;
+    return itemsBounds(selectedItems());
+  };
+
+  const axisClusters = (items, axis) => {
+    const entries = (Array.isArray(items) ? items : []).map(it => ({
+      min: axis === "x" ? it.minX : it.minY,
+      max: axis === "x" ? it.maxX : it.maxY
+    })).sort((a, b) => (a.min - b.min) || (a.max - b.max));
+    const clusters = [];
+    const EPS = 1e-6;
+    for (const e of entries) {
+      const last = clusters[clusters.length - 1];
+      if (!last || e.min >= last.max - EPS) clusters.push({ min: e.min, max: e.max });
+      else last.max = Math.max(last.max, e.max);
+    }
+    return clusters;
+  };
+
+  const getResizeHandles = (z = 1) => {
+    if (multiBlocked()) return [];
+    if (!st || st.mode !== "select" || st.drag || st.selBox || st.pan || st.draft) return [];
+    const items = selectedItems();
+    const b = itemsBounds(items);
+    if (!b) return [];
+    const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
+    const size = Math.max(9, 12 / zoom);
+    const half = size / 2;
+    const midX = (b.minX + b.maxX) / 2;
+    const midY = (b.minY + b.maxY) / 2;
+    const out = [];
+    if (axisClusters(items, "x").length > 1) {
+      out.push({ id: "w", cursor: "ew-resize", x: b.minX - half, y: midY - half, size });
+      out.push({ id: "e", cursor: "ew-resize", x: b.maxX - half, y: midY - half, size });
+    }
+    if (axisClusters(items, "y").length > 1) {
+      out.push({ id: "n", cursor: "ns-resize", x: midX - half, y: b.minY - half, size });
+      out.push({ id: "s", cursor: "ns-resize", x: midX - half, y: b.maxY - half, size });
+    }
+    return out;
+  };
+
+  const formatMeters = value => {
+    if (typeof mFmt === "function") return mFmt(value);
+    const n = Math.round((Number(value) || 0) * 10000) / 10000;
+    return Number.isInteger(n) ? String(n) : String(n);
+  };
+
+  const meterAreaUnit = () => {
+    if (typeof document !== "undefined" && /^en\b/i.test(document.documentElement.getAttribute("lang") || "")) return "m²";
+    return "м²";
+  };
+
+  const selectedAreaM2 = () => selectedItems().reduce((sum, it) => {
+    const r = it && it.rect;
+    if (!r || ["note", "shape"].includes(String(r.kind || "").toLowerCase())) return sum;
+    if (
+      typeof drawCellX === "function"
+      && typeof drawCellY === "function"
+      && typeof getCellTopologyCached === "function"
+      && typeof getHiddenSet === "function"
+      && typeof buildVisibleCabinetSummary === "function"
+    ) {
+      const cx = drawCellX(r);
+      const cy = drawCellY(r);
+      const topo = getCellTopologyCached(r, cx, cy);
+      const summary = buildVisibleCabinetSummary(r, cx, cy, topo, getHiddenSet(r));
+      return sum + Math.max(0, Number(summary && summary.areaM2) || 0);
+    }
+    const scale = Math.max(1, Math.round(Number(r.scale) || 256));
+    const wm = Number(r.widthM) > 0 ? Number(r.widthM) : Math.max(0, Number(r.width) || 0) / scale;
+    const hm = Number(r.heightM) > 0 ? Number(r.heightM) : Math.max(0, Number(r.height) || 0) / scale;
+    return sum + Math.max(0, wm * hm);
+  }, 0);
+
+  const hitAction = (x, y, z = 1) => {
+    for (const btn of getButtons(z)) {
+      if (x >= btn.x && x <= btn.x + btn.size && y >= btn.y && y <= btn.y + btn.size) return btn.id;
+    }
+    return "";
+  };
+
+  const hitResizeHandle = (x, y, z = 1) => {
+    for (const h of getResizeHandles(z)) {
+      if (x >= h.x && x <= h.x + h.size && y >= h.y && y <= h.y + h.size) return h.id;
+    }
+    return "";
+  };
+
+  const setHover = (x, y, z = 1) => {
+    const prev = String(st.multiSelectionActionHover || "");
+    const prevResize = String(st.multiSelectionResizeHover || "");
+    const resize = hitResizeHandle(x, y, z);
+    const next = resize ? "" : hitAction(x, y, z);
+    st.multiSelectionResizeHover = resize;
+    st.multiSelectionActionHover = next;
+    return prev !== next || prevResize !== resize;
+  };
+
+  const clearHover = () => {
+    const had = !!st.multiSelectionActionHover || !!st.multiSelectionResizeHover;
+    st.multiSelectionActionHover = "";
+    st.multiSelectionResizeHover = "";
+    return had;
+  };
+
+  const moveItemTo = (item, axis, nextMin) => {
+    const delta = nextMin - (axis === "x" ? item.minX : item.minY);
+    const members = Array.isArray(item.members) && item.members.length ? item.members : [item.rect];
+    for (const rect of members) {
+      if (!rect) continue;
+      if (axis === "x") rect.x = Math.round((Number(rect.x) || 0) + delta);
+      else rect.y = Math.round((Number(rect.y) || 0) + delta);
+    }
+  };
+
+  const pack = axis => {
+    const items = selectedItems().sort((a, b) => {
+      const am = axis === "x" ? a.minX : a.minY;
+      const bm = axis === "x" ? b.minX : b.minY;
+      return am - bm || a.rect.id - b.rect.id;
+    });
+    if (items.length < 2) return false;
+    let cursor = axis === "x" ? items[0].minX : items[0].minY;
+    for (const it of items) {
+      moveItemTo(it, axis, cursor);
+      cursor += axis === "x" ? it.width : it.height;
+    }
+    return true;
+  };
+
+  const distribute = axis => {
+    const items = selectedItems().sort((a, b) => {
+      const am = axis === "x" ? a.minX : a.minY;
+      const bm = axis === "x" ? b.minX : b.minY;
+      const as = axis === "x" ? a.minY : a.minX;
+      const bs = axis === "x" ? b.minY : b.minX;
+      return am - bm || as - bs || a.rect.id - b.rect.id;
+    });
+    if (items.length < 3) return false;
+    const start = axis === "x" ? items[0].minX : items[0].minY;
+    const end = axis === "x" ? items[items.length - 1].maxX : items[items.length - 1].maxY;
+    const total = items.reduce((sum, it) => sum + (axis === "x" ? it.width : it.height), 0);
+    const gap = (end - start - total) / Math.max(1, items.length - 1);
+    let cursor = start;
+    for (const it of items) {
+      moveItemTo(it, axis, cursor);
+      cursor += (axis === "x" ? it.width : it.height) + gap;
+    }
+    return true;
+  };
+
+  const alignToEdge = edge => {
+    const items = selectedItems();
+    const b = itemsBounds(items);
+    if (!b) return false;
+    let changed = false;
+    for (const it of items) {
+      let axis = "x";
+      let target = it.minX;
+      if (edge === "left") target = b.minX;
+      else if (edge === "right") target = b.maxX - it.width;
+      else if (edge === "top") {
+        axis = "y";
+        target = b.minY;
+      } else if (edge === "bottom") {
+        axis = "y";
+        target = b.maxY - it.height;
+      } else {
+        continue;
+      }
+      const prev = axis === "x" ? it.minX : it.minY;
+      if (Math.abs(target - prev) <= 1e-6) continue;
+      moveItemTo(it, axis, target);
+      changed = true;
+    }
+    return changed;
+  };
+
+  const applyAction = id => {
+    if (multiBlocked()) return false;
+    let changed = false;
+    if (id === "alignLeft") changed = alignToEdge("left");
+    else if (id === "alignRight") changed = alignToEdge("right");
+    else if (id === "alignTop") changed = alignToEdge("top");
+    else if (id === "alignBottom") changed = alignToEdge("bottom");
+    else if (id === "packX") changed = pack("x");
+    else if (id === "packY") changed = pack("y");
+    else if (id === "distX") changed = distribute("x");
+    else if (id === "distY") changed = distribute("y");
+    if (!changed) return false;
+    if (typeof refreshMultiSelectionBase === "function") refreshMultiSelectionBase();
+    if (typeof refreshPanels === "function") refreshPanels();
+    if (typeof schedulePersist === "function") schedulePersist("project");
+    if (typeof render === "function") render();
+    return true;
+  };
+
+  const axisCompactSpan = (items, axis) => Math.max(1, axisClusters(items, axis).reduce((sum, c) => sum + Math.max(0, c.max - c.min), 0));
+
+  const mapAxis = (items, axis, targetMin, targetSpan) => {
+    const entries = items.map(it => {
+      const min = axis === "x" ? it.minX : it.minY;
+      const max = axis === "x" ? it.maxX : it.maxY;
+      const pos = axis === "x" ? it.x : it.y;
+      return { id: it.id, min, max, pos };
+    }).sort((a, b) => (a.min - b.min) || (a.max - b.max) || (a.id - b.id));
+    const clusters = [];
+    const EPS = 1e-6;
+    for (const e of entries) {
+      const last = clusters[clusters.length - 1];
+      if (!last || e.min >= last.max - EPS) clusters.push({ min: e.min, max: e.max, members: [e] });
+      else { last.max = Math.max(last.max, e.max); last.members.push(e); }
+    }
+    let fixedSpan = 0;
+    let sumGaps = 0;
+    for (let i = 0; i < clusters.length; i++) {
+      fixedSpan += Math.max(0, clusters[i].max - clusters[i].min);
+      if (i + 1 < clusters.length) sumGaps += Math.max(0, clusters[i + 1].min - clusters[i].max);
+    }
+    const targetGap = Math.max(0, targetSpan - fixedSpan);
+    const gapScale = sumGaps > EPS ? targetGap / sumGaps : 0;
+    const equalGap = sumGaps > EPS || clusters.length < 2 ? null : targetGap / Math.max(1, clusters.length - 1);
+    const next = new Map();
+    let cursor = targetMin;
+    for (let i = 0; i < clusters.length; i++) {
+      const c = clusters[i];
+      const shift = cursor - c.min;
+      for (const m of c.members) next.set(m.id, Math.round(m.pos + shift));
+      const width = Math.max(0, c.max - c.min);
+      const baseGap = (i + 1 < clusters.length) ? Math.max(0, clusters[i + 1].min - c.max) : 0;
+      cursor += width + (equalGap == null ? baseGap * gapScale : equalGap);
+    }
+    return next;
+  };
+
+  const getSnapCfg = () => st && st.snap ? st.snap : { grid: false, objects: true, centers: true, gaps: true };
+
+  const snapResizeEdge = (axis, value, drag, opts = {}) => {
+    const cfg = getSnapCfg();
+    if (opts.disableSnap || !(cfg.grid || cfg.objects || cfg.centers)) return { value, guide: null };
+    const threshold = 8 / Math.max(0.25, Number(st && st.zoom) || 1);
+    const selectedIds = new Set((drag.items || []).map(it => it.id));
+    const candidates = [];
+    if (cfg.grid) {
+      const step = 10;
+      candidates.push(Math.round(value / step) * step);
+    }
+    if (cfg.objects || cfg.centers) {
+      const rects = Array.isArray(st && st.rects) ? st.rects : [];
+      for (const r of rects) {
+        if (!r || selectedIds.has(r.id) || typeof rectAABB !== "function") continue;
+        const bb = rectAABB(r);
+        if (!bb) continue;
+        if (axis === "x") {
+          if (cfg.objects) candidates.push(bb.minX, bb.maxX);
+          if (cfg.centers) candidates.push((bb.minX + bb.maxX) / 2);
+        } else {
+          if (cfg.objects) candidates.push(bb.minY, bb.maxY);
+          if (cfg.centers) candidates.push((bb.minY + bb.maxY) / 2);
+        }
+      }
+    }
+    let best = null;
+    for (const c of candidates) {
+      if (!Number.isFinite(Number(c))) continue;
+      const d = Number(c) - value;
+      if (Math.abs(d) > threshold) continue;
+      if (!best || Math.abs(d) < Math.abs(best.d)) best = { d, guide: Number(c) };
+    }
+    return best ? { value: value + best.d, guide: best.guide } : { value, guide: null };
+  };
+
+  const resolveResizeAxis = (axis, edge, pointerValue, drag, minSpan, opts = {}) => {
+    const b = drag.bbox;
+    const fromCenter = !!opts.fromCenter;
+    const minEdge = axis === "x" ? b.minX : b.minY;
+    const maxEdge = axis === "x" ? b.maxX : b.maxY;
+    if (fromCenter) {
+      const center = (minEdge + maxEdge) / 2;
+      const rawHalf = Math.max(minSpan / 2, Math.abs((Number(pointerValue) || 0) - center));
+      const snapEdge = edge === "min" ? center - rawHalf : center + rawHalf;
+      const snapped = snapResizeEdge(axis, snapEdge, drag, opts);
+      const half = Math.max(minSpan / 2, Math.abs(snapped.value - center));
+      return { min: center - half, span: half * 2, guide: half > minSpan / 2 + 1e-6 ? snapped.guide : null };
+    }
+    const snapped = snapResizeEdge(axis, Number(pointerValue) || 0, drag, opts);
+    if (edge === "min") {
+      const min = Math.min(maxEdge - minSpan, snapped.value);
+      return { min, span: maxEdge - min, guide: maxEdge - snapped.value >= minSpan ? snapped.guide : null };
+    }
+    const span = Math.max(minSpan, snapped.value - minEdge);
+    return { min: minEdge, span, guide: snapped.value - minEdge >= minSpan ? snapped.guide : null };
+  };
+
+  const projectedBounds = (items, nextX, nextY) => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const it of items) {
+      const nx = nextX.has(it.id) ? nextX.get(it.id) : it.x;
+      const ny = nextY.has(it.id) ? nextY.get(it.id) : it.y;
+      const dx = nx - it.x;
+      const dy = ny - it.y;
+      minX = Math.min(minX, it.minX + dx);
+      minY = Math.min(minY, it.minY + dy);
+      maxX = Math.max(maxX, it.maxX + dx);
+      maxY = Math.max(maxY, it.maxY + dy);
+    }
+    if (!(Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY))) return null;
+    return { minX, minY, maxX, maxY };
+  };
+
+  const actualGuide = (axis, edge, guide, bounds, drag, opts = {}) => {
+    if (!Number.isFinite(Number(guide)) || !bounds || !drag || !drag.bbox) return null;
+    const fromCenter = !!opts.fromCenter;
+    const EPS = 0.75;
+    if (axis === "x") {
+      const currentMin = drag.bbox.minX;
+      const currentMax = drag.bbox.maxX;
+      if (fromCenter) {
+        const moved = Math.abs(bounds.minX - currentMin) > EPS || Math.abs(bounds.maxX - currentMax) > EPS;
+        const actual = edge === "min" ? bounds.minX : bounds.maxX;
+        return moved && Math.abs(actual - guide) <= EPS ? guide : null;
+      }
+      const actual = edge === "min" ? bounds.minX : bounds.maxX;
+      const current = edge === "min" ? currentMin : currentMax;
+      return Math.abs(actual - current) > EPS && Math.abs(actual - guide) <= EPS ? guide : null;
+    }
+    const currentMin = drag.bbox.minY;
+    const currentMax = drag.bbox.maxY;
+    if (fromCenter) {
+      const moved = Math.abs(bounds.minY - currentMin) > EPS || Math.abs(bounds.maxY - currentMax) > EPS;
+      const actual = edge === "min" ? bounds.minY : bounds.maxY;
+      return moved && Math.abs(actual - guide) <= EPS ? guide : null;
+    }
+    const actual = edge === "min" ? bounds.minY : bounds.maxY;
+    const current = edge === "min" ? currentMin : currentMax;
+    return Math.abs(actual - current) > EPS && Math.abs(actual - guide) <= EPS ? guide : null;
+  };
+
+  const beginResize = (handle, p) => {
+    if (multiBlocked()) return false;
+    const items = selectedItems().map(it => ({
+      id: it.rect.id,
+      rect: it.rect,
+      x: Number(it.rect.x) || 0,
+      y: Number(it.rect.y) || 0,
+      minX: it.minX,
+      minY: it.minY,
+      maxX: it.maxX,
+      maxY: it.maxY
+      ,
+      members: Array.isArray(it.members) && it.members.length ? it.members.slice() : [it.rect],
+      memberBase: (Array.isArray(it.members) && it.members.length ? it.members : [it.rect]).map(r => ({
+        rect: r,
+        x: Number(r && r.x) || 0,
+        y: Number(r && r.y) || 0
+      }))
+    }));
+    const bbox = itemsBounds(items);
+    if (!bbox || !items.length || !handle) return false;
+    st.multiSelectionResize = {
+      handle,
+      sx: Number(p && p.x) || 0,
+      sy: Number(p && p.y) || 0,
+      bbox,
+      items,
+      changed: false
+    };
+    st.multiSelectionActionHover = "";
+    st.multiSelectionResizeHover = handle;
+    return true;
+  };
+
+  const updateResize = (p, opts = {}) => {
+    if (multiBlocked()) return false;
+    const drag = st && st.multiSelectionResize;
+    if (!drag || !drag.bbox || !Array.isArray(drag.items)) return false;
+    const b = drag.bbox;
+    let nextW = Math.max(1, b.maxX - b.minX);
+    let nextH = Math.max(1, b.maxY - b.minY);
+    let nextMinX = b.minX;
+    let nextMinY = b.minY;
+    let gx = null;
+    let gy = null;
+    let xEdge = "max";
+    let yEdge = "max";
+    if (drag.handle === "w" || drag.handle === "e") {
+      xEdge = drag.handle === "w" ? "min" : "max";
+      const x = resolveResizeAxis("x", xEdge, p && p.x, drag, axisCompactSpan(drag.items, "x"), opts);
+      nextMinX = x.min;
+      nextW = x.span;
+      gx = x.guide;
+    }
+    if (drag.handle === "n" || drag.handle === "s") {
+      yEdge = drag.handle === "n" ? "min" : "max";
+      const y = resolveResizeAxis("y", yEdge, p && p.y, drag, axisCompactSpan(drag.items, "y"), opts);
+      nextMinY = y.min;
+      nextH = y.span;
+      gy = y.guide;
+    }
+    const nextX = mapAxis(drag.items, "x", nextMinX, nextW);
+    const nextY = mapAxis(drag.items, "y", nextMinY, nextH);
+    const projected = projectedBounds(drag.items, nextX, nextY);
+    let changed = false;
+    for (const it of drag.items) {
+      const nx = nextX.has(it.id) ? nextX.get(it.id) : it.x;
+      const ny = nextY.has(it.id) ? nextY.get(it.id) : it.y;
+      const dx = nx - (Number(it.x) || 0);
+      const dy = ny - (Number(it.y) || 0);
+      if (Math.abs(dx) <= 1e-6 && Math.abs(dy) <= 1e-6) continue;
+      const base = Array.isArray(it.memberBase) && it.memberBase.length ? it.memberBase : [];
+      for (const m of base) {
+        const r = m && m.rect;
+        if (!r) continue;
+        const rx = Math.round((Number(m.x) || 0) + dx);
+        const ry = Math.round((Number(m.y) || 0) + dy);
+        if (r.x !== rx) { r.x = rx; changed = true; }
+        if (r.y !== ry) { r.y = ry; changed = true; }
+      }
+    }
+    st.g.x = actualGuide("x", xEdge, gx, projected, drag, opts);
+    st.g.y = actualGuide("y", yEdge, gy, projected, drag, opts);
+    st.dg = null;
+    drag.changed = drag.changed || changed;
+    return true;
+  };
+
+  const endResize = () => {
+    if (multiBlocked()) return false;
+    const changed = !!(st && st.multiSelectionResize && st.multiSelectionResize.changed);
+    st.multiSelectionResize = null;
+    st.multiSelectionResizeHover = "";
+    st.g.x = null;
+    st.g.y = null;
+    st.dg = null;
+    if (!changed) return false;
+    if (typeof refreshMultiSelectionBase === "function") refreshMultiSelectionBase();
+    if (typeof refreshPanels === "function") refreshPanels();
+    if (typeof schedulePersist === "function") schedulePersist("project");
+    return true;
+  };
+
+  const drawFontAwesomeIcon = (c, btn) => {
+    const hover = st.multiSelectionActionHover === btn.id;
+    c.save();
+    c.font = `900 ${Math.max(12, btn.size * 0.52)}px "Font Awesome 6 Free", "FontAwesome"`;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillStyle = hover ? "rgba(255,255,255,1)" : "rgba(255,255,255,.95)";
+    const cx = btn.x + btn.size / 2;
+    const cy = btn.y + btn.size / 2 + btn.size * 0.03;
+    if (Number(btn.rotate)) {
+      c.translate(cx, cy);
+      c.rotate(Number(btn.rotate) || 0);
+      c.fillText(btn.icon, 0, 0);
+    } else {
+      c.fillText(btn.icon, cx, cy);
+    }
+    if (btn.marker === "distX" || btn.marker === "distY") {
+      c.strokeStyle = hover ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.72)";
+      c.lineWidth = Math.max(1, btn.size * 0.055);
+      c.beginPath();
+      if (btn.marker === "distX") {
+        c.moveTo(btn.x + btn.size * 0.2, btn.y + btn.size * 0.22);
+        c.lineTo(btn.x + btn.size * 0.2, btn.y + btn.size * 0.78);
+        c.moveTo(btn.x + btn.size * 0.8, btn.y + btn.size * 0.22);
+        c.lineTo(btn.x + btn.size * 0.8, btn.y + btn.size * 0.78);
+      } else if (btn.marker === "distY") {
+        c.moveTo(btn.x + btn.size * 0.22, btn.y + btn.size * 0.2);
+        c.lineTo(btn.x + btn.size * 0.78, btn.y + btn.size * 0.2);
+        c.moveTo(btn.x + btn.size * 0.22, btn.y + btn.size * 0.8);
+        c.lineTo(btn.x + btn.size * 0.78, btn.y + btn.size * 0.8);
+      }
+      c.stroke();
+    }
+    c.restore();
+  };
+
+  const drawActions = (c, z = 1) => {
+    const buttons = getButtons(z);
+    const bounds = getSelectionBounds();
+    if (!buttons.length && !bounds) return;
+    c.save();
+    if (bounds) {
+      const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
+      c.strokeStyle = "rgba(255,224,138,.95)";
+      c.lineWidth = Math.max(1.2, 1.6 / zoom);
+      c.setLineDash([7 / zoom, 5 / zoom]);
+      c.strokeRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      c.setLineDash([]);
+      for (const h of getResizeHandles(z)) {
+        const hover = st.multiSelectionResizeHover === h.id || (st.multiSelectionResize && st.multiSelectionResize.handle === h.id);
+        drawCanvasUiButton(c, { x: h.x, y: h.y, size: h.size, z: zoom, hover, active: hover, icon: "" });
+      }
+    }
+    for (const btn of buttons) {
+      const hover = st.multiSelectionActionHover === btn.id;
+      drawCanvasUiButton(c, { x: btn.x, y: btn.y, size: btn.size, z, hover, active: hover });
+      drawFontAwesomeIcon(c, btn);
+    }
+    if (buttons.length) {
+      const zoom = Math.max(0.25, Number(z) || Number(st.zoom) || 1);
+      const last = buttons[buttons.length - 1];
+      const label = `${formatMeters(selectedAreaM2())} ${meterAreaUnit()}`;
+      const fontSize = 12 / zoom;
+      const padX = 7 / zoom;
+      const gap = 7 / zoom;
+      const x = last.x + last.size + gap;
+      const y = last.y + (last.size - 22 / zoom) / 2;
+      const h = 22 / zoom;
+      drawCanvasUiBadge(c, label, x, y, zoom, { fontSize, padX, height: h });
+    }
+    const hoveredButton = buttons.find(btn => st.multiSelectionActionHover === btn.id);
+    if (hoveredButton) {
+      drawCanvasTooltip(c, t(hoveredButton.title), hoveredButton.x + hoveredButton.size / 2, hoveredButton.y + hoveredButton.size, z, { align: "below" });
+    }
+    c.restore();
+  };
+
+  return {
+    drawActions,
+    hitAction,
+    hitResizeHandle,
+    setHover,
+    clearHover,
+    applyAction,
+    beginResize,
+    updateResize,
+    endResize
+  };
+};

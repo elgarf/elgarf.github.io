@@ -1,1 +1,218 @@
-import{isDeviceRectKind,isNoteHiddenInArtView}from"../utils/rect-kind-utils.js";export const setupSelectionController=(e={})=>{const{st:t,getRectById:n,isRectLocked:s,isShapeRect:l,rectAABBMasked:i,rectIntersectsSelectionBoxVisible:o,refreshPropsListRender:r,canSelectRect:a}=e,m=e=>"function"!=typeof a||!!a(e),c=e=>isNoteHiddenInArtView(e,t&&t.viewMode),u=e=>{const t=Array.isArray(e)?e:[];if(!t.length)return null;let n=1/0,s=1/0,l=-1/0,o=-1/0;for(const e of t){if(c(e))continue;const t=i(e);t&&(t.minX<n&&(n=t.minX),t.minY<s&&(s=t.minY),t.maxX>l&&(l=t.maxX),t.maxY>o&&(o=t.maxY))}return Number.isFinite(n)&&Number.isFinite(s)&&Number.isFinite(l)&&Number.isFinite(o)?{minX:n,minY:s,maxX:l,maxY:o,width:Math.max(0,l-n),height:Math.max(0,o-s)}:null},x=()=>{t.selSet instanceof Set||(t.selSet=new Set);for(const e of t.selSet){const l=n(e);l&&!s(l)&&!c(l)&&m(l)||t.selSet.delete(e)}if(null!=t.sel){const e=n(t.sel);e&&!s(e)&&!c(e)&&m(e)&&t.selSet.add(t.sel)}t.selSet.size||(t.sel=null),null==t.sel||t.selSet.has(t.sel)||(t.sel=[...t.selSet][0]||null)},d=()=>{x();const e=[];for(const s of t.selSet){const t=n(s);t&&e.push(t)}if(e.length<=1)return void(t.selMultiBase=null);const s=u(e);if(!s)return void(t.selMultiBase=null);const l=e.map(e=>{const t=i(e);return{id:e.id,x:e.x,y:e.y,rotation:Number(e.rotation)||0,minX:t.minX,maxX:t.maxX,minY:t.minY,maxY:t.maxY,w:Math.max(0,t.maxX-t.minX),h:Math.max(0,t.maxY-t.minY),cx:(t.minX+t.maxX)/2,cy:(t.minY+t.maxY)/2}}),o=[...t.selSet].sort((e,t)=>e-t),r=l.find(e=>e.id===t.sel)||l[0];t.selMultiBase={idsKey:o.join(","),bbox:s,items:l,activeRotation:r&&Number(r.rotation)||0}},S=(e,l=null)=>{const i=new Set((Array.isArray(e)?e:[]).filter(e=>{const t=n(e);return!!t&&!s(t)&&m(t)}));t.selSet=i,t.sel=null!=l&&i.has(l)?l:[...i||[]][0]||null,d()},f=e=>e?{minX:Math.min(Number(e.sx)||0,Number(e.x)||0),minY:Math.min(Number(e.sy)||0,Number(e.y)||0),maxX:Math.max(Number(e.sx)||0,Number(e.x)||0),maxY:Math.max(Number(e.sy)||0,Number(e.y)||0)}:null,h=e=>{const t=f(e);return t?{w:Math.max(0,t.maxX-t.minX),h:Math.max(0,t.maxY-t.minY)}:{w:0,h:0}},y=(e,t)=>!(!e||!t)&&!(e.maxX<t.minX||e.minX>t.maxX||e.maxY<t.minY||e.minY>t.maxY);return{getRectsBBox:u,normSelSet:x,refreshMultiSelectionBase:d,setSelection:S,selBoxBounds:f,boxSize:h,rectIntersectsBox:y,beginSelectionBox:(e,n=!1,s=!1)=>{t.selBox={sx:e.x,sy:e.y,x:e.x,y:e.y,append:!!n,touch:!!s,moved:!1}},updateSelectionBox:e=>{if(!t.selBox)return;t.selBox.x=e.x,t.selBox.y=e.y;const n=h(t.selBox);(n.w>2/t.zoom||n.h>2/t.zoom)&&(t.selBox.moved=!0)},finishSelectionBox:()=>{const e=t.selBox;if(t.selBox=null,!e)return!1;const n=f(e),a=h(e);if(a.w<3/t.zoom&&a.h<3/t.zoom)return e.append||S([],null),r(),!0;const u="function"==typeof o?o:(e,t)=>y(i(e),t),d=t.rects.filter(e=>{return!c(e)&&!s(e)&&m(e)&&(i=e,"function"!=typeof l||!l(i)||"shape"===String(t&&t.mode||"")||"install"!==String(t&&t.viewMode||"")||!1!==(t&&t.installLayers&&"object"==typeof t.installLayers?t.installLayers:{}).contours)&&(e=>{const n="install"===String(t&&t.viewMode||"");return!isDeviceRectKind(e)||!!n&&!1!==(t&&t.installLayers&&"object"==typeof t.installLayers?t.installLayers:{}).devices})(e)&&u(e,n);var i}).map(e=>e.id);if(e.append){x();const e=new Set(t.selSet);for(const t of d)e.add(t);S([...e],d[d.length-1]||t.sel||null)}else S(d,d[d.length-1]||null);return r(),!0},isSelected:e=>(x(),t.selSet.has(e)),getSelectedRects:()=>{x();const e=[];for(const s of t.selSet){const t=n(s);t&&e.push(t)}return e},selectOnly:e=>S(null==e?[]:[e],e),toggleSelect:e=>{if(x(),null==e)return;const l=n(e);l&&!s(l)&&m(l)&&(t.selSet.has(e)?t.selSet.delete(e):t.selSet.add(e),t.sel=t.selSet.has(e)?e:[...t.selSet||[]][0]||null,d())}}};
+/* build:1779222473 */
+import { isDeviceRectKind, isNoteHiddenInArtView } from "../utils/rect-kind-utils.js";
+
+export const setupSelectionController = (deps = {}) => {
+  const {
+    st,
+    getRectById,
+    isRectLocked,
+    isShapeRect,
+    rectAABBMasked,
+    rectIntersectsSelectionBoxVisible,
+    refreshPropsListRender,
+    canSelectRect
+  } = deps;
+  const isSelectable = rect => (typeof canSelectRect === "function" ? !!canSelectRect(rect) : true);
+
+  const isArtHiddenNote = rect => isNoteHiddenInArtView(rect, st && st.viewMode);
+
+  const getRectsBBox = rects => {
+    const list = Array.isArray(rects) ? rects : [];
+    if (!list.length) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const r of list) {
+      if (isArtHiddenNote(r)) continue;
+      const bb = rectAABBMasked(r);
+      if (!bb) continue;
+      if (bb.minX < minX) minX = bb.minX;
+      if (bb.minY < minY) minY = bb.minY;
+      if (bb.maxX > maxX) maxX = bb.maxX;
+      if (bb.maxY > maxY) maxY = bb.maxY;
+    }
+    if (!(Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY))) return null;
+    return { minX, minY, maxX, maxY, width: Math.max(0, maxX - minX), height: Math.max(0, maxY - minY) };
+  };
+
+  const normSelSet = () => {
+    if (!(st.selSet instanceof Set)) st.selSet = new Set();
+    for (const id of st.selSet) {
+      const rr = getRectById(id);
+      if (!rr || isRectLocked(rr) || isArtHiddenNote(rr) || !isSelectable(rr)) st.selSet.delete(id);
+    }
+    if (st.sel != null) {
+      const sr = getRectById(st.sel);
+      if (sr && !isRectLocked(sr) && !isArtHiddenNote(sr) && isSelectable(sr)) st.selSet.add(st.sel);
+    }
+    if (!st.selSet.size) st.sel = null;
+    if (st.sel != null && !st.selSet.has(st.sel)) st.sel = [...st.selSet][0] || null;
+  };
+
+  const refreshMultiSelectionBase = () => {
+    normSelSet();
+    const rects = [];
+    for (const id of st.selSet) {
+      const r = getRectById(id);
+      if (r) rects.push(r);
+    }
+    if (rects.length <= 1) { st.selMultiBase = null; return; }
+    const bbox = getRectsBBox(rects);
+    if (!bbox) { st.selMultiBase = null; return; }
+    const items = rects.map(r => {
+      const bb = rectAABBMasked(r);
+      return {
+        id: r.id,
+        x: r.x,
+        y: r.y,
+        rotation: Number(r.rotation) || 0,
+        minX: bb.minX,
+        maxX: bb.maxX,
+        minY: bb.minY,
+        maxY: bb.maxY,
+        w: Math.max(0, bb.maxX - bb.minX),
+        h: Math.max(0, bb.maxY - bb.minY),
+        cx: (bb.minX + bb.maxX) / 2,
+        cy: (bb.minY + bb.maxY) / 2
+      };
+    });
+    const ids = [...st.selSet].sort((a, b) => a - b);
+    const activeItem = items.find(it => it.id === st.sel) || items[0];
+    st.selMultiBase = { idsKey: ids.join(","), bbox, items, activeRotation: activeItem ? Number(activeItem.rotation) || 0 : 0 };
+  };
+
+  const setSelection = (ids, activeId = null) => {
+    const next = new Set((Array.isArray(ids) ? ids : []).filter(id => {
+      const rr = getRectById(id);
+      return !!rr && !isRectLocked(rr) && isSelectable(rr);
+    }));
+    st.selSet = next;
+    st.sel = (activeId != null && next.has(activeId)) ? activeId : ([...(next || [])][0] || null);
+    refreshMultiSelectionBase();
+  };
+
+  const selBoxBounds = box => {
+    if (!box) return null;
+    return {
+      minX: Math.min(Number(box.sx) || 0, Number(box.x) || 0),
+      minY: Math.min(Number(box.sy) || 0, Number(box.y) || 0),
+      maxX: Math.max(Number(box.sx) || 0, Number(box.x) || 0),
+      maxY: Math.max(Number(box.sy) || 0, Number(box.y) || 0)
+    };
+  };
+
+  const boxSize = box => {
+    const b = selBoxBounds(box);
+    if (!b) return { w: 0, h: 0 };
+    return { w: Math.max(0, b.maxX - b.minX), h: Math.max(0, b.maxY - b.minY) };
+  };
+
+  const rectIntersectsBox = (bb, b) => {
+    if (!bb || !b) return false;
+    return !(bb.maxX < b.minX || bb.minX > b.maxX || bb.maxY < b.minY || bb.minY > b.maxY);
+  };
+
+  const beginSelectionBox = (p, append = false, touch = false) => {
+    st.selBox = { sx: p.x, sy: p.y, x: p.x, y: p.y, append: !!append, touch: !!touch, moved: false };
+  };
+
+  const updateSelectionBox = p => {
+    if (!st.selBox) return;
+    st.selBox.x = p.x;
+    st.selBox.y = p.y;
+    const s = boxSize(st.selBox);
+    if (s.w > 2 / st.zoom || s.h > 2 / st.zoom) st.selBox.moved = true;
+  };
+
+  const finishSelectionBox = () => {
+    const box = st.selBox;
+    st.selBox = null;
+    if (!box) return false;
+    const b = selBoxBounds(box);
+    const s = boxSize(box);
+    const clickLike = s.w < 3 / st.zoom && s.h < 3 / st.zoom;
+    if (clickLike) {
+      if (!box.append) setSelection([], null);
+      refreshPropsListRender();
+      return true;
+    }
+    const shapeSelectableInCurrentView = rect => {
+      if (typeof isShapeRect !== "function" || !isShapeRect(rect)) return true;
+      if (String(st && st.mode || "") === "shape") return true;
+      const installView = String(st && st.viewMode || "") === "install";
+      if (!installView) return true;
+      const layers = (st && st.installLayers && typeof st.installLayers === "object") ? st.installLayers : {};
+      return layers.contours !== false;
+    };
+    const intersects = typeof rectIntersectsSelectionBoxVisible === "function"
+      ? rectIntersectsSelectionBoxVisible
+      : ((r, boxBounds) => rectIntersectsBox(rectAABBMasked(r), boxBounds));
+    const deviceSelectableInCurrentView = rect => {
+      const installView = String(st && st.viewMode || "") === "install";
+      const isDeviceRect = isDeviceRectKind(rect);
+      if (!isDeviceRect) return true;
+      if (!installView) return false;
+      const layers = (st && st.installLayers && typeof st.installLayers === "object") ? st.installLayers : {};
+      return layers.devices !== false;
+    };
+    const ids = st.rects
+      .filter(r => !isArtHiddenNote(r) && !isRectLocked(r) && isSelectable(r) && shapeSelectableInCurrentView(r) && deviceSelectableInCurrentView(r) && intersects(r, b))
+      .map(r => r.id);
+    if (box.append) {
+      normSelSet();
+      const set = new Set(st.selSet);
+      for (const id of ids) set.add(id);
+      setSelection([...set], ids[ids.length - 1] || st.sel || null);
+    } else {
+      setSelection(ids, ids[ids.length - 1] || null);
+    }
+    refreshPropsListRender();
+    return true;
+  };
+
+  const isSelected = id => {
+    normSelSet();
+    return st.selSet.has(id);
+  };
+
+  const getSelectedRects = () => {
+    normSelSet();
+    const out = [];
+    for (const id of st.selSet) {
+      const r = getRectById(id);
+      if (r) out.push(r);
+    }
+    return out;
+  };
+
+  const selectOnly = id => setSelection(id == null ? [] : [id], id);
+
+  const toggleSelect = id => {
+    normSelSet();
+    if (id == null) return;
+    const rr = getRectById(id);
+    if (!rr || isRectLocked(rr) || !isSelectable(rr)) return;
+    if (st.selSet.has(id)) st.selSet.delete(id);
+    else st.selSet.add(id);
+    st.sel = st.selSet.has(id) ? id : ([...(st.selSet || [])][0] || null);
+    refreshMultiSelectionBase();
+  };
+
+  return {
+    getRectsBBox,
+    normSelSet,
+    refreshMultiSelectionBase,
+    setSelection,
+    selBoxBounds,
+    boxSize,
+    rectIntersectsBox,
+    beginSelectionBox,
+    updateSelectionBox,
+    finishSelectionBox,
+    isSelected,
+    getSelectedRects,
+    selectOnly,
+    toggleSelect
+  };
+};

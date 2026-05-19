@@ -1,1 +1,366 @@
-import{getFlowLinks,getFlowLinksCopy}from"../utils/flow-links-state.js";export const setupFlowInputController=(n={})=>{const{st:r,render:t,hit:o,cur:e,selectHoveredRectSmart:i,updateFlowLinkDragTarget:a,resetFlowHoverTransient:l,findFlowLinkAtPoint:u,findFlowStartHandle:d,findFlowDirectionButton:f,findFlowResetButton:w,findFlowEditPoint:m,addFlowLinkBetween:s,setFlowLinkManualBezierPoint:h,moveFlowLinkOrthogonalSegment:c,deleteFlowLinkOrthogonalSegment:x,setFlowStart:g,setFlowLock:M,updateManualFlowPoint:y,dragManualFlowPoint:k,worldToRectUV:v,buildRebuiltFlowPreview:b,rebuildAndPatchFlowRegion:L,finishPointerUp:p}=n,D=()=>{r.flowDragPreview=null},N=n=>{const r=[];for(const t of Array.isArray(n)?n:[]){const n={x:Math.round(Number(t&&t.x)||0),y:Math.round(Number(t&&t.y)||0)},o=r[r.length-1];o&&Math.abs(o.x-n.x)<.5&&Math.abs(o.y-n.y)<.5||r.push(n)}for(let n=r.length-2;n>0;n--){const t=r[n-1],o=r[n],e=r[n+1];(Math.abs(t.x-o.x)<.5&&Math.abs(o.x-e.x)<.5||Math.abs(t.y-o.y)<.5&&Math.abs(o.y-e.y)<.5)&&r.splice(n,1)}return r},F=(n,t,o)=>{if(!(Array.isArray(n&&n.orthogonalPoints)&&n.orthogonalPoints.length&&t&&o))return!1;const e={x:Number(t.x)||0,y:Number(t.y)||0},i={x:Number(o.x)||0,y:Number(o.y)||0},a=(n=>{const r=N(n);if(r.length<2)return r;const t=[];for(let n=0;n<r.length-1;n++){const o=r[n],e=r[n+1];t.push(o),Math.abs(o.x-e.x)>=.5&&Math.abs(o.y-e.y)>=.5&&t.push({x:e.x,y:o.y})}return t.push(r[r.length-1]),N(t)})([e,Math.abs(e.x-i.x)<.5||Math.abs(e.y-i.y)<.5?{x:Math.round((e.x+i.x)/2),y:Math.round((e.y+i.y)/2)}:{x:Math.round(i.x),y:Math.round(e.y)},i]),l=getFlowLinksCopy(r),u=l.findIndex(n=>{const r=n&&n.from,e=n&&n.to;return Math.max(1,Math.round(Number(r&&r.rectId)||0))===Math.max(1,Math.round(Number(t.rectId)||0))&&Math.max(0,Math.round(Number(r&&r.rid)||0))===Math.max(0,Math.round(Number(t.rid)||0))&&Math.max(0,Math.round(Number(r&&r.cid)||0))===Math.max(0,Math.round(Number(t.cid)||0))&&Math.max(1,Math.round(Number(e&&e.rectId)||0))===Math.max(1,Math.round(Number(o.rectId)||0))&&Math.max(0,Math.round(Number(e&&e.rid)||0))===Math.max(0,Math.round(Number(o.rid)||0))&&Math.max(0,Math.round(Number(e&&e.cid)||0))===Math.max(0,Math.round(Number(o.cid)||0))});if(u<0)return!1;const d={...l[u]};for(const r of["color","lineType","width","isCommutation","commutationName"])n&&Object.prototype.hasOwnProperty.call(n,r)&&(d[r]=n[r]);return d.orthogonalPoints=a.slice(1,-1),d.controlPointCount=2,d.controlOffsets=[],l[u]=d,r.flowLinks=l,!0};return{handleFlowEditPointerMove:n=>{if(r.flowCurveDrag){const o=r.flowCurveDrag;return o&&o.key&&"function"==typeof h&&h(o.key,o.handle,n.x,n.y,o.fallback||null),t(),!0}const s="flowEdit"===r.mode;if(!s&&!r.flowLinkDrag&&!r.flowLinkPending)return!1;if(!s&&r.flowLinkPending&&!r.flowLinkDrag){const t=r.flowLinkPending,o=(+n.x||0)-(+t.downX||0),e=(+n.y||0)-(+t.downY||0);if(Math.hypot(o,e)>=Math.max(4,6/Math.max(.25,r.zoom||1))){const o=(n=>{if(!n)return null;const t=Math.max(1,Math.round(Number(n.rectId)||0)),o=Math.max(0,Math.round(Number(n.rid)||0)),e=Math.max(0,Math.round(Number(n.cid)||0)),i=getFlowLinks(r),a=[];return r.flowLinks=i.filter(n=>{const r=n&&n.from;if(!r)return!1;const i=Math.max(1,Math.round(Number(r.rectId)||0))===t&&Math.max(0,Math.round(Number(r.rid)||0))===o&&Math.max(0,Math.round(Number(r.cid)||0))===e&&"end"===String(r.kind||"").toLowerCase();return i&&a.push(n),!i}),a[0]||null})(t.from);r.flowLinkDrag={from:{...t.from},x:n.x,y:n.y,target:null,canLink:!1,preserveLink:o||null},r.flowLinkPending=null,a(n.x,n.y)}}if(s&&"manual"===String(r.flowEditVariant||"auto")){if(r.manualFlowDrag){const o=r.manualFlowDrag,i=(+n.x||0)-(+o.downX||0),a=(+n.y||0)-(+o.downY||0);if(!o.moved&&Math.hypot(i,a)<Math.max(4,5/Math.max(.2,r.zoom||1)))return t(),!0;const l=e();if(l&&"function"==typeof k){const t=((n,r)=>{if(!n||!r||"function"!=typeof v)return null;const t=v(n,+r.x||0,+r.y||0);return t?{u:+t.u||0,v:+t.v||0}:null})(l,n);if(!o.appliedStart){k(l,o.rid,o.cid)&&(o.changed=!0),o.appliedStart=!0;const n=m(o.downX,o.downY,o.rid);n&&(r.flowDragPreview={rid:o.rid,kind:"manual",points:[{u:+n.u||0,v:+n.v||0,index:0}],cursorU:t?t.u:+n.u||0,cursorV:t?t.v:+n.v||0})}o.moved=!0;const e=m(n.x,n.y,o.rid);e&&e.cid!==o.lastCid&&(o.lastCid=e.cid,k(l,o.rid,e.cid)&&(o.changed=!0),"function"==typeof L&&L(l,o.rid,5e3));const i=(r.flowEditPoints||[]).filter(n=>n.rid===o.rid&&n.manualActive).sort((n,r)=>(Number(n.manualIndex)||0)-(Number(r.manualIndex)||0)).map(n=>({u:+n.u||0,v:+n.v||0,index:Math.max(0,Math.round(Number(n.manualIndex)||0))})),a=e||m(n.x,n.y,o.rid);a&&!i.some(n=>Math.hypot((+n.u||0)-(+a.u||0),(+n.v||0)-(+a.v||0))<1e-6)&&i.push({u:+a.u||0,v:+a.v||0,index:i.length}),r.flowDragPreview={rid:o.rid,kind:"manual",points:i,cursorU:t?t.u:null,cursorV:t?t.v:null}}return r.flowHover=m(n.x,n.y,o.rid),r.flowResetHover=null,t(),!0}r.flowLinkDrag&&(r.flowLinkDrag=null,r.flowLinkPending=null),D();const a="function"==typeof w?w(n.x,n.y):null;if(r.flowLinkHover=null,r.flowDirHover=null,r.flowResetHover=a,a)return r.flowHover=null,t(),!0;const l=o(n.x,n.y);return i(l)?(t(),!0):(r.flowHover=m(n.x,n.y),t(),!0)}if(r.flowLinkDrag)return a(n.x,n.y),l(),D(),t(),!0;if(!r.flowDrag){D(),r.flowLinkHover=u(n.x,n.y);const e=o(n.x,n.y);if(i(e))return t(),!0;const a=d(n.x,n.y);if(a)return r.flowHover={kind:"start",rid:a.rid,cid:a.cid},r.flowDirHover=null,t(),!0;const l=f(n.x,n.y);return r.flowDirHover=l,l?(r.flowHover=null,t(),!0):(r.flowHover=m(n.x,n.y),t(),!0)}const c=m(n.x,n.y,r.flowDrag.rid,r.flowDrag.fromIndex),x=Math.max(0,Math.round(Number(r.flowDrag.currentIndex)||0));if(r.flowDrag.currentIndex=c?c.index:r.flowDrag.fromIndex,r.flowDrag.currentIndex!==x||!r.flowDragPreview){const n="function"==typeof b?b(r.flowDrag):null;r.flowDragPreview=n||(()=>{const n=r.flowDrag;if(!n)return null;const t=Math.max(0,Math.round(Number(n.rid)||0)),o=Math.max(0,Math.round(Number(n.fromIndex)||0)),e=Math.max(o,Math.round(Number(n.currentIndex)||o)),i=(r.flowEditPoints||[]).filter(n=>Math.max(0,Math.round(Number(n&&n.rid)||0))===t).sort((n,r)=>(Number(n&&n.index)||0)-(Number(r&&r.index)||0));if(!i.length)return null;const a="start"===String(n&&n.kind||""),l=[...a?[]:i.filter(n=>(Number(n&&n.index)||0)<o),...i.filter(n=>(Number(n&&n.index)||0)>=e)];return l.length?{rid:t,fromIndex:o,currentIndex:e,kind:a?"start":"lock",points:l.map(n=>({u:+n.u||0,v:+n.v||0,index:Math.max(0,Math.round(Number(n.index)||0))}))}:null})()}return t(),!0},handlePointerUpFlowLink:()=>{if(!r.flowLinkDrag&&r.flowLinkPending)return r.flowLinkPending=null,D(),p(!1),!0;if(!r.flowLinkDrag)return!1;const n=r.flowLinkDrag;r.flowLinkDrag=null,D();let t=!1;return n&&n.from&&n.target&&n.canLink&&(t=s(n.from,n.target),t&&n.preserveLink&&F(n.preserveLink,n.from,n.target)),r.flowLinkPending=null,r.flowLinkHover=null,p(t),!0},handlePointerUpFlowDrag:()=>{if(r.flowCurveDrag)return r.flowCurveDrag=null,p(!0),!0;if(r.manualFlowDrag){const n=e(),t=r.manualFlowDrag;r.manualFlowDrag=null,D();let o=!(!t||!t.changed);return n&&t&&!t.moved&&"function"==typeof y&&(o=!!y(n,t.rid,t.cid)),n&&t&&o&&"function"==typeof L&&L(n,t.rid,5e3),p(o),!0}if(!r.flowDrag)return!1;const n=e(),t=r.flowDrag;r.flowDrag=null,D();let o=!1;if(n){const e="start"===String(t&&t.kind||""),i=(r.flowEditPoints||[]).filter(n=>n.rid===t.rid&&(e?n.index>=0:n.index>=t.fromIndex)),a=i.find(n=>n.index===t.currentIndex)||i[0];e?a&&a.cid!==t.cid&&(g(n,t.rid,a.cid),o=!0):a&&a.index>=t.fromIndex&&a.cid!==t.cid&&(M(n,t.rid,t.fromIndex,a.cid),o=!0),o&&"function"==typeof L&&L(n,t.rid,5e3)}return p(o),!0},moveFlowLinkOrthogonalSegment:c,deleteFlowLinkOrthogonalSegment:x,deleteFlowLinkOrthogonalSegmentAtPoint:n=>{if(!n||"function"!=typeof u||"function"!=typeof x)return!1;const r=u(n.x,n.y);return!(!r||!r.orthogonal)&&!!x(r)},handleFlowMouseLeave:()=>!("flowEdit"!==r.mode&&!r.flowLinkDrag&&!r.flowLinkHover)&&(!!(r.flowHover||r.flowDirHover||r.flowLinkHover||r.flowLinkDrag)&&(l(),D(),t(),!0))}};
+/* build:1779222473 */
+import { getFlowLinks, getFlowLinksCopy } from "../utils/flow-links-state.js";
+
+export const setupFlowInputController = (deps = {}) => {
+  const {
+    st,
+    render,
+    hit,
+    cur,
+    selectHoveredRectSmart,
+    updateFlowLinkDragTarget,
+    resetFlowHoverTransient,
+    findFlowLinkAtPoint,
+    findFlowStartHandle,
+    findFlowDirectionButton,
+    findFlowResetButton,
+    findFlowEditPoint,
+    addFlowLinkBetween,
+    setFlowLinkManualBezierPoint,
+    moveFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegment,
+    setFlowStart,
+    setFlowLock,
+    updateManualFlowPoint,
+    dragManualFlowPoint,
+    worldToRectUV,
+    buildRebuiltFlowPreview,
+    rebuildAndPatchFlowRegion,
+    finishPointerUp
+  } = deps;
+
+  const buildFlowDragPreview = () => {
+    const fd = st.flowDrag;
+    if (!fd) return null;
+    const rid = Math.max(0, Math.round(Number(fd.rid) || 0));
+    const fromIndex = Math.max(0, Math.round(Number(fd.fromIndex) || 0));
+    const currentIndex = Math.max(fromIndex, Math.round(Number(fd.currentIndex) || fromIndex));
+    const points = (st.flowEditPoints || [])
+      .filter(p => Math.max(0, Math.round(Number(p && p.rid) || 0)) === rid)
+      .sort((a, b) => (Number(a && a.index) || 0) - (Number(b && b.index) || 0));
+    if (!points.length) return null;
+
+    const isStartMove = String((fd && fd.kind) || "") === "start";
+    const prefix = isStartMove ? [] : points.filter(p => (Number(p && p.index) || 0) < fromIndex);
+    const suffix = points.filter(p => (Number(p && p.index) || 0) >= currentIndex);
+    const merged = [...prefix, ...suffix];
+    if (!merged.length) return null;
+    return {
+      rid,
+      fromIndex,
+      currentIndex,
+      kind: isStartMove ? "start" : "lock",
+      points: merged.map(p => ({ u: +p.u || 0, v: +p.v || 0, index: Math.max(0, Math.round(Number(p.index) || 0)) }))
+    };
+  };
+  const clearDragPreview = () => {
+    st.flowDragPreview = null;
+  };
+  const removeLinksFromSameOut = from => {
+    if (!from) return null;
+    const rectId = Math.max(1, Math.round(Number(from.rectId) || 0));
+    const rid = Math.max(0, Math.round(Number(from.rid) || 0));
+    const cid = Math.max(0, Math.round(Number(from.cid) || 0));
+    const list = getFlowLinks(st);
+    const removed = [];
+    st.flowLinks = list.filter(ln => {
+      const src = ln && ln.from;
+      if (!src) return false;
+      const match = (
+        Math.max(1, Math.round(Number(src.rectId) || 0)) === rectId
+        && Math.max(0, Math.round(Number(src.rid) || 0)) === rid
+        && Math.max(0, Math.round(Number(src.cid) || 0)) === cid
+        && String(src.kind || "").toLowerCase() === "end"
+      );
+      if (match) removed.push(ln);
+      return !match;
+    });
+    return removed[0] || null;
+  };
+  const cleanOrthogonalPoints = pts => {
+    const out = [];
+    for (const p of (Array.isArray(pts) ? pts : [])) {
+      const q = { x: Math.round(Number(p && p.x) || 0), y: Math.round(Number(p && p.y) || 0) };
+      const prev = out[out.length - 1];
+      if (prev && Math.abs(prev.x - q.x) < 0.5 && Math.abs(prev.y - q.y) < 0.5) continue;
+      out.push(q);
+    }
+    for (let i = out.length - 2; i > 0; i--) {
+      const a = out[i - 1], b = out[i], c = out[i + 1];
+      if ((Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5)
+        || (Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5)) out.splice(i, 1);
+    }
+    return out;
+  };
+  const routeOrthogonalPoints = points => {
+    const pts = cleanOrthogonalPoints(points);
+    if (pts.length < 2) return pts;
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i], p1 = pts[i + 1];
+      out.push(p0);
+      if (Math.abs(p0.x - p1.x) >= 0.5 && Math.abs(p0.y - p1.y) >= 0.5) {
+        out.push({ x: p1.x, y: p0.y });
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    return cleanOrthogonalPoints(out);
+  };
+  const applySimpleOrthogonalLinkShape = (oldLink, from, to) => {
+    if (!Array.isArray(oldLink && oldLink.orthogonalPoints) || !oldLink.orthogonalPoints.length || !from || !to) return false;
+    const start = { x: Number(from.x) || 0, y: Number(from.y) || 0 };
+    const end = { x: Number(to.x) || 0, y: Number(to.y) || 0 };
+    const mid = (Math.abs(start.x - end.x) < 0.5 || Math.abs(start.y - end.y) < 0.5)
+      ? { x: Math.round((start.x + end.x) / 2), y: Math.round((start.y + end.y) / 2) }
+      : { x: Math.round(end.x), y: Math.round(start.y) };
+    const full = routeOrthogonalPoints([start, mid, end]);
+    const list = getFlowLinksCopy(st);
+    const idx = list.findIndex(ln => {
+      const a = ln && ln.from, b = ln && ln.to;
+      return Math.max(1, Math.round(Number(a && a.rectId) || 0)) === Math.max(1, Math.round(Number(from.rectId) || 0))
+        && Math.max(0, Math.round(Number(a && a.rid) || 0)) === Math.max(0, Math.round(Number(from.rid) || 0))
+        && Math.max(0, Math.round(Number(a && a.cid) || 0)) === Math.max(0, Math.round(Number(from.cid) || 0))
+        && Math.max(1, Math.round(Number(b && b.rectId) || 0)) === Math.max(1, Math.round(Number(to.rectId) || 0))
+        && Math.max(0, Math.round(Number(b && b.rid) || 0)) === Math.max(0, Math.round(Number(to.rid) || 0))
+        && Math.max(0, Math.round(Number(b && b.cid) || 0)) === Math.max(0, Math.round(Number(to.cid) || 0));
+    });
+    if (idx < 0) return false;
+    const cur = list[idx];
+    const preserved = { ...cur };
+    for (const key of ["color", "lineType", "width", "isCommutation", "commutationName"]) {
+      if (oldLink && Object.prototype.hasOwnProperty.call(oldLink, key)) preserved[key] = oldLink[key];
+    }
+    preserved.orthogonalPoints = full.slice(1, -1);
+    preserved.controlPointCount = 2;
+    preserved.controlOffsets = [];
+    list[idx] = preserved;
+    st.flowLinks = list;
+    return true;
+  };
+  const localCursorForRect = (r, p) => {
+    if (!r || !p || typeof worldToRectUV !== "function") return null;
+    const uv = worldToRectUV(r, +p.x || 0, +p.y || 0);
+    if (!uv) return null;
+    return { u: +uv.u || 0, v: +uv.v || 0 };
+  };
+
+  const handleFlowEditPointerMove = p => {
+    if (st.flowCurveDrag) {
+      const d = st.flowCurveDrag;
+      if (d && d.key && typeof setFlowLinkManualBezierPoint === "function") {
+        setFlowLinkManualBezierPoint(d.key, d.handle, p.x, p.y, d.fallback || null);
+      }
+      render();
+      return true;
+    }
+    const modeFlowEdit = st.mode === "flowEdit";
+    if (!modeFlowEdit && !st.flowLinkDrag && !st.flowLinkPending) return false;
+    if (!modeFlowEdit && st.flowLinkPending && !st.flowLinkDrag) {
+      const pd = st.flowLinkPending;
+      const dx = (+p.x || 0) - (+pd.downX || 0);
+      const dy = (+p.y || 0) - (+pd.downY || 0);
+      if (Math.hypot(dx, dy) >= Math.max(4, 6 / Math.max(0.25, st.zoom || 1))) {
+        const removedLink = removeLinksFromSameOut(pd.from);
+        st.flowLinkDrag = { from: { ...pd.from }, x: p.x, y: p.y, target: null, canLink: false, preserveLink: removedLink || null };
+        st.flowLinkPending = null;
+        updateFlowLinkDragTarget(p.x, p.y);
+      }
+    }
+    if (modeFlowEdit && String(st.flowEditVariant || "auto") === "manual") {
+      if (st.manualFlowDrag) {
+        const md = st.manualFlowDrag;
+        const dx = (+p.x || 0) - (+md.downX || 0);
+        const dy = (+p.y || 0) - (+md.downY || 0);
+        if (!md.moved && Math.hypot(dx, dy) < Math.max(4, 5 / Math.max(0.2, st.zoom || 1))) {
+          render();
+          return true;
+        }
+        const r = cur();
+        if (r && typeof dragManualFlowPoint === "function") {
+          const cursorLocal = localCursorForRect(r, p);
+          if (!md.appliedStart) {
+            if (dragManualFlowPoint(r, md.rid, md.cid)) md.changed = true;
+            md.appliedStart = true;
+            const startPoint = findFlowEditPoint(md.downX, md.downY, md.rid);
+            if (startPoint) st.flowDragPreview = { rid: md.rid, kind: "manual", points: [{ u: +startPoint.u || 0, v: +startPoint.v || 0, index: 0 }], cursorU: cursorLocal ? cursorLocal.u : (+startPoint.u || 0), cursorV: cursorLocal ? cursorLocal.v : (+startPoint.v || 0) };
+          }
+          md.moved = true;
+          const fp = findFlowEditPoint(p.x, p.y, md.rid);
+          if (fp && fp.cid !== md.lastCid) {
+            md.lastCid = fp.cid;
+            if (dragManualFlowPoint(r, md.rid, fp.cid)) md.changed = true;
+            if (typeof rebuildAndPatchFlowRegion === "function") rebuildAndPatchFlowRegion(r, md.rid, 5000);
+          }
+          const previewPoints = (st.flowEditPoints || [])
+            .filter(pt => pt.rid === md.rid && pt.manualActive)
+            .sort((a, b) => (Number(a.manualIndex) || 0) - (Number(b.manualIndex) || 0))
+            .map(pt => ({ u: +pt.u || 0, v: +pt.v || 0, index: Math.max(0, Math.round(Number(pt.manualIndex) || 0)) }));
+          const hoverPoint = fp || findFlowEditPoint(p.x, p.y, md.rid);
+          if (hoverPoint && !previewPoints.some(pt => Math.hypot((+pt.u || 0) - (+hoverPoint.u || 0), (+pt.v || 0) - (+hoverPoint.v || 0)) < 1e-6)) {
+            previewPoints.push({ u: +hoverPoint.u || 0, v: +hoverPoint.v || 0, index: previewPoints.length });
+          }
+          st.flowDragPreview = { rid: md.rid, kind: "manual", points: previewPoints, cursorU: cursorLocal ? cursorLocal.u : null, cursorV: cursorLocal ? cursorLocal.v : null };
+        }
+        st.flowHover = findFlowEditPoint(p.x, p.y, md.rid);
+        st.flowResetHover = null;
+        render();
+        return true;
+      }
+      if (st.flowLinkDrag) {
+        st.flowLinkDrag = null;
+        st.flowLinkPending = null;
+      }
+      clearDragPreview();
+      const resetBtn = typeof findFlowResetButton === "function" ? findFlowResetButton(p.x, p.y) : null;
+      st.flowLinkHover = null;
+      st.flowDirHover = null;
+      st.flowResetHover = resetBtn;
+      if (resetBtn) {
+        st.flowHover = null;
+        render();
+        return true;
+      }
+      const h = hit(p.x, p.y);
+      if (selectHoveredRectSmart(h)) {
+        render();
+        return true;
+      }
+      st.flowHover = findFlowEditPoint(p.x, p.y);
+      render();
+      return true;
+    }
+    if (st.flowLinkDrag) {
+      updateFlowLinkDragTarget(p.x, p.y);
+      resetFlowHoverTransient();
+      clearDragPreview();
+      render();
+      return true;
+    }
+    if (!st.flowDrag) {
+      clearDragPreview();
+      st.flowLinkHover = findFlowLinkAtPoint(p.x, p.y);
+      const h = hit(p.x, p.y);
+      if (selectHoveredRectSmart(h)) {
+        render();
+        return true;
+      }
+      const startHandle = findFlowStartHandle(p.x, p.y);
+      if (startHandle) {
+        st.flowHover = { kind: "start", rid: startHandle.rid, cid: startHandle.cid };
+        st.flowDirHover = null;
+        render();
+        return true;
+      }
+      const dirBtn = findFlowDirectionButton(p.x, p.y);
+      st.flowDirHover = dirBtn;
+      if (dirBtn) {
+        st.flowHover = null;
+        render();
+        return true;
+      }
+      st.flowHover = findFlowEditPoint(p.x, p.y);
+      render();
+      return true;
+    }
+    const fp = findFlowEditPoint(p.x, p.y, st.flowDrag.rid, st.flowDrag.fromIndex);
+    const prevIndex = Math.max(0, Math.round(Number(st.flowDrag.currentIndex) || 0));
+    st.flowDrag.currentIndex = fp ? fp.index : st.flowDrag.fromIndex;
+    if (st.flowDrag.currentIndex !== prevIndex || !st.flowDragPreview) {
+      const rebuilt = typeof buildRebuiltFlowPreview === "function" ? buildRebuiltFlowPreview(st.flowDrag) : null;
+      st.flowDragPreview = rebuilt || buildFlowDragPreview();
+    }
+    render();
+    return true;
+  };
+
+  const handlePointerUpFlowLink = () => {
+    if (!st.flowLinkDrag && st.flowLinkPending) {
+      st.flowLinkPending = null;
+      clearDragPreview();
+      finishPointerUp(false);
+      return true;
+    }
+    if (!st.flowLinkDrag) return false;
+    const fd = st.flowLinkDrag;
+    st.flowLinkDrag = null;
+    clearDragPreview();
+    let changed = false;
+    if (fd && fd.from && fd.target && fd.canLink) {
+      changed = addFlowLinkBetween(fd.from, fd.target);
+      if (changed && fd.preserveLink) applySimpleOrthogonalLinkShape(fd.preserveLink, fd.from, fd.target);
+    }
+    st.flowLinkPending = null;
+    st.flowLinkHover = null;
+    finishPointerUp(changed);
+    return true;
+  };
+
+  const handlePointerUpFlowDrag = () => {
+    if (st.flowCurveDrag) {
+      st.flowCurveDrag = null;
+      finishPointerUp(true);
+      return true;
+    }
+    if (st.manualFlowDrag) {
+      const r = cur();
+      const md = st.manualFlowDrag;
+      st.manualFlowDrag = null;
+      clearDragPreview();
+      let changed = !!(md && md.changed);
+      if (r && md && !md.moved && typeof updateManualFlowPoint === "function") {
+        changed = !!updateManualFlowPoint(r, md.rid, md.cid);
+      }
+      if (r && md && changed && typeof rebuildAndPatchFlowRegion === "function") rebuildAndPatchFlowRegion(r, md.rid, 5000);
+      finishPointerUp(changed);
+      return true;
+    }
+    if (!st.flowDrag) return false;
+    const r = cur();
+    const fd = st.flowDrag;
+    st.flowDrag = null;
+    clearDragPreview();
+    let changed = false;
+    if (r) {
+      const isStartMove = String((fd && fd.kind) || "") === "start";
+      const pts = (st.flowEditPoints || []).filter(p => p.rid === fd.rid && (isStartMove ? p.index >= 0 : p.index >= fd.fromIndex));
+      const target = pts.find(p => p.index === fd.currentIndex) || pts[0];
+      if (isStartMove) {
+        if (target && target.cid !== fd.cid) {
+          setFlowStart(r, fd.rid, target.cid);
+          changed = true;
+        }
+      } else if (target && target.index >= fd.fromIndex && target.cid !== fd.cid) {
+        setFlowLock(r, fd.rid, fd.fromIndex, target.cid);
+        changed = true;
+      }
+      if (changed && typeof rebuildAndPatchFlowRegion === "function") rebuildAndPatchFlowRegion(r, fd.rid, 5000);
+    }
+    finishPointerUp(changed);
+    return true;
+  };
+  const deleteFlowLinkOrthogonalSegmentAtPoint = p => {
+    if (!p || typeof findFlowLinkAtPoint !== "function" || typeof deleteFlowLinkOrthogonalSegment !== "function") return false;
+    const linkHit = findFlowLinkAtPoint(p.x, p.y);
+    if (!linkHit || !linkHit.orthogonal) return false;
+    return !!deleteFlowLinkOrthogonalSegment(linkHit);
+  };
+
+  const handleFlowMouseLeave = () => {
+    if (st.mode !== "flowEdit" && !st.flowLinkDrag && !st.flowLinkHover) return false;
+    if (!(st.flowHover || st.flowDirHover || st.flowLinkHover || st.flowLinkDrag)) return false;
+    resetFlowHoverTransient();
+    clearDragPreview();
+    render();
+    return true;
+  };
+
+  return {
+    handleFlowEditPointerMove,
+    handlePointerUpFlowLink,
+    handlePointerUpFlowDrag,
+    moveFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegment,
+    deleteFlowLinkOrthogonalSegmentAtPoint,
+    handleFlowMouseLeave
+  };
+};

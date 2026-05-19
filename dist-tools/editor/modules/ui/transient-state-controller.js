@@ -1,1 +1,117 @@
-import{clearSelectedFlowLinks}from"../utils/flow-link-selection-state.js";export const setupTransientStateController=(l={})=>{const{st:e}=l,r=()=>{e.maskPath=[],e.maskHover=null},n=()=>{e.cellHover=null,e.cellHoverPos=null,e.cellKnifeDrag=null},t=()=>{e.flowHover=null,e.flowDirHover=null,e.flowResetHover=null,e.flowLinkHover=null},o=()=>{e.clusterHandleHover=null,e.clusterCellHover=null,e.clusterStartHover=null,e.clusterBorderHover=null},u=()=>{const l=e&&e.drag;if(!l)return!1;let r=!1;if(Array.isArray(l.items)&&Array.isArray(e.rects)){const n=new Map(e.rects.map(l=>[Math.round(Number(l&&l.id)||0),l]));for(const e of l.items){const l=n.get(Math.round(Number(e&&e.id)||0));l&&(Number.isFinite(Number(e.rx))&&(l.x=Math.round(Number(e.rx))),Number.isFinite(Number(e.ry))&&(l.y=Math.round(Number(e.ry))),r=!0)}}return e.drag=null,e.g.x=null,e.g.y=null,e.dg=null,r};return{resetMaskTransient:r,resetCellTransient:n,resetFlowHoverTransient:t,resetClusterHoverTransient:o,resetRigHoverTransient:()=>{e.rigHover=null},resetSelectionTransient:()=>{r(),n(),e.flowRegionRid=null,t(),o(),e.clusterDrag=null,e.selBox=null,e.shapePointSel=null,e.shapePointDrag=null},cancelActiveDrag:u,resetTransientState:(l=!1)=>{e.maskPath=[],e.maskHover=null,e.clusterActiveId=null,e.clusterHandleHover=null,e.clusterCellHover=null,e.clusterStartHover=null,e.clusterBorderHover=null,e.clusterDrag=null,e.rigHover=null,l&&(e.cellHover=null,e.cellHoverPos=null,e.flowHover=null,e.flowDirHover=null,e.flowResetHover=null,e.flowRegionRid=null,e.flowDrag=null,e.manualFlowDrag=null,e.flowDragPreview=null,e.flowLinkHover=null,clearSelectedFlowLinks(e),e.flowLinkCurveHandles=[],e.flowCurveDrag=null,e.flowLinkPending=null,e.flowLinkDrag=null,e.flowLinkAnchors=[],e.flowLinkSegments=[],e.clusterHandles=[],u(),e.draft=null,e.draftPending=null,e.shapeDraft=null,e.shapePointSel=null,e.shapePointDrag=null)}}};
+/* build:1779222473 */
+import { clearSelectedFlowLinks } from "../utils/flow-link-selection-state.js";
+
+export const setupTransientStateController = (deps = {}) => {
+  const { st } = deps;
+
+  const resetMaskTransient = () => {
+    st.maskPath = [];
+    st.maskHover = null;
+  };
+
+  const resetCellTransient = () => {
+    st.cellHover = null;
+    st.cellHoverPos = null;
+    st.cellKnifeDrag = null;
+  };
+
+  const resetFlowHoverTransient = () => {
+    st.flowHover = null;
+    st.flowDirHover = null;
+    st.flowResetHover = null;
+    st.flowLinkHover = null;
+  };
+
+  const resetClusterHoverTransient = () => {
+    st.clusterHandleHover = null;
+    st.clusterCellHover = null;
+    st.clusterStartHover = null;
+    st.clusterBorderHover = null;
+  };
+
+  const resetRigHoverTransient = () => {
+    st.rigHover = null;
+  };
+
+  const resetSelectionTransient = () => {
+    resetMaskTransient();
+    resetCellTransient();
+    st.flowRegionRid = null;
+    resetFlowHoverTransient();
+    resetClusterHoverTransient();
+    st.clusterDrag = null;
+    st.selBox = null;
+    st.shapePointSel = null;
+    st.shapePointDrag = null;
+  };
+
+  const cancelActiveDrag = () => {
+    const drag = st && st.drag;
+    if (!drag) return false;
+    let restored = false;
+    if (Array.isArray(drag.items) && Array.isArray(st.rects)) {
+      const byId = new Map(st.rects.map(r => [Math.round(Number(r && r.id) || 0), r]));
+      for (const item of drag.items) {
+        const r = byId.get(Math.round(Number(item && item.id) || 0));
+        if (!r) continue;
+        if (Number.isFinite(Number(item.rx))) r.x = Math.round(Number(item.rx));
+        if (Number.isFinite(Number(item.ry))) r.y = Math.round(Number(item.ry));
+        restored = true;
+      }
+    }
+    st.drag = null;
+    st.g.x = null;
+    st.g.y = null;
+    st.dg = null;
+    return restored;
+  };
+
+  const resetTransientState = (full = false) => {
+    st.maskPath = [];
+    st.maskHover = null;
+    st.clusterActiveId = null;
+    st.clusterHandleHover = null;
+    st.clusterCellHover = null;
+    st.clusterStartHover = null;
+    st.clusterBorderHover = null;
+    st.clusterDrag = null;
+    st.rigHover = null;
+    if (full) {
+      st.cellHover = null;
+      st.cellHoverPos = null;
+      st.flowHover = null;
+      st.flowDirHover = null;
+      st.flowResetHover = null;
+      st.flowRegionRid = null;
+      st.flowDrag = null;
+      st.manualFlowDrag = null;
+      st.flowDragPreview = null;
+      st.flowLinkHover = null;
+      clearSelectedFlowLinks(st);
+      st.flowLinkCurveHandles = [];
+      st.flowCurveDrag = null;
+      st.flowLinkPending = null;
+      st.flowLinkDrag = null;
+      st.flowLinkAnchors = [];
+      st.flowLinkSegments = [];
+      st.clusterHandles = [];
+      cancelActiveDrag();
+      st.draft = null;
+      st.draftPending = null;
+      st.shapeDraft = null;
+      st.shapePointSel = null;
+      st.shapePointDrag = null;
+    }
+  };
+
+  return {
+    resetMaskTransient,
+    resetCellTransient,
+    resetFlowHoverTransient,
+    resetClusterHoverTransient,
+    resetRigHoverTransient,
+    resetSelectionTransient,
+    cancelActiveDrag,
+    resetTransientState
+  };
+};

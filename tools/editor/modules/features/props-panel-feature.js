@@ -152,6 +152,29 @@ export const setupPropsPanelFeature = (deps = {}) => {
     }
     return out;
   };
+  const isInterScreenFlowLink = link => {
+    if (!link || !link.from || !link.to) return false;
+    const normalizeType = v => {
+      const t = String(v || "").trim().toLowerCase();
+      if (t === "экран") return "screen";
+      return t;
+    };
+    const inferEndpointType = endpoint => {
+      const explicit = normalizeType(endpoint && endpoint.type);
+      if (explicit) return explicit;
+      const rr = rectById(endpoint && endpoint.rectId);
+      if (!rr) return "";
+      if (isShapeRect(rr)) return "shape";
+      if (isNoteRect(rr)) return "note";
+      if (isDeviceRect(rr)) return "device";
+      return "screen";
+    };
+    const fromType = inferEndpointType(link.from);
+    const toType = inferEndpointType(link.to);
+    const fromRectId = Math.max(1, Math.round(Number(link.from && link.from.rectId) || 0));
+    const toRectId = Math.max(1, Math.round(Number(link.to && link.to.rectId) || 0));
+    return fromType === "screen" && toType === "screen" && fromRectId !== toRectId;
+  };
   const hasSelectedFlowLink = () => {
     const keys = getSelectedFlowLinkKeys(st);
     const key = getPrimarySelectedFlowLinkKey(st);
@@ -319,6 +342,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const count = normalizeFlowLinkControlPointCount(selLink && selLink.controlPointCount);
     const orthogonal = !!(selLink && Array.isArray(selLink.orthogonalPoints) && selLink.orthogonalPoints.length);
     const selectedLinksForColor = selectedFlowLinks();
+    const hasInterScreenSelection = selectedLinksForColor.some(isInterScreenFlowLink);
     const hasCustomColor = hasFlowLinkCustomColor(selLink);
     const hasAnyCustomColor = selectedLinksForColor.some(ln => hasFlowLinkCustomColor(ln));
     const color = hasCustomColor
@@ -382,15 +406,31 @@ export const setupPropsPanelFeature = (deps = {}) => {
     uiSetValue(el.propFlowLinkLineType, lineType);
     uiSetChecked(el.propFlowLinkIsCommutation, isCommutation);
     uiSetValue(el.propFlowLinkCommutationName, commutationName || "");
+    uiSetDisabled(el.propFlowLinkOrthogonal, false);
+    uiSetDisabled(el.propFlowLinkWidth, false);
+    uiSetDisabled(el.propFlowLinkLineType, false);
+    uiSetDisabled(el.propFlowLinkIsCommutation, false);
     uiSetDisabled(el.propFlowLinkCommutationName, !isCommutation);
     uiSetDisabled(el.propFlowLinkCommutationDropdownBtn, !isCommutation);
     syncCommutationOptions();
     if (el.propFlowLinkColor) uiSetDisabled(el.propFlowLinkColor, false);
     if (el.btnFlowLinkColorReset) uiSetDisabled(el.btnFlowLinkColorReset, !hasAnyCustomColor);
+    if (hasInterScreenSelection) {
+      uiSetDisabled(el.propFlowLinkOrthogonal, true);
+      uiSetDisabled(el.propFlowLinkControlCount, true);
+      uiSetDisabled(el.propFlowLinkColor, true);
+      uiSetDisabled(el.btnFlowLinkColorReset, true);
+      uiSetDisabled(el.propFlowLinkWidth, true);
+      uiSetDisabled(el.propFlowLinkLineType, true);
+      uiSetDisabled(el.propFlowLinkIsCommutation, true);
+      uiSetDisabled(el.propFlowLinkCommutationName, true);
+      uiSetDisabled(el.propFlowLinkCommutationDropdownBtn, true);
+    }
     if (showCurveField) {
       const hasManual = !!(selLink && ((selLink.manualBezierRel && selLink.manualBezierRel.c1 && selLink.manualBezierRel.c2) || (selLink.manualBezier && selLink.manualBezier.c1 && selLink.manualBezier.c2)));
       uiSetDisabled(el.btnFlowLinkCurveReset, !hasManual);
       uiSetDisabled(el.propFlowLinkCurveMode, true);
+      if (hasInterScreenSelection) uiSetDisabled(el.btnFlowLinkCurveReset, true);
     }
   };
   const syncProps = () => {
@@ -560,6 +600,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
     const shouldApply = id => !field || field === id;
     const flowLinkField = field.startsWith("flowLink");
     const selectedLinks = selectedFlowLinks();
+    if (flowLinkField && selectedLinks.some(isInterScreenFlowLink)) return;
     if (flowLinkField && selectedLinks.length) {
       const selectedKeySet = new Set(selectedLinks.map(ln => flowLinkKeyOf(ln)));
       const list = getFlowLinksCopy(st);
@@ -567,6 +608,7 @@ export const setupPropsPanelFeature = (deps = {}) => {
       for (let idx = 0; idx < list.length; idx++) {
         const curLink = list[idx];
         if (!selectedKeySet.has(flowLinkKeyOf(curLink))) continue;
+        const key = flowLinkKeyOf(curLink);
         const next = { ...curLink };
         if (shouldApply("flowLinkControlPointCount")) {
           const n = normalizeFlowLinkControlPointCount(el.propFlowLinkControlCount && el.propFlowLinkControlCount.value);

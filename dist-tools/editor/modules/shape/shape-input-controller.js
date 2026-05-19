@@ -1,1 +1,347 @@
-import{isScreenRectKind}from"../utils/rect-kind-utils.js";export const setupShapeInputController=(e={})=>{const{st:n,render:t,getRectById:r,cur:i,selRect:o,isRectLocked:a,isShapeRect:s,mkShape:u,setMode:h,refreshPanels:d,schedulePersist:l,syncProps:p,syncPropsSmart:c,worldToRectUV:f,rectUVToWorld:y,drawCellX:m,drawCellY:x,shapePointHit:g,shapePointHits:b,shapeEditHits:M,shapeSegmentHit:P,normalizeShapeBounds:N}=e,S=e=>Math.max(.25,Number(e)||1),D=()=>{const e=n.shapeDraft,r=e&&Array.isArray(e.points)?e.points:[];if(r.length<3)return!1;const i="function"==typeof u?u(r):null;return n.shapeDraft=null,i&&(n.rects.unshift(i),h("select"),o(i.id),d(),l("project")),t(),!0},A=e=>isScreenRectKind(e),I=(e,t=null)=>{const r=t&&"object"==typeof t?t:{};return r.disableSnap||r.ctrlSnap||r.ctrlKey?e:(e=>{if(!e||"function"!=typeof f||"function"!=typeof y)return e;if(!Array.isArray(n&&n.rects))return e;const t=10/S(n.zoom);for(let r=0;r<n.rects.length;r++){const i=n.rects[r];if(!A(i))continue;const o=f(i,e.x,e.y);if(!o||o.u<0||o.u>i.width||o.v<0||o.v>i.height)continue;const a=(e,n,r)=>{const i=[0,n],o=Math.max(1,Number(r)||1);i.push(Math.max(0,Math.min(n,Math.round(e/o)*o)));let a=Number(e)||0,s=1/0;for(const n of i){const t=Math.abs((Number(n)||0)-e);t<s&&(s=t,a=Number(n)||0)}return s<=t?a:e},s=Math.max(1,("function"==typeof m?m(i):128)/4),u=Math.max(1,("function"==typeof x?x(i):128)/4),h=a(Number(o.u)||0,Math.max(0,Number(i.width)||0),s),d=a(Number(o.v)||0,Math.max(0,Number(i.height)||0),u);return Math.abs(h-o.u)<=1e-6&&Math.abs(d-o.v)<=1e-6?e:y(i,h,d)}return e})(e)},z=(e,t,r)=>{const i="function"==typeof b?b(e,t,r,n.zoom):[];if(!Array.isArray(i)||!i.length)return"function"==typeof g?g(e,t,r,n.zoom):-1;const o=n&&n.shapePointSel,a=o&&Math.round(Number(o.id)||0)===Math.round(Number(e&&e.id)||0),s=a?Math.round(Number(o.index)||0):null;if(a&&i.length>1&&i.includes(s)){const e=i.indexOf(s);return i[(e+1)%i.length]}return i[0]},k=(e,t,r)=>{const i="function"==typeof M?M(e,t,r,n.zoom):[];if(!Array.isArray(i)||!i.length){const n=z(e,t,r);return n>=0?{index:n,handle:""}:null}const o=n&&n.shapePointSel,a=n&&n.shapePointDrag,s=o&&Math.round(Number(o.id)||0)===Math.round(Number(e&&e.id)||0),u=s?Math.round(Number(o.index)||0):null,h=a&&Math.round(Number(a.id)||0)===Math.round(Number(e&&e.id)||0)&&Math.round(Number(a.index)||0)===u?String(a.handle||""):"",d=i.filter(e=>e&&String(e.handle||""));if(d.length){const e=d.findIndex(e=>e&&e.index===u&&String(e.handle||"")===h);return s&&h&&d.length>1&&e>=0?d[(e+1)%d.length]:d[0]}const l=i.findIndex(e=>e&&e.index===u&&String(e.handle||"")===h);return s&&i.length>1&&l>=0?i[(l+1)%i.length]:i[0]};return{chooseShapeEditHit:k,finalizeShapeDraft:D,handlePointerDownShape:(e,r=null)=>{if("shape"!==n.mode)return!1;const i=I(e,r);if(n.shapeDraft&&Math.round(Number(r&&r.clickCount)||1)>1)return D(),n.shapeSuppressNextDoubleClick=!0,!0;const u=(n.shapeDraft&&Array.isArray(n.shapeDraft.points)||(n.shapeDraft={points:[]}),n.shapeDraft),c=u.points;if((e=>{const t=n.shapeDraft,r=t&&Array.isArray(t.points)?t.points:[];if(r.length<3)return!1;const i=r[0],o=11/S(n.zoom);return Math.hypot((Number(i.x)||0)-e.x,(Number(i.y)||0)-e.y)<=o})(e))return D(),!0;if(!c.length){const r=(e=>{if(!Array.isArray(n&&n.rects))return null;for(let t=0;t<n.rects.length;t++){const r=n.rects[t];if(!r||"function"!=typeof s||!s(r)||a(r))continue;const i="function"==typeof g?g(r,e.x,e.y,n.zoom):-1;if(i>=0)return{rect:r,pointIndex:i,segmentIndex:-1};const o="function"==typeof P?P(r,e.x,e.y,n.zoom):-1;if(o>=0)return{rect:r,pointIndex:-1,segmentIndex:o}}return null})(e);if(r&&r.rect){const e=r.rect;if(r.segmentIndex>=0&&Array.isArray(e.shapePoints)){const a=f(e,i.x,i.y),s=Math.max(0,Math.min(e.shapePoints.length,r.segmentIndex+1));return e.shapePoints.splice(s,0,{x:Math.round(Number(a.u)||0),y:Math.round(Number(a.v)||0)}),"function"==typeof N&&N(e),n.shapePointSel={id:e.id,index:s},h("select"),o(e.id),d(),l("project"),t(),!0}if(r.pointIndex>=0)return n.shapePointSel={id:e.id,index:r.pointIndex},h("select"),o(e.id),p(),t(),!0}}const y=c[c.length-1];return(!y||Math.hypot((Number(y.x)||0)-i.x,(Number(y.y)||0)-i.y)>.001)&&c.push({x:Math.round(i.x),y:Math.round(i.y)}),u.pointerX=i.x,u.pointerY=i.y,t(),!0},handlePointerDownSelectedShape:(e,r=null)=>{if("select"!==n.mode||r?.shiftToggle)return!1;const o=i();if(!o||"function"!=typeof s||!s(o)||a(o))return!1;const u=k(o,e.x,e.y);return!!u&&(n.shapePointSel={id:o.id,index:u.index},n.shapePointDrag={id:o.id,index:u.index,handle:u.handle||"",changed:!1},p(),t(),!0)},handlePointerDownHitShape:(e,r,i=null,u=()=>!1)=>{if("select"!==n.mode||!e||"function"!=typeof s||!s(e)||a(e)||"function"!=typeof g)return!1;if(i?.shiftToggle)return o(e.id,{toggle:!0}),n.shapePointSel=null,p(),t(),!0;if(!u(e.id))return o(e.id),p(),t(),!0;const h=k(e,r.x,r.y);if(h&&h.handle)return n.shapePointSel={id:e.id,index:h.index},n.shapePointDrag={id:e.id,index:h.index,handle:h.handle,changed:!1},p(),t(),!0;const d=h?h.index:z(e,r.x,r.y);return d>=0?(n.shapePointSel={id:e.id,index:d},n.shapePointDrag={id:e.id,index:d,changed:!1},p(),t(),!0):(n.shapePointSel&&Math.round(Number(n.shapePointSel.id)||0)===Math.round(Number(e.id)||0)&&(n.shapePointSel=null,p(),t()),!1)},handlePointerMove:(e,i=null)=>{const o=i&&"object"==typeof i?i:{};if(n.shapePointDrag){const i=n.shapePointDrag,u=r(i.id);if(!u||!s(u)||a(u)||!Array.isArray(u.shapePoints))return n.shapePointDrag=null,!1;const h=I(e,o),d=f(u,h.x,h.y),l=Math.max(0,Math.min(u.shapePoints.length-1,Math.round(Number(i.index)||0))),p=u.shapePoints[l]||{};if("in"===i.handle||"out"===i.handle){const e="in"===i.handle?"inX":"outX",n="in"===i.handle?"inY":"outY";p.type="bezier",p[e]=Math.round((Number(d.u)||0)-(Number(p.x)||0)),p[n]=Math.round((Number(d.v)||0)-(Number(p.y)||0))}else u.shapePoints[l]={...p,x:Math.round(Number(d.u)||0),y:Math.round(Number(d.v)||0)};return"function"==typeof N&&N(u),i.changed=!0,"function"==typeof c&&c(),t(),!0}if("shape"===n.mode&&n.shapeDraft){const r=I(e,o);return n.shapeDraft.pointerX=r.x,n.shapeDraft.pointerY=r.y,t(),!0}return!1},handleDoubleClickShape:(e,t=()=>{})=>n.shapeSuppressNextDoubleClick?(n.shapeSuppressNextDoubleClick=!1,t(),!0):!("shape"!==n.mode||!n.shapeDraft||!D())&&(t(),!0),handleDoubleClickHitShape:(e,r,i=()=>{})=>{if(!e||"function"!=typeof s||!s(e))return!1;e.id!==n.sel&&o(e.id);const a="function"==typeof g?g(e,r.x,r.y,n.zoom):-1;return a>=0&&Array.isArray(e.shapePoints)&&e.shapePoints.length>3&&(e.shapePoints.splice(a,1),"function"==typeof N&&N(e),n.shapePointSel=null,l("project"),p(),t(),i()),!0},selectedHandleHit:e=>{const n=i();if(!n||"function"!=typeof s||!s(n)||a(n))return null;const t=k(n,e.x,e.y);return t&&t.handle?t:null}}};
+/* build:1779222473 */
+import { isScreenRectKind } from "../utils/rect-kind-utils.js";
+
+export const setupShapeInputController = (deps = {}) => {
+  const {
+    st,
+    render,
+    getRectById,
+    cur,
+    selRect,
+    isRectLocked,
+    isShapeRect,
+    mkShape,
+    setMode,
+    refreshPanels,
+    schedulePersist,
+    syncProps,
+    syncPropsSmart,
+    worldToRectUV,
+    rectUVToWorld,
+    drawCellX,
+    drawCellY,
+    shapePointHit,
+    shapePointHits,
+    shapeEditHits,
+    shapeSegmentHit,
+    normalizeShapeBounds
+  } = deps;
+
+  const zoomSafe = z => Math.max(0.25, Number(z) || 1);
+
+  const ensureShapeDraft = () => {
+    if (!st.shapeDraft || !Array.isArray(st.shapeDraft.points)) st.shapeDraft = { points: [] };
+    return st.shapeDraft;
+  };
+
+  const clearShapeDraft = () => {
+    st.shapeDraft = null;
+  };
+
+  const finalizeShapeDraft = () => {
+    const d = st.shapeDraft;
+    const pts = d && Array.isArray(d.points) ? d.points : [];
+    if (pts.length < 3) return false;
+    const created = typeof mkShape === "function" ? mkShape(pts) : null;
+    clearShapeDraft();
+    if (created) {
+      st.rects.unshift(created);
+      setMode("select");
+      selRect(created.id);
+      refreshPanels();
+      schedulePersist("project");
+    }
+    render();
+    return true;
+  };
+
+  const isScreenRect = r => isScreenRectKind(r);
+
+  const findShapeEditHit = p => {
+    if (!Array.isArray(st && st.rects)) return null;
+    for (let i = 0; i < st.rects.length; i++) {
+      const r = st.rects[i];
+      if (!r || typeof isShapeRect !== "function" || !isShapeRect(r) || isRectLocked(r)) continue;
+      const pointIndex = typeof shapePointHit === "function" ? shapePointHit(r, p.x, p.y, st.zoom) : -1;
+      if (pointIndex >= 0) return { rect: r, pointIndex, segmentIndex: -1 };
+      const segmentIndex = typeof shapeSegmentHit === "function" ? shapeSegmentHit(r, p.x, p.y, st.zoom) : -1;
+      if (segmentIndex >= 0) return { rect: r, pointIndex: -1, segmentIndex };
+    }
+    return null;
+  };
+
+  const nearestShapeSnapOnScreen = p => {
+    if (!p || typeof worldToRectUV !== "function" || typeof rectUVToWorld !== "function") return p;
+    if (!Array.isArray(st && st.rects)) return p;
+    const threshold = 10 / zoomSafe(st.zoom);
+    for (let i = 0; i < st.rects.length; i++) {
+      const r = st.rects[i];
+      if (!isScreenRect(r)) continue;
+      const uv = worldToRectUV(r, p.x, p.y);
+      if (!uv || uv.u < 0 || uv.u > r.width || uv.v < 0 || uv.v > r.height) continue;
+      const snapAxis = (value, max, step) => {
+        const candidates = [0, max];
+        const safeStep = Math.max(1, Number(step) || 1);
+        candidates.push(Math.max(0, Math.min(max, Math.round(value / safeStep) * safeStep)));
+        let best = Number(value) || 0;
+        let bestDist = Infinity;
+        for (const candidate of candidates) {
+          const d = Math.abs((Number(candidate) || 0) - value);
+          if (d < bestDist) {
+            bestDist = d;
+            best = Number(candidate) || 0;
+          }
+        }
+        return bestDist <= threshold ? best : value;
+      };
+      const stepX = Math.max(1, (typeof drawCellX === "function" ? drawCellX(r) : 128) / 4);
+      const stepY = Math.max(1, (typeof drawCellY === "function" ? drawCellY(r) : 128) / 4);
+      const u = snapAxis(Number(uv.u) || 0, Math.max(0, Number(r.width) || 0), stepX);
+      const v = snapAxis(Number(uv.v) || 0, Math.max(0, Number(r.height) || 0), stepY);
+      if (Math.abs(u - uv.u) <= 1e-6 && Math.abs(v - uv.v) <= 1e-6) return p;
+      return rectUVToWorld(r, u, v);
+    }
+    return p;
+  };
+
+  const snapShapePoint = (p, opts = null) => {
+    const o = (opts && typeof opts === "object") ? opts : {};
+    if (o.disableSnap || o.ctrlSnap || o.ctrlKey) return p;
+    return nearestShapeSnapOnScreen(p);
+  };
+
+  const chooseShapePointHitIndex = (r, wx, wy) => {
+    const hits = typeof shapePointHits === "function" ? shapePointHits(r, wx, wy, st.zoom) : [];
+    if (!Array.isArray(hits) || !hits.length) return typeof shapePointHit === "function" ? shapePointHit(r, wx, wy, st.zoom) : -1;
+    const sel = st && st.shapePointSel;
+    const sameRect = sel && Math.round(Number(sel.id) || 0) === Math.round(Number(r && r.id) || 0);
+    const current = sameRect ? Math.round(Number(sel.index) || 0) : null;
+    if (sameRect && hits.length > 1 && hits.includes(current)) {
+      const pos = hits.indexOf(current);
+      return hits[(pos + 1) % hits.length];
+    }
+    return hits[0];
+  };
+
+  const chooseShapeEditHit = (r, wx, wy) => {
+    const hits = typeof shapeEditHits === "function" ? shapeEditHits(r, wx, wy, st.zoom) : [];
+    if (!Array.isArray(hits) || !hits.length) {
+      const index = chooseShapePointHitIndex(r, wx, wy);
+      return index >= 0 ? { index, handle: "" } : null;
+    }
+    const sel = st && st.shapePointSel;
+    const drag = st && st.shapePointDrag;
+    const sameRect = sel && Math.round(Number(sel.id) || 0) === Math.round(Number(r && r.id) || 0);
+    const currentIndex = sameRect ? Math.round(Number(sel.index) || 0) : null;
+    const currentHandle = drag && Math.round(Number(drag.id) || 0) === Math.round(Number(r && r.id) || 0) && Math.round(Number(drag.index) || 0) === currentIndex
+      ? String(drag.handle || "")
+      : "";
+    const handleHits = hits.filter(hit => hit && String(hit.handle || ""));
+    if (handleHits.length) {
+      const currentHandlePos = handleHits.findIndex(hit => hit && hit.index === currentIndex && String(hit.handle || "") === currentHandle);
+      if (sameRect && currentHandle && handleHits.length > 1 && currentHandlePos >= 0) return handleHits[(currentHandlePos + 1) % handleHits.length];
+      return handleHits[0];
+    }
+    const currentPos = hits.findIndex(hit => hit && hit.index === currentIndex && String(hit.handle || "") === currentHandle);
+    if (sameRect && hits.length > 1 && currentPos >= 0) return hits[(currentPos + 1) % hits.length];
+    return hits[0];
+  };
+
+  const shapeDraftCloseHit = p => {
+    const d = st.shapeDraft;
+    const pts = d && Array.isArray(d.points) ? d.points : [];
+    if (pts.length < 3) return false;
+    const first = pts[0];
+    const radius = 11 / zoomSafe(st.zoom);
+    return Math.hypot((Number(first.x) || 0) - p.x, (Number(first.y) || 0) - p.y) <= radius;
+  };
+
+  const handlePointerDownShape = (p, opts = null) => {
+    if (st.mode !== "shape") return false;
+    const sp = snapShapePoint(p, opts);
+    if (st.shapeDraft && Math.round(Number(opts && opts.clickCount) || 1) > 1) {
+      finalizeShapeDraft();
+      st.shapeSuppressNextDoubleClick = true;
+      return true;
+    }
+    const d = ensureShapeDraft();
+    const pts = d.points;
+    if (shapeDraftCloseHit(p)) {
+      finalizeShapeDraft();
+      return true;
+    }
+    if (!pts.length) {
+      const editHit = findShapeEditHit(p);
+      if (editHit && editHit.rect) {
+        const r = editHit.rect;
+        if (editHit.segmentIndex >= 0 && Array.isArray(r.shapePoints)) {
+          const uv = worldToRectUV(r, sp.x, sp.y);
+          const insertAt = Math.max(0, Math.min(r.shapePoints.length, editHit.segmentIndex + 1));
+          r.shapePoints.splice(insertAt, 0, { x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) });
+          if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
+          st.shapePointSel = { id: r.id, index: insertAt };
+          setMode("select");
+          selRect(r.id);
+          refreshPanels();
+          schedulePersist("project");
+          render();
+          return true;
+        }
+        if (editHit.pointIndex >= 0) {
+          st.shapePointSel = { id: r.id, index: editHit.pointIndex };
+          setMode("select");
+          selRect(r.id);
+          syncProps();
+          render();
+          return true;
+        }
+      }
+    }
+    const last = pts[pts.length - 1];
+    if (!last || Math.hypot((Number(last.x) || 0) - sp.x, (Number(last.y) || 0) - sp.y) > 0.001) {
+      pts.push({ x: Math.round(sp.x), y: Math.round(sp.y) });
+    }
+    d.pointerX = sp.x;
+    d.pointerY = sp.y;
+    render();
+    return true;
+  };
+
+  const handlePointerDownSelectedShape = (p, opts = null) => {
+    if (st.mode !== "select" || opts?.shiftToggle) return false;
+    const selectedShape = cur();
+    if (!selectedShape || typeof isShapeRect !== "function" || !isShapeRect(selectedShape) || isRectLocked(selectedShape)) return false;
+    const selectedEditHit = chooseShapeEditHit(selectedShape, p.x, p.y);
+    if (!selectedEditHit) return false;
+    st.shapePointSel = { id: selectedShape.id, index: selectedEditHit.index };
+    st.shapePointDrag = { id: selectedShape.id, index: selectedEditHit.index, handle: selectedEditHit.handle || "", changed: false };
+    syncProps();
+    render();
+    return true;
+  };
+
+  const handlePointerDownHitShape = (h, p, opts = null, isSelectedRectId = () => false) => {
+    if (st.mode !== "select" || !h || typeof isShapeRect !== "function" || !isShapeRect(h) || isRectLocked(h) || typeof shapePointHit !== "function") return false;
+    if (opts?.shiftToggle) {
+      selRect(h.id, { toggle: true });
+      st.shapePointSel = null;
+      syncProps();
+      render();
+      return true;
+    }
+    if (!isSelectedRectId(h.id)) {
+      selRect(h.id);
+      syncProps();
+      render();
+      return true;
+    }
+    const editHit = chooseShapeEditHit(h, p.x, p.y);
+    if (editHit && editHit.handle) {
+      st.shapePointSel = { id: h.id, index: editHit.index };
+      st.shapePointDrag = { id: h.id, index: editHit.index, handle: editHit.handle, changed: false };
+      syncProps();
+      render();
+      return true;
+    }
+    const pointIndex = editHit ? editHit.index : chooseShapePointHitIndex(h, p.x, p.y);
+    if (pointIndex >= 0) {
+      st.shapePointSel = { id: h.id, index: pointIndex };
+      st.shapePointDrag = { id: h.id, index: pointIndex, changed: false };
+      syncProps();
+      render();
+      return true;
+    }
+    if (st.shapePointSel && Math.round(Number(st.shapePointSel.id) || 0) === Math.round(Number(h.id) || 0)) {
+      st.shapePointSel = null;
+      syncProps();
+      render();
+    }
+    return false;
+  };
+
+  const handlePointerMove = (p, opts = null) => {
+    const o = (opts && typeof opts === "object") ? opts : {};
+    if (st.shapePointDrag) {
+      const drag = st.shapePointDrag;
+      const r = getRectById(drag.id);
+      if (!r || !isShapeRect(r) || isRectLocked(r) || !Array.isArray(r.shapePoints)) {
+        st.shapePointDrag = null;
+        return false;
+      }
+      const sp = snapShapePoint(p, o);
+      const uv = worldToRectUV(r, sp.x, sp.y);
+      const index = Math.max(0, Math.min(r.shapePoints.length - 1, Math.round(Number(drag.index) || 0)));
+      const point = r.shapePoints[index] || {};
+      if (drag.handle === "in" || drag.handle === "out") {
+        const keyX = drag.handle === "in" ? "inX" : "outX";
+        const keyY = drag.handle === "in" ? "inY" : "outY";
+        point.type = "bezier";
+        point[keyX] = Math.round((Number(uv.u) || 0) - (Number(point.x) || 0));
+        point[keyY] = Math.round((Number(uv.v) || 0) - (Number(point.y) || 0));
+      } else {
+        r.shapePoints[index] = { ...point, x: Math.round(Number(uv.u) || 0), y: Math.round(Number(uv.v) || 0) };
+      }
+      if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(r);
+      drag.changed = true;
+      if (typeof syncPropsSmart === "function") syncPropsSmart();
+      render();
+      return true;
+    }
+    if (st.mode === "shape" && st.shapeDraft) {
+      const sp = snapShapePoint(p, o);
+      st.shapeDraft.pointerX = sp.x;
+      st.shapeDraft.pointerY = sp.y;
+      render();
+      return true;
+    }
+    return false;
+  };
+
+  const selectedHandleHit = p => {
+    const selectedShape = cur();
+    if (!selectedShape || typeof isShapeRect !== "function" || !isShapeRect(selectedShape) || isRectLocked(selectedShape)) return null;
+    const hit = chooseShapeEditHit(selectedShape, p.x, p.y);
+    return hit && hit.handle ? hit : null;
+  };
+
+  const handleDoubleClickShape = (p, preventDefault = () => { }) => {
+    if (st.shapeSuppressNextDoubleClick) {
+      st.shapeSuppressNextDoubleClick = false;
+      preventDefault();
+      return true;
+    }
+    if (st.mode === "shape" && st.shapeDraft && finalizeShapeDraft()) {
+      preventDefault();
+      return true;
+    }
+    return false;
+  };
+
+  const handleDoubleClickHitShape = (h, p, preventDefault = () => { }) => {
+    if (!h || typeof isShapeRect !== "function" || !isShapeRect(h)) return false;
+    if (h.id !== st.sel) selRect(h.id);
+    const pointIndex = typeof shapePointHit === "function" ? shapePointHit(h, p.x, p.y, st.zoom) : -1;
+    if (pointIndex >= 0 && Array.isArray(h.shapePoints) && h.shapePoints.length > 3) {
+      h.shapePoints.splice(pointIndex, 1);
+      if (typeof normalizeShapeBounds === "function") normalizeShapeBounds(h);
+      st.shapePointSel = null;
+      schedulePersist("project");
+      syncProps();
+      render();
+      preventDefault();
+    }
+    return true;
+  };
+
+  return {
+    chooseShapeEditHit,
+    finalizeShapeDraft,
+    handlePointerDownShape,
+    handlePointerDownSelectedShape,
+    handlePointerDownHitShape,
+    handlePointerMove,
+    handleDoubleClickShape,
+    handleDoubleClickHitShape,
+    selectedHandleHit
+  };
+};

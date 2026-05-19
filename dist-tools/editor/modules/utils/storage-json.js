@@ -1,1 +1,35 @@
-export const lsGet=(t,r=null)=>{try{const n=localStorage.getItem(t);return null==n?r:n}catch{return r}};export const lsSet=(t,r)=>{try{return localStorage.setItem(t,r),!0}catch{return!1}};export const cloneJson=(t,r=null)=>{try{return JSON.parse(JSON.stringify(t))}catch{return"function"==typeof r?r():r}};export const jsonEquals=(t,r)=>{try{return JSON.stringify(t)===JSON.stringify(r)}catch{return!1}};
+/* build:1779222473 */
+export const lsGet = (key, fallback = null) => {
+  try {
+    const value = localStorage.getItem(key);
+    return value == null ? fallback : value;
+  } catch {
+    return fallback;
+  }
+};
+
+export const lsSet = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const cloneJson = (data, fallback = null) => {
+  try {
+    return JSON.parse(JSON.stringify(data));
+  } catch {
+    return typeof fallback === "function" ? fallback() : fallback;
+  }
+};
+
+export const jsonEquals = (a, b) => {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+};
+

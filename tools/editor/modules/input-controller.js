@@ -205,6 +205,8 @@ export const setupInputController = (deps = {}) => {
   const handleTouchStart = e => touchController.handleTouchStart(e);
   const handleTouchMove = e => touchController.handleTouchMove(e);
   const handleTouchEnd = e => touchController.handleTouchEnd(e);
+  const LOCKALL_PAN_START_THRESHOLD_PX = 8;
+  let lockAllPanPending = null;
   let canvasRectCache = null;
   const invalidateCanvasRectCache = () => { canvasRectCache = null; };
   const getCanvasRect = () => {
@@ -231,18 +233,49 @@ export const setupInputController = (deps = {}) => {
       handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false, clickCount, sx, sy });
       return;
     }
-    const panWithLeft = e.button === 0 && (st.keys.space || st.lockAll);
-    const pan = e.button === 1 || e.button === 2 || panWithLeft;
-    if (pan) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return; }
+    // In lockAll mode still allow canvas UI overlays (e.g. controller legend STD/FW toggle)
+    // to consume the click before we fall back to left-button panning.
+    if (e.button === 0 && st.lockAll) {
+      const handledUiClick = !!handleCanvasPointerDown(p, {
+        shiftToggle: !!e.shiftKey,
+        altKey: !!e.altKey,
+        ctrlKey: !!(e.ctrlKey || e.metaKey),
+        touchLike: false,
+        clickCount,
+        sx,
+        sy
+      });
+      if (handledUiClick) return;
+    }
+    const panWithLeftSpace = e.button === 0 && !!st.keys.space;
+    const panWithLeftLockAll = e.button === 0 && !!st.lockAll && !st.keys.space;
+    const pan = e.button === 1 || e.button === 2 || panWithLeftSpace;
+    if (panWithLeftLockAll) {
+      lockAllPanPending = { sx, sy, cx: st.camX, cy: st.camY };
+      return;
+    }
+    if (pan || panWithLeftSpace) { st.pan = true; st.panS = { sx, sy, cx: st.camX, cy: st.camY }; render(); return; }
     if (e.button !== 0) return;
     handleCanvasPointerDown(p, { shiftToggle: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!(e.ctrlKey || e.metaKey), touchLike: false, clickCount, sx, sy });
   });
   bindWindowEvent("mousemove", e => {
     const { sx, sy, p } = getCanvasPoint(e);
+    if (!st.pan && lockAllPanPending && st.lockAll) {
+      const dx = sx - (Number(lockAllPanPending.sx) || 0);
+      const dy = sy - (Number(lockAllPanPending.sy) || 0);
+      if (Math.hypot(dx, dy) >= LOCKALL_PAN_START_THRESHOLD_PX) {
+        st.pan = true;
+        st.panS = { sx: lockAllPanPending.sx, sy: lockAllPanPending.sy, cx: lockAllPanPending.cx, cy: lockAllPanPending.cy };
+        lockAllPanPending = null;
+      }
+    }
     handleCanvasPointerMove(p, { sx, sy, ctrlSnap: !!(e.ctrlKey || st.keys.ctrl), altResize: !!e.altKey });
   });
   bindEvent(cv, "mouseleave", handleCanvasMouseLeave);
-  bindWindowEvent("mouseup", () => { handleCanvasPointerUp(); });
+  bindWindowEvent("mouseup", () => {
+    lockAllPanPending = null;
+    handleCanvasPointerUp();
+  });
   bindEvent(cv, "wheel", e => {
     invalidateCanvasRectCache();
     e.preventDefault();

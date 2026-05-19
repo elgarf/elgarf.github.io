@@ -1,1 +1,91 @@
-export const setupViewportResizeController=(e={})=>{const{st:i,cv:t,overlayCanvas:o,wrap:n,bindWindowEvent:r,bindEvent:s,render:a,zc:w,s2w:d,observeMainSelector:h=".main"}=e,u=()=>{const e=window.visualViewport&&Number.isFinite(window.visualViewport.height)&&window.visualViewport.height>0?window.visualViewport.height:window.innerHeight;Number.isFinite(e)&&e>0&&document.documentElement.style.setProperty("--app-vh",`${Math.round(e)}px`)},c=()=>{const e=window.devicePixelRatio||1,i=t.getBoundingClientRect(),n=Math.max(1,Math.floor(i.width*e)),r=Math.max(1,Math.floor(i.height*e));t.width=n,t.height=r,o&&(o.width=n,o.height=r),a(!0)};let l=0,p=0;const v=()=>{u(),c()},m=()=>{l||"function"!=typeof requestAnimationFrame?l||v():l=requestAnimationFrame(()=>{l=0,v()}),p&&clearTimeout(p),p=setTimeout(()=>{p=0,v()},120)};return{updateAppViewportHeight:u,resize:c,scheduleCanvasResize:m,bindResizeListeners:()=>{if(r("resize",m),"undefined"!=typeof ResizeObserver){const e=new ResizeObserver(()=>m());n&&e.observe(n);const i=document.querySelector(h);i&&e.observe(i)}r("orientationchange",m),window.visualViewport&&window.visualViewport.addEventListener&&s(window.visualViewport,"resize",m)},zoomAt:(e,t,o)=>{const n=d(e,t);i.zoom=w(o);const r=d(e,t);i.camX+=n.x-r.x,i.camY+=n.y-r.y,a()}}};
+/* build:1779222473 */
+export const setupViewportResizeController = (deps = {}) => {
+  const {
+    st,
+    cv,
+    overlayCanvas,
+    wrap,
+    bindWindowEvent,
+    bindEvent,
+    render,
+    zc,
+    s2w,
+    observeMainSelector = ".main"
+  } = deps;
+
+  const updateAppViewportHeight = () => {
+    const h = (window.visualViewport && Number.isFinite(window.visualViewport.height) && window.visualViewport.height > 0)
+      ? window.visualViewport.height
+      : window.innerHeight;
+    if (Number.isFinite(h) && h > 0) document.documentElement.style.setProperty("--app-vh", `${Math.round(h)}px`);
+  };
+
+  const resize = () => {
+    const r = window.devicePixelRatio || 1;
+    const b = cv.getBoundingClientRect();
+    const width = Math.max(1, Math.floor(b.width * r));
+    const height = Math.max(1, Math.floor(b.height * r));
+    cv.width = width;
+    cv.height = height;
+    if (overlayCanvas) {
+      overlayCanvas.width = width;
+      overlayCanvas.height = height;
+    }
+    render(true);
+  };
+
+  let canvasResizeRaf = 0;
+  let canvasResizeTimer = 0;
+
+  const runCanvasResize = () => {
+    updateAppViewportHeight();
+    resize();
+  };
+
+  const scheduleCanvasResize = () => {
+    if (!canvasResizeRaf && typeof requestAnimationFrame === "function") {
+      canvasResizeRaf = requestAnimationFrame(() => {
+        canvasResizeRaf = 0;
+        runCanvasResize();
+      });
+    } else if (!canvasResizeRaf) {
+      runCanvasResize();
+    }
+    if (canvasResizeTimer) clearTimeout(canvasResizeTimer);
+    canvasResizeTimer = setTimeout(() => {
+      canvasResizeTimer = 0;
+      runCanvasResize();
+    }, 120);
+  };
+
+  const bindResizeListeners = () => {
+    bindWindowEvent("resize", scheduleCanvasResize);
+    if (typeof ResizeObserver !== "undefined") {
+      const canvasResizeObserver = new ResizeObserver(() => scheduleCanvasResize());
+      if (wrap) canvasResizeObserver.observe(wrap);
+      const main = document.querySelector(observeMainSelector);
+      if (main) canvasResizeObserver.observe(main);
+    }
+    bindWindowEvent("orientationchange", scheduleCanvasResize);
+    if (window.visualViewport && window.visualViewport.addEventListener) {
+      bindEvent(window.visualViewport, "resize", scheduleCanvasResize);
+    }
+  };
+
+  const zoomAt = (sx, sy, nz) => {
+    const b = s2w(sx, sy);
+    st.zoom = zc(nz);
+    const a = s2w(sx, sy);
+    st.camX += b.x - a.x;
+    st.camY += b.y - a.y;
+    render();
+  };
+
+  return {
+    updateAppViewportHeight,
+    resize,
+    scheduleCanvasResize,
+    bindResizeListeners,
+    zoomAt
+  };
+};

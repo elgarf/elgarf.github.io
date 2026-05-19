@@ -1,1 +1,80 @@
-export const setupNoteRender=(t={})=>{const{st:e,rads:o,rectCenter:a,getRectTextSizePx:l,fontFamilyCss:n,t:r=t=>t}=t;return{drawNoteRect:(t,i,s,h)=>{const f=o(i.rotation||0),c=a(i),x=i.width,g=i.height,m=Math.max(10,l(i));t.save(),t.translate(c.x,c.y),t.rotate(f),t.beginPath(),t.rect(-x/2,-g/2,x,g),t.fillStyle=String(i.colorA||"#fff7c2"),t.fill(),t.lineWidth=Math.max(1,1.2/Math.max(.2,h||1)),t.strokeStyle=s?"rgba(13,110,253,.96)":"rgba(61,73,93,.78)",t.stroke();const M=Math.max(6,8/Math.max(.5,h||1));t.fillStyle=String(i.colorB||"#1f2937"),t.textAlign="left",t.textBaseline="top",t.font=`${m}px ${n(e.fontFamily)}`;const S=((t,e,o)=>{const a=[],l=String(e||"").replace(/\r/g,"").split("\n");for(const e of l){const l=String(e||"").split(/\s+/).filter(Boolean);if(!l.length){a.push("");continue}let n=l[0];for(let e=1;e<l.length;e++){const r=`${n} ${l[e]}`;t.measureText(r).width<=o?n=r:(a.push(n),n=l[e])}a.push(n)}return a.length?a:[""]})(t,String(i.noteText||"").trim()||r("Двойной клик для ввода текста"),Math.max(8,x-2*M)),p=Math.max(12,1.3*m);let u=-g/2+M;for(const e of S){if(u+p>g/2-M)break;t.fillText(e,-x/2+M,u),u+=p}if(s){const e=Math.max(8,14/Math.max(.25,h||1)),o=x/2-e,a=g/2-e;t.fillStyle="rgba(13,110,253,.95)",t.strokeStyle="rgba(255,255,255,.92)",t.lineWidth=Math.max(1,1.2/Math.max(.25,h||1)),t.beginPath(),t.moveTo(x/2,a),t.lineTo(x/2,g/2),t.lineTo(o,g/2),t.closePath(),t.fill(),t.stroke()}t.restore()}}};
+/* build:1779222473 */
+export const setupNoteRender = (deps = {}) => {
+  const {
+    st,
+    rads,
+    rectCenter,
+    getRectTextSizePx,
+    fontFamilyCss,
+    t = value => value
+  } = deps;
+
+  const wrapNoteText = (c, text, maxW) => {
+    const out = [];
+    const lines = String(text || "").replace(/\r/g, "").split("\n");
+    for (const ln of lines) {
+      const words = String(ln || "").split(/\s+/).filter(Boolean);
+      if (!words.length) { out.push(""); continue; }
+      let cur = words[0];
+      for (let i = 1; i < words.length; i++) {
+        const next = `${cur} ${words[i]}`;
+        if (c.measureText(next).width <= maxW) cur = next;
+        else { out.push(cur); cur = words[i]; }
+      }
+      out.push(cur);
+    }
+    return out.length ? out : [""];
+  };
+
+  const drawNoteRect = (c, r, sel, z) => {
+    const a = rads(r.rotation || 0);
+    const center = rectCenter(r);
+    const w = r.width;
+    const h = r.height;
+    const fs = Math.max(10, getRectTextSizePx(r));
+    c.save();
+    c.translate(center.x, center.y);
+    c.rotate(a);
+    c.beginPath();
+    c.rect(-w / 2, -h / 2, w, h);
+    c.fillStyle = String(r.colorA || "#fff7c2");
+    c.fill();
+    c.lineWidth = Math.max(1, 1.2 / Math.max(0.2, z || 1));
+    c.strokeStyle = sel ? "rgba(13,110,253,.96)" : "rgba(61,73,93,.78)";
+    c.stroke();
+    const pad = Math.max(6, 8 / Math.max(0.5, z || 1));
+    c.fillStyle = String(r.colorB || "#1f2937");
+    c.textAlign = "left";
+    c.textBaseline = "top";
+    c.font = `${fs}px ${fontFamilyCss(st.fontFamily)}`;
+    const text = String(r.noteText || "").trim() || t("Двойной клик для ввода текста");
+    const lines = wrapNoteText(c, text, Math.max(8, w - pad * 2));
+    const lh = Math.max(12, fs * 1.3);
+    let y = -h / 2 + pad;
+    for (const line of lines) {
+      if (y + lh > h / 2 - pad) break;
+      c.fillText(line, -w / 2 + pad, y);
+      y += lh;
+    }
+    if (sel) {
+      const hs = Math.max(8, 14 / Math.max(.25, z || 1));
+      const x0 = (w / 2) - hs;
+      const y0 = (h / 2) - hs;
+      c.fillStyle = "rgba(13,110,253,.95)";
+      c.strokeStyle = "rgba(255,255,255,.92)";
+      c.lineWidth = Math.max(1, 1.2 / Math.max(0.25, z || 1));
+      c.beginPath();
+      c.moveTo(w / 2, y0);
+      c.lineTo(w / 2, h / 2);
+      c.lineTo(x0, h / 2);
+      c.closePath();
+      c.fill();
+      c.stroke();
+    }
+    c.restore();
+  };
+
+  return {
+    drawNoteRect
+  };
+};

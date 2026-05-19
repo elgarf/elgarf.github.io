@@ -1,1 +1,89 @@
-export const setupCanvasNavigationController=(e={})=>{const{st:t,render:n,hit:o,selRect:r,isSelected:a,beginRectDrag:i,beginSelectionBox:l,updateSelectionBox:s,moveRectDrag:c}=e;return{handlePointerDownSelect:(e,t=null)=>{const s=t&&"object"==typeof t?t:{},c=o(e.x,e.y);if(c){if(s.shiftToggle)return r(c.id,{toggle:!0}),n(),!0;if(!a(c.id))return r(c.id),n(),!0;i(c,e)}else l(e,!!s.shiftToggle,!!s.touchLike);return n(),!0},handlePanPointerMove:(e,o=null)=>{const r=o&&"object"==typeof o?o:{};return!(!t.pan||!t.panS)&&(t.camX=t.panS.cx-(r.sx-t.panS.sx)/t.zoom,t.camY=t.panS.cy-(r.sy-t.panS.sy)/t.zoom,n(),!0)},handleSelectionBoxPointerMove:e=>!!t.selBox&&(s(e),n(),!0),handleDraftPointerMove:e=>!!t.draft&&(((e,t)=>{e&&t&&(e.x=Math.min(e.sx,t.x),e.y=Math.min(e.sy,t.y),e.width=Math.abs(t.x-e.sx),e.height=Math.abs(t.y-e.sy),e.pointerX=t.x,e.pointerY=t.y)})(t.draft,e),n(),!0),handleDragPointerMove:(e,o=null)=>{if(!t.drag)return!1;return c(e,!!(o&&"object"==typeof o?o:{}).ctrlSnap),n(),!0}}};
+/* build:1779222473 */
+export const setupCanvasNavigationController = (deps = {}) => {
+  const {
+    st,
+    render,
+    hit,
+    selRect,
+    isSelected,
+    beginRectDrag,
+    beginSelectionBox,
+    updateSelectionBox,
+    moveRectDrag
+  } = deps;
+
+  const updateDraftFromPoint = (d, p) => {
+    if (!d || !p) return;
+    d.x = Math.min(d.sx, p.x);
+    d.y = Math.min(d.sy, p.y);
+    d.width = Math.abs(p.x - d.sx);
+    d.height = Math.abs(p.y - d.sy);
+    d.pointerX = p.x;
+    d.pointerY = p.y;
+  };
+
+  const handlePointerDownSelect = (p, opts = null) => {
+    const o = (opts && typeof opts === "object") ? opts : {};
+    if (st && st.lockAll) {
+      render();
+      return true;
+    }
+    const h = hit(p.x, p.y);
+    if (h) {
+      if (o.shiftToggle) {
+        selRect(h.id, { toggle: true });
+        render();
+        return true;
+      }
+      if (!isSelected(h.id)) {
+        selRect(h.id);
+        render();
+        return true;
+      }
+      beginRectDrag(h, p);
+    } else {
+      beginSelectionBox(p, !!o.shiftToggle, !!o.touchLike);
+    }
+    render();
+    return true;
+  };
+
+  const handlePanPointerMove = (p, opts = null) => {
+    const o = (opts && typeof opts === "object") ? opts : {};
+    if (!(st.pan && st.panS)) return false;
+    st.camX = st.panS.cx - (o.sx - st.panS.sx) / st.zoom;
+    st.camY = st.panS.cy - (o.sy - st.panS.sy) / st.zoom;
+    render();
+    return true;
+  };
+
+  const handleSelectionBoxPointerMove = p => {
+    if (!st.selBox) return false;
+    updateSelectionBox(p);
+    render();
+    return true;
+  };
+
+  const handleDraftPointerMove = p => {
+    if (!st.draft) return false;
+    updateDraftFromPoint(st.draft, p);
+    render();
+    return true;
+  };
+
+  const handleDragPointerMove = (p, opts = null) => {
+    if (!st.drag) return false;
+    const o = (opts && typeof opts === "object") ? opts : {};
+    moveRectDrag(p, !!o.ctrlSnap);
+    render();
+    return true;
+  };
+
+  return {
+    handlePointerDownSelect,
+    handlePanPointerMove,
+    handleSelectionBoxPointerMove,
+    handleDraftPointerMove,
+    handleDragPointerMove
+  };
+};

@@ -1,1 +1,66 @@
-export const setupProjectLinkModalController=(t={})=>{const{el:e,getProjectLinkModal:o,getById:r,showMessageModal:n,focusModalTextLater:c}=t,i=t=>{const e=String(t||"");if(!e)return"";if("function"!=typeof qrcode)return"";const o=["L","M","Q","H"];for(const t of o)try{const o=qrcode(0,t);return o.addData(e),o.make(),o.createDataURL(14,3)}catch{}return""};return{buildQrDataUrl:i,showProjectLinkModal:(t,s={})=>{const a=o(),l=e&&e.projectLinkQr||r("projectLinkQr"),d=e&&e.projectLinkText||r("projectLinkText"),L=e&&e.projectLinkLoading||r("projectLinkLoading"),g=!(!s||!s.loading),u=String(s&&s.loadingText||"Формируем ссылку..."),f=String(t||"");if(d&&(d.value=g?u:f),L){L.classList.toggle("d-none",!g);const t=L.querySelector("div:last-child");t&&(t.textContent=u)}if(l)if(l.classList.toggle("d-none",g),g)l.removeAttribute("src");else{const t=i(f);t&&(l.src=t)}if(a)return a.show(),void c(d,g);n(f,"Ссылка проекта")}}};
+/* build:1779222473 */
+export const setupProjectLinkModalController = (deps = {}) => {
+  const {
+    el,
+    getProjectLinkModal,
+    getById,
+    showMessageModal,
+    focusModalTextLater
+  } = deps;
+
+  const buildQrDataUrl = value => {
+    const text = String(value || "");
+    if (!text) return "";
+    if (typeof qrcode !== "function") return "";
+    const levels = ["L", "M", "Q", "H"];
+    for (const lvl of levels) {
+      try {
+        const qr = qrcode(0, lvl);
+        qr.addData(text);
+        qr.make();
+        return qr.createDataURL(14, 3);
+      } catch {
+        // try next correction level; L gives max capacity
+      }
+    }
+    return "";
+  };
+
+  const showProjectLinkModal = (link, opts = {}) => {
+    const modal = getProjectLinkModal();
+    const qr = (el && el.projectLinkQr) || getById("projectLinkQr");
+    const txt = (el && el.projectLinkText) || getById("projectLinkText");
+    const loadingNode = (el && el.projectLinkLoading) || getById("projectLinkLoading");
+    const loading = !!(opts && opts.loading);
+    const loadingText = String((opts && opts.loadingText) || "Формируем ссылку...");
+    const value = String(link || "");
+
+    if (txt) txt.value = loading ? loadingText : value;
+
+    if (loadingNode) {
+      loadingNode.classList.toggle("d-none", !loading);
+      const msg = loadingNode.querySelector("div:last-child");
+      if (msg) msg.textContent = loadingText;
+    }
+
+    if (qr) {
+      qr.classList.toggle("d-none", loading);
+      if (loading) {
+        qr.removeAttribute("src");
+      } else {
+        const dataUrl = buildQrDataUrl(value);
+        if (dataUrl) qr.src = dataUrl;
+      }
+    }
+
+    if (modal) {
+      modal.show();
+      focusModalTextLater(txt, loading);
+      return;
+    }
+    showMessageModal(value, "Ссылка проекта");
+  };
+
+  return { buildQrDataUrl, showProjectLinkModal };
+};
+

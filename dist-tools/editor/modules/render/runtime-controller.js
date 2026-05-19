@@ -1,1 +1,254 @@
-export const setupRenderRuntimeController=(e={})=>{const{ctx:t,overlayCtx:n,st:o,cv:r,overlayCanvas:i,wrap:a,w2s:s,fontFamilyCss:l,el:c,renderPipeline:f,onBeforeRenderFrame:d,getGridAnchorBounds:m}=e,y=()=>{let e=Math.max(1,Math.round(.5*(Number(o.globalScale)||256))),n=0,i=0;if("function"==typeof m){const e=m();e&&Number.isFinite(Number(e.minX))&&Number.isFinite(Number(e.minY))&&(n=Number(e.minX)||0,i=Number(e.minY)||0)}const a=Math.max(1e-6,Number(o.zoom)||1),l=Math.max(1e-6,e*a),c=s(n,i),f=c.x+Math.floor((0-c.x)/l)*l,d=c.x+Math.ceil((r.clientWidth-c.x)/l)*l,y=c.y+Math.floor((0-c.y)/l)*l,u=c.y+Math.ceil((r.clientHeight-c.y)/l)*l;t.save(),t.strokeStyle="rgba(147,177,207,.09)",t.lineWidth=1;const x=new Path2D;for(let e=f;e<=d;e+=l){const t=Math.round(e)+.5;x.moveTo(t,0),x.lineTo(t,r.clientHeight)}t.stroke(x);const g=new Path2D;for(let e=y;e<=u;e+=l){const t=Math.round(e)+.5;g.moveTo(0,t),g.lineTo(r.clientWidth,t)}t.stroke(g),t.restore()},u=(e=t)=>{if(null==o.g.x&&null==o.g.y)return;const n=e||t;if(n.save(),n.strokeStyle="rgba(74,200,255,.9)",n.setLineDash([6,5]),n.lineWidth=1,null!=o.g.x){const e=s(o.g.x,0).x;n.beginPath(),n.moveTo(e,0),n.lineTo(e,r.clientHeight),n.stroke()}if(null!=o.g.y){const e=s(0,o.g.y).y;n.beginPath(),n.moveTo(0,e),n.lineTo(r.clientWidth,e),n.stroke()}n.restore()},x=(e=t)=>{if(!o.dg)return;const n=e||t,r=(e,t,r)=>{let{x1:i,y1:a,x2:c,y2:f,v:d,axis:m}=e;const y=s(i,a),u=s(c,f),x=`${Math.round(d)} px`;if(n.save(),n.strokeStyle=t,n.lineWidth=1.5,n.setLineDash([]),n.beginPath(),n.moveTo(y.x,y.y),n.lineTo(u.x,u.y),n.stroke(),!o.fontReady)return void n.restore();n.font=`12px ${l(o.fontFamily)}`;const g=n.measureText(x).width+10;if(n.fillStyle="rgba(15,19,24,.85)","y"===m){const e=(y.y+u.y)/2;n.beginPath(),n.moveTo(y.x-7,y.y),n.lineTo(y.x+7,y.y),n.moveTo(u.x-7,u.y),n.lineTo(u.x+7,u.y),n.stroke(),n.fillRect(y.x+8+r,e-8,g,16),n.fillStyle=t,n.textAlign="left",n.textBaseline="middle",n.fillText(x,y.x+13+r,e)}else{if(y.x>u.x){const e=y.x;y.x=u.x,u.x=e}const e=(y.x+u.x)/2;n.beginPath(),n.moveTo(y.x,y.y-7),n.lineTo(y.x,y.y+7),n.moveTo(u.x,u.y-7),n.lineTo(u.x,u.y+7),n.stroke(),n.fillRect(e-g/2,y.y-24-r,g,16),n.fillStyle=t,n.textAlign="center",n.textBaseline="middle",n.fillText(x,e,y.y-16-r)}n.restore()};if(o.dg.refs&&Array.isArray(o.dg.refs)){for(const e of o.dg.refs)r(e,"#ffd77a",0);r(o.dg,"#71d7ff",18)}else o.dg.ref&&r(o.dg.ref,"#ffd77a",0),r(o.dg,"#71d7ff",18)};f&&"function"==typeof f.setGridRenderer&&f.setGridRenderer(y),f&&"function"==typeof f.setGuidesRenderer&&f.setGuidesRenderer(u),f&&"function"==typeof f.setDistanceGuideRenderer&&f.setDistanceGuideRenderer(x);let g=0,h=0;const v=e=>o&&(o.renderProfiler||"undefined"!=typeof location&&/(?:^|[?&])profile=1(?:&|$)/.test(location.search||""))?{kind:e,sections:[],start:performance.now(),totalMs:0}:null,p=e=>{e&&(e.totalMs=performance.now()-e.start,o.renderProfile={kind:e.kind,totalMs:e.totalMs,sections:e.sections.slice().sort((e,t)=>Number(t.ms||0)-Number(e.ms||0)).slice(0,8)})},b=()=>{h&&"function"==typeof cancelAnimationFrame&&(cancelAnimationFrame(h),h=0),"function"==typeof d&&d();const e=!!o.pan,t=!!(a&&a.classList&&a.classList.contains("tab-switching")),n=!!(o.draft||o.clusterDrag||o.flowDrag),r="flowEdit"===o.mode,i=!!(t||n&&!r);f.resetFrameTransient();const s=v("full");f.renderScene({forceLowDetail:i,skipHeavyOverlays:!!(e||t||n&&!r),profile:s}),p(s),c&&c.zoomLabel&&(c.zoomLabel.textContent=`${Math.round(100*o.zoom)}%`)},T=()=>{if(g)return;const e=!!o.pan,t=!!(a&&a.classList&&a.classList.contains("tab-switching")),n=!!(o.draft||o.clusterDrag||o.flowDrag),r="flowEdit"===o.mode,i=v("overlay");f&&"function"==typeof f.renderOverlay&&f.renderOverlay({skipHeavyOverlays:!!(e||t||n&&!r),profile:i}),p(i),a&&(a.dataset.panning=o.pan?"1":"0")},w=(e=!1)=>{if(e||"function"!=typeof requestAnimationFrame)return g&&"function"==typeof cancelAnimationFrame&&(cancelAnimationFrame(g),g=0),void b();g||(g=requestAnimationFrame(()=>{g=0,b()}))};return{render:w,renderOverlay:(e=!1)=>{if(n||i)return e||"function"!=typeof requestAnimationFrame?(h&&"function"==typeof cancelAnimationFrame&&(cancelAnimationFrame(h),h=0),void T()):void(h||g||(h=requestAnimationFrame(()=>{h=0,T()})));w(e)},renderOverlayNow:T,renderNow:b,drawGrid:y,drawGuides:u,drawDistanceGuide:x}};
+/* build:1779222473 */
+export const setupRenderRuntimeController = (deps = {}) => {
+  const {
+    ctx,
+    overlayCtx,
+    st,
+    cv,
+    overlayCanvas,
+    wrap,
+    w2s,
+    fontFamilyCss,
+    el,
+    renderPipeline,
+    onBeforeRenderFrame,
+    getGridAnchorBounds
+  } = deps;
+
+  const drawGrid = () => {
+    let step = Math.max(1, Math.round((Number(st.globalScale) || 256) * 0.5));
+    let anchorX = 0;
+    let anchorY = 0;
+    if (typeof getGridAnchorBounds === "function") {
+      const bb = getGridAnchorBounds();
+      if (bb && Number.isFinite(Number(bb.minX)) && Number.isFinite(Number(bb.minY))) {
+        anchorX = Number(bb.minX) || 0;
+        anchorY = Number(bb.minY) || 0;
+      }
+    }
+    const zoom = Math.max(1e-6, Number(st.zoom) || 1);
+    const pxStep = Math.max(1e-6, step * zoom);
+    const anchorScreen = w2s(anchorX, anchorY);
+    const sx = anchorScreen.x + Math.floor((0 - anchorScreen.x) / pxStep) * pxStep;
+    const ex = anchorScreen.x + Math.ceil((cv.clientWidth - anchorScreen.x) / pxStep) * pxStep;
+    const sy = anchorScreen.y + Math.floor((0 - anchorScreen.y) / pxStep) * pxStep;
+    const ey = anchorScreen.y + Math.ceil((cv.clientHeight - anchorScreen.y) / pxStep) * pxStep;
+    ctx.save();
+    ctx.strokeStyle = "rgba(147,177,207,.09)";
+    ctx.lineWidth = 1;
+    const vPath = new Path2D();
+    for (let px = sx; px <= ex; px += pxStep) {
+      const xp = Math.round(px) + .5;
+      vPath.moveTo(xp, 0);
+      vPath.lineTo(xp, cv.clientHeight);
+    }
+    ctx.stroke(vPath);
+    const hPath = new Path2D();
+    for (let py = sy; py <= ey; py += pxStep) {
+      const yp = Math.round(py) + .5;
+      hPath.moveTo(0, yp);
+      hPath.lineTo(cv.clientWidth, yp);
+    }
+    ctx.stroke(hPath);
+    ctx.restore();
+  };
+
+  const drawGuides = (targetCtx = ctx) => {
+    if (st.g.x == null && st.g.y == null) return;
+    const c = targetCtx || ctx;
+    c.save();
+    c.strokeStyle = "rgba(74,200,255,.9)";
+    c.setLineDash([6, 5]);
+    c.lineWidth = 1;
+    if (st.g.x != null) {
+      const x = w2s(st.g.x, 0).x;
+      c.beginPath();
+      c.moveTo(x, 0);
+      c.lineTo(x, cv.clientHeight);
+      c.stroke();
+    }
+    if (st.g.y != null) {
+      const y = w2s(0, st.g.y).y;
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(cv.clientWidth, y);
+      c.stroke();
+    }
+    c.restore();
+  };
+
+  const drawDistanceGuide = (targetCtx = ctx) => {
+    if (!st.dg) return;
+    const c = targetCtx || ctx;
+    const drawDim = (g, color, labelShift) => {
+      let { x1, y1, x2, y2, v, axis } = g;
+      const p1 = w2s(x1, y1);
+      const p2 = w2s(x2, y2);
+      const t = `${Math.round(v)} px`;
+      c.save();
+      c.strokeStyle = color;
+      c.lineWidth = 1.5;
+      c.setLineDash([]);
+      c.beginPath();
+      c.moveTo(p1.x, p1.y);
+      c.lineTo(p2.x, p2.y);
+      c.stroke();
+      if (!st.fontReady) {
+        c.restore();
+        return;
+      }
+      c.font = `12px ${fontFamilyCss(st.fontFamily)}`;
+      const tw = c.measureText(t).width + 10;
+      c.fillStyle = "rgba(15,19,24,.85)";
+      if (axis === "y") {
+        const m = (p1.y + p2.y) / 2;
+        c.beginPath();
+        c.moveTo(p1.x - 7, p1.y);
+        c.lineTo(p1.x + 7, p1.y);
+        c.moveTo(p2.x - 7, p2.y);
+        c.lineTo(p2.x + 7, p2.y);
+        c.stroke();
+        c.fillRect(p1.x + 8 + labelShift, m - 8, tw, 16);
+        c.fillStyle = color;
+        c.textAlign = "left";
+        c.textBaseline = "middle";
+        c.fillText(t, p1.x + 13 + labelShift, m);
+      } else {
+        if (p1.x > p2.x) {
+          const tx = p1.x;
+          p1.x = p2.x;
+          p2.x = tx;
+        }
+        const m = (p1.x + p2.x) / 2;
+        c.beginPath();
+        c.moveTo(p1.x, p1.y - 7);
+        c.lineTo(p1.x, p1.y + 7);
+        c.moveTo(p2.x, p2.y - 7);
+        c.lineTo(p2.x, p2.y + 7);
+        c.stroke();
+        c.fillRect(m - tw / 2, p1.y - 24 - labelShift, tw, 16);
+        c.fillStyle = color;
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText(t, m, p1.y - 16 - labelShift);
+      }
+      c.restore();
+    };
+    if (st.dg.refs && Array.isArray(st.dg.refs)) {
+      for (const r of st.dg.refs) drawDim(r, "#ffd77a", 0);
+      drawDim(st.dg, "#71d7ff", 18);
+      return;
+    }
+    if (st.dg.ref) drawDim(st.dg.ref, "#ffd77a", 0);
+    drawDim(st.dg, "#71d7ff", 18);
+  };
+
+  if (renderPipeline && typeof renderPipeline.setGridRenderer === "function") {
+    renderPipeline.setGridRenderer(drawGrid);
+  }
+  if (renderPipeline && typeof renderPipeline.setGuidesRenderer === "function") {
+    renderPipeline.setGuidesRenderer(drawGuides);
+  }
+  if (renderPipeline && typeof renderPipeline.setDistanceGuideRenderer === "function") {
+    renderPipeline.setDistanceGuideRenderer(drawDistanceGuide);
+  }
+
+  let renderRaf = 0;
+  let overlayRaf = 0;
+  const profilerEnabled = () => !!(st && (st.renderProfiler || (typeof location !== "undefined" && /(?:^|[?&])profile=1(?:&|$)/.test(location.search || ""))));
+  const createProfile = kind => profilerEnabled() ? { kind, sections: [], start: performance.now(), totalMs: 0 } : null;
+  const finishProfile = profile => {
+    if (!profile) return;
+    profile.totalMs = performance.now() - profile.start;
+    st.renderProfile = {
+      kind: profile.kind,
+      totalMs: profile.totalMs,
+      sections: profile.sections.slice().sort((a, b) => Number(b.ms || 0) - Number(a.ms || 0)).slice(0, 8)
+    };
+  };
+
+  const renderNow = () => {
+    if (overlayRaf && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(overlayRaf);
+      overlayRaf = 0;
+    }
+    if (typeof onBeforeRenderFrame === "function") onBeforeRenderFrame();
+    const fastPan = !!st.pan;
+    const tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching"));
+    const interactiveFast = !!((st.draft || st.clusterDrag || st.flowDrag));
+    const flowEditActive = st.mode === "flowEdit";
+    const forceLowDetail = !!(tabSwitching || (interactiveFast && !flowEditActive));
+    renderPipeline.resetFrameTransient();
+    const profile = createProfile("full");
+    renderPipeline.renderScene({
+      forceLowDetail,
+      skipHeavyOverlays: !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive)),
+      profile
+    });
+    finishProfile(profile);
+    if (el && el.zoomLabel) el.zoomLabel.textContent = `${Math.round(st.zoom * 100)}%`;
+  };
+
+  const renderOverlayNow = () => {
+    if (renderRaf) return;
+    const fastPan = !!st.pan;
+    const tabSwitching = !!(wrap && wrap.classList && wrap.classList.contains("tab-switching"));
+    const interactiveFast = !!((st.draft || st.clusterDrag || st.flowDrag));
+    const flowEditActive = st.mode === "flowEdit";
+    const profile = createProfile("overlay");
+    if (renderPipeline && typeof renderPipeline.renderOverlay === "function") {
+      renderPipeline.renderOverlay({
+        skipHeavyOverlays: !!(fastPan || tabSwitching || (interactiveFast && !flowEditActive)),
+        profile
+      });
+    }
+    finishProfile(profile);
+    if (wrap) wrap.dataset.panning = st.pan ? "1" : "0";
+  };
+
+  const render = (immediate = false) => {
+    if (immediate || typeof requestAnimationFrame !== "function") {
+      if (renderRaf && typeof cancelAnimationFrame === "function") {
+        cancelAnimationFrame(renderRaf);
+        renderRaf = 0;
+      }
+      renderNow();
+      return;
+    }
+    if (renderRaf) return;
+    renderRaf = requestAnimationFrame(() => {
+      renderRaf = 0;
+      renderNow();
+    });
+  };
+
+  const renderOverlay = (immediate = false) => {
+    if (!overlayCtx && !overlayCanvas) {
+      render(immediate);
+      return;
+    }
+    if (immediate || typeof requestAnimationFrame !== "function") {
+      if (overlayRaf && typeof cancelAnimationFrame === "function") {
+        cancelAnimationFrame(overlayRaf);
+        overlayRaf = 0;
+      }
+      renderOverlayNow();
+      return;
+    }
+    if (overlayRaf || renderRaf) return;
+    overlayRaf = requestAnimationFrame(() => {
+      overlayRaf = 0;
+      renderOverlayNow();
+    });
+  };
+
+  return {
+    render,
+    renderOverlay,
+    renderOverlayNow,
+    renderNow,
+    drawGrid,
+    drawGuides,
+    drawDistanceGuide
+  };
+};

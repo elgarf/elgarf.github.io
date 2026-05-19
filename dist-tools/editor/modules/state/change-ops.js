@@ -1,1 +1,51 @@
-export const setupChangeOpsController=(t={})=>{const{syncProps:e,syncPropsSmart:o,listRects:n,render:s,schedulePersist:c}=t,r=()=>{"function"==typeof e&&e(),"function"==typeof n&&n()};return{refreshPropsListRender:()=>{"function"==typeof e&&e(),"function"==typeof n&&n(),"function"==typeof s&&s()},persistProjectAndRender:()=>{"function"==typeof c&&c("project"),"function"==typeof s&&s()},refreshPanels:r,commitProjectChange:(t={})=>{const e=t&&"object"==typeof t?t:{};e.syncProps&&"function"==typeof o&&o(),e.refreshPanels&&r(),e.listRects&&"function"==typeof n&&n(),!1!==e.persist&&"function"==typeof c&&c(e.persistKind||"project"),!1!==e.render&&"function"==typeof s&&s()},commitUiUpdate:(t={})=>{const o=t&&"object"==typeof t?t:{};o.syncProps&&"function"==typeof e&&e(),o.listRects&&"function"==typeof n&&n(),o.persist&&"function"==typeof c&&c(o.persistKind||"project"),!1!==o.render&&"function"==typeof s&&s()}}};
+/* build:1779222473 */
+export const setupChangeOpsController = (deps = {}) => {
+  const {
+    syncProps,
+    syncPropsSmart,
+    listRects,
+    render,
+    schedulePersist
+  } = deps;
+
+  const refreshPropsListRender = () => {
+    if (typeof syncProps === "function") syncProps();
+    if (typeof listRects === "function") listRects();
+    if (typeof render === "function") render();
+  };
+
+  const persistProjectAndRender = () => {
+    if (typeof schedulePersist === "function") schedulePersist("project");
+    if (typeof render === "function") render();
+  };
+
+  const refreshPanels = () => {
+    if (typeof syncProps === "function") syncProps();
+    if (typeof listRects === "function") listRects();
+  };
+
+  const commitProjectChange = (opts = {}) => {
+    const o = (opts && typeof opts === "object") ? opts : {};
+    if (o.syncProps && typeof syncPropsSmart === "function") syncPropsSmart();
+    if (o.refreshPanels) refreshPanels();
+    if (o.listRects && typeof listRects === "function") listRects();
+    if (o.persist !== false && typeof schedulePersist === "function") schedulePersist(o.persistKind || "project");
+    if (o.render !== false && typeof render === "function") render();
+  };
+
+  const commitUiUpdate = (opts = {}) => {
+    const o = opts && typeof opts === "object" ? opts : {};
+    if (o.syncProps && typeof syncProps === "function") syncProps();
+    if (o.listRects && typeof listRects === "function") listRects();
+    if (o.persist && typeof schedulePersist === "function") schedulePersist(o.persistKind || "project");
+    if (o.render !== false && typeof render === "function") render();
+  };
+
+  return {
+    refreshPropsListRender,
+    persistProjectAndRender,
+    refreshPanels,
+    commitProjectChange,
+    commitUiUpdate
+  };
+};

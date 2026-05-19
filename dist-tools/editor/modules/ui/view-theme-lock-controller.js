@@ -1,1 +1,156 @@
-export const setupViewThemeLockController=(e={})=>{const{windowRef:t=window,documentRef:o=document,st:s,el:l,normalizeThemeMode:i,normalizeViewMode:a,syncLockButtons:c,updateInstallToolAvailability:n,onViewModeUiUpdated:d,refreshToolButtons:r,commitProjectChange:m,setMode:g,cancelActiveDrag:M,isInstallOnlyToolMode:p,lsSet:f,THEME_MODE_KEY:u,listRects:w,render:h}=e,v=t.matchMedia?t.matchMedia("(prefers-color-scheme: dark)"):null,y=()=>"install"===a(s.viewMode),b=e=>"auto"===i(e)?v&&v.matches?"dark":"light":i(e),T=()=>{const e=a(s.viewMode),o="install"===e,i="spec"===e,c="art"===e,r=!(!t.matchMedia||!t.matchMedia("(max-width:900px)").matches);if(l.viewModeArt&&(l.viewModeArt.classList.remove("btn-secondary"),l.viewModeArt.classList.toggle("btn-primary","art"===e),l.viewModeArt.classList.toggle("btn-outline-secondary","art"!==e),l.viewModeArt.setAttribute("aria-pressed","art"===e?"true":"false")),l.viewModeInstall&&(l.viewModeInstall.classList.remove("btn-secondary"),l.viewModeInstall.classList.toggle("btn-primary",o),l.viewModeInstall.classList.toggle("btn-outline-secondary",!o),l.viewModeInstall.setAttribute("aria-pressed",o?"true":"false")),l.viewModeSpec&&(l.viewModeSpec.classList.remove("btn-secondary"),l.viewModeSpec.classList.toggle("btn-primary",i),l.viewModeSpec.classList.toggle("btn-outline-secondary",!i),l.viewModeSpec.setAttribute("aria-pressed",i?"true":"false")),l.mViewModeToggle){const e=l.mViewModeToggle.querySelector("i"),t=r&&i;l.mViewModeToggle.classList.remove("btn-secondary"),l.mViewModeToggle.classList.toggle("btn-primary",!!t),l.mViewModeToggle.classList.toggle("btn-outline-secondary",!t),l.mViewModeToggle.classList.toggle("mode-art",c),l.mViewModeToggle.classList.toggle("mode-install",o),l.mViewModeToggle.classList.toggle("mode-spec",i),l.mViewModeToggle.setAttribute("aria-pressed",t?"true":"false");const s=i?"Спецификация":o?"Для монтажников":"Для художников";l.mViewModeToggle.title=`Режим: ${s}`,l.mViewModeToggle.setAttribute("aria-label",`Режим: ${s}. Нажмите для переключения`),e&&(e.className="fa-solid "+(i?"fa-file-lines":o?"fa-screwdriver-wrench":"fa-palette"))}if(l.mobileDock){const e=r&&!i;l.mobileDock.classList.toggle("force-visible",e),l.mobileDock.classList.toggle("force-hidden",!e)}"function"==typeof n&&n(),"function"==typeof d&&d()},L=()=>{const e=!!s.lockAll;c([l.lockAllToggle,l.mLockAllToggle],e)},A=()=>{if(l.themeIcon){const e="dark"===s.themeMode?"fa-moon":"light"===s.themeMode?"fa-sun":"fa-circle-half-stroke";l.themeIcon.className=`fa-solid ${e}`}if(l.themeToggle){const e="dark"===s.themeMode?"Тема: тёмная":"light"===s.themeMode?"Тема: светлая":"Тема: авто";l.themeToggle.title=e,l.themeToggle.setAttribute("aria-label",e)}if(l.themePopup)for(const e of l.themePopup.querySelectorAll("[data-theme]")){const t=e.getAttribute("data-theme")===s.themeMode;e.classList.toggle("active",t)}};return{themeMedia:v,isInstallViewMode:y,resolveThemeMode:b,updateViewModeUi:T,updateLockAllUi:L,setLockAll:(e,t=!0)=>{"function"==typeof M&&M(),s.lockAll=!!e,s.sel=null,s.selSet instanceof Set?s.selSet.clear():s.selSet=new Set,s.selMultiBase=null,L(),"function"==typeof w&&w(),"function"==typeof m&&m({syncProps:!0,persist:t,persistKind:"project",render:!0})},setViewMode:(e,t=!0)=>{"function"==typeof M&&M();const o=a(s.viewMode),l=a(e);"spec"===l&&"spec"!==o&&(s.prevViewMode=o),"spec"!==l&&(s.prevViewMode=l),s.viewMode=l,T(),y()||"function"!=typeof p||!p(s.mode)?"function"==typeof m&&m({persist:t,persistKind:"project",render:!0}):"function"==typeof g&&g("select")},updateThemeUi:A,applyThemeMode:(e,t=!0)=>{s.themeMode=i(e),o.documentElement.setAttribute("data-bs-theme",b(s.themeMode)),A(),L(),"function"==typeof r&&r(),t&&"function"==typeof f&&f(u,s.themeMode),"function"==typeof h&&h()}}};
+/* build:1779222473 */
+export const setupViewThemeLockController = (deps = {}) => {
+  const {
+    windowRef = window,
+    documentRef = document,
+    st,
+    el,
+    normalizeThemeMode,
+    normalizeViewMode,
+    syncLockButtons,
+    updateInstallToolAvailability,
+    onViewModeUiUpdated,
+    refreshToolButtons,
+    commitProjectChange,
+    setMode,
+    cancelActiveDrag,
+    isInstallOnlyToolMode,
+    lsSet,
+    THEME_MODE_KEY,
+    listRects,
+    render
+  } = deps;
+
+  const themeMedia = windowRef.matchMedia ? windowRef.matchMedia("(prefers-color-scheme: dark)") : null;
+  const isInstallViewMode = () => normalizeViewMode(st.viewMode) === "install";
+
+  const resolveThemeMode = v => normalizeThemeMode(v) === "auto"
+    ? (themeMedia && themeMedia.matches ? "dark" : "light")
+    : normalizeThemeMode(v);
+
+  const updateViewModeUi = () => {
+    const mode = normalizeViewMode(st.viewMode);
+    const isInstall = mode === "install";
+    const isSpec = mode === "spec";
+    const isArt = mode === "art";
+    const isMobile = !!(windowRef.matchMedia && windowRef.matchMedia("(max-width:900px)").matches);
+    if (el.viewModeArt) {
+      el.viewModeArt.classList.remove("btn-secondary");
+      el.viewModeArt.classList.toggle("btn-primary", mode === "art");
+      el.viewModeArt.classList.toggle("btn-outline-secondary", mode !== "art");
+      el.viewModeArt.setAttribute("aria-pressed", mode === "art" ? "true" : "false");
+    }
+    if (el.viewModeInstall) {
+      el.viewModeInstall.classList.remove("btn-secondary");
+      el.viewModeInstall.classList.toggle("btn-primary", isInstall);
+      el.viewModeInstall.classList.toggle("btn-outline-secondary", !isInstall);
+      el.viewModeInstall.setAttribute("aria-pressed", isInstall ? "true" : "false");
+    }
+    if (el.viewModeSpec) {
+      el.viewModeSpec.classList.remove("btn-secondary");
+      el.viewModeSpec.classList.toggle("btn-primary", isSpec);
+      el.viewModeSpec.classList.toggle("btn-outline-secondary", !isSpec);
+      el.viewModeSpec.setAttribute("aria-pressed", isSpec ? "true" : "false");
+    }
+    if (el.mViewModeToggle) {
+      const icon = el.mViewModeToggle.querySelector("i");
+      const specOn = isMobile && isSpec;
+      el.mViewModeToggle.classList.remove("btn-secondary");
+      el.mViewModeToggle.classList.toggle("btn-primary", !!specOn);
+      el.mViewModeToggle.classList.toggle("btn-outline-secondary", !specOn);
+      el.mViewModeToggle.classList.toggle("mode-art", isArt);
+      el.mViewModeToggle.classList.toggle("mode-install", isInstall);
+      el.mViewModeToggle.classList.toggle("mode-spec", isSpec);
+      el.mViewModeToggle.setAttribute("aria-pressed", specOn ? "true" : "false");
+      const modeTitle = isSpec ? "Спецификация" : (isInstall ? "Для монтажников" : "Для художников");
+      el.mViewModeToggle.title = `Режим: ${modeTitle}`;
+      el.mViewModeToggle.setAttribute("aria-label", `Режим: ${modeTitle}. Нажмите для переключения`);
+      if (icon) {
+        icon.className = `fa-solid ${isSpec ? "fa-file-lines" : (isInstall ? "fa-screwdriver-wrench" : "fa-palette")}`;
+      }
+    }
+    if (el.mobileDock) {
+      const showDock = isMobile && !isSpec;
+      el.mobileDock.classList.toggle("force-visible", showDock);
+      el.mobileDock.classList.toggle("force-hidden", !showDock);
+    }
+    if (typeof updateInstallToolAvailability === "function") updateInstallToolAvailability();
+    if (typeof onViewModeUiUpdated === "function") onViewModeUiUpdated();
+  };
+
+  const updateLockAllUi = () => {
+    const on = !!st.lockAll;
+    syncLockButtons([el.lockAllToggle, el.mLockAllToggle], on);
+  };
+
+  const setLockAll = (next, persist = true) => {
+    if (typeof cancelActiveDrag === "function") cancelActiveDrag();
+    st.lockAll = !!next;
+    st.sel = null;
+    if (!(st.selSet instanceof Set)) st.selSet = new Set();
+    else st.selSet.clear();
+    st.selMultiBase = null;
+    updateLockAllUi();
+    if (typeof listRects === "function") listRects();
+    if (typeof commitProjectChange === "function") {
+      commitProjectChange({ syncProps: true, persist, persistKind: "project", render: true });
+    }
+  };
+
+  const setViewMode = (mode, persist = true) => {
+    if (typeof cancelActiveDrag === "function") cancelActiveDrag();
+    const currentMode = normalizeViewMode(st.viewMode);
+    const nextMode = normalizeViewMode(mode);
+    if (nextMode === "spec" && currentMode !== "spec") st.prevViewMode = currentMode;
+    if (nextMode !== "spec") st.prevViewMode = nextMode;
+    st.viewMode = nextMode;
+    updateViewModeUi();
+    if (!isInstallViewMode() && typeof isInstallOnlyToolMode === "function" && isInstallOnlyToolMode(st.mode)) {
+      if (typeof setMode === "function") setMode("select");
+      return;
+    }
+    if (typeof commitProjectChange === "function") {
+      commitProjectChange({ persist, persistKind: "project", render: true });
+    }
+  };
+
+  const updateThemeUi = () => {
+    if (el.themeIcon) {
+      const icon = st.themeMode === "dark" ? "fa-moon" : st.themeMode === "light" ? "fa-sun" : "fa-circle-half-stroke";
+      el.themeIcon.className = `fa-solid ${icon}`;
+    }
+    if (el.themeToggle) {
+      const title = st.themeMode === "dark" ? "Тема: тёмная" : st.themeMode === "light" ? "Тема: светлая" : "Тема: авто";
+      el.themeToggle.title = title;
+      el.themeToggle.setAttribute("aria-label", title);
+    }
+    if (el.themePopup) {
+      for (const a of el.themePopup.querySelectorAll("[data-theme]")) {
+        const on = a.getAttribute("data-theme") === st.themeMode;
+        a.classList.toggle("active", on);
+      }
+    }
+  };
+
+  const applyThemeMode = (mode, persist = true) => {
+    st.themeMode = normalizeThemeMode(mode);
+    documentRef.documentElement.setAttribute("data-bs-theme", resolveThemeMode(st.themeMode));
+    updateThemeUi();
+    updateLockAllUi();
+    if (typeof refreshToolButtons === "function") refreshToolButtons();
+    if (persist && typeof lsSet === "function") lsSet(THEME_MODE_KEY, st.themeMode);
+    if (typeof render === "function") render();
+  };
+
+  return {
+    themeMedia,
+    isInstallViewMode,
+    resolveThemeMode,
+    updateViewModeUi,
+    updateLockAllUi,
+    setLockAll,
+    setViewMode,
+    updateThemeUi,
+    applyThemeMode
+  };
+};

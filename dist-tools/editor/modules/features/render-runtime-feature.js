@@ -1,1 +1,114 @@
-import{setupRenderPipeline}from"../render-pipeline.js";import{setupRenderRuntimeController}from"../render/runtime-controller.js";import{setupViewportResizeController}from"../render/viewport-resize-controller.js";export const setupRenderRuntimeFeature=(e={})=>{const{ctx:r,overlayCtx:t,st:n,cv:a,overlayCanvas:i,wrap:o,getViewMetrics:s,s2w:d,w2s:l,rectAABB:w,getOrigin:v,isSelected:u,drawRect:c,drawInterScreenFlowLinks:p,drawMaskOverlay:y,drawCellEditOverlay:C,drawCabinetEditOverlay:m,drawContentBounds:O,drawMultiSelectionActions:R,drawLayerButtons:A,drawFlowLinkCurveHandlesOverlay:B,drawInstallSummaryOverlay:z,updateNoteEditorOverlay:E,selBoxBounds:f,resetClusterHoverTransient:F,isClusterEditMode:g,fontFamilyCss:M,el:S,onBeforeRenderFrame:b,getGridAnchorBounds:x,bindWindowEvent:L,bindEvent:h,zc:k,visibleRectFilter:H,onAfterMainSceneDraw:N,onAfterOverlayDraw:V}=e,D=setupRenderPipeline({ctx:r,overlayCtx:t,st:n,cv:a,overlayCanvas:i,wrap:o,getViewMetrics:s,s2w:d,rectAABB:w,getOrigin:v,isSelected:u,drawRect:c,drawInterScreenFlowLinks:p,drawMaskOverlay:y,drawCellEditOverlay:C,drawCabinetEditOverlay:m,drawContentBounds:O,drawMultiSelectionActions:R,drawLayerButtons:A,drawFlowLinkCurveHandlesOverlay:B,drawInstallSummaryOverlay:z,drawGrid:()=>{},drawGuides:()=>{},drawDistanceGuide:()=>{},updateNoteEditorOverlay:E,selBoxBounds:f,resetClusterHoverTransient:F,isClusterEditMode:g,visibleRectFilter:H,onAfterMainSceneDraw:N,onAfterOverlayDraw:V}),{render:G,renderNow:I,renderOverlay:j,renderOverlayNow:P}=setupRenderRuntimeController({ctx:r,overlayCtx:t,st:n,cv:a,overlayCanvas:i,wrap:o,s2w:d,w2s:l,fontFamilyCss:M,el:S,renderPipeline:D,onBeforeRenderFrame:b,getGridAnchorBounds:x}),T=setupViewportResizeController({st:n,cv:a,overlayCanvas:i,wrap:o,bindWindowEvent:L,bindEvent:h,render:e=>G(e),zc:k,s2w:d});return T.bindResizeListeners(),{render:G,renderOverlay:j,renderOverlayNow:P,renderNow:I,updateAppViewportHeight:T.updateAppViewportHeight,resize:T.resize,scheduleCanvasResize:T.scheduleCanvasResize,zoomAt:T.zoomAt}};
+/* build:1779222473 */
+import { setupRenderPipeline } from "../render-pipeline.js";
+import { setupRenderRuntimeController } from "../render/runtime-controller.js";
+import { setupViewportResizeController } from "../render/viewport-resize-controller.js";
+
+export const setupRenderRuntimeFeature = (deps = {}) => {
+  const {
+    ctx,
+    overlayCtx,
+    st,
+    cv,
+    overlayCanvas,
+    wrap,
+    getViewMetrics,
+    s2w,
+    w2s,
+    rectAABB,
+    getOrigin,
+    isSelected,
+    drawRect,
+    drawInterScreenFlowLinks,
+    drawMaskOverlay,
+    drawCellEditOverlay,
+    drawCabinetEditOverlay,
+    drawContentBounds,
+    drawMultiSelectionActions,
+    drawLayerButtons,
+    drawFlowLinkCurveHandlesOverlay,
+    drawInstallSummaryOverlay,
+    updateNoteEditorOverlay,
+    selBoxBounds,
+    resetClusterHoverTransient,
+    isClusterEditMode,
+    fontFamilyCss,
+    el,
+    onBeforeRenderFrame,
+    getGridAnchorBounds,
+    bindWindowEvent,
+    bindEvent,
+    zc,
+    visibleRectFilter,
+    onAfterMainSceneDraw,
+    onAfterOverlayDraw
+  } = deps;
+
+  const renderPipeline = setupRenderPipeline({
+    ctx, overlayCtx, st, cv, overlayCanvas, wrap,
+    getViewMetrics,
+    s2w,
+    rectAABB,
+    getOrigin,
+    isSelected,
+    drawRect,
+    drawInterScreenFlowLinks,
+    drawMaskOverlay,
+    drawCellEditOverlay,
+    drawCabinetEditOverlay,
+    drawContentBounds,
+    drawMultiSelectionActions,
+    drawLayerButtons,
+    drawFlowLinkCurveHandlesOverlay,
+    drawInstallSummaryOverlay,
+    drawGrid: () => { },
+    drawGuides: () => { },
+    drawDistanceGuide: () => { },
+    updateNoteEditorOverlay,
+    selBoxBounds,
+    resetClusterHoverTransient,
+    isClusterEditMode,
+    visibleRectFilter,
+    onAfterMainSceneDraw,
+    onAfterOverlayDraw
+  });
+
+  const { render, renderNow, renderOverlay, renderOverlayNow } = setupRenderRuntimeController({
+    ctx,
+    overlayCtx,
+    st,
+    cv,
+    overlayCanvas,
+    wrap,
+    s2w,
+    w2s,
+    fontFamilyCss,
+    el,
+    renderPipeline,
+    onBeforeRenderFrame,
+    getGridAnchorBounds
+  });
+
+  const viewportResizeController = setupViewportResizeController({
+    st,
+    cv,
+    overlayCanvas,
+    wrap,
+    bindWindowEvent,
+    bindEvent,
+    render: immediate => render(immediate),
+    zc,
+    s2w
+  });
+  viewportResizeController.bindResizeListeners();
+
+  return {
+    render,
+    renderOverlay,
+    renderOverlayNow,
+    renderNow,
+    updateAppViewportHeight: viewportResizeController.updateAppViewportHeight,
+    resize: viewportResizeController.resize,
+    scheduleCanvasResize: viewportResizeController.scheduleCanvasResize,
+    zoomAt: viewportResizeController.zoomAt
+  };
+};

@@ -4075,6 +4075,7 @@ function drawControllerLayoutOverlay(c, z) {
       c.save();
       c.lineCap = "round";
       c.lineJoin = "round";
+      const fwUi = Math.min(Math.max(0.75, ui), 2.0);
       for (const pth of (Array.isArray(ov.paths) ? ov.paths : [])) {
         const seq = Array.isArray(pth.seq) ? pth.seq : [];
         if (seq.length < 2) continue;
@@ -4086,14 +4087,15 @@ function drawControllerLayoutOverlay(c, z) {
           else c.lineTo(n.x, n.y);
         }
         c.strokeStyle = "rgba(7,10,14,.95)";
-        c.lineWidth = Math.max(4.2 * ui, 2.6 / Math.max(0.25, z || 1));
+        c.lineWidth = Math.max(4.2 * fwUi, 2.6 / Math.max(0.25, z || 1));
         c.stroke();
         c.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
-        c.lineWidth = Math.max(2.6 * ui, 1.7 / Math.max(0.25, z || 1));
+        c.lineWidth = Math.max(2.6 * fwUi, 1.7 / Math.max(0.25, z || 1));
         c.stroke();
         // Direction arrows on segments.
-        const arrowLen = Math.max(21 * ui, 13.5 / Math.max(0.25, z || 1));
-        const arrowHalf = arrowLen * 0.45;
+        const arrowLen = Math.max(21 * fwUi, 13.5 / Math.max(0.25, z || 1));
+        const triHeight = arrowLen * Math.sqrt(3) * 0.5;
+        const arrowHalf = arrowLen * 0.5;
         const nodeR = Math.max(arrowLen * 0.28, 2.2 / Math.max(0.25, z || 1));
         c.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
         for (let i = 1; i < seq.length; i++) {
@@ -4107,8 +4109,8 @@ function drawControllerLayoutOverlay(c, z) {
           const uy = dy / d;
           const mx = a.x + dx * 0.5;
           const my = a.y + dy * 0.5;
-          const bx = mx - ux * arrowLen * 0.5;
-          const by = my - uy * arrowLen * 0.5;
+          const bx = mx - ux * triHeight;
+          const by = my - uy * triHeight;
           const lx = bx - uy * arrowHalf;
           const ly = by + ux * arrowHalf;
           const rx = bx + uy * arrowHalf;
@@ -4124,23 +4126,23 @@ function drawControllerLayoutOverlay(c, z) {
         const s = seq[0];
         const e = seq[seq.length - 1];
         if (s) {
-          const startR = Math.max((16 / 1.5) * ui, (10 / 1.5) / Math.max(0.25, z || 1));
+          const startR = Math.max((16 / 1.5) * fwUi, (10 / 1.5) / Math.max(0.25, z || 1));
           c.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
           c.beginPath();
           c.arc(s.x, s.y, startR, 0, Math.PI * 2);
           c.fill();
           const portLabel = String(pth.portLabel || "").trim();
           if (portLabel) {
-            let fs = Math.max(18 * ui, 11 / Math.max(0.25, z || 1));
+            let fs = Math.max(18 * fwUi, 11 / Math.max(0.25, z || 1));
             c.textAlign = "center";
             c.textBaseline = "middle";
             const maxW = Math.max(2, startR * 1.7);
-            while (fs > (3.5 * ui)) {
+            while (fs > (3.5 * fwUi)) {
               c.font = `700 ${fs}px sans-serif`;
               if (c.measureText(portLabel).width <= maxW) break;
-              fs -= 0.5 * ui;
+              fs -= 0.5 * fwUi;
             }
-            c.font = `700 ${Math.max(3.5 * ui, fs)}px sans-serif`;
+            c.font = `700 ${Math.max(3.5 * fwUi, fs)}px sans-serif`;
             const lum = (0.2126 * (Number(rgb[0]) || 0)) + (0.7152 * (Number(rgb[1]) || 0)) + (0.0722 * (Number(rgb[2]) || 0));
             c.fillStyle = lum > 145 ? "rgba(7,10,14,.98)" : "rgba(255,255,255,.98)";
             const tm = c.measureText(portLabel);
@@ -4160,14 +4162,14 @@ function drawControllerLayoutOverlay(c, z) {
             const uy = dy / d;
             const nx = -uy;
             const ny = ux;
-            const len = Math.max(20 * ui, 12 / Math.max(0.25, z || 1));
+            const len = Math.max(20 * fwUi, 12 / Math.max(0.25, z || 1));
             const half = len * 0.5;
             const ex1 = e.x + nx * half;
             const ey1 = e.y + ny * half;
             const ex2 = e.x - nx * half;
             const ey2 = e.y - ny * half;
           c.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`;
-          c.lineWidth = Math.max(4 * ui, 2.4 / Math.max(0.25, z || 1));
+          c.lineWidth = Math.max(4 * fwUi, 2.4 / Math.max(0.25, z || 1));
           c.beginPath();
           c.moveTo(ex1, ey1);
           c.lineTo(ex2, ey2);
@@ -4199,12 +4201,28 @@ function drawControllerLayoutLegendOverlay(c) {
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     const pad = 12;
     const legendX = pad;
-    const resetRect = (el && el.controllerLayoutReset && typeof el.controllerLayoutReset.getBoundingClientRect === "function")
-      ? el.controllerLayoutReset.getBoundingClientRect()
+    const canvasRect = (cv && typeof cv.getBoundingClientRect === "function")
+      ? cv.getBoundingClientRect()
       : null;
-    const legendY = (resetRect && Number.isFinite(Number(resetRect.top)))
-      ? Math.round(Number(resetRect.top) + 40)
-      : 118;
+    const toCanvasY = y => {
+      const yy = Number(y);
+      if (!Number.isFinite(yy)) return NaN;
+      const top = Number(canvasRect && canvasRect.top);
+      return Number.isFinite(top) ? (yy - top) : yy;
+    };
+    const resetVisible = !!(el && el.btnControllerLayoutReset && !el.btnControllerLayoutReset.classList.contains("d-none"));
+    const resetRect = (resetVisible && el && el.btnControllerLayoutReset && typeof el.btnControllerLayoutReset.getBoundingClientRect === "function")
+      ? el.btnControllerLayoutReset.getBoundingClientRect()
+      : null;
+    const backRect = (el && el.controllerLayoutBack && typeof el.controllerLayoutBack.getBoundingClientRect === "function")
+      ? el.controllerLayoutBack.getBoundingClientRect()
+      : null;
+    const hasResetAnchor = !!(resetRect && Number.isFinite(Number(resetRect.bottom)));
+    const hasBackAnchor = !!(backRect && Number.isFinite(Number(backRect.bottom)));
+    const legendGap = 16;
+    const legendY = hasResetAnchor
+      ? Math.round(toCanvasY(Number(resetRect.bottom)) + legendGap)
+      : (hasBackAnchor ? Math.round(toCanvasY(Number(backRect.bottom)) + legendGap) : 92);
     const hoverIndex = normLegendIndex(st.controllerLayoutLegendHoverIndex);
     const pinIndex = normLegendIndex(st.controllerLayoutLegendPinnedIndex);
     const hi = (pinIndex >= 0) ? pinIndex : hoverIndex;

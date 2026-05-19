@@ -1,1 +1,28 @@
-export const syncModeToggleButton=(t,e,n,s)=>{if(!t)return;t.classList.remove("btn-secondary","btn-primary"),t.classList.add("btn-outline-secondary"),t.classList.toggle("mode-install",!!e),t.classList.toggle("mode-art",!e);const o=e?n:s;t.title=o,t.setAttribute("aria-label",`${o}. Нажмите для переключения.`),t.setAttribute("aria-pressed",e?"true":"false")};export const syncLockButtons=(t,e)=>{const n="light"===String(document&&document.documentElement&&document.documentElement.getAttribute("data-bs-theme")||"").toLowerCase()?"btn-outline-dark":"btn-outline-light";for(const s of t){if(!s)continue;s.classList.remove("btn-primary","btn-danger","btn-secondary","btn-outline-secondary","btn-outline-light","btn-outline-dark"),s.classList.add(e?"btn-danger":n),s.setAttribute("aria-pressed",e?"true":"false");const t=e?"Разблокировать всё":"Заблокировать всё";s.title=t,s.setAttribute("aria-label",t);const o=s.querySelector("i");o&&(o.className="fa-solid "+(e?"fa-lock":"fa-unlock"))}};
+/* build:1779222473 */
+export const syncModeToggleButton = (button, isActive, activeTitle, inactiveTitle) => {
+  if (!button) return;
+  button.classList.remove("btn-secondary", "btn-primary");
+  button.classList.add("btn-outline-secondary");
+  button.classList.toggle("mode-install", !!isActive);
+  button.classList.toggle("mode-art", !isActive);
+  const title = isActive ? activeTitle : inactiveTitle;
+  button.title = title;
+  button.setAttribute("aria-label", `${title}. Нажмите для переключения.`);
+  button.setAttribute("aria-pressed", isActive ? "true" : "false");
+};
+
+export const syncLockButtons = (buttons, on) => {
+  const theme = String(document && document.documentElement && document.documentElement.getAttribute("data-bs-theme") || "").toLowerCase();
+  const offClass = theme === "light" ? "btn-outline-dark" : "btn-outline-light";
+  for (const b of buttons) {
+    if (!b) continue;
+    b.classList.remove("btn-primary", "btn-danger", "btn-secondary", "btn-outline-secondary", "btn-outline-light", "btn-outline-dark");
+    b.classList.add(on ? "btn-danger" : offClass);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    const title = on ? "Разблокировать всё" : "Заблокировать всё";
+    b.title = title;
+    b.setAttribute("aria-label", title);
+    const icon = b.querySelector("i");
+    if (icon) icon.className = `fa-solid ${on ? "fa-lock" : "fa-unlock"}`;
+  }
+};

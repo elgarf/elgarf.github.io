@@ -1,1 +1,92 @@
-export const setupVisibleRectGeometry=(t={})=>{const{drawCellX:e,drawCellY:a,getHiddenSet:i,getRectCalcCache:n,buildRectAABBMaskedKey:h,rectAABB:m,rectUVToWorld:x,maskCellKey:r}=t,c=t=>{const n=i(t);if(!n.size)return m(t);const h=e(t),c=a(t),l=Math.max(1,Math.ceil(t.width/h)),o=Math.max(1,Math.ceil(t.height/c));let M=!1,s=1e9,y=1e9,u=-1e9,d=-1e9;for(let e=0;e<o;e++)for(let a=0;a<l;a++){if(n.has(r(a,e)))continue;const i=a*h,m=e*c,l=Math.min(h,t.width-i),o=Math.min(c,t.height-m),b=x(t,i,m),f=x(t,i+l,m),B=x(t,i+l,m+o),X=x(t,i,m+o);s=Math.min(s,b.x,f.x,B.x,X.x),y=Math.min(y,b.y,f.y,B.y,X.y),u=Math.max(u,b.x,f.x,B.x,X.x),d=Math.max(d,b.y,f.y,B.y,X.y),M=!0}return M?{minX:s,minY:y,maxX:u,maxY:d}:m(t)},l=t=>{const e=n(t),a=h(t);if(e.aabb&&e.aabb.key===a)return e.aabb.value;const i=c(t);return e.aabb={key:a,value:i},i};return{computeRectAABBMasked:c,rectAABBMasked:l,rectIntersectsSelectionBoxVisible:(t,n)=>{if(!t||!n)return!1;const h=l(t);if(!!(h.maxX<n.minX||h.minX>n.maxX||h.maxY<n.minY||h.minY>n.maxY))return!1;const m=e(t),c=a(t),o=Math.max(1,Math.ceil(t.width/m)),M=Math.max(1,Math.ceil(t.height/c)),s=i(t);for(let e=0;e<M;e++)for(let a=0;a<o;a++){if(s.has(r(a,e)))continue;const i=a*m,h=e*c,l=Math.min(m,t.width-i),o=Math.min(c,t.height-h),M=x(t,i,h),y=x(t,i+l,h),u=x(t,i+l,h+o),d=x(t,i,h+o),b=Math.min(M.x,y.x,u.x,d.x),f=Math.min(M.y,y.y,u.y,d.y),B=Math.max(M.x,y.x,u.x,d.x),X=Math.max(M.y,y.y,u.y,d.y);if(!(B<n.minX||b>n.maxX||X<n.minY||f>n.maxY))return!0}return!1}}};
+/* build:1779222473 */
+export const setupVisibleRectGeometry = (deps = {}) => {
+  const {
+    drawCellX,
+    drawCellY,
+    getHiddenSet,
+    getRectCalcCache,
+    buildRectAABBMaskedKey,
+    rectAABB,
+    rectUVToWorld,
+    maskCellKey
+  } = deps;
+
+  const computeRectAABBMasked = r => {
+    const hs = getHiddenSet(r);
+    if (!hs.size) return rectAABB(r);
+    const cx = drawCellX(r);
+    const cy = drawCellY(r);
+    const cols = Math.max(1, Math.ceil(r.width / cx));
+    const rows = Math.max(1, Math.ceil(r.height / cy));
+    let has = false;
+    let minX = 1e9;
+    let minY = 1e9;
+    let maxX = -1e9;
+    let maxY = -1e9;
+    for (let iy = 0; iy < rows; iy++) {
+      for (let ix = 0; ix < cols; ix++) {
+        if (hs.has(maskCellKey(ix, iy))) continue;
+        const u = ix * cx;
+        const v = iy * cy;
+        const cw = Math.min(cx, r.width - u);
+        const ch = Math.min(cy, r.height - v);
+        const p1 = rectUVToWorld(r, u, v);
+        const p2 = rectUVToWorld(r, u + cw, v);
+        const p3 = rectUVToWorld(r, u + cw, v + ch);
+        const p4 = rectUVToWorld(r, u, v + ch);
+        minX = Math.min(minX, p1.x, p2.x, p3.x, p4.x);
+        minY = Math.min(minY, p1.y, p2.y, p3.y, p4.y);
+        maxX = Math.max(maxX, p1.x, p2.x, p3.x, p4.x);
+        maxY = Math.max(maxY, p1.y, p2.y, p3.y, p4.y);
+        has = true;
+      }
+    }
+    return has ? { minX, minY, maxX, maxY } : rectAABB(r);
+  };
+
+  const rectAABBMasked = r => {
+    const cache = getRectCalcCache(r);
+    const key = buildRectAABBMaskedKey(r);
+    if (cache.aabb && cache.aabb.key === key) return cache.aabb.value;
+    const value = computeRectAABBMasked(r);
+    cache.aabb = { key, value };
+    return value;
+  };
+
+  const rectIntersectsSelectionBoxVisible = (r, b) => {
+    if (!r || !b) return false;
+    const mb = rectAABBMasked(r);
+    const quickHit = !(mb.maxX < b.minX || mb.minX > b.maxX || mb.maxY < b.minY || mb.minY > b.maxY);
+    if (!quickHit) return false;
+    const cx = drawCellX(r);
+    const cy = drawCellY(r);
+    const cols = Math.max(1, Math.ceil(r.width / cx));
+    const rows = Math.max(1, Math.ceil(r.height / cy));
+    const hs = getHiddenSet(r);
+    for (let iy = 0; iy < rows; iy++) {
+      for (let ix = 0; ix < cols; ix++) {
+        if (hs.has(maskCellKey(ix, iy))) continue;
+        const u = ix * cx;
+        const v = iy * cy;
+        const cw = Math.min(cx, r.width - u);
+        const ch = Math.min(cy, r.height - v);
+        const p1 = rectUVToWorld(r, u, v);
+        const p2 = rectUVToWorld(r, u + cw, v);
+        const p3 = rectUVToWorld(r, u + cw, v + ch);
+        const p4 = rectUVToWorld(r, u, v + ch);
+        const minX = Math.min(p1.x, p2.x, p3.x, p4.x);
+        const minY = Math.min(p1.y, p2.y, p3.y, p4.y);
+        const maxX = Math.max(p1.x, p2.x, p3.x, p4.x);
+        const maxY = Math.max(p1.y, p2.y, p3.y, p4.y);
+        if (!(maxX < b.minX || minX > b.maxX || maxY < b.minY || minY > b.maxY)) return true;
+      }
+    }
+    return false;
+  };
+
+  return {
+    computeRectAABBMasked,
+    rectAABBMasked,
+    rectIntersectsSelectionBoxVisible
+  };
+};

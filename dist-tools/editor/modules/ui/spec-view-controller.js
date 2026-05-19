@@ -1,1 +1,576 @@
-import{createDebounced}from"../utils/debounce.js";import{normalizeSemanticToken,createSectionKeySequencer}from"../spec/section-key-utils.js";const escapeHtml=e=>String(null==e?"":e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"),renderInlineMd=e=>escapeHtml(e).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,(e,t,n)=>`<a href="${n}" target="_blank" rel="noopener noreferrer">${t}</a>`).replace(/(^|[\s(])(https?:\/\/[^\s<]+)/g,(e,t,n)=>`${t}<a href="${n}" target="_blank" rel="noopener noreferrer">${n}</a>`),renderMarkdownBlock=e=>{const t=String(e||"").replace(/\r/g,"");if(!t.trim())return'<div class="spec-mode-markdown-empty">—</div>';const n=t.split("\n"),o=[];let s=!1;const r=()=>{s&&(o.push("</ul>"),s=!1)};for(const e of n){const t=String(e||""),n=t.match(/^(#{1,6})\s+(.+)\s*$/);if(n){r();const e=Math.max(1,Math.min(6,n[1].length));o.push(`<h${e}>${renderInlineMd(n[2])}</h${e}>`);continue}const c=t.match(/^\s*[-*]\s+(.+)\s*$/);c?(s||(o.push("<ul>"),s=!0),o.push(`<li>${renderInlineMd(c[1])}</li>`)):t.trim()?(r(),o.push(`<p>${renderInlineMd(t.trim())}</p>`)):r()}return r(),o.join("")},parseSpecSections=e=>{const t=String(e||"").replace(/\r/g,"").split("\n"),n=[];let o=null;const s=()=>{o&&(n.push({key:"",title:o.title||"Блок",level:o.level||5,body:o.body.join("\n").trim()}),o=null)};for(const e of t){const t=e.match(/^(#{5,6})\s+(.+)\s*$/);t?(s(),o={key:"",title:String(t[2]||"").trim(),level:t[1].length,body:[]}):(o||(o={key:"",title:"Спецификация",level:5,body:[]}),o.body.push(e))}s();const r=[];let c="Спецификация";const a=createSectionKeySequencer();for(const e of n){const t=Number(e&&e.level)||5,n=String(e&&e.title||"").trim()||(t<=5?"Секция":"Экран");t<=5?(c=n,r.push({...e,key:a(5,c,n),title:n,level:5})):r.push({...e,key:a(6,c,n),title:n,level:6})}return r},toDomId=(e,t)=>{const n=String(t||""),o=String(t||"").toLowerCase().replace(/[^a-z0-9_-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,64)||"item";let s=2166136261;for(let e=0;e<n.length;e++)s^=n.charCodeAt(e),s=Math.imul(s,16777619)>>>0;return`${e}-${o}-${s.toString(36)}`},groupSpecSections=e=>{const t=[];let n=null;for(const o of Array.isArray(e)?e:[]){(Number(o&&o.level)||5)<=5?(n={parent:o,children:[]},t.push(n)):(n||(n={parent:{key:"__root__",title:"Спецификация",level:5,body:""},children:[]},t.push(n)),n.children.push(o))}return t},sectionSemanticId=e=>`${Number(e&&e.level)||0}:${normalizeSemanticToken(e&&e.title)}`,extractLegacyTitleFromKey=e=>{const t=String(e||""),n=t.match(/^h6:[^:]*:(.*):\d+$/);if(n)return n[1]||"";const o=t.match(/^sec:\d+:(.*)$/);return o?o[1]||"":t};export const setupSpecViewController=(e={})=>{const{st:t,el:n,wrap:o,normalizeViewMode:s,commitProjectChange:r,getAutoSpecText:c,getLanguage:a,t:i=e=>e}=e;let l="",d="",p="",u=[],m=[];const f=new Map;let g=!1;const y="__global__";let h=!1,S=!1;const k=()=>"spec"===s(t.viewMode),v=e=>{const t=Number(e&&e.level)||0;return 6===t||5===t&&(e=>{const t=normalizeSemanticToken(e);return t===normalizeSemanticToken("Сигнальная и силовая коммутация")||t===normalizeSemanticToken("Signal and power wiring")||t===normalizeSemanticToken("Устройства")||t===normalizeSemanticToken("Devices")})(String(e&&e.title||""))},$=()=>!g&&"undefined"!=typeof window&&"function"==typeof window.EasyMDE,b=()=>(t.specCustomSections&&"object"==typeof t.specCustomSections||(t.specCustomSections={}),t.specCustomSections),A=createDebounced(()=>{"function"==typeof r&&r({persist:!0,persistKind:"project",render:!1})},180),w=()=>A.schedule(),M=()=>{for(const[,e]of f.entries())try{e&&"function"==typeof e.toTextArea&&e.toTextArea()}catch{}f.clear()},H=(e,t)=>{if(!n.specAutoBlocks)return null;const o=String(t||""),s=n.specAutoBlocks.querySelectorAll(e);for(const e of s)if(String(e.getAttribute("data-section-key")||"")===o)return e;return null},L=e=>H(".spec-mode-parent[data-section-key]",e),T=(e,t)=>{const n=!!t,o=(e=>H(".spec-mode-sub[data-section-key]",e))(e);o&&o.classList.toggle("has-manual",n);const s=L(e);if(s&&s.classList.toggle("has-manual",n),String(e||"")===y){const t=L(e);t&&t.classList.toggle("has-manual",n)}},x=(e,t="")=>String(b()[e]??t??""),j=(e,t)=>{const n=b(),o=String(t||"");o.trim()?n[e]=o:delete n[e],T(e,!!o.trim()),w()},C=(e,t)=>{e.addEventListener("input",()=>j(t,e.value))},B=(e,t)=>{if(!(e instanceof HTMLTextAreaElement&&t&&$()))return null;try{const n=new window.EasyMDE({element:e,autofocus:!1,spellChecker:!1,status:!1,autoDownloadFontAwesome:!1,forceSync:!0,lineWrapping:!0,sideBySideFullscreen:!1,toolbar:["bold","italic","heading","|","unordered-list","ordered-list","|","quote","code","link"]});return n.value(x(t,e.value)),n.codemirror.on("change",()=>{j(t,n.value())}),f.set(t,n),n}catch{return g=!0,null}},z=()=>{if(!n.specAutoBlocks)return;(()=>{if(h||!n.specAutoBlocks)return;h=!0;const e=e=>{const t=e&&e.target;if(!(t&&t instanceof HTMLElement))return;const n=t.closest(".spec-mode-sub[data-section-key]");if(!n)return;const o=String(n.getAttribute("data-section-key")||"");if(!o)return;const s=f.get(o);if(s&&s.codemirror){const e=()=>{try{s.codemirror.refresh()}catch{}};return e(),"function"==typeof requestAnimationFrame&&requestAnimationFrame(()=>{e(),requestAnimationFrame(()=>e())}),void setTimeout(()=>e(),24)}const r=t.querySelector("textarea[data-spec-edit]");if(r instanceof HTMLTextAreaElement){const e=x(o,r.value);r.value!==e&&(r.value=e)}};n.specAutoBlocks.addEventListener("show.bs.collapse",e),n.specAutoBlocks.addEventListener("shown.bs.collapse",e)})(),M();const e=n.specAutoBlocks.querySelectorAll("textarea[data-spec-edit]");for(const t of e){const e=String(t.getAttribute("data-spec-edit")||"");if(!e)continue;if(t.value=x(e,t.value),!$()){C(t,e);continue}const n=B(t,e);n&&n.codemirror?setTimeout(()=>{try{n.codemirror.refresh()}catch{}},0):C(t,e)}},E=()=>{if(!n.specAutoBlocks)return;if(!m.length)return n.specAutoBlocks.innerHTML=`<div class="spec-mode-empty">${escapeHtml(i("Нет данных для спецификации"))}</div>`,void M();const e=b(),t=String(e[y]||""),o=`<section class="spec-mode-block spec-mode-parent ${!!t.trim()?"has-manual":""}" data-section-key="${y}"><header>${escapeHtml(i("Общее дополнение"))}</header><div class="spec-mode-manual"><div class="spec-mode-manual-edit"><textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${y}" placeholder="- ${escapeHtml(i("Общие замечания"))}">${escapeHtml(t)}</textarea></div></div></section>`,s=m.map((t,n)=>{const o=t&&t.parent?t.parent:{title:"Секция",body:""},s=String(o.body||"").trim(),r=s?`<div class="spec-mode-markdown">${renderMarkdownBlock(s)}</div>`:"",c=String(e[o.key]||""),a=!!c.trim(),l=v(o)?`<div class="spec-mode-manual"><div class="spec-mode-manual-edit"><textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${escapeHtml(o.key)}" placeholder="- ${escapeHtml(i("Доп. пункт"))} 1&#10;- ${escapeHtml(i("Доп. пункт"))} 2">${escapeHtml(c)}</textarea></div></div>`:"",d=`spec-accordion-${n}`,p=(Array.isArray(t&&t.children)?t.children:[]).map(t=>((t,n)=>{const o=String(e[t.key]||""),s=!!o.trim(),r=v(t)?`<div class="spec-mode-manual"><div class="spec-mode-manual-edit"><textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${escapeHtml(t.key)}" placeholder="- ${escapeHtml(i("Доп. пункт"))} 1&#10;- ${escapeHtml(i("Доп. пункт"))} 2">${escapeHtml(o)}</textarea></div></div>`:"",c=toDomId("spec-sub",t.key),a=`${c}-h`,l=`${c}-c`;return`<div class="accordion-item spec-mode-sub ${s?"has-manual":""}" data-section-key="${escapeHtml(t.key)}"><h2 class="accordion-header" id="${escapeHtml(a)}"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${escapeHtml(l)}" aria-expanded="false" aria-controls="${escapeHtml(l)}">${escapeHtml(String(t.title||"Блок"))}</button></h2><div id="${escapeHtml(l)}" class="accordion-collapse collapse" aria-labelledby="${escapeHtml(a)}" data-bs-parent="#${escapeHtml(n)}"><div class="accordion-body"><div class="spec-mode-markdown">${renderMarkdownBlock(String(t.body||"").trim())}</div>`+r+"</div></div></div>"})(t,d)).join(""),u=p?`<div id="${escapeHtml(d)}" class="accordion spec-mode-accordion">${p}</div>`:"";return`<section class="spec-mode-block spec-mode-parent ${a?"has-manual":""}" data-section-key="${escapeHtml(o.key||"")}"><header>${escapeHtml(String(o.title||"Секция"))}</header>`+r+l+u+"</section>"}).join("")+o;n.specAutoBlocks.innerHTML=s,z()},_=e=>{const n=b(),o=Object.entries(n||{});if(!o.length)return!1;const s=(Array.isArray(e)?e:[]).filter(v);if(!s.length)return!1;const r=new Set(s.map(e=>e.key));let c=!1;for(const[e]of o)if(!r.has(e)){c=!0;break}if(!c)return!1;const a=new Map;for(const e of s){const t=sectionSemanticId(e);a.has(t)||a.set(t,[]),a.get(t).push(e.key)}const l={},d=[];for(const[e,t]of o){const n=String(t||"");if(!n.trim())continue;if(e===y){l[e]=n;continue}if(r.has(e)){l[e]=n;continue}const o=`6:${normalizeSemanticToken(extractLegacyTitleFromKey(e))}`,s=(a.get(o)||[]).find(e=>!l[e]);s?l[s]=n:d.push(n)}if(d.length){const e=String(l[y]||""),t=d.map((e,t)=>`- ${i("Перенесено")} (${t+1}): ${e}`).join("\n");l[y]=e?`${e}\n${t}`:t}return!((e,t)=>{const n=e&&"object"==typeof e?e:{},o=t&&"object"==typeof t?t:{},s=Object.keys(n),r=Object.keys(o);if(s.length!==r.length)return!1;for(const e of s){if(!Object.prototype.hasOwnProperty.call(o,e))return!1;if(String(n[e]??"")!==String(o[e]??""))return!1}return!0})(n,l)&&(t.specCustomSections=l,!0)},q=(e=!1)=>{if(!k()&&!e)return;const n="function"==typeof a?String(a()||""):"";n!==p&&(e=!0);const o=(()=>{const e=[];for(const n of Array.isArray(t.rects)?t.rects:[])e.push([n.id,n.x,n.y,n.width,n.height,n.rotation,n.scale,n.cellX,n.cellY,n.dataFlow,n.splitVariant,Array.isArray(n.hiddenCells)?n.hiddenCells.length:0,Array.isArray(n.cellLinks)?n.cellLinks.length:0,Array.isArray(n.manualClusters)?n.manualClusters.length:0].join(":"));return`${e.join(";")}|L${Array.isArray(t.flowLinks)?t.flowLinks.length:0}`})();if(!e&&o===d)return void(0===f.size&&z());d=o;const s="function"==typeof c?String(c()||""):"";if(!e&&s===l)return void(0===f.size&&z());l=s,u=parseSpecSections(s);const r=_(u);m=groupSpecSections(u),E(),p=n,r&&w(),(()=>{const e=b();if(Object.keys(e).length)return;if(!String(t.specCustomText||"").trim())return;const n=u.find(v);n&&(e[n.key]=String(t.specCustomText||""),t.specCustomText="",E(),w())})()};return{isSpecMode:k,refreshAutoSpec:q,updateSpecViewUi:(e=!1)=>{const t=k(),s=t&&!S;S=t,o&&(o.dataset.viewMode=t?"spec":"canvas"),n.specModePanel&&n.specModePanel.classList.toggle("d-none",!t),n.viewModeSpec&&(n.viewModeSpec.classList.remove("btn-secondary"),n.viewModeSpec.classList.toggle("btn-primary",t),n.viewModeSpec.classList.toggle("btn-outline-secondary",!t),n.viewModeSpec.setAttribute("aria-pressed",t?"true":"false")),n.mViewModeSpec&&(n.mViewModeSpec.classList.remove("btn-secondary"),n.mViewModeSpec.classList.toggle("btn-primary",t),n.mViewModeSpec.classList.toggle("btn-outline-secondary",!t),n.mViewModeSpec.setAttribute("aria-pressed",t?"true":"false")),t?(g=!1,q(!!e||s)):M()},flushCustomEditorsToState:()=>{if(!n.specAutoBlocks)return;for(const[e,t]of f.entries())e&&t&&"function"==typeof t.value&&j(e,t.value());const e=n.specAutoBlocks.querySelectorAll("textarea[data-spec-edit]");for(const t of e){if(!(t instanceof HTMLTextAreaElement))continue;const e=String(t.getAttribute("data-spec-edit")||"");e&&!f.has(e)&&j(e,t.value)}}}};
+/* build:1779222473 */
+import { createDebounced } from "../utils/debounce.js";
+import { normalizeSemanticToken, createSectionKeySequencer } from "../spec/section-key-utils.js";
+
+const escapeHtml = value => String(value == null ? "" : value)
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;");
+const renderInlineMd = value => {
+  const escaped = escapeHtml(value);
+  const linked = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, text, href) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`);
+  return linked.replace(/(^|[\s(])(https?:\/\/[^\s<]+)/g, (_m, lead, href) => `${lead}<a href="${href}" target="_blank" rel="noopener noreferrer">${href}</a>`);
+};
+const renderMarkdownBlock = text => {
+  const src = String(text || "").replace(/\r/g, "");
+  if (!src.trim()) return `<div class="spec-mode-markdown-empty">—</div>`;
+  const lines = src.split("\n");
+  const out = [];
+  let listOpen = false;
+  const closeList = () => {
+    if (!listOpen) return;
+    out.push("</ul>");
+    listOpen = false;
+  };
+  for (const raw of lines) {
+    const line = String(raw || "");
+    const heading = line.match(/^(#{1,6})\s+(.+)\s*$/);
+    if (heading) {
+      closeList();
+      const lvl = Math.max(1, Math.min(6, heading[1].length));
+      out.push(`<h${lvl}>${renderInlineMd(heading[2])}</h${lvl}>`);
+      continue;
+    }
+    const bullet = line.match(/^\s*[-*]\s+(.+)\s*$/);
+    if (bullet) {
+      if (!listOpen) {
+        out.push("<ul>");
+        listOpen = true;
+      }
+      out.push(`<li>${renderInlineMd(bullet[1])}</li>`);
+      continue;
+    }
+    if (!line.trim()) {
+      closeList();
+      continue;
+    }
+    closeList();
+    out.push(`<p>${renderInlineMd(line.trim())}</p>`);
+  }
+  closeList();
+  return out.join("");
+};
+
+const parseSpecSections = text => {
+  const lines = String(text || "").replace(/\r/g, "").split("\n");
+  const raw = [];
+  let cur = null;
+  const flush = () => {
+    if (!cur) return;
+    raw.push({
+      key: "",
+      title: cur.title || "Блок",
+      level: cur.level || 5,
+      body: cur.body.join("\n").trim()
+    });
+    cur = null;
+  };
+  for (const line of lines) {
+    const h = line.match(/^(#{5,6})\s+(.+)\s*$/);
+    if (h) {
+      flush();
+      cur = { key: "", title: String(h[2] || "").trim(), level: h[1].length, body: [] };
+      continue;
+    }
+    if (!cur) cur = { key: "", title: "Спецификация", level: 5, body: [] };
+    cur.body.push(line);
+  }
+  flush();
+  const out = [];
+  let parentTitle = "Спецификация";
+  const nextKey = createSectionKeySequencer();
+  for (const s of raw) {
+    const level = Number(s && s.level) || 5;
+    const title = String(s && s.title || "").trim() || (level <= 5 ? "Секция" : "Экран");
+    if (level <= 5) {
+      parentTitle = title;
+      out.push({ ...s, key: nextKey(5, parentTitle, title), title, level: 5 });
+      continue;
+    }
+    out.push({ ...s, key: nextKey(6, parentTitle, title), title, level: 6 });
+  }
+  return out;
+};
+
+const toDomId = (prefix, raw) => {
+  const source = String(raw || "");
+  const base = String(raw || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64) || "item";
+  let hash = 2166136261 >>> 0;
+  for (let i = 0; i < source.length; i++) {
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return `${prefix}-${base}-${hash.toString(36)}`;
+};
+
+const groupSpecSections = sections => {
+  const groups = [];
+  let current = null;
+  for (const s of (Array.isArray(sections) ? sections : [])) {
+    const level = Number(s && s.level) || 5;
+    if (level <= 5) {
+      current = { parent: s, children: [] };
+      groups.push(current);
+      continue;
+    }
+    if (!current) {
+      current = {
+        parent: { key: "__root__", title: "Спецификация", level: 5, body: "" },
+        children: []
+      };
+      groups.push(current);
+    }
+    current.children.push(s);
+  }
+  return groups;
+};
+
+const sectionSemanticId = section => {
+  const level = Number(section && section.level) || 0;
+  const title = normalizeSemanticToken(section && section.title);
+  return `${level}:${title}`;
+};
+
+const extractLegacyTitleFromKey = key => {
+  const s = String(key || "");
+  const sem = s.match(/^h6:[^:]*:(.*):\d+$/);
+  if (sem) return sem[1] || "";
+  const m = s.match(/^sec:\d+:(.*)$/);
+  if (m) return m[1] || "";
+  return s;
+};
+
+export const setupSpecViewController = (deps = {}) => {
+  const {
+    st,
+    el,
+    wrap,
+    normalizeViewMode,
+    commitProjectChange,
+    getAutoSpecText,
+    getLanguage,
+    t = value => value
+  } = deps;
+
+  let autoTextCache = "";
+  let autoSig = "";
+  let renderLang = "";
+  let sections = [];
+  let sectionGroups = [];
+  const editorMap = new Map();
+  let easyMdeFailed = false;
+  const GLOBAL_SPEC_KEY = "__global__";
+  let specEventsBound = false;
+  let wasSpecMode = false;
+
+  const isSpecMode = () => normalizeViewMode(st.viewMode) === "spec";
+  const isEditableSectionTitle = rawTitle => {
+    const normalized = normalizeSemanticToken(rawTitle);
+    return (
+      normalized === normalizeSemanticToken("Сигнальная и силовая коммутация")
+      || normalized === normalizeSemanticToken("Signal and power wiring")
+      || normalized === normalizeSemanticToken("Устройства")
+      || normalized === normalizeSemanticToken("Devices")
+    );
+  };
+  const isEditableSection = s => {
+    const level = Number(s && s.level) || 0;
+    if (level === 6) return true;
+    if (level !== 5) return false;
+    return isEditableSectionTitle(String(s && s.title || ""));
+  };
+  const hasEasyMde = () => !easyMdeFailed && typeof window !== "undefined" && typeof window.EasyMDE === "function";
+
+  const ensureCustomMap = () => {
+    if (!st.specCustomSections || typeof st.specCustomSections !== "object") st.specCustomSections = {};
+    return st.specCustomSections;
+  };
+  const sameStringMap = (a, b) => {
+    const aObj = (a && typeof a === "object") ? a : {};
+    const bObj = (b && typeof b === "object") ? b : {};
+    const aKeys = Object.keys(aObj);
+    const bKeys = Object.keys(bObj);
+    if (aKeys.length !== bKeys.length) return false;
+    for (const k of aKeys) {
+      if (!Object.prototype.hasOwnProperty.call(bObj, k)) return false;
+      if (String(aObj[k] ?? "") !== String(bObj[k] ?? "")) return false;
+    }
+    return true;
+  };
+
+  const persistDebounced = createDebounced(() => {
+    if (typeof commitProjectChange === "function") {
+      commitProjectChange({ persist: true, persistKind: "project", render: false });
+    }
+  }, 180);
+  const schedulePersist = () => persistDebounced.schedule();
+
+  const getRectSig = () => {
+    const parts = [];
+    for (const r of (Array.isArray(st.rects) ? st.rects : [])) {
+      parts.push([
+        r.id, r.x, r.y, r.width, r.height, r.rotation, r.scale,
+        r.cellX, r.cellY, r.dataFlow, r.splitVariant,
+        Array.isArray(r.hiddenCells) ? r.hiddenCells.length : 0,
+        Array.isArray(r.cellLinks) ? r.cellLinks.length : 0,
+        Array.isArray(r.manualClusters) ? r.manualClusters.length : 0
+      ].join(":"));
+    }
+    return `${parts.join(";")}|L${Array.isArray(st.flowLinks) ? st.flowLinks.length : 0}`;
+  };
+
+  const disposeEditors = () => {
+    for (const [, editor] of editorMap.entries()) {
+      try { if (editor && typeof editor.toTextArea === "function") editor.toTextArea(); } catch { /* noop */ }
+    }
+    editorMap.clear();
+  };
+
+  const findSectionByKey = (selector, key) => {
+    if (!el.specAutoBlocks) return null;
+    const targetKey = String(key || "");
+    const items = el.specAutoBlocks.querySelectorAll(selector);
+    for (const item of items) {
+      if (String(item.getAttribute("data-section-key") || "") === targetKey) return item;
+    }
+    return null;
+  };
+
+  const findSubSectionByKey = key => findSectionByKey(".spec-mode-sub[data-section-key]", key);
+  const findParentSectionByKey = key => findSectionByKey(".spec-mode-parent[data-section-key]", key);
+
+  const updateManualClassState = (key, hasManual) => {
+    const on = !!hasManual;
+    const sub = findSubSectionByKey(key);
+    if (sub) sub.classList.toggle("has-manual", on);
+    const parentAny = findParentSectionByKey(key);
+    if (parentAny) parentAny.classList.toggle("has-manual", on);
+    if (String(key || "") === GLOBAL_SPEC_KEY) {
+      const parent = findParentSectionByKey(key);
+      if (parent) parent.classList.toggle("has-manual", on);
+    }
+  };
+
+  const getCustomText = (key, fallback = "") => String((ensureCustomMap()[key] ?? fallback ?? ""));
+  const setCustomText = (key, textRaw) => {
+    const map = ensureCustomMap();
+    const text = String(textRaw || "");
+    if (text.trim()) map[key] = text;
+    else delete map[key];
+    updateManualClassState(key, !!text.trim());
+    schedulePersist();
+  };
+
+  const bindPlainTextarea = (ta, key) => {
+    ta.addEventListener("input", () => setCustomText(key, ta.value));
+  };
+  const createEasyMdeEditor = (ta, key) => {
+    if (!(ta instanceof HTMLTextAreaElement) || !key || !hasEasyMde()) return null;
+    try {
+      const editor = new window.EasyMDE({
+        element: ta,
+        autofocus: false,
+        spellChecker: false,
+        status: false,
+        autoDownloadFontAwesome: false,
+        forceSync: true,
+        lineWrapping: true,
+        sideBySideFullscreen: false,
+        toolbar: [
+          "bold", "italic", "heading", "|",
+          "unordered-list", "ordered-list", "|",
+          "quote", "code", "link"
+        ]
+      });
+      editor.value(getCustomText(key, ta.value));
+      editor.codemirror.on("change", () => {
+        setCustomText(key, editor.value());
+      });
+      editorMap.set(key, editor);
+      return editor;
+    } catch {
+      easyMdeFailed = true;
+      return null;
+    }
+  };
+
+  const bindSpecBlockEvents = () => {
+    if (specEventsBound || !el.specAutoBlocks) return;
+    specEventsBound = true;
+    const refreshEditorByCollapseEvent = evt => {
+      const target = evt && evt.target;
+      if (!target || !(target instanceof HTMLElement)) return;
+      const sub = target.closest(".spec-mode-sub[data-section-key]");
+      if (!sub) return;
+      const key = String(sub.getAttribute("data-section-key") || "");
+      if (!key) return;
+      const editor = editorMap.get(key);
+      if (editor && editor.codemirror) {
+        const refreshSafe = () => {
+          try { editor.codemirror.refresh(); } catch { /* noop */ }
+        };
+        refreshSafe();
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => {
+            refreshSafe();
+            requestAnimationFrame(() => refreshSafe());
+          });
+        }
+        setTimeout(() => refreshSafe(), 24);
+        return;
+      }
+      const ta = target.querySelector("textarea[data-spec-edit]");
+      if (ta instanceof HTMLTextAreaElement) {
+        const text = getCustomText(key, ta.value);
+        if (ta.value !== text) ta.value = text;
+      }
+    };
+    el.specAutoBlocks.addEventListener("show.bs.collapse", refreshEditorByCollapseEvent);
+    el.specAutoBlocks.addEventListener("shown.bs.collapse", refreshEditorByCollapseEvent);
+  };
+
+  const initEditors = () => {
+    if (!el.specAutoBlocks) return;
+    bindSpecBlockEvents();
+    disposeEditors();
+    const textareas = el.specAutoBlocks.querySelectorAll("textarea[data-spec-edit]");
+    for (const ta of textareas) {
+      const key = String(ta.getAttribute("data-spec-edit") || "");
+      if (!key) continue;
+      ta.value = getCustomText(key, ta.value);
+      if (!hasEasyMde()) {
+        bindPlainTextarea(ta, key);
+        continue;
+      }
+      const editor = createEasyMdeEditor(ta, key);
+      if (editor && editor.codemirror) {
+        setTimeout(() => {
+          try { editor.codemirror.refresh(); } catch { /* noop */ }
+        }, 0);
+      } else {
+        bindPlainTextarea(ta, key);
+      }
+    }
+  };
+
+  const flushCustomEditorsToState = () => {
+    if (!el.specAutoBlocks) return;
+    for (const [key, editor] of editorMap.entries()) {
+      if (!key || !editor || typeof editor.value !== "function") continue;
+      setCustomText(key, editor.value());
+    }
+    const textareas = el.specAutoBlocks.querySelectorAll("textarea[data-spec-edit]");
+    for (const ta of textareas) {
+      if (!(ta instanceof HTMLTextAreaElement)) continue;
+      const key = String(ta.getAttribute("data-spec-edit") || "");
+      if (!key || editorMap.has(key)) continue;
+      setCustomText(key, ta.value);
+    }
+  };
+
+  const renderSections = () => {
+    if (!el.specAutoBlocks) return;
+    if (!sectionGroups.length) {
+      el.specAutoBlocks.innerHTML = `<div class="spec-mode-empty">${escapeHtml(t("Нет данных для спецификации"))}</div>`;
+      disposeEditors();
+      return;
+    }
+    const map = ensureCustomMap();
+    const renderChild = (s, parentAccordionId) => {
+      const custom = String(map[s.key] || "");
+      const hasManual = !!custom.trim();
+      const manual = isEditableSection(s)
+        ? (`<div class="spec-mode-manual">`
+          + `<div class="spec-mode-manual-edit">`
+          + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${escapeHtml(s.key)}" placeholder="- ${escapeHtml(t("Доп. пункт"))} 1&#10;- ${escapeHtml(t("Доп. пункт"))} 2">${escapeHtml(custom)}</textarea>`
+          + `</div>`
+          + `</div>`)
+        : "";
+      const itemId = toDomId("spec-sub", s.key);
+      const headingId = `${itemId}-h`;
+      const collapseId = `${itemId}-c`;
+      return (
+        `<div class="accordion-item spec-mode-sub ${hasManual ? "has-manual" : ""}" data-section-key="${escapeHtml(s.key)}">`
+        + `<h2 class="accordion-header" id="${escapeHtml(headingId)}">`
+        + `<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${escapeHtml(collapseId)}" aria-expanded="false" aria-controls="${escapeHtml(collapseId)}">`
+        + `${escapeHtml(String(s.title || "Блок"))}`
+        + `</button>`
+        + `</h2>`
+        + `<div id="${escapeHtml(collapseId)}" class="accordion-collapse collapse" aria-labelledby="${escapeHtml(headingId)}" data-bs-parent="#${escapeHtml(parentAccordionId)}">`
+        + `<div class="accordion-body">`
+        + `<div class="spec-mode-markdown">${renderMarkdownBlock(String(s.body || "").trim())}</div>`
+        + manual
+        + `</div>`
+        + `</div>`
+        + `</div>`
+      );
+    };
+    const globalText = String(map[GLOBAL_SPEC_KEY] || "");
+    const globalHasManual = !!globalText.trim();
+    const globalBlock = (
+      `<section class="spec-mode-block spec-mode-parent ${globalHasManual ? "has-manual" : ""}" data-section-key="${GLOBAL_SPEC_KEY}">`
+      + `<header>${escapeHtml(t("Общее дополнение"))}</header>`
+      + `<div class="spec-mode-manual">`
+      + `<div class="spec-mode-manual-edit">`
+      + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${GLOBAL_SPEC_KEY}" placeholder="- ${escapeHtml(t("Общие замечания"))}">${escapeHtml(globalText)}</textarea>`
+      + `</div>`
+      + `</div>`
+      + `</section>`
+    );
+    const html = sectionGroups.map((g, idx) => {
+      const parent = g && g.parent ? g.parent : { title: "Секция", body: "" };
+      const parentBody = String(parent.body || "").trim();
+      const parentPre = parentBody ? `<div class="spec-mode-markdown">${renderMarkdownBlock(parentBody)}</div>` : "";
+      const parentCustom = String(map[parent.key] || "");
+      const parentHasManual = !!parentCustom.trim();
+      const parentManual = isEditableSection(parent)
+        ? (`<div class="spec-mode-manual">`
+          + `<div class="spec-mode-manual-edit">`
+          + `<textarea class="form-control form-control-sm" spellcheck="false" data-spec-edit="${escapeHtml(parent.key)}" placeholder="- ${escapeHtml(t("Доп. пункт"))} 1&#10;- ${escapeHtml(t("Доп. пункт"))} 2">${escapeHtml(parentCustom)}</textarea>`
+          + `</div>`
+          + `</div>`)
+        : "";
+      const parentAccordionId = `spec-accordion-${idx}`;
+      const children = (Array.isArray(g && g.children) ? g.children : []).map(s => renderChild(s, parentAccordionId)).join("");
+      const accordion = children ? `<div id="${escapeHtml(parentAccordionId)}" class="accordion spec-mode-accordion">${children}</div>` : "";
+      return (
+        `<section class="spec-mode-block spec-mode-parent ${parentHasManual ? "has-manual" : ""}" data-section-key="${escapeHtml(parent.key || "")}">`
+        + `<header>${escapeHtml(String(parent.title || "Секция"))}</header>`
+        + parentPre
+        + parentManual
+        + accordion
+        + `</section>`
+      );
+    }).join("") + globalBlock;
+    el.specAutoBlocks.innerHTML = html;
+    initEditors();
+  };
+
+  const migrateLegacyCustomText = () => {
+    const map = ensureCustomMap();
+    if (Object.keys(map).length) return;
+    if (!String(st.specCustomText || "").trim()) return;
+    const firstEditable = sections.find(isEditableSection);
+    if (!firstEditable) return;
+    map[firstEditable.key] = String(st.specCustomText || "");
+    st.specCustomText = "";
+    renderSections();
+    schedulePersist();
+  };
+
+  const remapCustomSectionsBySemantic = nextSections => {
+    const map = ensureCustomMap();
+    const entries = Object.entries(map || {});
+    if (!entries.length) return false;
+    const editable = (Array.isArray(nextSections) ? nextSections : []).filter(isEditableSection);
+    if (!editable.length) return false;
+
+    const direct = new Set(editable.map(s => s.key));
+    let needRemap = false;
+    for (const [k] of entries) {
+      if (!direct.has(k)) { needRemap = true; break; }
+    }
+    if (!needRemap) return false;
+
+    const buckets = new Map();
+    for (const s of editable) {
+      const sem = sectionSemanticId(s);
+      if (!buckets.has(sem)) buckets.set(sem, []);
+      buckets.get(sem).push(s.key);
+    }
+
+    const nextMap = {};
+    const orphans = [];
+    for (const [k, v] of entries) {
+      const text = String(v || "");
+      if (!text.trim()) continue;
+      if (k === GLOBAL_SPEC_KEY) {
+        nextMap[k] = text;
+        continue;
+      }
+      if (direct.has(k)) {
+        nextMap[k] = text;
+        continue;
+      }
+      const legacySem = `6:${normalizeSemanticToken(extractLegacyTitleFromKey(k))}`;
+      const list = buckets.get(legacySem) || [];
+      const slot = list.find(id => !nextMap[id]);
+      if (slot) nextMap[slot] = text;
+      else orphans.push(text);
+    }
+    if (orphans.length) {
+      const prev = String(nextMap[GLOBAL_SPEC_KEY] || "");
+      const tail = orphans.map((text, i) => `- ${t("Перенесено")} (${i + 1}): ${text}`).join("\n");
+      nextMap[GLOBAL_SPEC_KEY] = prev ? `${prev}\n${tail}` : tail;
+    }
+
+    const changed = !sameStringMap(map, nextMap);
+    if (!changed) return false;
+    st.specCustomSections = nextMap;
+    return true;
+  };
+
+  const refreshAutoSpec = (force = false) => {
+    if (!isSpecMode() && !force) return;
+    const currentLang = typeof getLanguage === "function" ? String(getLanguage() || "") : "";
+    if (currentLang !== renderLang) force = true;
+    const nextSig = getRectSig();
+    if (!force && nextSig === autoSig) {
+      if (editorMap.size === 0) initEditors();
+      return;
+    }
+    autoSig = nextSig;
+    const text = (typeof getAutoSpecText === "function") ? String(getAutoSpecText() || "") : "";
+    if (!force && text === autoTextCache) {
+      if (editorMap.size === 0) initEditors();
+      return;
+    }
+    autoTextCache = text;
+    sections = parseSpecSections(text);
+    const remapped = remapCustomSectionsBySemantic(sections);
+    sectionGroups = groupSpecSections(sections);
+    renderSections();
+    renderLang = currentLang;
+    if (remapped) schedulePersist();
+    migrateLegacyCustomText();
+  };
+
+  const updateSpecViewUi = (force = false) => {
+    const show = isSpecMode();
+    const enteringSpecMode = show && !wasSpecMode;
+    wasSpecMode = show;
+    if (wrap) wrap.dataset.viewMode = show ? "spec" : "canvas";
+    if (el.specModePanel) el.specModePanel.classList.toggle("d-none", !show);
+    if (el.viewModeSpec) {
+      el.viewModeSpec.classList.remove("btn-secondary");
+      el.viewModeSpec.classList.toggle("btn-primary", show);
+      el.viewModeSpec.classList.toggle("btn-outline-secondary", !show);
+      el.viewModeSpec.setAttribute("aria-pressed", show ? "true" : "false");
+    }
+    if (el.mViewModeSpec) {
+      el.mViewModeSpec.classList.remove("btn-secondary");
+      el.mViewModeSpec.classList.toggle("btn-primary", show);
+      el.mViewModeSpec.classList.toggle("btn-outline-secondary", !show);
+      el.mViewModeSpec.setAttribute("aria-pressed", show ? "true" : "false");
+    }
+    if (!show) {
+      disposeEditors();
+      return;
+    }
+    easyMdeFailed = false;
+    refreshAutoSpec(!!force || enteringSpecMode);
+  };
+
+  return {
+    isSpecMode,
+    refreshAutoSpec,
+    updateSpecViewUi,
+    flushCustomEditorsToState
+  };
+};
+
+

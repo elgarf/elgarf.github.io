@@ -1,1 +1,200 @@
-export const setupProjectLinkActionsController=(t={})=>{const{el:e,bindEvent:r,eventClosest:o,showProjectLinkModal:a,withUiErrorBoundary:n,encodeProjectToQueryValue:i,buildPortableProject:c,saveProjectToServer:s,getProjectName:l,getProjectGuid:d,PROJECT_QUERY_PARAM:p,PROJECT_ID_PARAM:u}=t;let h="";const y=t=>{const e=String(t||"").trim();if(!e)return null;const r=/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(e)?e:`https://${e}`;try{const t=new URL(r),e=r.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//,"").split("/")[0].trim();if(!t.hostname||!e)return null;const o="xn--80aakd1abmpcmfoi.xn--p1ai"===e.toLowerCase()?"редактормасок.рф":e,a=`${t.protocol}//${o}`.replace(/\/+$/,"");return{displayOrigin:a,asciiOrigin:`${t.protocol}//${t.host}`}}catch{return null}},m=t=>{const e=(()=>{const t=String("undefined"!=typeof location&&location.hostname||"").toLowerCase();return"127.0.0.1"===t||"localhost"===t?"local":"elgarf.github.io"===t?"github":"other"})();return"local"===e||"github"===e?{path:t?"/tools/LedMaskViewer.html":"/tools/LEDMaskEditor.html",idParam:"projectid"}:{path:t?"/viewer.php":"/index.php",idParam:"id"}},g=(t,r=!1,o=!1)=>{if(!e||!e.projectLinkCopyBtn)return;const a=e.projectLinkCopyBtn.querySelector("span"),n=e.projectLinkCopyBtn.querySelector("i");a&&(a.textContent=t),n&&(n.className=r?"fa-solid fa-check":"fa-regular fa-clipboard"),e.projectLinkCopyBtn.disabled=!!o},P=async t=>{try{if(!navigator.clipboard||"function"!=typeof navigator.clipboard.readText)return null;const e=await navigator.clipboard.readText();return String(e||"")===String(t||"")}catch{return null}},w=async t=>{const e=String(t||"");let r=!1;if(navigator.clipboard&&"function"==typeof navigator.clipboard.writeText)try{await navigator.clipboard.writeText(e),r=!0;const t=await P(e);if(!0===t)return!0;!1===t&&(r=!1)}catch{}if(!r){const t=(t=>{try{const e=document.createElement("textarea");e.value=String(t||""),e.setAttribute("readonly","true"),e.style.position="fixed",e.style.left="-9999px",e.style.top="0",e.style.opacity="0",document.body.appendChild(e),e.focus(),e.select(),e.setSelectionRange(0,e.value.length);const r=document.execCommand("copy");return document.body.removeChild(e),!!r}catch{return!1}})(e);if(!t)return!1;return!1!==await P(e)}return!0},f=async()=>{a("",{loading:!0,loadingText:"Формируем ссылку..."}),g("Подготовка...",!1,!0),h="",await new Promise(t=>setTimeout(t,0)),await n("Ссылка проекта",async()=>{const t=!(e&&e.projectLinkViewerOnly&&!e.projectLinkViewerOnly.checked),r=await i(c()),o=m(t),n=(()=>{const t="undefined"!=typeof window&&"string"==typeof window.LED_MASK_SHARE_ORIGIN?window.LED_MASK_SHARE_ORIGIN:"";return y(t)||y("undefined"!=typeof location&&location.origin?String(location.origin):"")})(),P=new URL(o.path,n?`${n.asciiOrigin}/`:location.href);let w=0;try{w=await s(l(),r,d())}catch{w=0}w>0?(P.searchParams.delete(p),P.searchParams.delete("id"),P.searchParams.delete("projectId"),P.searchParams.delete("projectid"),P.searchParams.delete(u),P.searchParams.set(o.idParam,String(w))):(P.searchParams.set(p,r),P.searchParams.delete(u),P.searchParams.delete("projectId"),P.searchParams.delete("projectid"),P.searchParams.delete("id"));const f=n?`${n.displayOrigin}${P.pathname}${P.search}${P.hash}`:P.toString();h=f,g("Скопировать ссылку",!1,!1),a(f,{loading:!1})},"Не удалось сформировать ссылку проекта"),h||g("Скопировать ссылку",!1,!1)},k=async()=>{const t=h||e&&e.projectLinkText&&e.projectLinkText.value||"";if(!t)return;await w(t)?(g("Ссылка скопирована",!0),setTimeout(()=>g("Скопировать ссылку",!1),1400)):window.prompt("Скопируйте ссылку проекта",t)};return{setProjectLinkCopyButtonState:g,onSaveProjectLinkClick:f,onCopyProjectLinkClick:k,bindProjectLinkHandlers:()=>{r(e&&e.projectLinkCopyBtn,"click",k),r(e&&e.saveLink,"click",f),r(e&&e.projectLinkViewerOnly,"change",()=>{f()}),r(document,"click",t=>{const r=o(t,"#saveProjectLink");r&&r!==(e&&e.saveLink)&&f()})}}};
+/* build:1779222473 */
+export const setupProjectLinkActionsController = (deps = {}) => {
+  const {
+    el,
+    bindEvent,
+    eventClosest,
+    showProjectLinkModal,
+    withUiErrorBoundary,
+    encodeProjectToQueryValue,
+    buildPortableProject,
+    saveProjectToServer,
+    getProjectName,
+    getProjectGuid,
+    PROJECT_QUERY_PARAM,
+    PROJECT_ID_PARAM
+  } = deps;
+
+  let currentProjectShareLink = "";
+
+  const parseShareOriginOverride = rawValue => {
+    const raw = String(rawValue || "").trim();
+    if (!raw) return null;
+    const withScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw) ? raw : `https://${raw}`;
+    try {
+      const parsed = new URL(withScheme);
+      const hostInput = withScheme.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, "").split("/")[0].trim();
+      if (!parsed.hostname || !hostInput) return null;
+      const hostForDisplay = (() => {
+        const normalized = hostInput.toLowerCase();
+        if (normalized === "xn--80aakd1abmpcmfoi.xn--p1ai") return "редактормасок.рф";
+        return hostInput;
+      })();
+      const displayOrigin = `${parsed.protocol}//${hostForDisplay}`.replace(/\/+$/, "");
+      const asciiOrigin = `${parsed.protocol}//${parsed.host}`;
+      return { displayOrigin, asciiOrigin };
+    } catch {
+      return null;
+    }
+  };
+
+  const getShareOriginOverride = () => {
+    const fromGlobal = typeof window !== "undefined" && typeof window.LED_MASK_SHARE_ORIGIN === "string"
+      ? window.LED_MASK_SHARE_ORIGIN
+      : "";
+    return parseShareOriginOverride(fromGlobal)
+      || parseShareOriginOverride((typeof location !== "undefined" && location.origin) ? String(location.origin) : "");
+  };
+
+  const resolveHostMode = () => {
+    const host = String((typeof location !== "undefined" && location.hostname) || "").toLowerCase();
+    if (host === "127.0.0.1" || host === "localhost") return "local";
+    if (host === "elgarf.github.io") return "github";
+    return "other";
+  };
+
+  const resolveShareTarget = viewerOnly => {
+    const mode = resolveHostMode();
+    if (mode === "local" || mode === "github") {
+      return {
+        path: viewerOnly ? "/tools/LedMaskViewer.html" : "/tools/LEDMaskEditor.html",
+        idParam: "projectid"
+      };
+    }
+    return {
+      path: viewerOnly ? "/viewer.php" : "/index.php",
+      idParam: "id"
+    };
+  };
+
+  const setProjectLinkCopyButtonState = (text, copied = false, disabled = false) => {
+    if (!el || !el.projectLinkCopyBtn) return;
+    const label = el.projectLinkCopyBtn.querySelector("span");
+    const icon = el.projectLinkCopyBtn.querySelector("i");
+    if (label) label.textContent = text;
+    if (icon) icon.className = copied ? "fa-solid fa-check" : "fa-regular fa-clipboard";
+    el.projectLinkCopyBtn.disabled = !!disabled;
+  };
+
+  const legacyCopyText = text => {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = String(text || "");
+      ta.setAttribute("readonly", "true");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "0";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return !!ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const verifyClipboardText = async expected => {
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.readText !== "function") return null;
+      const got = await navigator.clipboard.readText();
+      return String(got || "") === String(expected || "");
+    } catch {
+      return null;
+    }
+  };
+
+  const copyTextSmart = async text => {
+    const value = String(text || "");
+    let wrote = false;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      try {
+        await navigator.clipboard.writeText(value);
+        wrote = true;
+        const verified = await verifyClipboardText(value);
+        if (verified === true) return true;
+        if (verified === false) wrote = false;
+      } catch { /* noop */ }
+    }
+    if (!wrote) {
+      const legacyOk = legacyCopyText(value);
+      if (!legacyOk) return false;
+      const verified = await verifyClipboardText(value);
+      if (verified === false) return false;
+      return true;
+    }
+    return true;
+  };
+
+  const onSaveProjectLinkClick = async () => {
+    showProjectLinkModal("", { loading: true, loadingText: "Формируем ссылку..." });
+    setProjectLinkCopyButtonState("Подготовка...", false, true);
+    currentProjectShareLink = "";
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await withUiErrorBoundary("Ссылка проекта", async () => {
+      const viewerOnly = !(el && el.projectLinkViewerOnly) || !!el.projectLinkViewerOnly.checked;
+      const value = await encodeProjectToQueryValue(buildPortableProject());
+      const target = resolveShareTarget(viewerOnly);
+      const originOverride = getShareOriginOverride();
+      const url = new URL(target.path, originOverride ? `${originOverride.asciiOrigin}/` : location.href);
+      let usedServerId = 0;
+      try { usedServerId = await saveProjectToServer(getProjectName(), value, getProjectGuid()); } catch { usedServerId = 0; }
+      if (usedServerId > 0) {
+        url.searchParams.delete(PROJECT_QUERY_PARAM);
+        url.searchParams.delete("id");
+        url.searchParams.delete("projectId");
+        url.searchParams.delete("projectid");
+        url.searchParams.delete(PROJECT_ID_PARAM);
+        url.searchParams.set(target.idParam, String(usedServerId));
+      } else {
+        url.searchParams.set(PROJECT_QUERY_PARAM, value);
+        url.searchParams.delete(PROJECT_ID_PARAM);
+        url.searchParams.delete("projectId");
+        url.searchParams.delete("projectid");
+        url.searchParams.delete("id");
+      }
+      const link = originOverride
+        ? `${originOverride.displayOrigin}${url.pathname}${url.search}${url.hash}`
+        : url.toString();
+      currentProjectShareLink = link;
+      setProjectLinkCopyButtonState("Скопировать ссылку", false, false);
+      showProjectLinkModal(link, { loading: false });
+    }, "Не удалось сформировать ссылку проекта");
+    if (!currentProjectShareLink) setProjectLinkCopyButtonState("Скопировать ссылку", false, false);
+  };
+
+  const onCopyProjectLinkClick = async () => {
+    const link = currentProjectShareLink || (el && el.projectLinkText && el.projectLinkText.value) || "";
+    if (!link) return;
+    const copied = await copyTextSmart(link);
+    if (copied) {
+      setProjectLinkCopyButtonState("Ссылка скопирована", true);
+      setTimeout(() => setProjectLinkCopyButtonState("Скопировать ссылку", false), 1400);
+    } else {
+      window.prompt("Скопируйте ссылку проекта", link);
+    }
+  };
+
+  const bindProjectLinkHandlers = () => {
+    bindEvent(el && el.projectLinkCopyBtn, "click", onCopyProjectLinkClick);
+    bindEvent(el && el.saveLink, "click", onSaveProjectLinkClick);
+    bindEvent(el && el.projectLinkViewerOnly, "change", () => {
+      onSaveProjectLinkClick();
+    });
+    bindEvent(document, "click", e => {
+      const btn = eventClosest(e, "#saveProjectLink");
+      if (!btn) return;
+      if (btn !== (el && el.saveLink)) onSaveProjectLinkClick();
+    });
+  };
+
+  return {
+    setProjectLinkCopyButtonState,
+    onSaveProjectLinkClick,
+    onCopyProjectLinkClick,
+    bindProjectLinkHandlers
+  };
+};

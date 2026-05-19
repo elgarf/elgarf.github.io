@@ -1,1 +1,272 @@
-export const setupRectLayerCacheController=(e={})=>{const{getRectCalcCache:t,topoCalcKey:a,listSignature:n,maskCellKey:i,getVisibleBoundarySegmentsLocal:o,hexRgb:r,shadeHex:l,flowDrawKeyForGroups:s,drawDataFlowOnRect:c}=e,h=(e,t)=>{const a=e&&e.cabinetStyles&&"object"==typeof e.cabinetStyles?e.cabinetStyles:null;return a?(e=>{const t=e&&"object"==typeof e?e:{},a=String(t.diag||"auto"),n=String(t.color||"auto"),i=["auto","right","left","rightSwap","leftSwap"].includes(a)?a:"auto",o=["auto","a","b"].includes(n)?n:"auto";return"auto"===i&&"auto"===o?null:{diag:i,color:o}})(a[String(0|t)]):null},m=(e,t,a=1)=>{const n=Math.max(1,Number(a)||1),i=Math.max(1,Math.round(e*n)),o=Math.max(1,Math.round(t*n));if("undefined"!=typeof OffscreenCanvas)return new OffscreenCanvas(i,o);const r=document.createElement("canvas");return r.width=i,r.height=o,r},u=(e,t,a)=>{const n=Math.min(8,Math.max(1,Math.ceil((Number(a)||1)-.5))),i=Math.sqrt(32e6/Math.max(1,e*t));return Math.max(1,Math.min(n,Math.max(1,Math.floor(i))))},d=(e,n,i,o)=>{const r=t(e),l=[e&&e.width||0,e&&e.height||0,n||0,i||0,a(e,n,i)].join("|");if(r.compRender&&r.compRender.key===l&&Array.isArray(r.compRender.value))return r.compRender.value;const s=Math.max(1,Math.round(Number(e&&e.width)||1)),c=Math.max(1,Math.round(Number(e&&e.height)||1)),h=new Map;for(let e=0;e<c;e+=i)for(let t=0;t<s;t+=n){const a=Math.floor(t/n),r=Math.floor(e/i),l=r*o.cols+a,m=o.comp[l],u=o.seed[m]||{col:a,row:r},d=Math.min(n,s-t),f=Math.min(i,c-e),y=-s/2+t,b=-c/2+e;let M=h.get(m);if(M)M.minX=Math.min(M.minX,y),M.minY=Math.min(M.minY,b),M.maxX=Math.max(M.maxX,y+d),M.maxY=Math.max(M.maxY,b+f),M.minCol=Math.min(M.minCol,a),M.minRow=Math.min(M.minRow,r);else{M={cid:m,cc:o.color&&-1!==o.color[m]?o.color[m]:(u.col+u.row)%2,minX:y,minY:b,maxX:y+d,maxY:b+f,minCol:a,minRow:r,cells:[]},h.set(m,M)}M.cells.push({x:y,y:b,w:d,h:f})}const m=[...h.values()];return r.compRender={key:l,value:m},m};return{getRectComponentRenderDataCached:d,getMaskRenderDataCached:(e,a,o,r,l)=>{const s=t(e),c=[e&&e.width||0,e&&e.height||0,a||0,o||0,n(e&&e.hiddenCells)].join("|");if(s.maskRender&&s.maskRender.key===c&&s.maskRender.value)return s.maskRender.value;const h=Math.max(1,Math.round(Number(e&&e.width)||1)),m=Math.max(1,Math.round(Number(e&&e.height)||1)),u=!(!r||!r.size);if(!u){const e={hasMask:!1,hasVisible:!0,hiddenRects:null,visibleCompSet:null};return s.maskRender={key:c,value:e},e}const d=[],f=new Set;let y=0;for(let e=0,t=0;e<m;e+=o,t++)for(let n=0,s=0;n<h;n+=a,s++){const c=Math.min(a,h-n),u=Math.min(o,m-e);if(r.has(i(s,t)))d.push({x:-h/2+n,y:-m/2+e,w:c,h:u});else if(y++,l&&Array.isArray(l.comp)){const e=t*l.cols+s,a=l.comp[e];Number.isFinite(a)&&f.add(0|a)}}const b={hasMask:u,hasVisible:y>0,hiddenRects:d,visibleCompSet:f};return s.maskRender={key:c,value:b},b},getVisibleBoundarySegmentsCached:(e,a,i,r)=>{const l=t(e),s=[e&&e.width||0,e&&e.height||0,a||0,i||0,n(e&&e.hiddenCells)].join("|");if(l.boundarySegs&&l.boundarySegs.key===s&&Array.isArray(l.boundarySegs.value))return l.boundarySegs.value;const c=o(Math.max(1,Math.round(Number(e&&e.width)||1)),Math.max(1,Math.round(Number(e&&e.height)||1)),a,i,r);return l.boundarySegs={key:s,value:c},c},getRectFillLayerCached:(e,i,o,s,c,f,y=1)=>{const b=t(e),M=Math.max(1,Math.round(Number(e&&e.width)||1)),g=Math.max(1,Math.round(Number(e&&e.height)||1)),v=u(M,g,y),p=[M,g,v,i||0,o||0,a(e,i,o),n(e&&e.hiddenCells),String(e&&e.colorA||""),String(e&&e.colorB||""),JSON.stringify(e&&e.cabinetStyles||{}),f?"1":"0"].join("|");if(b.fillLayer&&b.fillLayer.key===p&&b.fillLayer.canvas)return b.fillLayer.canvas;const x=m(M,g,v),S=x.getContext("2d");if(!S)return null;if(S.scale(v,v),f)S.fillStyle=e.colorA,S.fillRect(0,0,M,g),S.fillStyle=e.colorB,S.beginPath(),S.moveTo(0,0),S.lineTo(M,0),S.lineTo(0,g),S.closePath(),S.fill();else{const t=d(e,i,o,s),a=e=>{const t=r(e),a=(299*t.r+587*t.g+114*t.b)/1e3;return l(e,a>140?-.25:.25)},n=a(e.colorA),m=a(e.colorB),u=new Map(t.map(e=>[0|e.cid,0|e.cc])),f=new Set,y=new Set,b=(e,t)=>{if(!Number.isFinite(e)||!Number.isFinite(t)||e===t)return;const a=Math.min(e,t),n=Math.max(e,t),i=`${a}:${n}`;y.has(i)||(y.add(i),f.add(n))};if(s&&Array.isArray(s.comp)&&Number.isFinite(s.cols)&&Number.isFinite(s.rows)){const e=Math.max(1,Math.round(Number(s.cols)||1)),t=Math.max(1,Math.round(Number(s.rows)||1));for(let a=0;a<t;a++)for(let n=0;n<e;n++){const i=a*e+n,o=s.comp[i];if(!Number.isFinite(o))continue;const r=0|o;if(c&&c.visibleCompSet&&!c.visibleCompSet.has(r))continue;const l=u.get(r);if(Number.isFinite(l)){if(n+1<e){const e=s.comp[i+1];if(Number.isFinite(e)){const t=0|e,a=u.get(t);r===t||c&&c.visibleCompSet&&!c.visibleCompSet.has(t)||!Number.isFinite(a)||l!==a||b(r,t)}}if(a+1<t){const t=s.comp[i+e];if(Number.isFinite(t)){const e=0|t,a=u.get(e);r===e||c&&c.visibleCompSet&&!c.visibleCompSet.has(e)||!Number.isFinite(a)||l!==a||b(r,e)}}}}}for(const a of t){if(c&&c.visibleCompSet&&!c.visibleCompSet.has(a.cid))continue;const t=h(e,0|a.cid),i=t&&"a"===t.color?0:t&&"b"===t.color?1:a.cc,o=0===i?e.colorA:e.colorB,r=0===i?n:m;S.save(),S.beginPath();for(const e of a.cells)S.rect(e.x+M/2,e.y+g/2,e.w,e.h);S.clip();const l=a.maxX-a.minX,s=a.maxY-a.minY,u=a.minX+M/2,d=a.minY+g/2;S.fillStyle=o,S.fillRect(u,d,l,s),S.fillStyle=r;const y=t?"left"===t.diag||"leftSwap"===t.diag:f.has(0|a.cid),b=!!t&&("rightSwap"===t.diag||"leftSwap"===t.diag),v=b?r:o,p=b?o:r;S.fillStyle=v,S.fillRect(u,d,l,s),S.fillStyle=p,S.beginPath(),y?(S.moveTo(u+l,d),S.lineTo(u,d),S.lineTo(u+l,d+s)):(S.moveTo(u,d),S.lineTo(u+l,d),S.lineTo(u,d+s)),S.closePath(),S.fill(),S.restore()}}if(c&&c.hasMask&&Array.isArray(c.hiddenRects)&&c.hiddenRects.length){S.save(),S.globalCompositeOperation="destination-out",S.globalAlpha=1,S.fillStyle="#000",S.beginPath();for(const e of c.hiddenRects)S.rect(e.x+M/2,e.y+g/2,e.w,e.h);S.fill(),S.restore()}return b.fillLayer={key:p,canvas:x},x},getRectDecorLayerCached:(e,a,i)=>{const o=t(e),r=Math.max(1,Math.round(Number(e&&e.width)||1)),l=Math.max(1,Math.round(Number(e&&e.height)||1)),s=u(r,l,i),c=[r,l,s,n(e&&e.hiddenCells)].join("|");if(o.decorLayer&&o.decorLayer.key===c&&o.decorLayer.canvas)return o.decorLayer.canvas;const h=m(r,l,s),d=h.getContext("2d");if(!d)return null;if(d.scale(s,s),d.strokeStyle="rgba(255,255,255,.55)",d.lineWidth=2.4/Math.max(.01,s),d.beginPath(),d.moveTo(0,0),d.lineTo(r,l),d.moveTo(r,0),d.lineTo(0,l),d.stroke(),d.strokeStyle="rgba(255,255,255,.75)",d.lineWidth=2.4/Math.max(.01,s),d.beginPath(),d.arc(r/2,l/2,Math.max(0,Math.min(r,l)/2-2/Math.max(.01,s)),0,2*Math.PI),d.stroke(),a&&a.hasMask&&Array.isArray(a.hiddenRects)&&a.hiddenRects.length){d.save(),d.globalCompositeOperation="destination-out",d.globalAlpha=1,d.fillStyle="#000",d.beginPath();for(const e of a.hiddenRects)d.rect(e.x+r/2,e.y+l/2,e.w,e.h);d.fill(),d.restore()}return o.decorLayer={key:c,canvas:h},h},getRectFlowPassiveLayerCached:(e,a,n,i,o,r)=>{const l=t(e),h=[a,n,u(a,n,i),s(o),Math.max(0,Math.round(Number(r)||0))].join("|");if(l.flowPassiveLayer&&l.flowPassiveLayer.key===h&&l.flowPassiveLayer.canvas)return l.flowPassiveLayer.canvas;const d=(Array.isArray(o)?o:[]).filter(e=>Math.round(Number(e&&e.rid)||0)!==Math.round(Number(r)||0));if(!d.length)return l.flowPassiveLayer={key:h,canvas:null},null;const f=m(a,n),y=f.getContext("2d");return y?(y.save(),y.translate(a/2,n/2),c(y,d,a,n,i,{noBatch:!0}),y.restore(),l.flowPassiveLayer={key:h,canvas:f},f):null}}};
+/* build:1779222473 */
+export const setupRectLayerCacheController = (deps = {}) => {
+  const {
+    getRectCalcCache,
+    topoCalcKey,
+    listSignature,
+    maskCellKey,
+    getVisibleBoundarySegmentsLocal,
+    hexRgb,
+    shadeHex,
+    flowDrawKeyForGroups,
+    drawDataFlowOnRect
+  } = deps;
+
+  const MAX_LAYER_SCALE = 8;
+  const MAX_LAYER_PIXELS = 32000000;
+  const normalizeCabinetStyle = raw => {
+    const src = (raw && typeof raw === "object") ? raw : {};
+    const diagRaw = String(src.diag || "auto");
+    const colorRaw = String(src.color || "auto");
+    const diag = ["auto", "right", "left", "rightSwap", "leftSwap"].includes(diagRaw) ? diagRaw : "auto";
+    const color = ["auto", "a", "b"].includes(colorRaw) ? colorRaw : "auto";
+    return (diag === "auto" && color === "auto") ? null : { diag, color };
+  };
+  const getCabinetStyle = (r, cid) => {
+    const styles = (r && r.cabinetStyles && typeof r.cabinetStyles === "object") ? r.cabinetStyles : null;
+    if (!styles) return null;
+    return normalizeCabinetStyle(styles[String(cid | 0)]);
+  };
+
+  const createLayerCanvas = (w, h, scale = 1) => {
+    const safeScale = Math.max(1, Number(scale) || 1);
+    const ww = Math.max(1, Math.round(w * safeScale)), hh = Math.max(1, Math.round(h * safeScale));
+    if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(ww, hh);
+    const cv = document.createElement("canvas");
+    cv.width = ww; cv.height = hh;
+    return cv;
+  };
+
+  const getLayerScale = (w, h, z) => {
+    const desired = Math.min(MAX_LAYER_SCALE, Math.max(1, Math.ceil((Number(z) || 1) - 0.5)));
+    const pixelCap = Math.sqrt(MAX_LAYER_PIXELS / Math.max(1, w * h));
+    return Math.max(1, Math.min(desired, Math.max(1, Math.floor(pixelCap))));
+  };
+
+  const getRectComponentRenderDataCached = (r, cx, cy, topo) => {
+    const cache = getRectCalcCache(r);
+    const key = [r && r.width || 0, r && r.height || 0, cx || 0, cy || 0, topoCalcKey(r, cx, cy)].join("|");
+    if (cache.compRender && cache.compRender.key === key && Array.isArray(cache.compRender.value)) return cache.compRender.value;
+    const w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1));
+    const byId = new Map();
+    for (let y = 0; y < h; y += cy) {
+      for (let x = 0; x < w; x += cx) {
+        const ix = Math.floor(x / cx), iy = Math.floor(y / cy), idx = iy * topo.cols + ix, compId = topo.comp[idx], seed = topo.seed[compId] || { col: ix, row: iy }, cw = Math.min(cx, w - x), ch = Math.min(cy, h - y), rx = -w / 2 + x, ry = -h / 2 + y;
+        let it = byId.get(compId);
+        if (!it) {
+          const cc = (topo.color && topo.color[compId] !== -1) ? topo.color[compId] : ((seed.col + seed.row) % 2);
+          it = { cid: compId, cc, minX: rx, minY: ry, maxX: rx + cw, maxY: ry + ch, minCol: ix, minRow: iy, cells: [] };
+          byId.set(compId, it);
+        } else {
+          it.minX = Math.min(it.minX, rx); it.minY = Math.min(it.minY, ry); it.maxX = Math.max(it.maxX, rx + cw); it.maxY = Math.max(it.maxY, ry + ch);
+          it.minCol = Math.min(it.minCol, ix); it.minRow = Math.min(it.minRow, iy);
+        }
+        it.cells.push({ x: rx, y: ry, w: cw, h: ch });
+      }
+    }
+    const value = [...byId.values()];
+    cache.compRender = { key, value };
+    return value;
+  };
+
+  const getMaskRenderDataCached = (r, cx, cy, hs, topo) => {
+    const cache = getRectCalcCache(r), key = [r && r.width || 0, r && r.height || 0, cx || 0, cy || 0, listSignature(r && r.hiddenCells)].join("|");
+    if (cache.maskRender && cache.maskRender.key === key && cache.maskRender.value) return cache.maskRender.value;
+    const w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1)), hasMask = !!(hs && hs.size);
+    if (!hasMask) {
+      const value = { hasMask: false, hasVisible: true, hiddenRects: null, visibleCompSet: null };
+      cache.maskRender = { key, value };
+      return value;
+    }
+    const hiddenRects = [], visibleCompSet = new Set();
+    let visibleCount = 0;
+    for (let y = 0, iy = 0; y < h; y += cy, iy++) {
+      for (let x = 0, ix = 0; x < w; x += cx, ix++) {
+        const cw = Math.min(cx, w - x), ch = Math.min(cy, h - y);
+        if (hs.has(maskCellKey(ix, iy))) {
+          hiddenRects.push({ x: -w / 2 + x, y: -h / 2 + y, w: cw, h: ch });
+          continue;
+        }
+        visibleCount++;
+        if (topo && Array.isArray(topo.comp)) {
+          const idx = iy * topo.cols + ix, cid = topo.comp[idx];
+          if (Number.isFinite(cid)) visibleCompSet.add(cid | 0);
+        }
+      }
+    }
+    const value = { hasMask, hasVisible: visibleCount > 0, hiddenRects, visibleCompSet };
+    cache.maskRender = { key, value };
+    return value;
+  };
+
+  const getVisibleBoundarySegmentsCached = (r, cx, cy, hs) => {
+    const cache = getRectCalcCache(r), key = [r && r.width || 0, r && r.height || 0, cx || 0, cy || 0, listSignature(r && r.hiddenCells)].join("|");
+    if (cache.boundarySegs && cache.boundarySegs.key === key && Array.isArray(cache.boundarySegs.value)) return cache.boundarySegs.value;
+    const value = getVisibleBoundarySegmentsLocal(Math.max(1, Math.round(Number(r && r.width) || 1)), Math.max(1, Math.round(Number(r && r.height) || 1)), cx, cy, hs);
+    cache.boundarySegs = { key, value };
+    return value;
+  };
+
+  const getRectFillLayerCached = (r, cx, cy, topo, maskRender, lowDetail, z = 1) => {
+    const cache = getRectCalcCache(r), w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1));
+    const layerScale = getLayerScale(w, h, z);
+    const key = [w, h, layerScale, cx || 0, cy || 0, topoCalcKey(r, cx, cy), listSignature(r && r.hiddenCells), String(r && r.colorA || ""), String(r && r.colorB || ""), JSON.stringify(r && r.cabinetStyles || {}), lowDetail ? "1" : "0"].join("|");
+    if (cache.fillLayer && cache.fillLayer.key === key && cache.fillLayer.canvas) return cache.fillLayer.canvas;
+    const layer = createLayerCanvas(w, h, layerScale), lc = layer.getContext("2d");
+    if (!lc) return null;
+    lc.scale(layerScale, layerScale);
+    if (lowDetail) {
+      lc.fillStyle = r.colorA;
+      lc.fillRect(0, 0, w, h);
+      lc.fillStyle = r.colorB;
+      lc.beginPath();
+      lc.moveTo(0, 0);
+      lc.lineTo(w, 0);
+      lc.lineTo(0, h);
+      lc.closePath();
+      lc.fill();
+    } else {
+      const comps = getRectComponentRenderDataCached(r, cx, cy, topo), calcAltColor = base => { const rgb = hexRgb(base), lum = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000; return shadeHex(base, lum > 140 ? -0.25 : 0.25); }, altA = calcAltColor(r.colorA), altB = calcAltColor(r.colorB);
+      const compColorClass = new Map(comps.map(it => [it.cid | 0, it.cc | 0]));
+      const sameColorNear = new Set(), pairSeen = new Set();
+      const markPair = (a, b) => {
+        if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return;
+        const lo = Math.min(a, b), hi = Math.max(a, b), keyPair = `${lo}:${hi}`;
+        if (pairSeen.has(keyPair)) return;
+        pairSeen.add(keyPair);
+        // For each same-color neighboring pair mirror only one cabinet.
+        sameColorNear.add(hi);
+      };
+      if (topo && Array.isArray(topo.comp) && Number.isFinite(topo.cols) && Number.isFinite(topo.rows)) {
+        const cols = Math.max(1, Math.round(Number(topo.cols) || 1)), rows = Math.max(1, Math.round(Number(topo.rows) || 1));
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const idx = y * cols + x, cid = topo.comp[idx];
+            if (!Number.isFinite(cid)) continue;
+            const a = cid | 0;
+            if (maskRender && maskRender.visibleCompSet && !maskRender.visibleCompSet.has(a)) continue;
+            const ccA = compColorClass.get(a);
+            if (!Number.isFinite(ccA)) continue;
+            if (x + 1 < cols) {
+              const rid = topo.comp[idx + 1];
+              if (Number.isFinite(rid)) {
+                const b = rid | 0, ccB = compColorClass.get(b);
+                if (a !== b && (!maskRender || !maskRender.visibleCompSet || maskRender.visibleCompSet.has(b)) && Number.isFinite(ccB) && ccA === ccB) markPair(a, b);
+              }
+            }
+            if (y + 1 < rows) {
+              const did = topo.comp[idx + cols];
+              if (Number.isFinite(did)) {
+                const b = did | 0, ccB = compColorClass.get(b);
+                if (a !== b && (!maskRender || !maskRender.visibleCompSet || maskRender.visibleCompSet.has(b)) && Number.isFinite(ccB) && ccA === ccB) markPair(a, b);
+              }
+            }
+          }
+        }
+      }
+      for (const it of comps) {
+        if (maskRender && maskRender.visibleCompSet && !maskRender.visibleCompSet.has(it.cid)) continue;
+        const style = getCabinetStyle(r, it.cid | 0);
+        const cc = style && style.color === "a" ? 0 : style && style.color === "b" ? 1 : it.cc;
+        const base = (cc === 0) ? r.colorA : r.colorB, alt = (cc === 0) ? altA : altB;
+        lc.save();
+        lc.beginPath();
+        for (const cl of it.cells) lc.rect(cl.x + w / 2, cl.y + h / 2, cl.w, cl.h);
+        lc.clip();
+        const bw = it.maxX - it.minX, bh = it.maxY - it.minY, ox = it.minX + w / 2, oy = it.minY + h / 2;
+        lc.fillStyle = base; lc.fillRect(ox, oy, bw, bh);
+        lc.fillStyle = alt;
+        const mirrorHoriz = style
+          ? (style.diag === "left" || style.diag === "leftSwap")
+          : sameColorNear.has(it.cid | 0);
+        const useSwap = style ? (style.diag === "rightSwap" || style.diag === "leftSwap") : false;
+        const bgFill = useSwap ? alt : base;
+        const diagFill = useSwap ? base : alt;
+        lc.fillStyle = bgFill;
+        lc.fillRect(ox, oy, bw, bh);
+        lc.fillStyle = diagFill;
+        lc.beginPath();
+        if (mirrorHoriz) {
+          lc.moveTo(ox + bw, oy);
+          lc.lineTo(ox, oy);
+          lc.lineTo(ox + bw, oy + bh);
+        } else {
+          lc.moveTo(ox, oy);
+          lc.lineTo(ox + bw, oy);
+          lc.lineTo(ox, oy + bh);
+        }
+        lc.closePath();
+        lc.fill();
+        lc.restore();
+      }
+    }
+    if (maskRender && maskRender.hasMask && Array.isArray(maskRender.hiddenRects) && maskRender.hiddenRects.length) {
+      lc.save();
+      lc.globalCompositeOperation = "destination-out";
+      lc.globalAlpha = 1;
+      lc.fillStyle = "#000";
+      lc.beginPath();
+      for (const rc of maskRender.hiddenRects) lc.rect(rc.x + w / 2, rc.y + h / 2, rc.w, rc.h);
+      lc.fill();
+      lc.restore();
+    }
+    cache.fillLayer = { key, canvas: layer };
+    return layer;
+  };
+
+  const getRectDecorLayerCached = (r, maskRender, z) => {
+    const cache = getRectCalcCache(r), w = Math.max(1, Math.round(Number(r && r.width) || 1)), h = Math.max(1, Math.round(Number(r && r.height) || 1));
+    const layerScale = getLayerScale(w, h, z);
+    const key = [w, h, layerScale, listSignature(r && r.hiddenCells)].join("|");
+    if (cache.decorLayer && cache.decorLayer.key === key && cache.decorLayer.canvas) return cache.decorLayer.canvas;
+    const layer = createLayerCanvas(w, h, layerScale), lc = layer.getContext("2d");
+    if (!lc) return null;
+    lc.scale(layerScale, layerScale);
+    lc.strokeStyle = "rgba(255,255,255,.55)";
+    lc.lineWidth = 2.4 / Math.max(0.01, layerScale);
+    lc.beginPath();
+    lc.moveTo(0, 0); lc.lineTo(w, h); lc.moveTo(w, 0); lc.lineTo(0, h);
+    lc.stroke();
+    lc.strokeStyle = "rgba(255,255,255,.75)";
+    lc.lineWidth = 2.4 / Math.max(0.01, layerScale);
+    lc.beginPath();
+    lc.arc(w / 2, h / 2, Math.max(0, Math.min(w, h) / 2 - (2 / Math.max(0.01, layerScale))), 0, Math.PI * 2);
+    lc.stroke();
+    if (maskRender && maskRender.hasMask && Array.isArray(maskRender.hiddenRects) && maskRender.hiddenRects.length) {
+      lc.save();
+      lc.globalCompositeOperation = "destination-out";
+      lc.globalAlpha = 1;
+      lc.fillStyle = "#000";
+      lc.beginPath();
+      for (const rc of maskRender.hiddenRects) lc.rect(rc.x + w / 2, rc.y + h / 2, rc.w, rc.h);
+      lc.fill();
+      lc.restore();
+    }
+    cache.decorLayer = { key, canvas: layer };
+    return layer;
+  };
+
+  const getRectFlowPassiveLayerCached = (r, w, h, z, groups, activeRid) => {
+    const cache = getRectCalcCache(r), layerScale = getLayerScale(w, h, z), flowKey = flowDrawKeyForGroups(groups), key = [w, h, layerScale, flowKey, Math.max(0, Math.round(Number(activeRid) || 0))].join("|");
+    if (cache.flowPassiveLayer && cache.flowPassiveLayer.key === key && cache.flowPassiveLayer.canvas) return cache.flowPassiveLayer.canvas;
+    const passive = (Array.isArray(groups) ? groups : []).filter(g => Math.round(Number(g && g.rid) || 0) !== Math.round(Number(activeRid) || 0));
+    if (!passive.length) { cache.flowPassiveLayer = { key, canvas: null }; return null; }
+    const layer = createLayerCanvas(w, h), lc = layer.getContext("2d");
+    if (!lc) return null;
+    lc.save();
+    lc.translate(w / 2, h / 2);
+    drawDataFlowOnRect(lc, passive, w, h, z, { noBatch: true });
+    lc.restore();
+    cache.flowPassiveLayer = { key, canvas: layer };
+    return layer;
+  };
+
+  return {
+    getRectComponentRenderDataCached,
+    getMaskRenderDataCached,
+    getVisibleBoundarySegmentsCached,
+    getRectFillLayerCached,
+    getRectDecorLayerCached,
+    getRectFlowPassiveLayerCached
+  };
+};

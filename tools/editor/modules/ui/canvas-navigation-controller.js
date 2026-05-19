@@ -23,6 +23,10 @@ export const setupCanvasNavigationController = (deps = {}) => {
 
   const handlePointerDownSelect = (p, opts = null) => {
     const o = (opts && typeof opts === "object") ? opts : {};
+    if (st && st.lockAll) {
+      render();
+      return true;
+    }
     const h = hit(p.x, p.y);
     if (h) {
       if (o.shiftToggle) {

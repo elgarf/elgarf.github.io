@@ -1,1 +1,42 @@
-export const createEventBinders=(n={})=>{const{bindCommitInput:t}=n,e=(n,t,e,o)=>{n&&n.addEventListener(t,e,o)};return{bindClick:(n,t)=>{n&&(n.onclick=t)},bindEvent:e,bindWindowEvent:(n,t,e)=>{"undefined"!=typeof window&&window&&window.addEventListener(n,t,e)},bindEvents:(n,t,o,i)=>{for(const r of Array.isArray(n)?n:[])e(r,t,o,i)},eventClosest:(n,t)=>{const e=n&&n.target;return e&&e.closest?e.closest(t):null},bindCommitInputs:(n,e)=>{for(const o of Array.isArray(n)?n:[])"function"==typeof t&&t(o,e)},focusAndSelect:n=>{try{n&&(n.focus(),n.select())}catch{}}}};
+/* build:1779222473 */
+export const createEventBinders = (deps = {}) => {
+  const { bindCommitInput } = deps;
+
+  const bindClick = (node, handler) => { if (node) node.onclick = handler; };
+  const bindEvent = (node, event, handler, options) => { if (node) node.addEventListener(event, handler, options); };
+  const bindWindowEvent = (event, handler, options) => {
+    if (typeof window !== "undefined" && window) window.addEventListener(event, handler, options);
+  };
+  const bindEvents = (nodes, event, handler, options) => {
+    for (const node of (Array.isArray(nodes) ? nodes : [])) bindEvent(node, event, handler, options);
+  };
+  const eventClosest = (e, selector) => {
+    const target = e && e.target;
+    return (target && target.closest) ? target.closest(selector) : null;
+  };
+  const bindCommitInputs = (nodes, onCommit) => {
+    for (const node of (Array.isArray(nodes) ? nodes : [])) {
+      if (typeof bindCommitInput === "function") bindCommitInput(node, onCommit);
+    }
+  };
+  const focusAndSelect = node => {
+    try {
+      if (node) {
+        node.focus();
+        node.select();
+      }
+    } catch { /* noop */ }
+  };
+
+  return {
+    bindClick,
+    bindEvent,
+    bindWindowEvent,
+    bindEvents,
+    eventClosest,
+    bindCommitInputs,
+    focusAndSelect
+  };
+};
+
+

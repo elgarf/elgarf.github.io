@@ -1,1 +1,255 @@
-import{setupRectListController}from"../rect-list-controller.js";import{runSmartSyncProps}from"../utils/sync-props.js";export const setupSelectionUiFeature=(t={})=>{const{st:e,el:s,bindEvent:o,eventClosest:r,getRectById:l,isRectLocked:n,hasRect:c,normSelSet:i,toggleSelect:a,selectOnly:d,resetSelectionTransient:u,findManualClusterById:p,isNoteRect:m,closeNoteEditor:g,syncProps:f,updateModeBadges:y,updateClusterEditCursor:h,render:b,isSelected:k,toggleRectLockById:C,persistProjectAndRender:_,syncPropsSmart:v,rectListFilter:S,t:L=t=>t}=t,N={notes:!1,devices:!1,screens:!1};let R=!1;const A=t=>{const e=t=>{const e=(t=>Math.max(0,Math.min(255,Math.round(Number(t)||0))))(t)/255;return e<=.03928?e/12.92:((e+.055)/1.055)**2.4};return.2126*e(t.r)+.7152*e(t.g)+.0722*e(t.b)},E=t=>{const e=(t=>{const e=String(t||"").trim(),s=e.startsWith("#")?e.slice(1):e;return/^[0-9a-fA-F]{3}$/.test(s)?{r:parseInt(s[0]+s[0],16),g:parseInt(s[1]+s[1],16),b:parseInt(s[2]+s[2],16)}:/^[0-9a-fA-F]{6}$/.test(s)?{r:parseInt(s.slice(0,2),16),g:parseInt(s.slice(2,4),16),b:parseInt(s.slice(4,6),16)}:null})(t);if(!e)return"#f8fafc";return A(e)>.45?"#0f172a":"#f8fafc"},I=(s,o)=>{if(null!=s){const t=l(s);if(t&&n(t))return}const r=o&&"object"==typeof o?o:{};r.toggle?a(s):r.add?(i(),null!=s&&c(s)&&(e.selSet.add(s),e.sel=s),"function"==typeof t.refreshMultiSelectionBase&&t.refreshMultiSelectionBase()):d(s),u();const k=l(e.sel)||null;k&&p(k,e.clusterActiveId)||(e.clusterActiveId=null),k&&m(k)||g(!0),runSmartSyncProps(v,f),"function"==typeof requestAnimationFrame&&requestAnimationFrame(()=>{runSmartSyncProps(v,f)}),$(),y(k),h(),b()},M=setupRectListController({st:e,el:s,bindEvent:o,eventClosest:r,toggleRectLockById:C,getRectById:l,isRectLocked:n,selRect:I,onReorder:()=>{$(),_()}}),$=()=>{const t=s.list?s.list.scrollTop:0,l=s.list?s.list.scrollLeft:0;if(M.ensureListEvents(),!R&&s.list&&(R=!0,o(s.list,"click",t=>{const e=r(t,".rect-list-group-toggle");if(!e)return;const s=String(e.getAttribute("data-group")||"");Object.prototype.hasOwnProperty.call(N,s)&&(N[s]=!N[s],$())})),!e.rects.length)return M.listNodeCache.clear(),M.clearListDropMarker(),void(s.list.innerHTML=`<p class='hint' style='margin:0'>${L("Экранов пока нет.")}</p>`);const c=document.createDocumentFragment(),i=[],a=[],d=[],u=(t,e,s)=>{if(!s.length)return;const o=!!N[t],r=document.createElement("section");r.className="rect-list-group",r.setAttribute("data-group",t);const l=document.createElement("button");if(l.type="button",l.className="rect-list-group-title rect-list-group-toggle",l.setAttribute("data-group",t),l.setAttribute("aria-expanded",o?"false":"true"),l.innerHTML=`<i class="fa-solid ${o?"fa-chevron-right":"fa-chevron-down"}"></i><span>${e}</span>`,r.appendChild(l),!o){const t=document.createElement("div");t.className="rect-list-group-body";for(const e of s)t.appendChild(e);r.appendChild(t)}c.appendChild(r)},p=t=>String(t&&t.kind||"").toLowerCase(),m=new Set;for(const t of e.rects){if("function"==typeof S&&!S(t))continue;const e=Math.round(Number(t.id)||0);if(!e)continue;m.add(e);let s=M.listNodeCache.get(e);if(!s){s=document.createElement("div"),s.className="rect-item",s.draggable=!0,s.dataset.id=String(e);const t=document.createElement("div");t.className="rect-item-head";const o=document.createElement("strong");o.className="rect-item-title",o.setAttribute("data-i18n-skip","1");const r=document.createElement("button");r.type="button",r.className="btn btn-outline-secondary btn-sm rect-item-lock",r.title=L("Блокировка экрана"),r.setAttribute("aria-label",L("Блокировка экрана"));const l=document.createElement("div");l.className="text-secondary",t.appendChild(o),t.appendChild(r),s.appendChild(t),s.appendChild(l),s._title=o,s._lock=r,s._meta=l,M.listNodeCache.set(e,s)}if(s.classList.toggle("active",k(e)),s.classList.toggle("locked",n(t)),s._lock){const e=n(t),o=e?"fa-solid fa-lock":"fa-solid fa-lock-open";s._lock.innerHTML!==`<i class="${o}"></i>`&&(s._lock.innerHTML=`<i class="${o}"></i>`),s._lock.classList.toggle("btn-primary",e),s._lock.classList.toggle("btn-outline-secondary",!e),s._lock.title=L(e?"Разблокировать экран":"Заблокировать экран"),s._lock.setAttribute("aria-label",s._lock.title)}const o=String(t.name||`Rect ${e}`);s._title.textContent!==o&&(s._title.textContent=o);const r=`${t.width}x${t.height} @ (${t.x}, ${t.y})`;s._meta.textContent!==r&&(s._meta.textContent=r);const l=String(t&&t.colorA||"").trim();if(l){const t=E(l);s.style.background=l,s.style.borderColor=l,s.style.color=t,s.style.setProperty("--rect-active-outline",t),s._meta&&s._meta.style.setProperty("color",t,"important"),s._lock&&(s._lock.style.color=t,s._lock.style.borderColor=t,s._lock.style.background="transparent")}else s.style.background="",s.style.borderColor="",s.style.color="",s.style.removeProperty("--rect-active-outline"),s._meta&&s._meta.style.removeProperty("color"),s._lock&&(s._lock.style.color="",s._lock.style.borderColor="",s._lock.style.background="");const c=p(t);"note"===c?i.push(s):"device"===c?a.push(s):d.push(s)}for(const[t,e]of M.listNodeCache)m.has(t)||(e&&e.parentNode&&e.parentNode.removeChild(e),M.listNodeCache.delete(t));u("notes",L("Примечания"),i),u("devices",L("Устройства"),a),u("screens",L("Экраны"),d),s.list.replaceChildren(c),s.list&&(s.list.scrollTop=t,s.list.scrollLeft=l)};return{selRect:I,cur:()=>l(e.sel)||null,listRects:$}};
+/* build:1779222473 */
+import { setupRectListController } from "../rect-list-controller.js";
+import { runSmartSyncProps } from "../utils/sync-props.js";
+
+export const setupSelectionUiFeature = (deps = {}) => {
+  const {
+    st,
+    el,
+    bindEvent,
+    eventClosest,
+    getRectById,
+    isRectLocked,
+    hasRect,
+    normSelSet,
+    toggleSelect,
+    selectOnly,
+    resetSelectionTransient,
+    findManualClusterById,
+    isNoteRect,
+    closeNoteEditor,
+    syncProps,
+    updateModeBadges,
+    updateClusterEditCursor,
+    render,
+    isSelected,
+    toggleRectLockById,
+    persistProjectAndRender,
+    syncPropsSmart,
+    rectListFilter,
+    t = value => value
+  } = deps;
+  const groupCollapsed = {
+    notes: false,
+    devices: false,
+    screens: false
+  };
+  let groupToggleBound = false;
+  const clampByte = v => Math.max(0, Math.min(255, Math.round(Number(v) || 0)));
+  const parseHexColor = value => {
+    const s = String(value || "").trim();
+    const hex = s.startsWith("#") ? s.slice(1) : s;
+    if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+      return {
+        r: parseInt(hex[0] + hex[0], 16),
+        g: parseInt(hex[1] + hex[1], 16),
+        b: parseInt(hex[2] + hex[2], 16)
+      };
+    }
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+      return {
+        r: parseInt(hex.slice(0, 2), 16),
+        g: parseInt(hex.slice(2, 4), 16),
+        b: parseInt(hex.slice(4, 6), 16)
+      };
+    }
+    return null;
+  };
+  const relativeLuminance = rgb => {
+    const toLin = c => {
+      const v = clampByte(c) / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * toLin(rgb.r) + 0.7152 * toLin(rgb.g) + 0.0722 * toLin(rgb.b);
+  };
+  const contrastTextColor = bgHex => {
+    const rgb = parseHexColor(bgHex);
+    if (!rgb) return "#f8fafc";
+    const lum = relativeLuminance(rgb);
+    return lum > 0.45 ? "#0f172a" : "#f8fafc";
+  };
+
+  const syncSelectionProps = () => {
+    runSmartSyncProps(syncPropsSmart, syncProps);
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => {
+      runSmartSyncProps(syncPropsSmart, syncProps);
+    });
+  };
+
+  const selRect = (id, opts) => {
+    if (id != null) {
+      const rr = getRectById(id);
+      if (rr && isRectLocked(rr)) return;
+    }
+    const o = (opts && typeof opts === "object") ? opts : {};
+    if (o.toggle) toggleSelect(id);
+    else if (o.add) {
+      normSelSet();
+      if (id != null && hasRect(id)) { st.selSet.add(id); st.sel = id; }
+      if (typeof deps.refreshMultiSelectionBase === "function") deps.refreshMultiSelectionBase();
+    } else selectOnly(id);
+    resetSelectionTransient();
+    const r = getRectById(st.sel) || null;
+    if (!r || !findManualClusterById(r, st.clusterActiveId)) st.clusterActiveId = null;
+    if (!r || !isNoteRect(r)) closeNoteEditor(true);
+    syncSelectionProps();
+    listRects();
+    updateModeBadges(r);
+    updateClusterEditCursor();
+    render();
+  };
+
+  const cur = () => getRectById(st.sel) || null;
+
+  const listCtrl = setupRectListController({
+    st, el, bindEvent, eventClosest,
+    toggleRectLockById, getRectById, isRectLocked, selRect,
+    onReorder: () => { listRects(); persistProjectAndRender(); }
+  });
+
+  const listRects = () => {
+    const listScrollTop = el.list ? el.list.scrollTop : 0;
+    const listScrollLeft = el.list ? el.list.scrollLeft : 0;
+    listCtrl.ensureListEvents();
+    if (!groupToggleBound && el.list) {
+      groupToggleBound = true;
+      bindEvent(el.list, "click", e => {
+        const btn = eventClosest(e, ".rect-list-group-toggle");
+        if (!btn) return;
+        const key = String(btn.getAttribute("data-group") || "");
+        if (!Object.prototype.hasOwnProperty.call(groupCollapsed, key)) return;
+        groupCollapsed[key] = !groupCollapsed[key];
+        listRects();
+      });
+    }
+    if (!st.rects.length) {
+      listCtrl.listNodeCache.clear();
+      listCtrl.clearListDropMarker();
+      el.list.innerHTML = `<p class='hint' style='margin:0'>${t("Экранов пока нет.")}</p>`;
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    const noteNodes = [];
+    const deviceNodes = [];
+    const screenNodes = [];
+    const appendGroup = (groupKey, titleText, nodes) => {
+      if (!nodes.length) return;
+      const collapsed = !!groupCollapsed[groupKey];
+      const group = document.createElement("section");
+      group.className = "rect-list-group";
+      group.setAttribute("data-group", groupKey);
+      const title = document.createElement("button");
+      title.type = "button";
+      title.className = "rect-list-group-title rect-list-group-toggle";
+      title.setAttribute("data-group", groupKey);
+      title.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      title.innerHTML = `<i class="fa-solid ${collapsed ? "fa-chevron-right" : "fa-chevron-down"}"></i><span>${titleText}</span>`;
+      group.appendChild(title);
+      if (!collapsed) {
+        const body = document.createElement("div");
+        body.className = "rect-list-group-body";
+        for (const node of nodes) body.appendChild(node);
+        group.appendChild(body);
+      }
+      fragment.appendChild(group);
+    };
+    const kindOf = r => String((r && r.kind) || "").toLowerCase();
+    const live = new Set();
+    for (const r of st.rects) {
+      if (typeof rectListFilter === "function" && !rectListFilter(r)) continue;
+      const id = Math.round(Number(r.id) || 0);
+      if (!id) continue;
+      live.add(id);
+      let node = listCtrl.listNodeCache.get(id);
+      if (!node) {
+        node = document.createElement("div");
+        node.className = "rect-item";
+        node.draggable = true;
+        node.dataset.id = String(id);
+        const head = document.createElement("div");
+        head.className = "rect-item-head";
+        const title = document.createElement("strong");
+        title.className = "rect-item-title";
+        title.setAttribute("data-i18n-skip", "1");
+        const lockBtn = document.createElement("button");
+        lockBtn.type = "button";
+        lockBtn.className = "btn btn-outline-secondary btn-sm rect-item-lock";
+        lockBtn.title = t("Блокировка экрана");
+        lockBtn.setAttribute("aria-label", t("Блокировка экрана"));
+        const meta = document.createElement("div");
+        meta.className = "text-secondary";
+        head.appendChild(title);
+        head.appendChild(lockBtn);
+        node.appendChild(head);
+        node.appendChild(meta);
+        node._title = title;
+        node._lock = lockBtn;
+        node._meta = meta;
+        listCtrl.listNodeCache.set(id, node);
+      }
+      node.classList.toggle("active", isSelected(id));
+      node.classList.toggle("locked", isRectLocked(r));
+      if (node._lock) {
+        const on = isRectLocked(r);
+        const ic = on ? "fa-solid fa-lock" : "fa-solid fa-lock-open";
+        if (node._lock.innerHTML !== `<i class="${ic}"></i>`) node._lock.innerHTML = `<i class="${ic}"></i>`;
+        node._lock.classList.toggle("btn-primary", on);
+        node._lock.classList.toggle("btn-outline-secondary", !on);
+        node._lock.title = on ? t("Разблокировать экран") : t("Заблокировать экран");
+        node._lock.setAttribute("aria-label", node._lock.title);
+      }
+      const titleText = String(r.name || `Rect ${id}`);
+      if (node._title.textContent !== titleText) node._title.textContent = titleText;
+      const metaText = `${r.width}x${r.height} @ (${r.x}, ${r.y})`;
+      if (node._meta.textContent !== metaText) node._meta.textContent = metaText;
+      const baseColor = String(r && r.colorA || "").trim();
+      if (baseColor) {
+        const textColor = contrastTextColor(baseColor);
+        node.style.background = baseColor;
+        node.style.borderColor = baseColor;
+        node.style.color = textColor;
+        node.style.setProperty("--rect-active-outline", textColor);
+        if (node._meta) node._meta.style.setProperty("color", textColor, "important");
+        if (node._lock) {
+          node._lock.style.color = textColor;
+          node._lock.style.borderColor = textColor;
+          node._lock.style.background = "transparent";
+        }
+      } else {
+        node.style.background = "";
+        node.style.borderColor = "";
+        node.style.color = "";
+        node.style.removeProperty("--rect-active-outline");
+        if (node._meta) node._meta.style.removeProperty("color");
+        if (node._lock) {
+          node._lock.style.color = "";
+          node._lock.style.borderColor = "";
+          node._lock.style.background = "";
+        }
+      }
+      const kind = kindOf(r);
+      if (kind === "note") noteNodes.push(node);
+      else if (kind === "device") deviceNodes.push(node);
+      else screenNodes.push(node);
+    }
+    for (const [id, node] of listCtrl.listNodeCache) {
+      if (live.has(id)) continue;
+      if (node && node.parentNode) node.parentNode.removeChild(node);
+      listCtrl.listNodeCache.delete(id);
+    }
+    appendGroup("notes", t("Примечания"), noteNodes);
+    appendGroup("devices", t("Устройства"), deviceNodes);
+    appendGroup("screens", t("Экраны"), screenNodes);
+    el.list.replaceChildren(fragment);
+    if (el.list) {
+      el.list.scrollTop = listScrollTop;
+      el.list.scrollLeft = listScrollLeft;
+    }
+  };
+
+  return {
+    selRect,
+    cur,
+    listRects
+  };
+};

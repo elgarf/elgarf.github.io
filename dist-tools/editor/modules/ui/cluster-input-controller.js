@@ -1,1 +1,73 @@
-export const setupClusterInputController=(e={})=>{const{st:r,render:t,hit:l,cur:n,selectHoveredRectSmart:u,beginClusterHandleDragAtPoint:o,handleClusterEditAtPoint:s,updateClusterHandleDragAtPoint:d,updateClusterEditCursor:a,findClusterHandle:c,findActiveClusterBorder:i,findClusterStartMarker:C,cellFromWorldPoint:H,endClusterHandleDrag:v,finishPointerUp:x,resetClusterHoverTransient:y}=e;return{handlePointerDownCluster:e=>!(!o||!s)&&(o(e.x,e.y)?(t(),!0):(s(e.x,e.y),!0)),handleClusterPointerMove:e=>{if(r.clusterDrag)return d(e.x,e.y),a(),t(),!0;const o=l(e.x,e.y);u(o);const s=o||n();r.clusterHandleHover=s?c(e.x,e.y):null,r.clusterBorderHover=s?i(s,e.x,e.y):null,r.clusterStartHover=s?C(s,e.x,e.y):null;const v=s?H(s,e.x,e.y,!0):null;return r.clusterCellHover=s&&v?{rectId:s.id,col:v.col,row:v.row}:null,a(),t(),!0},handlePointerUpCluster:()=>{if(!r.clusterDrag)return!1;const e=v();return x(e),!0},handleClusterMouseLeave:()=>!!(r.clusterHandleHover||r.clusterCellHover||r.clusterStartHover||r.clusterBorderHover)&&(y(),a(),t(),!0)}};
+/* build:1779222473 */
+export const setupClusterInputController = (deps = {}) => {
+  const {
+    st,
+    render,
+    hit,
+    cur,
+    selectHoveredRectSmart,
+    beginClusterHandleDragAtPoint,
+    handleClusterEditAtPoint,
+    updateClusterHandleDragAtPoint,
+    updateClusterEditCursor,
+    findClusterHandle,
+    findActiveClusterBorder,
+    findClusterStartMarker,
+    cellFromWorldPoint,
+    endClusterHandleDrag,
+    finishPointerUp,
+    resetClusterHoverTransient
+  } = deps;
+
+  const handlePointerDownCluster = p => {
+    if (!beginClusterHandleDragAtPoint || !handleClusterEditAtPoint) return false;
+    if (beginClusterHandleDragAtPoint(p.x, p.y)) {
+      render();
+      return true;
+    }
+    handleClusterEditAtPoint(p.x, p.y);
+    return true;
+  };
+
+  const handleClusterPointerMove = p => {
+    if (st.clusterDrag) {
+      updateClusterHandleDragAtPoint(p.x, p.y);
+      updateClusterEditCursor();
+      render();
+      return true;
+    }
+    const h = hit(p.x, p.y);
+    selectHoveredRectSmart(h);
+    const r = h || cur();
+    st.clusterHandleHover = r ? findClusterHandle(p.x, p.y) : null;
+    st.clusterBorderHover = r ? findActiveClusterBorder(r, p.x, p.y) : null;
+    st.clusterStartHover = r ? findClusterStartMarker(r, p.x, p.y) : null;
+    const cc = (r ? cellFromWorldPoint(r, p.x, p.y, true) : null);
+    st.clusterCellHover = (r && cc ? { rectId: r.id, col: cc.col, row: cc.row } : null);
+    updateClusterEditCursor();
+    render();
+    return true;
+  };
+
+  const handlePointerUpCluster = () => {
+    if (!st.clusterDrag) return false;
+    const changed = endClusterHandleDrag();
+    finishPointerUp(changed);
+    return true;
+  };
+
+  const handleClusterMouseLeave = () => {
+    if (!(st.clusterHandleHover || st.clusterCellHover || st.clusterStartHover || st.clusterBorderHover)) return false;
+    resetClusterHoverTransient();
+    updateClusterEditCursor();
+    render();
+    return true;
+  };
+
+  return {
+    handlePointerDownCluster,
+    handleClusterPointerMove,
+    handlePointerUpCluster,
+    handleClusterMouseLeave
+  };
+};

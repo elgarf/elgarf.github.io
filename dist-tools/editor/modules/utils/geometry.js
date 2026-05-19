@@ -1,1 +1,146 @@
-export const rads=t=>t*Math.PI/180;export const rectCenter=t=>({x:t.x+t.width/2,y:t.y+t.height/2});export const worldToRectUV=(t,e,r)=>{const h=rads(t.rotation||0),o=Math.cos(h),n=Math.sin(h),a=rectCenter(t),i=e-a.x,s=r-a.y,c=-i*n+s*o;return{u:i*o+s*n+t.width/2,v:c+t.height/2}};export const rectUVToWorld=(t,e,r)=>{const h=rads(t.rotation||0),o=Math.cos(h),n=Math.sin(h),a=rectCenter(t),i=e-t.width/2,s=r-t.height/2;return{x:a.x+i*o-s*n,y:a.y+i*n+s*o}};export const rectAABB=t=>{const e=rectUVToWorld(t,0,0),r=rectUVToWorld(t,t.width,0),h=rectUVToWorld(t,t.width,t.height),o=rectUVToWorld(t,0,t.height);return{minX:Math.min(e.x,r.x,h.x,o.x),minY:Math.min(e.y,r.y,h.y,o.y),maxX:Math.max(e.x,r.x,h.x,o.x),maxY:Math.max(e.y,r.y,h.y,o.y)}};export const overlapArea=(t,e)=>{const r=Math.max(t.x,e.x),h=Math.max(t.y,e.y),o=Math.min(t.x+t.w,e.x+e.w),n=Math.min(t.y+t.h,e.y+e.h);return o<=r||n<=h?0:(o-r)*(n-h)};export const distToSegment=(t,e,r,h,o,n)=>{const a=o-r,i=n-h,s=a*a+i*i;if(s<=1e-9)return Math.hypot(t-r,e-h);const c=Math.max(0,Math.min(1,((t-r)*a+(e-h)*i)/s)),x=r+a*c,l=h+i*c;return Math.hypot(t-x,e-l)};export const maskCellKey=(t,e)=>`${t},${e}`;export const pointInPoly=(t,e,r)=>{let h=!1;for(let o=0,n=r.length-1;o<r.length;n=o++){const a=r[o].x,i=r[o].y,s=r[n].x,c=r[n].y;i>e!=c>e&&t<(s-a)*(e-i)/(c-i||1e-9)+a&&(h=!h)}return h};export const getOriginFromRects=t=>{const e=Array.isArray(t)?t:[];if(!e.length)return{x:0,y:0};let r=1e9,h=1e9;for(const t of e)r=Math.min(r,Number(t&&t.x)||0),h=Math.min(h,Number(t&&t.y)||0);return{x:r,y:h}};export const createCellFromWorldPoint=(t={})=>{const{drawCellX:e,drawCellY:r,getHiddenSet:h,worldToRectUV:o}=t;return(t,n,a,i=!0)=>{if(!t)return null;const s=o(t,n,a),c=e(t),x=r(t),l=Math.max(1,Math.ceil(t.width/c)),M=Math.max(1,Math.ceil(t.height/x)),d=Math.floor(s.u/c),u=Math.floor(s.v/x);if(!(d>=0&&d<l&&u>=0&&u<M))return null;const y=h(t);return i&&y&&y.has(maskCellKey(d,u))?null:{col:d,row:u}}};export const hiddenCellBoxes=(t,e,r,h)=>{if(!h||!h.size)return[];const o=[];for(const n of h){const h=String(n).split(",");if(2!==h.length)continue;const a=+h[0],i=+h[1];if(!(a>=0&&i>=0))continue;const s=a*e,c=i*r;s>=t.width||c>=t.height||o.push({x:t.x+s,y:t.y+c,w:Math.min(e,t.width-s),h:Math.min(r,t.height-c)})}return o};export const computeFreeRects=(t,e,r,h)=>{const o=Math.max(1,Math.ceil(t.width/e)),n=Math.max(1,Math.ceil(t.height/r)),a=new Array(o).fill(0),i=[],s=new Set,c=(h,o,n,a)=>{const i=h*e,s=n*r,c=Math.min(t.width,(o+1)*e),x=Math.min(t.height,(a+1)*r);return{x:t.x+i,y:t.y+s,w:Math.max(0,c-i),h:Math.max(0,x-s)}};for(let t=0;t<n;t++){for(let e=0;e<o;e++)a[e]=h.has(maskCellKey(e,t))?0:a[e]+1;for(let e=0;e<o;e++){if(!a[e])continue;let r=1e9;for(let h=e;h>=0&&a[h];h--){r=Math.min(r,a[h]);const o=c(h,e,t-r+1,t),n=`${Math.round(o.x)}:${Math.round(o.y)}:${Math.round(o.w)}:${Math.round(o.h)}`;o.w<=0||o.h<=0||s.has(n)||(s.add(n),i.push(o))}}}return i.length?(i.sort((t,e)=>e.w*e.h-t.w*t.h),i.slice(0,120)):[{x:t.x,y:t.y,w:t.width,h:t.height}]};export const createMaskNodeAxesGetter=(t,e)=>r=>{const h=t(r),o=e(r),n=[],a=[];for(let t=0;t<=r.width;t+=h)n.push(t);n[n.length-1]!==r.width&&n.push(r.width);for(let t=0;t<=r.height;t+=o)a.push(t);return a[a.length-1]!==r.height&&a.push(r.height),{xs:n,ys:a}};
+/* build:1779222473 */
+export const rads = deg => deg * Math.PI / 180;
+
+export const rectCenter = r => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+
+export const worldToRectUV = (r, wx, wy) => {
+  const a = rads(r.rotation || 0);
+  const ca = Math.cos(a);
+  const sa = Math.sin(a);
+  const c = rectCenter(r);
+  const dx = wx - c.x;
+  const dy = wy - c.y;
+  const lx = dx * ca + dy * sa;
+  const ly = -dx * sa + dy * ca;
+  return { u: lx + r.width / 2, v: ly + r.height / 2 };
+};
+
+export const rectUVToWorld = (r, u, v) => {
+  const a = rads(r.rotation || 0);
+  const ca = Math.cos(a);
+  const sa = Math.sin(a);
+  const c = rectCenter(r);
+  const lx = u - r.width / 2;
+  const ly = v - r.height / 2;
+  return { x: c.x + lx * ca - ly * sa, y: c.y + lx * sa + ly * ca };
+};
+
+export const rectAABB = r => {
+  const p1 = rectUVToWorld(r, 0, 0);
+  const p2 = rectUVToWorld(r, r.width, 0);
+  const p3 = rectUVToWorld(r, r.width, r.height);
+  const p4 = rectUVToWorld(r, 0, r.height);
+  return {
+    minX: Math.min(p1.x, p2.x, p3.x, p4.x),
+    minY: Math.min(p1.y, p2.y, p3.y, p4.y),
+    maxX: Math.max(p1.x, p2.x, p3.x, p4.x),
+    maxY: Math.max(p1.y, p2.y, p3.y, p4.y)
+  };
+};
+
+export const overlapArea = (a, b) => {
+  const x1 = Math.max(a.x, b.x);
+  const y1 = Math.max(a.y, b.y);
+  const x2 = Math.min(a.x + a.w, b.x + b.w);
+  const y2 = Math.min(a.y + a.h, b.y + b.h);
+  if (x2 <= x1 || y2 <= y1) return 0;
+  return (x2 - x1) * (y2 - y1);
+};
+
+export const distToSegment = (px, py, ax, ay, bx, by) => {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const ll = dx * dx + dy * dy;
+  if (ll <= 1e-9) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / ll));
+  const cx = ax + dx * t;
+  const cy = ay + dy * t;
+  return Math.hypot(px - cx, py - cy);
+};
+
+export const maskCellKey = (ix, iy) => `${ix},${iy}`;
+
+export const pointInPoly = (x, y, poly) => {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+    const inter = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-9) + xi);
+    if (inter) inside = !inside;
+  }
+  return inside;
+};
+
+export const getOriginFromRects = rects => {
+  const list = Array.isArray(rects) ? rects : [];
+  if (!list.length) return { x: 0, y: 0 };
+  let x = 1e9;
+  let y = 1e9;
+  for (const r of list) {
+    x = Math.min(x, Number(r && r.x) || 0);
+    y = Math.min(y, Number(r && r.y) || 0);
+  }
+  return { x, y };
+};
+
+export const createCellFromWorldPoint = (deps = {}) => {
+  const { drawCellX, drawCellY, getHiddenSet, worldToRectUV: worldToRectUvFn } = deps;
+  return (r, wx, wy, skipHidden = true) => {
+    if (!r) return null;
+    const p = worldToRectUvFn(r, wx, wy), cx = drawCellX(r), cy = drawCellY(r), cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy)), ix = Math.floor(p.u / cx), iy = Math.floor(p.v / cy);
+    if (!(ix >= 0 && ix < cols && iy >= 0 && iy < rows)) return null;
+    const hs = getHiddenSet(r);
+    if (skipHidden && hs && hs.has(maskCellKey(ix, iy))) return null;
+    return { col: ix, row: iy };
+  };
+};
+
+export const hiddenCellBoxes = (r, cx, cy, hs) => {
+  if (!hs || !hs.size) return [];
+  const arr = [];
+  for (const key of hs) {
+    const p = String(key).split(",");
+    if (p.length !== 2) continue;
+    const ix = +p[0], iy = +p[1];
+    if (!(ix >= 0 && iy >= 0)) continue;
+    const x = ix * cx, y = iy * cy;
+    if (x >= r.width || y >= r.height) continue;
+    arr.push({ x: r.x + x, y: r.y + y, w: Math.min(cx, r.width - x), h: Math.min(cy, r.height - y) });
+  }
+  return arr;
+};
+
+export const computeFreeRects = (r, cx, cy, hs) => {
+  const cols = Math.max(1, Math.ceil(r.width / cx)), rows = Math.max(1, Math.ceil(r.height / cy));
+  const heights = new Array(cols).fill(0), out = [], seen = new Set();
+  const mkRect = (l, rt, top, btm) => {
+    const x0 = l * cx, y0 = top * cy, x1 = Math.min(r.width, (rt + 1) * cx), y1 = Math.min(r.height, (btm + 1) * cy);
+    return { x: r.x + x0, y: r.y + y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0) };
+  };
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) { heights[col] = hs.has(maskCellKey(col, row)) ? 0 : heights[col] + 1; }
+    for (let right = 0; right < cols; right++) {
+      if (!heights[right]) continue;
+      let minH = 1e9;
+      for (let left = right; left >= 0; left--) {
+        if (!heights[left]) break;
+        minH = Math.min(minH, heights[left]);
+        const top = row - minH + 1, rect = mkRect(left, right, top, row), k = `${Math.round(rect.x)}:${Math.round(rect.y)}:${Math.round(rect.w)}:${Math.round(rect.h)}`;
+        if (rect.w <= 0 || rect.h <= 0 || seen.has(k)) continue;
+        seen.add(k);
+        out.push(rect);
+      }
+    }
+  }
+  if (!out.length) return [{ x: r.x, y: r.y, w: r.width, h: r.height }];
+  out.sort((a, b) => (b.w * b.h) - (a.w * a.h));
+  return out.slice(0, 120);
+};
+
+export const createMaskNodeAxesGetter = (drawCellX, drawCellY) => r => {
+  const cx = drawCellX(r), cy = drawCellY(r), xs = [], ys = [];
+  for (let x = 0; x <= r.width; x += cx) xs.push(x);
+  if (xs[xs.length - 1] !== r.width) xs.push(r.width);
+  for (let y = 0; y <= r.height; y += cy) ys.push(y);
+  if (ys[ys.length - 1] !== r.height) ys.push(r.height);
+  return { xs, ys };
+};

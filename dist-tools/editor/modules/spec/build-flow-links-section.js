@@ -1,1 +1,397 @@
-import{createSectionKeySequencer}from"./section-key-utils.js";import{isDeviceRectKind,isNoteRectKind,isShapeRectKind}from"../utils/rect-kind-utils.js";const fmtAreaM2=e=>{const t=Math.max(0,Math.round(1e3*(Number(e)||0))/1e3);return Number.isInteger(t)?`${t.toFixed(0)}`:String(t).replace(/\.?0+$/,"")},mapEntriesToList=(e,t,r=e=>e,n="шт.")=>[...e.entries()].filter(([,e])=>(Number(e)||0)>0).sort(t).map(([e,t])=>`${r(e)} – ${t} ${n}`),mapToCabinetList=(e,t="м",r="шт.")=>mapEntriesToList(e,(e,t)=>t[1]-e[1]||e[0].localeCompare(t[0],"ru"),e=>`${e}${t}`,r),mapToCableList=(e,t="шт.")=>mapEntriesToList(e,(e,t)=>parseFloat(e[0])-parseFloat(t[0]),e=>e,t),mapToNamedCountList=(e,t="шт.")=>mapEntriesToList(e,(e,t)=>t[1]-e[1]||String(e[0]).localeCompare(String(t[0]),"ru"),e=>e,t);export const fmtMeters=e=>{const t=Math.max(0,Math.round(1e3*(Number(e)||0))/1e3);return Number.isInteger(t)?t.toFixed(0):String(t).replace(/\.?0+$/,"")};export const fmtOne=e=>{const t=Math.round(10*(Number(e)||0))/10;return Number.isInteger(t)?`${t.toFixed(0)}`:t.toFixed(1)};const mapToRigSizeList=(e,t="м",r="шт.")=>mapEntriesToList(e,(e,t)=>Number(e[0])-Number(t[0]),e=>`${fmtMeters(Number(e))}${t}`,r),mapToRigWeightList=(e,t="кг",r="шт.")=>mapEntriesToList(e,(e,t)=>Number(e[0])-Number(t[0]),e=>`${Math.round(Number(e))}${t}`,r),pushSpecListLine=(e,t,r)=>{Array.isArray(r)&&r.length&&e.push(`* ${t}: ${r.join("; ")}`)},pushSpecCountLine=(e,t,r,n="шт.")=>{const a=Math.max(0,Math.round(Number(r)||0));a>0&&e.push(`* ${t}: ${a} ${n}`)},joinSpecLine=(e,t)=>{const r=Array.isArray(t)?t.filter(Boolean):[];return r.length?`* ${e}: ${r.join("; ")}`:""};export const addCountToMap=(e,t,r=1)=>{null!=t&&Number.isFinite(Number(t))&&e.set(t,(e.get(t)||0)+r)};const mergeCountMap=(e,t)=>{for(const[r,n]of t.entries())e.set(r,(e.get(r)||0)+(n||0))},mergeNumericMap=(e,t)=>{for(const[r,n]of t.entries())e.set(r,(e.get(r)||0)+(Number(n)||0))},multiplyMap=(e,t=1)=>{const r=new Map,n=Math.max(1,Number(t)||1);for(const[t,a]of e instanceof Map?e.entries():[])r.set(t,(Number(a)||0)*n);return r},sumMapCounts=e=>{let t=0;for(const r of e.values())t+=Math.max(0,Math.round(Number(r)||0));return t},mapSignature=e=>[...e instanceof Map?e.entries():[]].filter(([,e])=>(Number(e)||0)>0).map(([e,t])=>[String(e),Number(t)||0]).sort((e,t)=>e[0].localeCompare(t[0],"ru",{numeric:!0})||e[1]-t[1]),createManualSectionResolver=(e={})=>{const t=createSectionKeySequencer(),r=e=>String(e||"").split(/\r?\n/).map(e=>String(e||"").trimEnd()).filter(e=>e.trim().length>0).join("\n").trim();return{getSectionManual:(n,a,i)=>{const o=t(n,a,i);return r(e&&e[o]||"")},getGlobalManual:()=>r(e&&e.__global__||"")}},screenSeriesName=e=>{const t=String(e&&e.name||"").trim(),r=t.match(/^(.*?)\s+\d+$/);return String(r?r[1]:t).trim()||t||"Экран"},isDeviceRect=e=>isDeviceRectKind(e),isSpecRect=e=>!isNoteRectKind(e)&&!isShapeRectKind(e),baseNameWithoutTrailingNumber=e=>{const t=String(e||"").trim();if(!t)return"Устройство";const r=t.match(/^(.*?)(?:\s+[#№]?\s*\d+)?$/);return String(r&&r[1]||t).trim()||t},createScreenSpecRecord=(e={})=>{const{rect:t,interSpec:r,parseScreenNameGroup:n,buildRectSpecData:a,buildRectRigSpecData:i,fmtMeters:o}=e,s=t;return{rect:s,meta:n(s),specData:a(s),rigData:i(s),interOut:r&&r.byRectOut?r.byRectOut.get(s.id):null,wM:o((+s.width||0)/Math.max(1,+s.scale||256)),hM:o((+s.height||0)/Math.max(1,+s.scale||256))}},screenSpecKey=e=>JSON.stringify({width:Math.round(Number(e.rect&&e.rect.width)||0),height:Math.round(Number(e.rect&&e.rect.height)||0),scale:Math.max(1,Math.round(Number(e.rect&&e.rect.scale)||256)),cabinets:mapSignature(e.specData.cabinetBySize),cables:mapSignature(e.specData.cableByLen),supports:mapSignature(e.rigData.supportBySize),frameCount:Number(e.rigData.frameCount)||0,bottomRowFrameCount:Number(e.rigData.bottomRowFrameCount)||0,bottomLoads:mapSignature(e.rigData.bottomLoadByKg)}),buildScreenSpecSection=(e={})=>{const{records:t,manualText:r,t:n=e=>e}=e,a=Array.isArray(t)?t.filter(Boolean):[],i=a[0];if(!i)return"";const o=i.rect,{name:s}=i.meta,u=Math.max(1,a.length),c=multiplyMap(i.specData.cabinetBySize,u),m=multiplyMap(i.specData.cableByLen,u),p=multiplyMap(i.rigData.supportBySize,u),l=(Number(i.rigData.frameCount)||0)*u,g=(Number(i.rigData.bottomRowFrameCount)||0)*u,S=multiplyMap(i.rigData.bottomLoadByKg,u),b=mapToCabinetList(c,n("м"),n("шт.")),M=mapToCableList(m,n("шт.")),h=mapToRigSizeList(p,n("м"),n("шт.")),$=mapToRigWeightList(S,n("кг"),n("шт.")),d=l+g,f=new Map;for(const e of a){const t=String(e.meta&&e.meta.group||"").trim()||n("Общая");f.set(t,(f.get(t)||0)+1)}const L=mapToNamedCountList(f,n("шт.")),N=[`###### ${u>1?`${screenSeriesName(i.meta)}, ${u} ${n("шт.")}`:s} (${Math.round(o.width)}x${Math.round(o.height)} px / ${i.wM} x ${i.hM} ${n("м")})`,u>1?`* ${n("Количество экранов")}: ${u} ${n("шт.")}`:"",1===L.length?`* ${n("Группа")}: ${String(a[0].meta.group||n("Общая"))}`:`* ${n("Группы")}: ${L.join("; ")}`];return N[1]||N.splice(1,1),pushSpecListLine(N,n("Кабинеты"),b),pushSpecListLine(N,n("Коммутация"),M),pushSpecListLine(N,n("Подвесы"),h),pushSpecCountLine(N,n("Рамы"),l,n("шт.")),pushSpecListLine(N,n("Грузы"),$),pushSpecCountLine(N,n("Скоба такелажная"),2*sumMapCounts(i.rigData.supportBySize)),pushSpecCountLine(N,n("Стропа"),2*sumMapCounts(i.rigData.supportBySize)),pushSpecCountLine(N,n("Скоба монтажная для рамы"),d,n("шт.")),pushSpecCountLine(N,n("Болт для крепления скобы"),4*d,n("шт.")),String(r||"").trim()&&N.push(String(r).trim()),N.join("\n")};export const buildFlowLinksSpecText=(e={})=>{const{rects:t,flowLinks:r,buildInterScreenSpecData:n,parseScreenNameGroup:a,buildRectSpecData:i,buildRectRigSpecData:o,fmtMeters:s,specCustomSections:u,specCustomText:c,projectName:m="Проект",viewerUrl:p="",includeManual:l=!1,t:g=e=>e}=e,S=(Array.isArray(t)?t:[]).filter(e=>isSpecRect(e)),b=S.filter(e=>!isDeviceRect(e)),M=S.filter(e=>isDeviceRect(e)),h=new Map;for(const e of Array.isArray(t)?t:[]){const t=Math.max(1,Math.round(Number(e&&e.id)||0));t&&h.set(t,e)}const $=new Map,d=e=>{const t=String(e&&e.commutationName||"").trim();if(t)return t;const r=Math.max(1,Math.round(Number(e&&e.from&&e.from.rectId)||0)),n=Math.max(1,Math.round(Number(e&&e.to&&e.to.rectId)||0)),i=h.get(r)||null,o=h.get(n)||null,s=String(i&&a(i).name||"").trim(),u=String(o&&a(o).name||"").trim();return s&&u?`${s} -> ${u}`:g("Коммутация")};for(const e of Array.isArray(r)?r:[]){if(!e||"object"!=typeof e||!e.isCommutation)continue;const t=d(e);t&&$.set(t,($.get(t)||0)+1)}const f=[...$.entries()].sort((e,t)=>String(e[0]).localeCompare(String(t[0]),"ru",{numeric:!0})).map(([e,t])=>`* ${e} – ${Math.max(1,Math.round(Number(t)||0))} ${g("шт.")}`),L=n(),N=l?createManualSectionResolver(u&&"object"==typeof u?u:{}):{getSectionManual:()=>"",getGlobalManual:()=>""},y=e=>String(e||"").split(/\r?\n/).map(e=>String(e||"").trimEnd()).filter(e=>e.trim().length>0).join("\n").trim(),C=l?[N.getGlobalManual(),y(c||"")].filter(Boolean).join("\n").trim():"",R=g("Экраны"),x=R,B=g("Сигнальная и силовая коммутация"),w=g("Устройства"),T=new Map;for(const e of b){const t=a(e),r=screenSeriesName(t);T.has(r)||T.set(r,[]),T.get(r).push(e)}[...T.entries()].sort((e,t)=>e[0].localeCompare(t[0],"ru")).map(([e,t])=>{const r=t.slice().sort((e,t)=>{const r=a(e),n=a(t);return String(r.name||"").localeCompare(String(n.name||""),"ru",{numeric:!0})||String(r.group||"").localeCompare(String(n.group||""),"ru")||(Number(e.id)||0)-(Number(t.id)||0)}).map(e=>createScreenSpecRecord({rect:e,interSpec:L,parseScreenNameGroup:a,buildRectSpecData:i,buildRectRigSpecData:o,fmtMeters:s})),n=new Map;for(const e of r){const t=screenSpecKey(e);n.has(t)||n.set(t,[]),n.get(t).push(e)}const u=[...n.values()].map(t=>{const r=t[0],n=`${t.length>1?`${e}, ${t.length} ${g("шт.")}`:r.meta.name} (${Math.round(r.rect.width)}x${Math.round(r.rect.height)} px / ${r.wM} x ${r.hM} ${g("м")})`;return buildScreenSpecSection({records:t,manualText:N.getSectionManual(6,e,n),t:g})});return[`##### ${e}`,...u].join("\n\n")}).join("\n\n");const D=[];for(const e of b.slice().sort((e,t)=>(Number(e.id)||0)-(Number(t.id)||0))){const t=a(e),r=s((+e.width||0)/Math.max(1,+e.scale||256)),n=s((+e.height||0)/Math.max(1,+e.scale||256));D.push(`* ${t.name} (${r} x ${n} ${g("м")}, ${t.group})`)}const j=new Map;for(const e of M){const t=baseNameWithoutTrailingNumber(e&&e.name);j.set(t,(j.get(t)||0)+1)}const z=[...j.entries()].sort((e,t)=>String(e[0]).localeCompare(String(t[0]),"ru",{numeric:!0})).map(([e,t])=>`* ${e} – ${t} ${g("шт.")}`).join("\n"),A=new Map;for(const e of b){const{group:t}=a(e),r=i(e),n=o(e);let s=A.get(t);s||(s={cabinetBySize:new Map,cableByLen:new Map,supportBySize:new Map,frameCount:0,bottomRowFrameCount:0,bottomLoadByKg:new Map,visibleAreaM2:0},A.set(t,s)),mergeCountMap(s.cabinetBySize,r.cabinetBySize),mergeCountMap(s.cableByLen,r.cableByLen),mergeNumericMap(s.supportBySize,n.supportBySize),mergeNumericMap(s.bottomLoadByKg,n.bottomLoadByKg),s.frameCount+=Number(n.frameCount)||0,s.bottomRowFrameCount+=Number(n.bottomRowFrameCount)||0,s.visibleAreaM2+=Number(r.visibleAreaM2)||0}const K=[...A.entries()].sort((e,t)=>e[0].localeCompare(t[0],"ru")).map(([e,t])=>{const r=mapToCabinetList(t.cabinetBySize,g("м"),g("шт.")),n=mapToCableList(t.cableByLen,g("шт.")),a=L&&L.byGroupOut?L.byGroupOut.get(e):null,i=a?mapToCableList(a.cableByLen,g("шт.")):[],o=a?mapToNamedCountList(a.routes,g("шт.")):[],s=mapToRigSizeList(t.supportBySize,g("м"),g("шт.")),u=mapToRigWeightList(t.bottomLoadByKg,g("кг"),g("шт.")),c=N.getSectionManual(6,x,e),m=sumMapCounts(t.supportBySize),p=t.frameCount+t.bottomRowFrameCount;return[`###### ${e}`,...[`* ${g("Площадь экранов")}: ${fmtAreaM2(t.visibleAreaM2)} ${g("м²")}`,joinSpecLine(g("Кабинеты"),r),joinSpecLine(g("Коммутация"),n),joinSpecLine(g("Межэкранные связи"),o),joinSpecLine(g("Межэкранная коммутация"),i),joinSpecLine(g("Подвесы"),s),m>0?`* ${g("Стропа")}: ${2*m} ${g("шт.")}`:"",m>0?`* ${g("Скоба такелажная")}: ${2*m} ${g("шт.")}`:"",t.frameCount>0?`* ${g("Рамы")}: ${t.frameCount} ${g("шт.")}`:"",p>0?`* ${g("Скоба монтажная для рамы")}: ${p} ${g("шт.")}`:"",p>0?`* ${g("Болт для крепления скобы")}: ${4*p} ${g("шт.")}`:"",joinSpecLine(g("Грузы"),u),y(c||"")].filter(Boolean)].join("\n")}).join("\n\n"),F=`##### ${B}`,v=[N.getSectionManual(5,"",B),C,y(c||"")].filter(Boolean).join("\n").trim(),E=y(N.getSectionManual(5,"",w));return[`### ${String(m||"Проект").trim()||"Проект"}`,"",String(p||"").trim(),"",`##### ${R}`,...D,"",K,"",F,...f,...f.length?[""]:[],...v?[v]:[],"",`##### ${w}`,...z?[z]:[`* ${g("Нет устройств")}`],...E?[E]:[]].join("\n")};
+/* build:1779222473 */
+import { createSectionKeySequencer } from "./section-key-utils.js";
+import { isDeviceRectKind, isNoteRectKind, isShapeRectKind } from "../utils/rect-kind-utils.js";
+
+const fmtAreaM2 = v => {
+  const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
+  return Number.isInteger(n) ? `${n.toFixed(0)}` : String(n).replace(/\.?0+$/, "");
+};
+const mapEntriesToList = (map, sortFn, fmtKey = k => k, countSuffix = "шт.") =>
+  [...map.entries()]
+    .filter(([, count]) => (Number(count) || 0) > 0)
+    .sort(sortFn)
+    .map(([key, count]) => `${fmtKey(key)} – ${count} ${countSuffix}`);
+const mapToCabinetList = (map, unitM = "м", countSuffix = "шт.") =>
+  mapEntriesToList(map, (a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"), key => `${key}${unitM}`, countSuffix);
+const mapToCableList = (map, countSuffix = "шт.") =>
+  mapEntriesToList(map, (a, b) => parseFloat(a[0]) - parseFloat(b[0]), k => k, countSuffix);
+const mapToNamedCountList = (map, countSuffix = "шт.") =>
+  mapEntriesToList(map, (a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ru"), k => k, countSuffix);
+export const fmtMeters = v => {
+  const n = Math.max(0, Math.round((Number(v) || 0) * 1000) / 1000);
+  return Number.isInteger(n) ? n.toFixed(0) : String(n).replace(/\.?0+$/, "");
+};
+export const fmtOne = v => {
+  const n = Math.round((Number(v) || 0) * 10) / 10;
+  return Number.isInteger(n) ? `${n.toFixed(0)}` : n.toFixed(1);
+};
+const mapToRigSizeList = (map, unitM = "м", countSuffix = "шт.") =>
+  mapEntriesToList(map, (a, b) => Number(a[0]) - Number(b[0]), key => `${fmtMeters(Number(key))}${unitM}`, countSuffix);
+const mapToRigWeightList = (map, unitKg = "кг", countSuffix = "шт.") =>
+  mapEntriesToList(map, (a, b) => Number(a[0]) - Number(b[0]), key => `${Math.round(Number(key))}${unitKg}`, countSuffix);
+const pushSpecListLine = (out, label, items) => {
+  if (Array.isArray(items) && items.length) out.push(`* ${label}: ${items.join("; ")}`);
+};
+const pushSpecCountLine = (out, label, count, suffix = "шт.") => {
+  const n = Math.max(0, Math.round(Number(count) || 0));
+  if (n > 0) out.push(`* ${label}: ${n} ${suffix}`);
+};
+const joinSpecLine = (label, items) => {
+  const arr = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (!arr.length) return "";
+  return `* ${label}: ${arr.join("; ")}`;
+};
+export const addCountToMap = (map, key, count = 1) => {
+  if (key == null || !Number.isFinite(Number(key))) return;
+  map.set(key, (map.get(key) || 0) + count);
+};
+const mergeCountMap = (dst, src) => {
+  for (const [k, v] of src.entries()) dst.set(k, (dst.get(k) || 0) + (v || 0));
+};
+const mergeNumericMap = (dst, src) => {
+  for (const [k, v] of src.entries()) dst.set(k, (dst.get(k) || 0) + (Number(v) || 0));
+};
+const multiplyMap = (src, factor = 1) => {
+  const out = new Map();
+  const n = Math.max(1, Number(factor) || 1);
+  for (const [k, v] of (src instanceof Map ? src.entries() : [])) {
+    out.set(k, (Number(v) || 0) * n);
+  }
+  return out;
+};
+const sumMapCounts = map => {
+  let sum = 0;
+  for (const v of map.values()) sum += Math.max(0, Math.round(Number(v) || 0));
+  return sum;
+};
+const mapSignature = map =>
+  [...(map instanceof Map ? map.entries() : [])]
+    .filter(([, count]) => (Number(count) || 0) > 0)
+    .map(([key, count]) => [String(key), Number(count) || 0])
+    .sort((a, b) => a[0].localeCompare(b[0], "ru", { numeric: true }) || a[1] - b[1]);
+const createManualSectionResolver = (customMap = {}) => {
+  const nextKey = createSectionKeySequencer();
+  const normalizeSectionText = value =>
+    String(value || "")
+      .split(/\r?\n/)
+      .map(line => String(line || "").trimEnd())
+      .filter(line => line.trim().length > 0)
+      .join("\n")
+      .trim();
+  const getSectionManual = (level, parentTitle, title) => {
+    const key = nextKey(level, parentTitle, title);
+    return normalizeSectionText((customMap && customMap[key]) || "");
+  };
+  const getGlobalManual = () => normalizeSectionText((customMap && customMap.__global__) || "");
+  return { getSectionManual, getGlobalManual };
+};
+
+const screenSeriesName = meta => {
+  const name = String(meta && meta.name || "").trim();
+  const m = name.match(/^(.*?)\s+\d+$/);
+  return String(m ? m[1] : name).trim() || name || "Экран";
+};
+const isDeviceRect = r => isDeviceRectKind(r);
+const isSpecRect = r => !isNoteRectKind(r) && !isShapeRectKind(r);
+const baseNameWithoutTrailingNumber = name => {
+  const s = String(name || "").trim();
+  if (!s) return "Устройство";
+  const m = s.match(/^(.*?)(?:\s+[#№]?\s*\d+)?$/);
+  return String((m && m[1]) || s).trim() || s;
+};
+
+const createScreenSpecRecord = (deps = {}) => {
+  const {
+    rect,
+    interSpec,
+    parseScreenNameGroup,
+    buildRectSpecData,
+    buildRectRigSpecData,
+    fmtMeters
+  } = deps;
+  const r = rect;
+  const meta = parseScreenNameGroup(r);
+  const specData = buildRectSpecData(r);
+  const rigData = buildRectRigSpecData(r);
+  const interOut = interSpec && interSpec.byRectOut ? interSpec.byRectOut.get(r.id) : null;
+  const wM = fmtMeters((+r.width || 0) / Math.max(1, +r.scale || 256));
+  const hM = fmtMeters((+r.height || 0) / Math.max(1, +r.scale || 256));
+  return { rect: r, meta, specData, rigData, interOut, wM, hM };
+};
+
+const screenSpecKey = rec => JSON.stringify({
+  width: Math.round(Number(rec.rect && rec.rect.width) || 0),
+  height: Math.round(Number(rec.rect && rec.rect.height) || 0),
+  scale: Math.max(1, Math.round(Number(rec.rect && rec.rect.scale) || 256)),
+  cabinets: mapSignature(rec.specData.cabinetBySize),
+  cables: mapSignature(rec.specData.cableByLen),
+  supports: mapSignature(rec.rigData.supportBySize),
+  frameCount: Number(rec.rigData.frameCount) || 0,
+  bottomRowFrameCount: Number(rec.rigData.bottomRowFrameCount) || 0,
+  bottomLoads: mapSignature(rec.rigData.bottomLoadByKg)
+});
+
+const buildScreenSpecSection = (deps = {}) => {
+  const {
+    records,
+    manualText,
+    t = value => value
+  } = deps;
+  const recs = Array.isArray(records) ? records.filter(Boolean) : [];
+  const rec = recs[0];
+  if (!rec) return "";
+  const r = rec.rect;
+  const { name } = rec.meta;
+  const count = Math.max(1, recs.length);
+  const cabinetBySize = multiplyMap(rec.specData.cabinetBySize, count);
+  const cableByLen = multiplyMap(rec.specData.cableByLen, count);
+  const supportBySize = multiplyMap(rec.rigData.supportBySize, count);
+  const frameCount = (Number(rec.rigData.frameCount) || 0) * count;
+  const bottomRowFrameCount = (Number(rec.rigData.bottomRowFrameCount) || 0) * count;
+  const bottomLoadByKg = multiplyMap(rec.rigData.bottomLoadByKg, count);
+  const cabinetList = mapToCabinetList(cabinetBySize, t("м"), t("шт."));
+  const cableList = mapToCableList(cableByLen, t("шт."));
+  const supportList = mapToRigSizeList(supportBySize, t("м"), t("шт."));
+  const bottomLoadList = mapToRigWeightList(bottomLoadByKg, t("кг"), t("шт."));
+  const frameBracketCount = frameCount + bottomRowFrameCount;
+  const groupCounts = new Map();
+  for (const item of recs) {
+    const group = String(item.meta && item.meta.group || "").trim() || t("Общая");
+    groupCounts.set(group, (groupCounts.get(group) || 0) + 1);
+  }
+  const groupList = mapToNamedCountList(groupCounts, t("шт."));
+  const screenLabel = count > 1 ? `${screenSeriesName(rec.meta)}, ${count} ${t("шт.")}` : name;
+  const out = [
+    `###### ${screenLabel} (${Math.round(r.width)}x${Math.round(r.height)} px / ${rec.wM} x ${rec.hM} ${t("м")})`,
+    count > 1 ? `* ${t("Количество экранов")}: ${count} ${t("шт.")}` : "",
+    groupList.length === 1 ? `* ${t("Группа")}: ${String(recs[0].meta.group || t("Общая"))}` : `* ${t("Группы")}: ${groupList.join("; ")}`
+  ];
+  if (!out[1]) out.splice(1, 1);
+  pushSpecListLine(out, t("Кабинеты"), cabinetList);
+  pushSpecListLine(out, t("Коммутация"), cableList);
+  pushSpecListLine(out, t("Подвесы"), supportList);
+  pushSpecCountLine(out, t("Рамы"), frameCount, t("шт."));
+  pushSpecListLine(out, t("Грузы"), bottomLoadList);
+  pushSpecCountLine(out, t("Скоба такелажная"), sumMapCounts(rec.rigData.supportBySize) * 2);
+  pushSpecCountLine(out, t("Стропа"), sumMapCounts(rec.rigData.supportBySize) * 2);
+  pushSpecCountLine(out, t("Скоба монтажная для рамы"), frameBracketCount, t("шт."));
+  pushSpecCountLine(out, t("Болт для крепления скобы"), frameBracketCount * 4, t("шт."));
+  if (String(manualText || "").trim()) out.push(String(manualText).trim());
+  return out.join("\n");
+};
+
+export const buildFlowLinksSpecText = (deps = {}) => {
+  const {
+    rects,
+    flowLinks,
+    buildInterScreenSpecData,
+    parseScreenNameGroup,
+    buildRectSpecData,
+    buildRectRigSpecData,
+    fmtMeters,
+    specCustomSections,
+    specCustomText,
+    projectName = "Проект",
+    viewerUrl = "",
+    includeManual = false,
+    t = value => value
+  } = deps;
+
+  const allSpecRects = (Array.isArray(rects) ? rects : []).filter(r => isSpecRect(r));
+  const screenRects = allSpecRects.filter(r => !isDeviceRect(r));
+  const deviceRects = allSpecRects.filter(r => isDeviceRect(r));
+  const rectById = new Map();
+  for (const r of (Array.isArray(rects) ? rects : [])) {
+    const id = Math.max(1, Math.round(Number(r && r.id) || 0));
+    if (!id) continue;
+    rectById.set(id, r);
+  }
+  const commutationGroupCounts = new Map();
+  const commutationNameOf = ln => {
+    const raw = String(ln && ln.commutationName || "").trim();
+    if (raw) return raw;
+    const fromRectId = Math.max(1, Math.round(Number(ln && ln.from && ln.from.rectId) || 0));
+    const toRectId = Math.max(1, Math.round(Number(ln && ln.to && ln.to.rectId) || 0));
+    const fromRect = rectById.get(fromRectId) || null;
+    const toRect = rectById.get(toRectId) || null;
+    const fromName = String(fromRect && parseScreenNameGroup(fromRect).name || "").trim();
+    const toName = String(toRect && parseScreenNameGroup(toRect).name || "").trim();
+    if (fromName && toName) return `${fromName} -> ${toName}`;
+    return t("Коммутация");
+  };
+  for (const ln of (Array.isArray(flowLinks) ? flowLinks : [])) {
+    if (!ln || typeof ln !== "object" || !ln.isCommutation) continue;
+    const name = commutationNameOf(ln);
+    if (!name) continue;
+    commutationGroupCounts.set(name, (commutationGroupCounts.get(name) || 0) + 1);
+  }
+  const commutationNamedLines = [...commutationGroupCounts.entries()]
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0]), "ru", { numeric: true }))
+    .map(([name, count]) => `* ${name} – ${Math.max(1, Math.round(Number(count) || 0))} ${t("шт.")}`);
+  const interSpec = buildInterScreenSpecData();
+  const manualResolver = includeManual
+    ? createManualSectionResolver((specCustomSections && typeof specCustomSections === "object") ? specCustomSections : {})
+    : { getSectionManual: () => "", getGlobalManual: () => "" };
+  const normalizeSectionText = value =>
+    String(value || "")
+      .split(/\r?\n/)
+      .map(line => String(line || "").trimEnd())
+      .filter(line => line.trim().length > 0)
+      .join("\n")
+      .trim();
+  const globalManual = includeManual
+    ? [manualResolver.getGlobalManual(), normalizeSectionText(specCustomText || "")].filter(Boolean).join("\n").trim()
+    : "";
+  const SCREENS_TITLE = t("Экраны");
+  const ROOT_PARENT = SCREENS_TITLE;
+  const COMMUTATION_TITLE = t("Сигнальная и силовая коммутация");
+  const DEVICES_TITLE = t("Устройства");
+  const byScreenSeries = new Map();
+  for (const r of screenRects) {
+    const meta = parseScreenNameGroup(r);
+    const series = screenSeriesName(meta);
+    if (!byScreenSeries.has(series)) byScreenSeries.set(series, []);
+    byScreenSeries.get(series).push(r);
+  }
+  [...byScreenSeries.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "ru"))
+    .map(([series, rows]) => {
+      const records = rows
+        .slice()
+        .sort((a, b) => {
+          const am = parseScreenNameGroup(a);
+          const bm = parseScreenNameGroup(b);
+          return String(am.name || "").localeCompare(String(bm.name || ""), "ru", { numeric: true })
+            || String(am.group || "").localeCompare(String(bm.group || ""), "ru")
+            || (Number(a.id) || 0) - (Number(b.id) || 0);
+        })
+        .map(r => createScreenSpecRecord({
+          rect: r,
+          interSpec,
+          parseScreenNameGroup,
+          buildRectSpecData,
+          buildRectRigSpecData,
+          fmtMeters
+        }));
+      const bySpec = new Map();
+      for (const rec of records) {
+        const key = screenSpecKey(rec);
+        if (!bySpec.has(key)) bySpec.set(key, []);
+        bySpec.get(key).push(rec);
+      }
+      const blocks = [...bySpec.values()].map(recs => {
+        const rec = recs[0];
+        const titleLabel = recs.length > 1 ? `${series}, ${recs.length} ${t("шт.")}` : rec.meta.name;
+        const title = `${titleLabel} (${Math.round(rec.rect.width)}x${Math.round(rec.rect.height)} px / ${rec.wM} x ${rec.hM} ${t("м")})`;
+        return buildScreenSpecSection({
+          records: recs,
+          manualText: manualResolver.getSectionManual(6, series, title),
+          t
+        });
+      });
+      return [`##### ${series}`, ...blocks].join("\n\n");
+    })
+    .join("\n\n");
+  const screenListLines = [];
+  for (const r of screenRects.slice().sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0))) {
+    const meta = parseScreenNameGroup(r);
+    const wM = fmtMeters((+r.width || 0) / Math.max(1, +r.scale || 256));
+    const hM = fmtMeters((+r.height || 0) / Math.max(1, +r.scale || 256));
+    screenListLines.push(`* ${meta.name} (${wM} x ${hM} ${t("м")}, ${meta.group})`);
+  }
+  const deviceNameGroups = new Map();
+  for (const r of deviceRects) {
+    const name = baseNameWithoutTrailingNumber(r && r.name);
+    deviceNameGroups.set(name, (deviceNameGroups.get(name) || 0) + 1);
+  }
+  const deviceBlocks = [...deviceNameGroups.entries()]
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0]), "ru", { numeric: true }))
+    .map(([name, count]) => `* ${name} – ${count} ${t("шт.")}`)
+    .join("\n");
+
+  const byGroup = new Map();
+  for (const r of screenRects) {
+    const { group } = parseScreenNameGroup(r);
+    const data = buildRectSpecData(r);
+    const rigData = buildRectRigSpecData(r);
+
+    let rec = byGroup.get(group);
+    if (!rec) {
+      rec = {
+        cabinetBySize: new Map(),
+        cableByLen: new Map(),
+        supportBySize: new Map(),
+        frameCount: 0,
+        bottomRowFrameCount: 0,
+        bottomLoadByKg: new Map(),
+        visibleAreaM2: 0
+      };
+      byGroup.set(group, rec);
+    }
+
+    mergeCountMap(rec.cabinetBySize, data.cabinetBySize);
+    mergeCountMap(rec.cableByLen, data.cableByLen);
+    mergeNumericMap(rec.supportBySize, rigData.supportBySize);
+    mergeNumericMap(rec.bottomLoadByKg, rigData.bottomLoadByKg);
+
+    rec.frameCount += Number(rigData.frameCount) || 0;
+    rec.bottomRowFrameCount += Number(rigData.bottomRowFrameCount) || 0;
+    rec.visibleAreaM2 += Number(data.visibleAreaM2) || 0;
+  }
+
+  const groupBlocks = [...byGroup.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "ru"))
+    .map(([group, rec]) => {
+      const cab = mapToCabinetList(rec.cabinetBySize, t("м"), t("шт."));
+      const cbl = mapToCableList(rec.cableByLen, t("шт."));
+      const interGroup = interSpec && interSpec.byGroupOut ? interSpec.byGroupOut.get(group) : null;
+      const icbl = interGroup ? mapToCableList(interGroup.cableByLen, t("шт.")) : [];
+      const irts = interGroup ? mapToNamedCountList(interGroup.routes, t("шт.")) : [];
+      const sup = mapToRigSizeList(rec.supportBySize, t("м"), t("шт."));
+      const btm = mapToRigWeightList(rec.bottomLoadByKg, t("кг"), t("шт."));
+      const manualText = manualResolver.getSectionManual(6, ROOT_PARENT, group);
+      const supportCount = sumMapCounts(rec.supportBySize);
+      const frameBracketCount = rec.frameCount + rec.bottomRowFrameCount;
+      const bulletLines = [
+        `* ${t("Площадь экранов")}: ${fmtAreaM2(rec.visibleAreaM2)} ${t("м²")}`,
+        joinSpecLine(t("Кабинеты"), cab),
+        joinSpecLine(t("Коммутация"), cbl),
+        joinSpecLine(t("Межэкранные связи"), irts),
+        joinSpecLine(t("Межэкранная коммутация"), icbl),
+        joinSpecLine(t("Подвесы"), sup),
+        supportCount > 0 ? `* ${t("Стропа")}: ${supportCount * 2} ${t("шт.")}` : "",
+        supportCount > 0 ? `* ${t("Скоба такелажная")}: ${supportCount * 2} ${t("шт.")}` : "",
+        rec.frameCount > 0 ? `* ${t("Рамы")}: ${rec.frameCount} ${t("шт.")}` : "",
+        frameBracketCount > 0 ? `* ${t("Скоба монтажная для рамы")}: ${frameBracketCount} ${t("шт.")}` : "",
+        frameBracketCount > 0 ? `* ${t("Болт для крепления скобы")}: ${frameBracketCount * 4} ${t("шт.")}` : "",
+        joinSpecLine(t("Грузы"), btm),
+        normalizeSectionText(manualText || "")
+      ].filter(Boolean);
+      return [`###### ${group}`, ...bulletLines].join("\n");
+    })
+    .join("\n\n");
+  const commutationHeader = `##### ${COMMUTATION_TITLE}`;
+  const commutationManual = manualResolver.getSectionManual(5, "", COMMUTATION_TITLE);
+  const commutationText = [commutationManual, globalManual, normalizeSectionText(specCustomText || "")].filter(Boolean).join("\n").trim();
+  const devicesManual = normalizeSectionText(manualResolver.getSectionManual(5, "", DEVICES_TITLE));
+
+  return [
+    `### ${String(projectName || "Проект").trim() || "Проект"}`,
+    "",
+    String(viewerUrl || "").trim(),
+    "",
+    `##### ${SCREENS_TITLE}`,
+    ...screenListLines,
+    "",
+    groupBlocks,
+    "",
+    commutationHeader,
+    ...commutationNamedLines,
+    ...(commutationNamedLines.length ? [""] : []),
+    ...(commutationText ? [commutationText] : []),
+    "",
+    `##### ${DEVICES_TITLE}`,
+    ...(deviceBlocks ? [deviceBlocks] : [`* ${t("Нет устройств")}`]),
+    ...(devicesManual ? [devicesManual] : [])
+  ].join("\n");
+};

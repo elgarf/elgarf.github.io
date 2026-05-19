@@ -1,1 +1,11 @@
-export const fontFamilyCss=t=>{const e=String(t||"Roboto, Segoe UI, Arial").split(",").map(t=>t.trim()).filter(Boolean);return e.length?e.map(t=>t.startsWith('"')&&t.endsWith('"')||t.startsWith("'")&&t.endsWith("'")?t:/\s/.test(t)?`"${t.replace(/"/g,'\\"')}"`:t).join(", "):'"Segoe UI", Arial'};export const escXml=t=>String(t??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+/* build:1779222473 */
+export const fontFamilyCss = value => {
+  const parts = String(value || "Roboto, Segoe UI, Arial").split(",").map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return "\"Segoe UI\", Arial";
+  return parts.map(p => {
+    if ((p.startsWith("\"") && p.endsWith("\"")) || (p.startsWith("'") && p.endsWith("'"))) return p;
+    return /\s/.test(p) ? `"${p.replace(/"/g, "\\\"")}"` : p;
+  }).join(", ");
+};
+
+export const escXml = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");

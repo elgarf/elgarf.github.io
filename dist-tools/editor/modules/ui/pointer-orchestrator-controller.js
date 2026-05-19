@@ -1,1 +1,721 @@
-import{setupShapeInputController}from"../shape/shape-input-controller.js";import{roundDraftSizePx}from"../utils/draft-utils.js";import{isDeviceRectKind,isScreenRectKind}from"../utils/rect-kind-utils.js";import{runSmartSyncProps}from"../utils/sync-props.js";import{clearSelectedFlowLinks,getSelectedFlowLinkKeys}from"../utils/flow-link-selection-state.js";export const setupPointerOrchestratorController=(e={})=>{const{st:t,cv:n,render:o,renderOverlay:r=o,getRectById:i,hit:l,cur:s,selRect:a,isRectLocked:c,isNoteMode:u,isMaskMode:d,isCellEditMode:f,isCabinetEditMode:h,isClusterEditMode:y,isRigEditMode:p,addMaskPoint:g,toggleCellLinkAtPoint:m,beginCellKnifeDragAtPoint:S,updateCellKnifeDragAtPoint:v,snapMaskNode:x,getCellLinkCandidateAtPoint:w,getRigHitAtPoint:P,handleRigPointerDown:M,handleRigPointerMove:R,handleRigPointerLeave:L,handleFlowEditPointerDown:k,handleCabinetEditPointerDown:D,handleCabinetEditPointerMove:C,navigationController:H,clusterController:z,flowController:b,resetFlowHoverTransient:N,selectHoveredRectSmart:F,finishSelectionBox:A,mkNote:K,mk:B,mkShape:E,mkDevice:j,isNoteRect:I,isShapeRect:O,openNoteEditor:U,setMode:T,refreshPanels:V,schedulePersist:X,refreshMultiSelectionBase:Y,resetCellTransient:W,resetRigHoverTransient:q,resetFlowRegionOverrides:G,syncProps:J,syncPropsSmart:Q,findFlowStartHandle:Z,worldToRectUV:$,rectUVToWorld:_,drawCellX:ee,drawCellY:te,shapePointHit:ne,shapePointHits:oe,shapeEditHits:re,shapeSegmentHit:ie,normalizeShapeBounds:le,hitLayerButton:se,setLayerButtonHover:ae,clearLayerButtonHover:ce,hitMultiSelectionAction:ue,hitMultiSelectionResizeHandle:de,setMultiSelectionActionHover:fe,clearMultiSelectionActionHover:he,applyMultiSelectionAction:ye,beginMultiSelectionResize:pe,updateMultiSelectionResize:ge,endMultiSelectionResize:me,isControllerLayoutReadOnly:Se,canEnterControllerLayoutReadOnly:ve,enterControllerLayoutReadOnly:xe,hitControllerLayoutLegendAtScreen:we}=e,Pe="nwse-resize",Me="move",Re=["ew-resize","ns-resize","nwse-resize"];let Le=null,ke=!1;const De=e=>Math.max(.25,Number(e)||1),Ce=e=>{const t=Number(e);return Number.isFinite(t)?Math.max(-1,Math.round(t)):-1},He=e=>{const n=Math.round(Number(e)||0);return!!(t&&t.selSet instanceof Set&&t.selSet.has(n))||Math.round(Number(t&&t.sel)||0)===n},ze=e=>{if(!e)return!1;const n=((e,n,o="")=>{const r=Array.isArray(t.flowLinkAnchors)?t.flowLinkAnchors:[],i=Math.max(6,9/Math.max(.35,t.zoom||1)),l=String(o||"").toLowerCase();let s=null,a=1/0;for(const t of r){if(l&&String(t&&t.kind||"").toLowerCase()!==l)continue;const o=Math.hypot((+t.x||0)-(+e||0),(+t.y||0)-(+n||0));o<a&&(a=o,s=t)}return s&&a<=i?s:null})(e.x,e.y);if(!n)return!1;const r=i(n.rectId);return!!isDeviceRectKind(r)&&(t.devicePortSelection={rectId:Math.max(1,Math.round(Number(n.rectId)||1)),cid:Math.max(1,Math.round(Number(n.cid)||1)),kind:"end"===String(n.kind||"").toLowerCase()?"end":"start"},r.id!==t.sel&&a(r.id),"function"==typeof J&&J(),o(),!0)},be=e=>{if(!n||!n.style)return;const t=String(e||"");String(n.style.cursor||"")!==t&&(n.style.cursor=t)},Ne=(...e)=>{n&&n.style&&e.includes(String(n.style.cursor||""))&&(n.style.cursor="")},Fe=e=>{e?be(Pe):Ne(Pe)},Ae=e=>"w"===e||"e"===e?"ew-resize":"n"===e||"s"===e?"ns-resize":"nwse-resize",Ke=e=>{const n=l(e.x,e.y);if(n&&"function"==typeof ve&&ve(n))return n;const o=(e=>{if(!e||"function"!=typeof $)return null;const n=Array.isArray(t&&t.rects)?t.rects:[];for(let t=0;t<n.length;t++){const o=n[t];if(!o||!isDeviceRectKind(o))continue;const r=$(o,e.x,e.y);if(r&&r.u>=0&&r.u<=o.width&&r.v>=0&&r.v<=o.height)return o}return null})(e);return o&&"function"==typeof ve&&ve(o)?o:null},Be=setupShapeInputController({st:t,render:o,getRectById:i,cur:s,selRect:a,isRectLocked:c,isNoteRect:I,isShapeRect:O,mkShape:E,setMode:T,refreshPanels:V,schedulePersist:X,syncProps:J,syncPropsSmart:Q,worldToRectUV:$,rectUVToWorld:_,drawCellX:ee,drawCellY:te,shapePointHit:ne,shapePointHits:oe,shapeEditHits:re,shapeSegmentHit:ie,normalizeShapeBounds:le}),Ee=e=>{if("select"!==t.mode||t.drag||t.selBox||t.pan)return void Ne(Me);const n=l(e.x,e.y);if(n&&I(n)&&!c(n)&&je(n,e))return void be(Pe);const o=s();if(o&&"function"==typeof O&&O(o)&&!c(o)){const t=Be.chooseShapeEditHit(o,e.x,e.y);if(t&&t.handle)return void be(Me)}Ne(Pe),!ke&&n&&!c(n)&&He(n.id)?be(Me):Ne(Me)},je=(e,n)=>{if(!e||!I(e)||!n||"function"!=typeof $)return!1;const o=$(e,n.x,n.y);if(!o)return!1;const r=16/De(t.zoom);return o.u>=e.width-r&&o.u<=e.width+.5*r&&o.v>=e.height-r&&o.v<=e.height+.5*r},Ie=e=>{const n=t.noteResize;if(!n)return!1;const r=i(n.id);if(!r||!I(r)||c(r))return t.noteResize=null,!1;const l=Math.max(24,24/De(t.zoom)),s=Math.max(l,n.width+((+e.x||0)-(+n.sx||0))),a=Math.max(l,n.height+((+e.y||0)-(+n.sy||0)));return Math.abs(s-r.width)<.001&&Math.abs(a-r.height)<.001||(r.width=s,r.height=a,n.changed=!0,o()),!0},Oe=e=>isScreenRectKind(e),Ue=()=>(a(null),t.maskHover=null,t.cellHover=null,t.cellHoverPos=null,t.cellKnifeDrag=null,t.flowRegionRid=null,!0),Te=e=>Oe(e)?(e=>(e&&e.id!==t.sel&&a(e.id),e||null))(e):(Ue(),null),Ve=(e,n=null)=>{if("flowEdit"===t.mode){const t=l(e.x,e.y);return t&&!Oe(t)||!t&&!Oe(s())?(Ue(),runSmartSyncProps(Q,J),o(),!0):!!k(e,n)}return"select"===t.mode&&!!k(e,{...n||{},allowLinkOnly:!0})},Xe=e=>{const t=l(e.x,e.y);return F(t),t||s()},Ye=(e,n="rect")=>roundDraftSizePx(e,n,t&&t.globalScale);return{handleCanvasPointerDown:(e,n=null)=>{const r=n&&"object"==typeof n?n:{};if("function"==typeof we&&Number.isFinite(Number(r.sx))&&Number.isFinite(Number(r.sy))){if(we(r.sx,r.sy,{pin:!!r.touchLike,toggleModeSwitch:!0,touchLike:!!r.touchLike}))return o(),!0;r.touchLike&&we(-1,-1,{pin:!0})}if(Math.max(1,Math.round(Number(r.clickCount)||1))>=2){const t=Ke(e);if(t&&"function"==typeof xe)return void xe(t)}if("function"==typeof Se&&Se())ke=!1;else{if(ke=!1,"function"==typeof se){const n=se(e.x,e.y);if(n&&(e=>{const n=String(e||"");return!!n&&(t.installLayers&&"object"==typeof t.installLayers||(t.installLayers={contours:!0,text:!0,flow:!0,devices:!0,rig:!0}),t.installLayers[n]=!1===t.installLayers[n],X("project"),o(),!0)})(n))return}if("select"===t.mode&&"function"==typeof de&&"function"==typeof pe){const t=de(e.x,e.y);if(t&&pe(t,e))return be(Ae(t)),void o()}if("select"===t.mode&&"function"==typeof ue&&"function"==typeof ye){const t=ue(e.x,e.y);if(t)return ye(t),"function"==typeof he&&he(),void Ne("pointer")}if("select"===t.mode){if(ze(e)){const e=t.devicePortSelection;if(e&&"start"===e.kind)return}else t.devicePortSelection&&(t.devicePortSelection=null);if(Ve(e,{...n||{},allowLinkOnly:!0}))return;if(Be.handlePointerDownSelectedShape(e,n))return;const o=l(e.x,e.y);ke=!(!o||He(o.id))}if(!(Be.handlePointerDownShape(e,n)||(e=>!("draw"!==t.mode&&!u()&&"device"!==t.mode||(t.draft=null,t.draftPending={sx:e.x,sy:e.y,kind:u()?"note":"device"===t.mode?"device":"rect"},0)))(e)||(e=>{if(!d())return!1;const t=Te(l(e.x,e.y));return t?(c(t)||g(e.x,e.y),!0):(o(),!0)})(e)||(e=>{if(!f())return!1;const n=Te(l(e.x,e.y));return n?(c(n)||(t.cellKnifeDrag=S?S(n,e.x,e.y):null,t.cellKnifeDrag||(t.cellHover=n?w(n,e.x,e.y):null,t.cellHoverPos=n?{x:e.x,y:e.y}:null)),!0):(o(),!0)})(e)||(e=>!!h()&&!!D(e))(e)||(e=>!!y()&&!!z.handlePointerDownCluster(e))(e)||(e=>!!p()&&!!M(e))(e)||"select"!==t.mode&&Ve(e,n))){if("select"===t.mode&&getSelectedFlowLinkKeys(t).length&&(clearSelectedFlowLinks(t),t.flowCurveDrag=null,"function"==typeof J&&J()),"select"===t.mode){const r=l(e.x,e.y);if(Be.handlePointerDownHitShape(r,e,n,He))return;if(r&&I(r)&&!c(r)&&je(r,e))return r.id!==t.sel&&a(r.id),((e,n)=>{!e||!n||(t.noteResize={id:e.id,sx:n.x,sy:n.y,x:e.x,y:e.y,width:e.width,height:e.height,changed:!1})})(r,e),void o()}Le=e,((e,t=null)=>{H.handlePointerDownSelect(e,t)})(e,n)}}},handleCanvasPointerMove:(e,n=null)=>{const i=n&&"object"==typeof n?n:{};if("function"==typeof we&&Number.isFinite(Number(i.sx))&&Number.isFinite(Number(i.sy))){const e=Ce(t.controllerLayoutLegendHoverIndex);we(i.sx,i.sy,{pin:!1});e===Ce(t.controllerLayoutLegendHoverIndex)||t.pan||t.drag||t.selBox||o()}if("function"==typeof Se&&Se())return Le=e,!!H.handlePanPointerMove(e,i)||(Ne(Me,Pe,...Re,"pointer"),!1);if(Le=e,H.handlePanPointerMove(e,i))return!0;if(H.handleSelectionBoxPointerMove(e))return!0;if(t.multiSelectionResize&&"function"==typeof ge)return ge(e,{disableSnap:!!i.ctrlSnap,fromCenter:!!i.altResize}),be(Ae(t.multiSelectionResize.handle)),runSmartSyncProps(Q,J),o(),!0;if(t.noteResize&&Fe(!0),Ie(e))return!0;if(Be.handlePointerMove(e,i))return!0;if(d()){Fe(!1);const n=l(e.x,e.y),r=Oe(n)?Xe(e):null;return t.maskHover=r?x(r,e.x,e.y):null,o(),!0}if(f()){Fe(!1);const n=l(e.x,e.y),r=Oe(n)?Xe(e):null;return t.cellKnifeDrag&&r&&Number(r.id)===Number(t.cellKnifeDrag.rectId)&&"function"==typeof v&&v(r,t.cellKnifeDrag,e.x,e.y)&&o(),t.cellHover=r?w(r,e.x,e.y):null,t.cellHoverPos=r?{x:e.x,y:e.y}:null,o(),!0}if(p()){if(Fe(!1),R)return!!R(e);const n=Xe(e);return t.rigHover=n?P(n,e.x,e.y,t.zoom):null,o(),!0}if(h())return Fe(!1),"function"!=typeof C||!!C(e);if(y())return Fe(!1),!!z.handleClusterPointerMove(e);if(t.flowSegmentDrag){if(b&&"function"==typeof b.moveFlowLinkOrthogonalSegment){const n=b.moveFlowLinkOrthogonalSegment(t.flowSegmentDrag,e.x,e.y);t.flowSegmentDrag.changed=!(!t.flowSegmentDrag.changed&&!n),n&&(runSmartSyncProps(Q,J),o())}return!0}if((e=>b.handleFlowEditPointerMove(e))(e))return!0;if("function"==typeof ae&&"install"===String(t.viewMode||"")){const n=ae(e.x,e.y),o=!!t.installLayerButtonHover;if(o?be("pointer"):Ne("pointer"),n&&r(),o)return!0}else"function"==typeof ce&&ce()&&(Ne("pointer"),r());if("select"!==t.mode||t.drag||t.selBox||t.pan||"function"!=typeof fe)"function"==typeof he&&he()&&(Ne("pointer",...Re),r());else{const n=fe(e.x,e.y),o=!!t.multiSelectionActionHover,i=String(t.multiSelectionResizeHover||"");if(i&&be(Ae(i)),o&&be("pointer"),o||i||Ne("pointer",...Re),n&&r(),o||i)return!0}if("select"!==t.mode||t.drag||t.selBox||t.pan?(Fe(!1),t.drag||Ne(Me)):Ee(e),!t.draft&&t.draftPending&&("draw"===t.mode||u()||"device"===t.mode)){const n=t.draftPending,o=((e,n)=>Math.hypot(e,n)*Math.max(.1,Number(t.zoom)||1))((+e.x||0)-(+n.sx||0),(+e.y||0)-(+n.sy||0));o>=2&&(t.draft={x:n.sx,y:n.sy,width:0,height:0,sx:n.sx,sy:n.sy,kind:String(n.kind||"rect")})}return!!H.handleDraftPointerMove(e)||!!H.handleDragPointerMove(e,i)&&(be(Me),runSmartSyncProps(Q,J),!0)},handleCanvasPointerUp:()=>{if("function"==typeof Se&&Se())return t.pan&&(t.pan=!1,t.panS=null),t.drag=null,t.selBox=null,t.noteResize=null,t.multiSelectionResize=null,Ne(Me,Pe,...Re,"pointer"),o(),!0;const e=!!t.drag,n=!(!t.drag||!t.drag.moved),r=!(!t.multiSelectionResize||!t.multiSelectionResize.changed),l=!(!t.noteResize||!t.noteResize.changed),s=!(!t.shapePointDrag||!t.shapePointDrag.changed);if(t.pan&&(t.pan=!1,t.panS=null),f()&&t.cellKnifeDrag){const e=t.cellKnifeDrag,n=i(e.rectId);let r=!!e.changed;return n&&!e.active&&(r=!!m(n,e.startX,e.startY)),t.cellKnifeDrag=null,r&&X("project"),o(),!0}if(t.selBox)return A(),!0;if(z.handlePointerUpCluster())return!0;if(t.flowSegmentDrag){const e=!!t.flowSegmentDrag.changed;return t.flowSegmentDrag=null,e&&(X("project"),runSmartSyncProps(Q,J)),o(),!0}if(b.handlePointerUpFlowLink())return!0;if(b.handlePointerUpFlowDrag())return!0;if(t.multiSelectionResize&&"function"==typeof me)return me(),Ne(...Re),o(),!0;let c=null;if(t.draft){const e=t.draft;if(e.width>=1&&e.height>=1){const n=Ye(e.width,e.kind),o=Ye(e.height,e.kind);c="note"===String(e.kind||"")?K(e.x,e.y,n,o):"device"===String(e.kind||"")?j(e.x,e.y,n,o):B(e.x,e.y,n,o),t.rects.unshift(c)}t.draft=null}return t.draftPending=null,t.drag=null,t.noteResize=null,t.shapePointDrag=null,t.g.x=null,t.g.y=null,t.dg=null,Ne(Me),ke=!1,c&&(T("select"),a(c.id),I(c)&&U(c.id)),n&&"function"==typeof Y&&Y(),(e||c||l||r||s)&&(V(),X("project")),!c&&Le&&"select"===t.mode&&Ee(Le),o(),!0},handleCanvasMouseLeave:()=>{if("function"==typeof we){const e=Ce(t.controllerLayoutLegendHoverIndex);we(-1,-1,{pin:!1});e!==Ce(t.controllerLayoutLegendHoverIndex)&&o()}if("function"==typeof ce&&ce()&&r(),"function"==typeof he&&he()&&r(),Ne("pointer",Me,...Re),Fe(!1),f()&&(t.cellHover||t.cellHoverPos))return W(),void o();if(!b.handleFlowMouseLeave()&&(!y()||!z.handleClusterMouseLeave())&&p()&&t.rigHover){if(L)return void L();q(),o()}},handleCanvasDoubleClick:(e,n=()=>{})=>{const r=Ke(e);if(r&&"function"==typeof xe)return xe(r),void n();const i=l(e.x,e.y);if("select"===t.mode&&b&&"function"==typeof b.deleteFlowLinkOrthogonalSegmentAtPoint&&b.deleteFlowLinkOrthogonalSegmentAtPoint(e))return t.flowSegmentDrag=null,X("project"),runSmartSyncProps(Q,J),o(),void n();if(Be.handleDoubleClickShape(e,n))return;if(!i)return;if(Be.handleDoubleClickHitShape(i,e,n))return;if(I(i))return i.id!==t.sel&&a(i.id),U(i.id),void n();if(i.id!==t.sel)return;if("flowEdit"!==t.mode)return;const c=s();if(!c)return;const u=Z(e.x,e.y);u&&(t.flowRegionRid=u.rid,G(c,u.rid),N(),t.flowDrag=null,t.flowDragPreview=null,X("project"),J(),o(),n())}}};
+/* build:1779222473 */
+import { setupShapeInputController } from "../shape/shape-input-controller.js";
+import { roundDraftSizePx } from "../utils/draft-utils.js";
+import { isDeviceRectKind, isScreenRectKind } from "../utils/rect-kind-utils.js";
+import { runSmartSyncProps } from "../utils/sync-props.js";
+
+import { clearSelectedFlowLinks, getSelectedFlowLinkKeys } from "../utils/flow-link-selection-state.js";
+
+export const setupPointerOrchestratorController = (deps = {}) => {
+  const {
+    st,
+    cv,
+    render,
+    renderOverlay = render,
+    getRectById,
+    hit,
+    cur,
+    selRect,
+    isRectLocked,
+    isNoteMode,
+    isMaskMode,
+    isCellEditMode,
+    isCabinetEditMode,
+    isClusterEditMode,
+    isRigEditMode,
+    addMaskPoint,
+    toggleCellLinkAtPoint,
+    beginCellKnifeDragAtPoint,
+    updateCellKnifeDragAtPoint,
+    snapMaskNode,
+    getCellLinkCandidateAtPoint,
+    getRigHitAtPoint,
+    handleRigPointerDown,
+    handleRigPointerMove,
+    handleRigPointerLeave,
+    handleFlowEditPointerDown,
+    handleCabinetEditPointerDown,
+    handleCabinetEditPointerMove,
+    navigationController,
+    clusterController,
+    flowController,
+    resetFlowHoverTransient,
+    selectHoveredRectSmart,
+    finishSelectionBox,
+    mkNote,
+    mk,
+    mkShape,
+    mkDevice,
+    isNoteRect,
+    isShapeRect,
+    openNoteEditor,
+    setMode,
+    refreshPanels,
+    schedulePersist,
+    refreshMultiSelectionBase,
+    resetCellTransient,
+    resetRigHoverTransient,
+    resetFlowRegionOverrides,
+    syncProps,
+    syncPropsSmart,
+    findFlowStartHandle,
+    worldToRectUV,
+    rectUVToWorld,
+    drawCellX,
+    drawCellY,
+    shapePointHit,
+    shapePointHits,
+    shapeEditHits,
+    shapeSegmentHit,
+    normalizeShapeBounds,
+    hitLayerButton,
+    setLayerButtonHover,
+    clearLayerButtonHover,
+    hitMultiSelectionAction,
+    hitMultiSelectionResizeHandle,
+    setMultiSelectionActionHover,
+    clearMultiSelectionActionHover,
+    applyMultiSelectionAction,
+    beginMultiSelectionResize,
+    updateMultiSelectionResize,
+    endMultiSelectionResize,
+    isControllerLayoutReadOnly,
+    canEnterControllerLayoutReadOnly,
+    enterControllerLayoutReadOnly,
+    hitControllerLayoutLegendAtScreen
+  } = deps;
+  const NOTE_RESIZE_HANDLE_PX = 16;
+  const DRAFT_START_MOVE_PX = 2;
+  const NOTE_RESIZE_CURSOR = "nwse-resize";
+  const MOVE_CURSOR = "move";
+  const RESIZE_CURSORS = ["ew-resize", "ns-resize", "nwse-resize"];
+  let lastPointer = null;
+  let suppressMoveCursorUntilMouseUp = false;
+  const zoomSafe = z => Math.max(0.25, Number(z) || 1);
+  const noteResizePad = () => NOTE_RESIZE_HANDLE_PX / zoomSafe(st.zoom);
+  const noteResizeMin = () => Math.max(24, 24 / zoomSafe(st.zoom));
+  const draftMovePx = (dx, dy) => Math.hypot(dx, dy) * Math.max(0.1, Number(st.zoom) || 1);
+  const normLegendIndex = value => {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.max(-1, Math.round(n)) : -1;
+  };
+  const isSelectedRectId = id => {
+    const n = Math.round(Number(id) || 0);
+    if (st && st.selSet instanceof Set && st.selSet.has(n)) return true;
+    return Math.round(Number(st && st.sel) || 0) === n;
+  };
+  const pickFlowAnchorAtPoint = (wx, wy, kind = "") => {
+    const pts = Array.isArray(st.flowLinkAnchors) ? st.flowLinkAnchors : [];
+    const tol = Math.max(6, 9 / Math.max(0.35, st.zoom || 1));
+    const kindNorm = String(kind || "").toLowerCase();
+    let best = null;
+    let bestD = Infinity;
+    for (const p of pts) {
+      if (kindNorm && String(p && p.kind || "").toLowerCase() !== kindNorm) continue;
+      const d = Math.hypot((+p.x || 0) - (+wx || 0), (+p.y || 0) - (+wy || 0));
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return (best && bestD <= tol) ? best : null;
+  };
+  const selectDevicePortAtPoint = p => {
+    if (!p) return false;
+    const a = pickFlowAnchorAtPoint(p.x, p.y);
+    if (!a) return false;
+    const r = getRectById(a.rectId);
+    if (!isDeviceRectKind(r)) return false;
+    st.devicePortSelection = {
+      rectId: Math.max(1, Math.round(Number(a.rectId) || 1)),
+      cid: Math.max(1, Math.round(Number(a.cid) || 1)),
+      kind: String(a.kind || "").toLowerCase() === "end" ? "end" : "start"
+    };
+    if (r.id !== st.sel) selRect(r.id);
+    if (typeof syncProps === "function") syncProps();
+    render();
+    return true;
+  };
+  const setCanvasCursor = cursor => {
+    if (!cv || !cv.style) return;
+    const next = String(cursor || "");
+    if (String(cv.style.cursor || "") !== next) cv.style.cursor = next;
+  };
+  const clearCursorIf = (...values) => {
+    if (!cv || !cv.style) return;
+    if (values.includes(String(cv.style.cursor || ""))) cv.style.cursor = "";
+  };
+  const setNoteResizeCursor = on => {
+    if (on) setCanvasCursor(NOTE_RESIZE_CURSOR);
+    else clearCursorIf(NOTE_RESIZE_CURSOR);
+  };
+  const multiResizeCursor = handle => (handle === "w" || handle === "e") ? "ew-resize" : (handle === "n" || handle === "s") ? "ns-resize" : "nwse-resize";
+  const hitControllerIgnoringLock = p => {
+    if (!p || typeof worldToRectUV !== "function") return null;
+    const rects = Array.isArray(st && st.rects) ? st.rects : [];
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i];
+      if (!r || !isDeviceRectKind(r)) continue;
+      const uv = worldToRectUV(r, p.x, p.y);
+      if (!uv) continue;
+      if (uv.u >= 0 && uv.u <= r.width && uv.v >= 0 && uv.v <= r.height) return r;
+    }
+    return null;
+  };
+  const resolveControllerLayoutDrillTarget = p => {
+    const h = hit(p.x, p.y);
+    if (h && typeof canEnterControllerLayoutReadOnly === "function" && canEnterControllerLayoutReadOnly(h)) return h;
+    const fallback = hitControllerIgnoringLock(p);
+    if (fallback && typeof canEnterControllerLayoutReadOnly === "function" && canEnterControllerLayoutReadOnly(fallback)) return fallback;
+    return null;
+  };
+  const shapeInput = setupShapeInputController({
+    st,
+    render,
+    getRectById,
+    cur,
+    selRect,
+    isRectLocked,
+    isNoteRect,
+    isShapeRect,
+    mkShape,
+    setMode,
+    refreshPanels,
+    schedulePersist,
+    syncProps,
+    syncPropsSmart,
+    worldToRectUV,
+    rectUVToWorld,
+    drawCellX,
+    drawCellY,
+    shapePointHit,
+    shapePointHits,
+    shapeEditHits,
+    shapeSegmentHit,
+    normalizeShapeBounds
+  });
+  const updateSelectHoverCursor = p => {
+    if (st.mode !== "select" || st.drag || st.selBox || st.pan) {
+      clearCursorIf(MOVE_CURSOR);
+      return;
+    }
+    const h = hit(p.x, p.y);
+    if (h && isNoteRect(h) && !isRectLocked(h) && isNoteResizeHit(h, p)) {
+      setCanvasCursor(NOTE_RESIZE_CURSOR);
+      return;
+    }
+    const selectedShape = cur();
+    if (selectedShape && typeof isShapeRect === "function" && isShapeRect(selectedShape) && !isRectLocked(selectedShape)) {
+      const selectedEditHit = shapeInput.chooseShapeEditHit(selectedShape, p.x, p.y);
+      if (selectedEditHit && selectedEditHit.handle) {
+        setCanvasCursor(MOVE_CURSOR);
+        return;
+      }
+    }
+    clearCursorIf(NOTE_RESIZE_CURSOR);
+    if (!suppressMoveCursorUntilMouseUp && h && !isRectLocked(h) && isSelectedRectId(h.id)) setCanvasCursor(MOVE_CURSOR);
+    else clearCursorIf(MOVE_CURSOR);
+  };
+  const isNoteResizeHit = (r, p) => {
+    if (!r || !isNoteRect(r) || !p || typeof worldToRectUV !== "function") return false;
+    const uv = worldToRectUV(r, p.x, p.y);
+    if (!uv) return false;
+    const pad = noteResizePad();
+    return uv.u >= (r.width - pad) && uv.u <= (r.width + pad * .5) && uv.v >= (r.height - pad) && uv.v <= (r.height + pad * .5);
+  };
+  const beginNoteResize = (r, p) => {
+    if (!r || !p) return false;
+    st.noteResize = {
+      id: r.id,
+      sx: p.x,
+      sy: p.y,
+      x: r.x,
+      y: r.y,
+      width: r.width,
+      height: r.height,
+      changed: false
+    };
+    return true;
+  };
+  const handleNoteResizePointerMove = p => {
+    const rs = st.noteResize;
+    if (!rs) return false;
+    const r = getRectById(rs.id);
+    if (!r || !isNoteRect(r) || isRectLocked(r)) { st.noteResize = null; return false; }
+    const minSize = noteResizeMin();
+    const nextW = Math.max(minSize, rs.width + ((+p.x || 0) - (+rs.sx || 0)));
+    const nextH = Math.max(minSize, rs.height + ((+p.y || 0) - (+rs.sy || 0)));
+    if (Math.abs(nextW - r.width) < 0.001 && Math.abs(nextH - r.height) < 0.001) return true;
+    r.width = nextW;
+    r.height = nextH;
+    rs.changed = true;
+    render();
+    return true;
+  };
+
+  const selectHitRectIfNeeded = h => {
+    if (h && h.id !== st.sel) selRect(h.id);
+    return h || null;
+  };
+  const isScreenRect = r => isScreenRectKind(r);
+  const clearScreenToolSelection = () => {
+    selRect(null);
+    st.maskHover = null;
+    st.cellHover = null;
+    st.cellHoverPos = null;
+    st.cellKnifeDrag = null;
+    st.flowRegionRid = null;
+    return true;
+  };
+  const selectScreenHitRectIfNeeded = h => {
+    if (!isScreenRect(h)) {
+      clearScreenToolSelection();
+      return null;
+    }
+    return selectHitRectIfNeeded(h);
+  };
+  const handlePointerDownDrawOrNote = p => {
+    if (!(st.mode === "draw" || isNoteMode() || st.mode === "device")) return false;
+    st.draft = null;
+      st.draftPending = {
+      sx: p.x,
+      sy: p.y,
+      kind: (isNoteMode() ? "note" : (st.mode === "device" ? "device" : "rect"))
+    };
+    return true;
+  };
+  const handlePointerDownMask = p => {
+    if (!isMaskMode()) return false;
+    const h = selectScreenHitRectIfNeeded(hit(p.x, p.y));
+    if (!h) { render(); return true; }
+    if (isRectLocked(h)) return true;
+    addMaskPoint(p.x, p.y);
+    return true;
+  };
+  const handlePointerDownCell = p => {
+    if (!isCellEditMode()) return false;
+    const h = selectScreenHitRectIfNeeded(hit(p.x, p.y));
+    if (!h) { render(); return true; }
+    if (isRectLocked(h)) return true;
+    st.cellKnifeDrag = beginCellKnifeDragAtPoint ? beginCellKnifeDragAtPoint(h, p.x, p.y) : null;
+    if (!st.cellKnifeDrag) {
+      st.cellHover = h ? getCellLinkCandidateAtPoint(h, p.x, p.y) : null;
+      st.cellHoverPos = h ? { x: p.x, y: p.y } : null;
+    }
+    return true;
+  };
+  const handlePointerDownCluster = p => {
+    if (!isClusterEditMode()) return false;
+    return !!clusterController.handlePointerDownCluster(p);
+  };
+  const handlePointerDownCabinet = p => {
+    if (!isCabinetEditMode()) return false;
+    return !!handleCabinetEditPointerDown(p);
+  };
+  const handlePointerDownRig = p => {
+    if (!isRigEditMode()) return false;
+    return !!handleRigPointerDown(p);
+  };
+  const handlePointerDownFlow = (p, opts = null) => {
+    if (st.mode === "flowEdit") {
+      const h = hit(p.x, p.y);
+      if ((h && !isScreenRect(h)) || (!h && !isScreenRect(cur()))) {
+        clearScreenToolSelection();
+        runSmartSyncProps(syncPropsSmart, syncProps);
+        render();
+        return true;
+      }
+      return !!handleFlowEditPointerDown(p, opts);
+    }
+    if (st.mode === "select") return !!handleFlowEditPointerDown(p, { ...(opts || {}), allowLinkOnly: true });
+    return false;
+  };
+  const handlePointerDownSelect = (p, opts = null) => navigationController.handlePointerDownSelect(p, opts);
+  const toggleInstallLayer = id => {
+    const key = String(id || "");
+    if (!key) return false;
+    if (!st.installLayers || typeof st.installLayers !== "object") st.installLayers = { contours: true, text: true, flow: true, devices: true, rig: true };
+    st.installLayers[key] = st.installLayers[key] === false;
+    schedulePersist("project");
+    render();
+    return true;
+  };
+
+  const handleCanvasPointerDown = (p, opts = null) => {
+    const oDown = (opts && typeof opts === "object") ? opts : {};
+    if (typeof hitControllerLayoutLegendAtScreen === "function" && Number.isFinite(Number(oDown.sx)) && Number.isFinite(Number(oDown.sy))) {
+      const onLegend = hitControllerLayoutLegendAtScreen(oDown.sx, oDown.sy, { pin: !!oDown.touchLike, toggleModeSwitch: true, touchLike: !!oDown.touchLike });
+      if (onLegend) {
+        render();
+        return true;
+      }
+      if (oDown.touchLike) hitControllerLayoutLegendAtScreen(-1, -1, { pin: true });
+    }
+    const clickCount = Math.max(1, Math.round(Number(oDown.clickCount) || 1));
+    if (clickCount >= 2) {
+      const drillTarget = resolveControllerLayoutDrillTarget(p);
+      if (drillTarget && typeof enterControllerLayoutReadOnly === "function") {
+        enterControllerLayoutReadOnly(drillTarget);
+        return;
+      }
+    }
+    if (typeof isControllerLayoutReadOnly === "function" && isControllerLayoutReadOnly()) {
+      suppressMoveCursorUntilMouseUp = false;
+      return;
+    }
+    suppressMoveCursorUntilMouseUp = false;
+    if (typeof hitLayerButton === "function") {
+      const layerId = hitLayerButton(p.x, p.y);
+      if (layerId && toggleInstallLayer(layerId)) return;
+    }
+    if (st.mode === "select" && typeof hitMultiSelectionResizeHandle === "function" && typeof beginMultiSelectionResize === "function") {
+      const resizeHandle = hitMultiSelectionResizeHandle(p.x, p.y);
+      if (resizeHandle && beginMultiSelectionResize(resizeHandle, p)) {
+        setCanvasCursor(multiResizeCursor(resizeHandle));
+        render();
+        return;
+      }
+    }
+    if (st.mode === "select" && typeof hitMultiSelectionAction === "function" && typeof applyMultiSelectionAction === "function") {
+      const action = hitMultiSelectionAction(p.x, p.y);
+      if (action) {
+        applyMultiSelectionAction(action);
+        if (typeof clearMultiSelectionActionHover === "function") clearMultiSelectionActionHover();
+        clearCursorIf("pointer");
+        return;
+      }
+    }
+    if (st.mode === "select") {
+      const pickedDevicePort = selectDevicePortAtPoint(p);
+      if (pickedDevicePort) {
+        const picked = st.devicePortSelection;
+        if (picked && picked.kind === "start") return;
+      } else if (st.devicePortSelection) {
+        st.devicePortSelection = null;
+      }
+      if (handlePointerDownFlow(p, { ...(opts || {}), allowLinkOnly: true })) return;
+      if (shapeInput.handlePointerDownSelectedShape(p, opts)) return;
+      const h = hit(p.x, p.y);
+      suppressMoveCursorUntilMouseUp = !!(h && !isSelectedRectId(h.id));
+    }
+    if (shapeInput.handlePointerDownShape(p, opts)) return;
+    if (handlePointerDownDrawOrNote(p)) return;
+    if (handlePointerDownMask(p)) return;
+    if (handlePointerDownCell(p)) return;
+    if (handlePointerDownCabinet(p)) return;
+    if (handlePointerDownCluster(p)) return;
+    if (handlePointerDownRig(p)) return;
+    if (st.mode !== "select" && handlePointerDownFlow(p, opts)) return;
+    if (st.mode === "select" && getSelectedFlowLinkKeys(st).length) {
+      clearSelectedFlowLinks(st);
+      st.flowCurveDrag = null;
+      if (typeof syncProps === "function") syncProps();
+    }
+    if (st.mode === "select") {
+      const h = hit(p.x, p.y);
+      if (shapeInput.handlePointerDownHitShape(h, p, opts, isSelectedRectId)) return;
+      if (h && isNoteRect(h) && !isRectLocked(h) && isNoteResizeHit(h, p)) {
+        if (h.id !== st.sel) selRect(h.id);
+        beginNoteResize(h, p);
+        render();
+        return;
+      }
+    }
+    lastPointer = p;
+    handlePointerDownSelect(p, opts);
+  };
+
+  const handleFlowEditPointerMove = p => flowController.handleFlowEditPointerMove(p);
+  const getHoveredRect = p => {
+    const h = hit(p.x, p.y);
+    selectHoveredRectSmart(h);
+    return h || cur();
+  };
+  const handleCanvasPointerMove = (p, opts = null) => {
+    const o = (opts && typeof opts === "object") ? opts : {};
+    if (typeof hitControllerLayoutLegendAtScreen === "function" && Number.isFinite(Number(o.sx)) && Number.isFinite(Number(o.sy))) {
+      const prevHover = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+      hitControllerLayoutLegendAtScreen(o.sx, o.sy, { pin: false });
+      const nextHover = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+      if (prevHover !== nextHover && !st.pan && !st.drag && !st.selBox) render();
+    }
+    if (typeof isControllerLayoutReadOnly === "function" && isControllerLayoutReadOnly()) {
+      lastPointer = p;
+      if (navigationController.handlePanPointerMove(p, o)) return true;
+      clearCursorIf(MOVE_CURSOR, NOTE_RESIZE_CURSOR, ...RESIZE_CURSORS, "pointer");
+      return false;
+    }
+    lastPointer = p;
+    if (navigationController.handlePanPointerMove(p, o)) return true;
+    if (navigationController.handleSelectionBoxPointerMove(p)) return true;
+    if (st.multiSelectionResize && typeof updateMultiSelectionResize === "function") {
+      updateMultiSelectionResize(p, { disableSnap: !!o.ctrlSnap, fromCenter: !!o.altResize });
+      setCanvasCursor(multiResizeCursor(st.multiSelectionResize.handle));
+      runSmartSyncProps(syncPropsSmart, syncProps);
+      render();
+      return true;
+    }
+    if (st.noteResize) setNoteResizeCursor(true);
+    if (handleNoteResizePointerMove(p)) return true;
+    if (shapeInput.handlePointerMove(p, o)) return true;
+    if (isMaskMode()) {
+      setNoteResizeCursor(false);
+      const h = hit(p.x, p.y);
+      const r = isScreenRect(h) ? getHoveredRect(p) : null;
+      st.maskHover = r ? snapMaskNode(r, p.x, p.y) : null;
+      render();
+      return true;
+    }
+    if (isCellEditMode()) {
+      setNoteResizeCursor(false);
+      const h = hit(p.x, p.y);
+      const r = isScreenRect(h) ? getHoveredRect(p) : null;
+      if (st.cellKnifeDrag && r && Number(r.id) === Number(st.cellKnifeDrag.rectId) && typeof updateCellKnifeDragAtPoint === "function") {
+        if (updateCellKnifeDragAtPoint(r, st.cellKnifeDrag, p.x, p.y)) render();
+      }
+      st.cellHover = r ? getCellLinkCandidateAtPoint(r, p.x, p.y) : null;
+      st.cellHoverPos = r ? { x: p.x, y: p.y } : null;
+      render();
+      return true;
+    }
+    if (isRigEditMode()) {
+      setNoteResizeCursor(false);
+      if (handleRigPointerMove) return !!handleRigPointerMove(p);
+      const r = getHoveredRect(p);
+      st.rigHover = r ? getRigHitAtPoint(r, p.x, p.y, st.zoom) : null;
+      render();
+      return true;
+    }
+    if (isCabinetEditMode()) {
+      setNoteResizeCursor(false);
+      if (typeof handleCabinetEditPointerMove === "function") return !!handleCabinetEditPointerMove(p);
+      return true;
+    }
+    if (isClusterEditMode()) {
+      setNoteResizeCursor(false);
+      return !!clusterController.handleClusterPointerMove(p);
+    }
+    if (st.flowSegmentDrag) {
+      if (flowController && typeof flowController.moveFlowLinkOrthogonalSegment === "function") {
+        const changed = flowController.moveFlowLinkOrthogonalSegment(st.flowSegmentDrag, p.x, p.y);
+        st.flowSegmentDrag.changed = !!(st.flowSegmentDrag.changed || changed);
+        if (changed) {
+          runSmartSyncProps(syncPropsSmart, syncProps);
+          render();
+        }
+      }
+      return true;
+    }
+    if (handleFlowEditPointerMove(p)) return true;
+    if (typeof setLayerButtonHover === "function" && String(st.viewMode || "") === "install") {
+      const changed = setLayerButtonHover(p.x, p.y);
+      const hoveringLayer = !!st.installLayerButtonHover;
+      if (hoveringLayer) setCanvasCursor("pointer");
+      else clearCursorIf("pointer");
+      if (changed) renderOverlay();
+      if (hoveringLayer) return true;
+    } else if (typeof clearLayerButtonHover === "function" && clearLayerButtonHover()) {
+      clearCursorIf("pointer");
+      renderOverlay();
+    }
+    if (st.mode === "select" && !st.drag && !st.selBox && !st.pan && typeof setMultiSelectionActionHover === "function") {
+      const changed = setMultiSelectionActionHover(p.x, p.y);
+      const hoveringAction = !!st.multiSelectionActionHover;
+      const resizeHover = String(st.multiSelectionResizeHover || "");
+      if (resizeHover) setCanvasCursor(multiResizeCursor(resizeHover));
+      if (hoveringAction) setCanvasCursor("pointer");
+      if (!hoveringAction && !resizeHover) clearCursorIf("pointer", ...RESIZE_CURSORS);
+      if (changed) renderOverlay();
+      if (hoveringAction || resizeHover) return true;
+    } else if (typeof clearMultiSelectionActionHover === "function" && clearMultiSelectionActionHover()) {
+      clearCursorIf("pointer", ...RESIZE_CURSORS);
+      renderOverlay();
+    }
+    if (st.mode === "select" && !st.drag && !st.selBox && !st.pan) {
+      updateSelectHoverCursor(p);
+    } else {
+      setNoteResizeCursor(false);
+      if (!st.drag) clearCursorIf(MOVE_CURSOR);
+    }
+    if (!st.draft && st.draftPending && (st.mode === "draw" || isNoteMode() || st.mode === "device")) {
+      const ds = st.draftPending;
+      const dx = (+p.x || 0) - (+ds.sx || 0);
+      const dy = (+p.y || 0) - (+ds.sy || 0);
+      const movedPx = draftMovePx(dx, dy);
+      if (movedPx >= DRAFT_START_MOVE_PX) {
+        st.draft = { x: ds.sx, y: ds.sy, width: 0, height: 0, sx: ds.sx, sy: ds.sy, kind: String(ds.kind || "rect") };
+      }
+    }
+    if (navigationController.handleDraftPointerMove(p)) return true;
+    if (navigationController.handleDragPointerMove(p, o)) {
+      setCanvasCursor(MOVE_CURSOR);
+      runSmartSyncProps(syncPropsSmart, syncProps);
+      return true;
+    }
+    return false;
+  };
+
+  const handlePointerUpCluster = () => clusterController.handlePointerUpCluster();
+  const handlePointerUpFlowLink = () => flowController.handlePointerUpFlowLink();
+  const handlePointerUpFlowDrag = () => flowController.handlePointerUpFlowDrag();
+  const roundDraftSize = (value, kind = "rect") => roundDraftSizePx(value, kind, st && st.globalScale);
+  const handleCanvasPointerUp = () => {
+    if (typeof isControllerLayoutReadOnly === "function" && isControllerLayoutReadOnly()) {
+      if (st.pan) {
+        st.pan = false;
+        st.panS = null;
+      }
+      st.drag = null;
+      st.selBox = null;
+      st.noteResize = null;
+      st.multiSelectionResize = null;
+      clearCursorIf(MOVE_CURSOR, NOTE_RESIZE_CURSOR, ...RESIZE_CURSORS, "pointer");
+      render();
+      return true;
+    }
+    const hadDrag = !!st.drag;
+    const hadMovedDrag = !!(st.drag && st.drag.moved);
+    const hadMultiSelectionResize = !!(st.multiSelectionResize && st.multiSelectionResize.changed);
+    const hadNoteResize = !!(st.noteResize && st.noteResize.changed);
+    const hadShapePointDrag = !!(st.shapePointDrag && st.shapePointDrag.changed);
+    if (st.pan) { st.pan = false; st.panS = null; }
+    if (isCellEditMode() && st.cellKnifeDrag) {
+      const d = st.cellKnifeDrag;
+      const r = getRectById(d.rectId);
+      let changed = !!d.changed;
+      if (r && !d.active) changed = !!toggleCellLinkAtPoint(r, d.startX, d.startY);
+      st.cellKnifeDrag = null;
+      if (changed) schedulePersist("project");
+      render();
+      return true;
+    }
+    if (st.selBox) { finishSelectionBox(); return true; }
+    if (handlePointerUpCluster()) return true;
+    if (st.flowSegmentDrag) {
+      const changed = !!st.flowSegmentDrag.changed;
+      st.flowSegmentDrag = null;
+      if (changed) {
+        schedulePersist("project");
+        runSmartSyncProps(syncPropsSmart, syncProps);
+      }
+      render();
+      return true;
+    }
+    if (handlePointerUpFlowLink()) return true;
+    if (handlePointerUpFlowDrag()) return true;
+    if (st.multiSelectionResize && typeof endMultiSelectionResize === "function") {
+      endMultiSelectionResize();
+      clearCursorIf(...RESIZE_CURSORS);
+      render();
+      return true;
+    }
+    let created = null;
+    if (st.draft) {
+      const d = st.draft;
+      if (d.width >= 1 && d.height >= 1) {
+        const width = roundDraftSize(d.width, d.kind);
+        const height = roundDraftSize(d.height, d.kind);
+        created = (String(d.kind || "") === "note")
+          ? mkNote(d.x, d.y, width, height)
+          : (String(d.kind || "") === "device")
+            ? mkDevice(d.x, d.y, width, height)
+          : mk(d.x, d.y, width, height);
+        st.rects.unshift(created);
+      }
+      st.draft = null;
+    }
+    st.draftPending = null;
+    st.drag = null;
+    st.noteResize = null;
+    st.shapePointDrag = null;
+    st.g.x = null;
+    st.g.y = null;
+    st.dg = null;
+    clearCursorIf(MOVE_CURSOR);
+    suppressMoveCursorUntilMouseUp = false;
+    if (created) {
+      setMode("select");
+      selRect(created.id);
+      if (isNoteRect(created)) openNoteEditor(created.id);
+    }
+    if (hadMovedDrag && typeof refreshMultiSelectionBase === "function") refreshMultiSelectionBase();
+    if (hadDrag || created || hadNoteResize || hadMultiSelectionResize || hadShapePointDrag) { refreshPanels(); schedulePersist("project"); }
+    if (!created && lastPointer && st.mode === "select") updateSelectHoverCursor(lastPointer);
+    render();
+    return true;
+  };
+
+  const handleCanvasMouseLeave = () => {
+    if (typeof hitControllerLayoutLegendAtScreen === "function") {
+      const prev = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+      hitControllerLayoutLegendAtScreen(-1, -1, { pin: false });
+      const next = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+      if (prev !== next) render();
+    }
+    if (typeof clearLayerButtonHover === "function" && clearLayerButtonHover()) renderOverlay();
+    if (typeof clearMultiSelectionActionHover === "function" && clearMultiSelectionActionHover()) renderOverlay();
+    clearCursorIf("pointer", MOVE_CURSOR, ...RESIZE_CURSORS);
+    setNoteResizeCursor(false);
+    if (isCellEditMode() && (st.cellHover || st.cellHoverPos)) {
+      resetCellTransient();
+      render();
+      return;
+    }
+    if (flowController.handleFlowMouseLeave()) return;
+    if (isClusterEditMode() && clusterController.handleClusterMouseLeave()) return;
+    if (isRigEditMode() && st.rigHover) {
+      if (handleRigPointerLeave) { handleRigPointerLeave(); return; }
+      resetRigHoverTransient();
+      render();
+    }
+  };
+
+  const handleCanvasDoubleClick = (p, preventDefault = () => { }) => {
+    const drillTarget = resolveControllerLayoutDrillTarget(p);
+    if (drillTarget && typeof enterControllerLayoutReadOnly === "function") {
+      enterControllerLayoutReadOnly(drillTarget);
+      preventDefault();
+      return;
+    }
+    const h = hit(p.x, p.y);
+    if (st.mode === "select" && flowController && typeof flowController.deleteFlowLinkOrthogonalSegmentAtPoint === "function") {
+      if (flowController.deleteFlowLinkOrthogonalSegmentAtPoint(p)) {
+        st.flowSegmentDrag = null;
+        schedulePersist("project");
+        runSmartSyncProps(syncPropsSmart, syncProps);
+        render();
+        preventDefault();
+        return;
+      }
+    }
+    if (shapeInput.handleDoubleClickShape(p, preventDefault)) return;
+    if (!h) return;
+    if (shapeInput.handleDoubleClickHitShape(h, p, preventDefault)) return;
+    if (isNoteRect(h)) {
+      if (h.id !== st.sel) selRect(h.id);
+      openNoteEditor(h.id);
+      preventDefault();
+      return;
+    }
+    if (h.id !== st.sel) return;
+    if (st.mode !== "flowEdit") return;
+    const r = cur();
+    if (!r) return;
+    const startHandle = findFlowStartHandle(p.x, p.y);
+    if (!startHandle) return;
+    st.flowRegionRid = startHandle.rid;
+    resetFlowRegionOverrides(r, startHandle.rid);
+    resetFlowHoverTransient();
+    st.flowDrag = null;
+    st.flowDragPreview = null;
+    schedulePersist("project");
+    syncProps();
+    render();
+    preventDefault();
+  };
+
+  return {
+    handleCanvasPointerDown,
+    handleCanvasPointerMove,
+    handleCanvasPointerUp,
+    handleCanvasMouseLeave,
+    handleCanvasDoubleClick
+  };
+};
