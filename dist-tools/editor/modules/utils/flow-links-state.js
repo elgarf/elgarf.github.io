@@ -1,4 +1,1 @@
-/* build:1779222473 */
-export const getFlowLinks = st => (Array.isArray(st && st.flowLinks) ? st.flowLinks : []);
-
-export const getFlowLinksCopy = st => getFlowLinks(st).slice();
+export const getFlowLinks=o=>Array.isArray(o&&o.flowLinks)?o.flowLinks:[];export const getFlowLinksCopy=o=>getFlowLinks(o).slice();

@@ -866,6 +866,68 @@
       gap: 8px
     }
 
+    .controller-layout-legend-dom {
+      position: absolute;
+      left: 12px;
+      z-index: 1082;
+      min-width: 172px;
+      max-width: min(280px, calc(100% - 24px));
+      padding: 6px;
+      border: 1px solid rgba(255, 255, 255, .22);
+      border-radius: 8px;
+      background: rgba(14, 18, 24, .88);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .24);
+      user-select: none;
+      -webkit-user-select: none;
+      pointer-events: auto;
+    }
+
+    .controller-layout-legend-card {
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, .16);
+      background: rgba(20, 28, 38, .56);
+      color: rgba(255, 255, 255, .96);
+      padding: 6px 8px;
+      font: 500 12px/17px "Roboto", "Segoe UI", Arial, sans-serif;
+      cursor: pointer;
+    }
+
+    .controller-layout-legend-card + .controller-layout-legend-card {
+      margin-top: 8px;
+    }
+
+    .controller-layout-legend-card.is-hot {
+      border-color: rgba(255, 255, 255, .30);
+      background: rgba(34, 46, 61, .82);
+    }
+
+    .controller-layout-legend-title {
+      font-weight: 700;
+      padding-right: 64px;
+    }
+
+    .controller-layout-legend-line {
+      padding-left: 14px;
+    }
+
+    .controller-layout-legend-toggle {
+      position: absolute;
+      right: 6px;
+      top: 6px;
+      width: 54px;
+      height: 18px;
+      border: 0;
+      color: rgba(255, 255, 255, .98);
+      font: 700 10px/18px "Roboto", "Segoe UI", Arial, sans-serif;
+      text-align: center;
+      background: rgba(71, 85, 105, .95);
+      cursor: pointer;
+    }
+
+    .controller-layout-legend-toggle.is-fw {
+      background: rgba(56, 189, 248, .95);
+    }
+
     .layout-mode-tool-locked {
       pointer-events: none;
       opacity: .55

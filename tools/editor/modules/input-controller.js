@@ -34,7 +34,6 @@ export const setupInputController = (deps = {}) => {
     hitMultiSelectionAction, hitMultiSelectionResizeHandle, setMultiSelectionActionHover, clearMultiSelectionActionHover, applyMultiSelectionAction,
     beginMultiSelectionResize, updateMultiSelectionResize, endMultiSelectionResize,
     isControllerLayoutReadOnly, canEnterControllerLayoutReadOnly, enterControllerLayoutReadOnly,
-    hitControllerLayoutLegendAtScreen,
     bindEvent, bindWindowEvent
   } = deps;
 
@@ -183,8 +182,7 @@ export const setupInputController = (deps = {}) => {
     endMultiSelectionResize,
     isControllerLayoutReadOnly,
     canEnterControllerLayoutReadOnly,
-    enterControllerLayoutReadOnly,
-    hitControllerLayoutLegendAtScreen
+    enterControllerLayoutReadOnly
   });
   const handleCanvasPointerDown = (p, opts = null) => pointerOrchestrator.handleCanvasPointerDown(p, opts);
   const handleCanvasPointerMove = (p, opts = null) => pointerOrchestrator.handleCanvasPointerMove(p, opts);

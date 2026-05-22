@@ -182,7 +182,6 @@ st.controllerLayout = {
   readOnly: false,
   nextTempId: 900000000
 };
-st.controllerLayoutLegendItems = [];
 st.controllerLayoutLegendHoverIndex = -1;
 st.controllerLayoutLegendPinnedIndex = -1;
 st.controllerLayoutLegendHoverBox = null;
@@ -209,79 +208,6 @@ const setControllerLayoutScreenMode = (screenKey, mode) => {
   if (!key) return;
   if (!st.controllerLayoutScreenModes || typeof st.controllerLayoutScreenModes !== "object") st.controllerLayoutScreenModes = {};
   st.controllerLayoutScreenModes[key] = (String(mode || "") === "firmware") ? "firmware" : "normal";
-};
-const hitControllerLayoutLegendAtScreen = (sx, sy, opts = null) => {
-  if (!isControllerLayoutModeActive()) return false;
-  const sxNum = Number(sx);
-  const syNum = Number(sy);
-  if (!Number.isFinite(sxNum) || !Number.isFinite(syNum)) return false;
-  const x = sxNum;
-  const y = syNum;
-  const items = Array.isArray(st && st.controllerLayoutLegendItems) ? st.controllerLayoutLegendItems : [];
-  let next = -1;
-  let onToggle = false;
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i];
-    if (!it) continue;
-    const ix = Number(it.sx) || 0;
-    const iy = Number(it.sy) || 0;
-    const iw = Math.max(1, Number(it.sw) || 1);
-    const ih = Math.max(1, Number(it.sh) || 1);
-    if (x >= ix && x <= (ix + iw) && y >= iy && y <= (iy + ih)) {
-      next = i;
-      const t = it.toggle;
-      const tx = Number(t && t.sx);
-      const ty = Number(t && t.sy);
-      const tw = Number(t && t.sw);
-      const th = Number(t && t.sh);
-      const touchLike = !!(opts && opts.touchLike);
-      const pad = touchLike ? (12 / Math.max(0.25, Number(st && st.zoom) || 1)) : 0;
-      if (Number.isFinite(tx) && Number.isFinite(ty) && Number.isFinite(tw) && Number.isFinite(th)) {
-        onToggle = (x >= (tx - pad) && x <= (tx + tw + pad) && y >= (ty - pad) && y <= (ty + th + pad));
-      }
-      break;
-    }
-  }
-  const o = (opts && typeof opts === "object") ? opts : {};
-  const allowToggle = !!o.toggleModeSwitch;
-  if (allowToggle && next >= 0 && items[next] && onToggle) {
-    const screen = items[next].screen || {};
-    const skey = String(screen.key || "");
-    const curMode = getControllerLayoutScreenMode(skey);
-    const nextMode = curMode === "firmware" ? "normal" : "firmware";
-    setControllerLayoutScreenMode(skey, nextMode);
-    // Strict priority: toggle tap must not affect card highlight.
-    return true;
-  }
-  const pin = !!o.pin;
-  if (pin) {
-    const currentPinned = normLegendIndex(st.controllerLayoutLegendPinnedIndex);
-    const nextPinned = (next >= 0 && currentPinned === next) ? -1 : ((next >= 0) ? next : -1);
-    st.controllerLayoutLegendPinnedIndex = nextPinned;
-    st.controllerLayoutLegendPinnedBox = (nextPinned >= 0 && items[nextPinned] && items[nextPinned].screen)
-      ? {
-          minX: Number(items[nextPinned].screen.minX) || 0,
-          minY: Number(items[nextPinned].screen.minY) || 0,
-          maxX: Number(items[nextPinned].screen.maxX) || 0,
-          maxY: Number(items[nextPinned].screen.maxY) || 0
-        }
-      : null;
-    st.controllerLayoutLegendHoverIndex = nextPinned;
-    st.controllerLayoutLegendHoverBox = st.controllerLayoutLegendPinnedBox
-      ? { ...st.controllerLayoutLegendPinnedBox }
-      : null;
-  } else {
-    st.controllerLayoutLegendHoverIndex = next;
-    st.controllerLayoutLegendHoverBox = (next >= 0 && items[next] && items[next].screen)
-      ? {
-          minX: Number(items[next].screen.minX) || 0,
-          minY: Number(items[next].screen.minY) || 0,
-          maxX: Number(items[next].screen.maxX) || 0,
-          maxY: Number(items[next].screen.maxY) || 0
-        }
-      : null;
-  }
-  return next >= 0;
 };
 const getControllerLayoutRectIdSet = () => new Set(Array.isArray(st && st.controllerLayout && st.controllerLayout.rectIds) ? st.controllerLayout.rectIds : []);
 const isControllerLayoutRect = rect => {
@@ -2981,6 +2907,16 @@ const updateControllerLayoutUiLock = () => {
   if (el.side) el.side.classList.toggle("controller-layout-hidden", !!active);
   if (el.controllerLayoutBack) el.controllerLayoutBack.classList.toggle("d-none", !active);
   if (el.btnControllerLayoutReset) el.btnControllerLayoutReset.classList.toggle("d-none", !active || !!readOnly);
+  {
+    const legendNode = (typeof document !== "undefined")
+      ? document.getElementById("controllerLayoutLegendDom")
+      : null;
+    if (legendNode) {
+      legendNode.classList.toggle("d-none", !active);
+      legendNode.setAttribute("aria-hidden", active ? "false" : "true");
+      if (!active) legendNode.innerHTML = "";
+    }
+  }
 };
 const persistControllerLayoutPositions = () => {
   if (!isControllerLayoutModeActive()) return false;
@@ -3010,7 +2946,6 @@ function clearControllerLayoutRuntimeState() {
     st.rects = list.filter(r => !r || !r._controllerLayoutTemp);
   }
   st.controllerLayout = { active: false, controllerId: null, rectIds: [], groupsById: null, readOnly: false, nextTempId };
-  st.controllerLayoutLegendItems = [];
   st.controllerLayoutLegendHoverIndex = -1;
   st.controllerLayoutLegendPinnedIndex = -1;
   st.controllerLayoutLegendHoverBox = null;
@@ -3032,7 +2967,6 @@ const exitControllerLayoutMode = (opts = {}) => {
   const changed = (skipLayoutPersist || wasReadOnly) ? false : persistControllerLayoutPositions();
   removeControllerLayoutTempRects();
   st.controllerLayout = { active: false, controllerId: null, rectIds: [], groupsById: null, readOnly: false, nextTempId };
-  st.controllerLayoutLegendItems = [];
   st.controllerLayoutLegendHoverIndex = -1;
   st.controllerLayoutLegendPinnedIndex = -1;
   st.controllerLayoutLegendHoverBox = null;
@@ -3231,7 +3165,6 @@ const enterControllerLayoutMode = (controllerRect, opts = {}) => {
     zoom: Number(st.zoom) || 1
   };
   st.controllerLayout = { active: true, controllerId, rectIds, nextTempId: st.controllerLayout.nextTempId, groupsById: layoutGroupsById, readOnly };
-  st.controllerLayoutLegendItems = [];
   st.controllerLayoutLegendHoverIndex = -1;
   st.controllerLayoutLegendPinnedIndex = -1;
   st.controllerLayoutLegendHoverBox = null;
@@ -4042,7 +3975,6 @@ function drawControllerLayoutOverlay(c, z) {
       }
     }
   }
-  st.controllerLayoutLegendItems = [];
   st.controllerLayoutLegendScreens = layoutScreens;
   const hoverIndex = normLegendIndex(st.controllerLayoutLegendHoverIndex);
   const pinIndex = normLegendIndex(st.controllerLayoutLegendPinnedIndex);
@@ -4191,147 +4123,162 @@ function drawControllerLayoutOverlay(c, z) {
   c.restore();
 }
 function drawControllerLayoutLegendOverlay(c) {
-  if (!isControllerLayoutModeActive()) return;
+  const legendNode = (typeof document !== "undefined")
+    ? document.getElementById("controllerLayoutLegendDom")
+    : null;
   const layoutScreens = Array.isArray(st.controllerLayoutLegendScreens) ? st.controllerLayoutLegendScreens : [];
-  st.controllerLayoutLegendItems = [];
-  if (!layoutScreens.length) return;
-  try {
-    const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
-    c.save();
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const pad = 12;
-    const legendX = pad;
-    const canvasRect = (cv && typeof cv.getBoundingClientRect === "function")
-      ? cv.getBoundingClientRect()
-      : null;
-    const toCanvasY = y => {
-      const yy = Number(y);
-      if (!Number.isFinite(yy)) return NaN;
-      const top = Number(canvasRect && canvasRect.top);
-      return Number.isFinite(top) ? (yy - top) : yy;
-    };
-    const resetVisible = !!(el && el.btnControllerLayoutReset && !el.btnControllerLayoutReset.classList.contains("d-none"));
-    const resetRect = (resetVisible && el && el.btnControllerLayoutReset && typeof el.btnControllerLayoutReset.getBoundingClientRect === "function")
-      ? el.btnControllerLayoutReset.getBoundingClientRect()
-      : null;
-    const backRect = (el && el.controllerLayoutBack && typeof el.controllerLayoutBack.getBoundingClientRect === "function")
-      ? el.controllerLayoutBack.getBoundingClientRect()
-      : null;
-    const hasResetAnchor = !!(resetRect && Number.isFinite(Number(resetRect.bottom)));
-    const hasBackAnchor = !!(backRect && Number.isFinite(Number(backRect.bottom)));
-    const legendGap = 16;
-    const legendY = hasResetAnchor
-      ? Math.round(toCanvasY(Number(resetRect.bottom)) + legendGap)
-      : (hasBackAnchor ? Math.round(toCanvasY(Number(backRect.bottom)) + legendGap) : 92);
-    const hoverIndex = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+  const clearHot = () => {
+    st.controllerLayoutLegendHoverIndex = -1;
+    st.controllerLayoutLegendHoverBox = null;
+  };
+  if (!legendNode) return;
+  if (!isControllerLayoutModeActive() || !layoutScreens.length) {
+    legendNode.classList.add("d-none");
+    legendNode.innerHTML = "";
+    legendNode.setAttribute("aria-hidden", "true");
+    return;
+  }
+  legendNode.classList.remove("d-none");
+  legendNode.setAttribute("aria-hidden", "false");
+  const resetVisible = !!(el && el.btnControllerLayoutReset && !el.btnControllerLayoutReset.classList.contains("d-none"));
+  const anchorBtn = resetVisible ? el.btnControllerLayoutReset : el.controllerLayoutBack;
+  if (anchorBtn && typeof anchorBtn.getBoundingClientRect === "function" && wrap && typeof wrap.getBoundingClientRect === "function") {
+    const ar = anchorBtn.getBoundingClientRect();
+    const wr = wrap.getBoundingClientRect();
+    let legendGap = 8;
+    if (resetVisible && el && el.controllerLayoutBack && typeof el.controllerLayoutBack.getBoundingClientRect === "function") {
+      const br = el.controllerLayoutBack.getBoundingClientRect();
+      const gapBetweenButtons = (Number(ar.top) || 0) - ((Number(br.top) || 0) + (Number(br.height) || 0));
+      if (Number.isFinite(gapBetweenButtons)) legendGap = Math.max(0, Math.round(gapBetweenButtons));
+    }
+    legendNode.style.top = `${Math.max(12, Math.round((Number(ar.bottom) || 0) - (Number(wr.top) || 0) + legendGap))}px`;
+  } else {
+    legendNode.style.top = "92px";
+  }
+  const fwDimsMap = (st && st.controllerLayoutLegendFwDimsByKey && typeof st.controllerLayoutLegendFwDimsByKey === "object")
+    ? st.controllerLayoutLegendFwDimsByKey
+    : {};
+  const resolveHotLegendIndex = screens => {
+    const list = Array.isArray(screens) ? screens : [];
     const pinIndex = normLegendIndex(st.controllerLayoutLegendPinnedIndex);
-    const hi = (pinIndex >= 0) ? pinIndex : hoverIndex;
-    const titleFs = 13;
-    const lineFs = 12;
-    const rowH = 17;
-    const indent = 14;
-    const cardPadX = 8;
-    const cardPadY = 6;
-    const cardGap = 8;
-    const panelPad = 6;
-    const roundRectPath = (x, y, w, h, r) => {
-      const rr = Math.max(0, Math.min(r, w * 0.5, h * 0.5));
-      c.beginPath();
-      c.moveTo(x + rr, y);
-      c.lineTo(x + w - rr, y);
-      c.arcTo(x + w, y, x + w, y + rr, rr);
-      c.lineTo(x + w, y + h - rr);
-      c.arcTo(x + w, y + h, x + w - rr, y + h, rr);
-      c.lineTo(x + rr, y + h);
-      c.arcTo(x, y + h, x, y + h - rr, rr);
-      c.lineTo(x, y + rr);
-      c.arcTo(x, y, x + rr, y, rr);
-      c.closePath();
+    const hoverIndex = normLegendIndex(st.controllerLayoutLegendHoverIndex);
+    const direct = pinIndex >= 0 ? pinIndex : hoverIndex;
+    if (direct >= 0 && direct < list.length) return direct;
+    const box = (st.controllerLayoutLegendPinnedBox && typeof st.controllerLayoutLegendPinnedBox === "object")
+      ? st.controllerLayoutLegendPinnedBox
+      : ((st.controllerLayoutLegendHoverBox && typeof st.controllerLayoutLegendHoverBox === "object") ? st.controllerLayoutLegendHoverBox : null);
+    if (!box) return -1;
+    const bx = Number(box.minX);
+    const by = Number(box.minY);
+    const bw = Number(box.maxX) - bx;
+    const bh = Number(box.maxY) - by;
+    if (!Number.isFinite(bx) || !Number.isFinite(by) || !Number.isFinite(bw) || !Number.isFinite(bh)) return -1;
+    const eps = 0.5;
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i];
+      if (!s) continue;
+      const sx = Number(s.minX);
+      const sy = Number(s.minY);
+      const sw = Number(s.maxX) - sx;
+      const sh = Number(s.maxY) - sy;
+      if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(sw) || !Number.isFinite(sh)) continue;
+      if (Math.abs(sx - bx) <= eps && Math.abs(sy - by) <= eps && Math.abs(sw - bw) <= eps && Math.abs(sh - bh) <= eps) return i;
+    }
+    return -1;
+  };
+  const hotIndex = resolveHotLegendIndex(layoutScreens);
+  const syncLegendHotClasses = () => {
+    const cards = legendNode.querySelectorAll(".controller-layout-legend-card[data-index]");
+    const active = resolveHotLegendIndex(Array.isArray(st.controllerLayoutLegendScreens) ? st.controllerLayoutLegendScreens : []);
+    cards.forEach(card => {
+      const idx = normLegendIndex(card.getAttribute("data-index"));
+      card.classList.toggle("is-hot", idx >= 0 && idx === active);
+    });
+  };
+  legendNode.innerHTML = layoutScreens.map((s, i) => {
+    const mode = getControllerLayoutScreenMode(String(s && s.key || ""));
+    const fwDims = fwDimsMap[String(s && s.key || "")];
+    const wLegend = (fwDims && Number.isFinite(Number(fwDims.w))) ? Math.max(1, Math.round(Number(fwDims.w))) : s.w;
+    const hLegend = (fwDims && Number.isFinite(Number(fwDims.h))) ? Math.max(1, Math.round(Number(fwDims.h))) : s.h;
+    const hot = (i === hotIndex) ? " is-hot" : "";
+    const fw = mode === "firmware" ? " is-fw" : "";
+    return `
+      <div class="controller-layout-legend-card${hot}" data-index="${i}">
+        <button type="button" class="controller-layout-legend-toggle${fw}" data-index="${i}" data-action="toggle-mode">${mode === "firmware" ? "FW" : "STD"}</button>
+        <div class="controller-layout-legend-title">Экран ${i + 1}</div>
+        <div class="controller-layout-legend-line">X: ${s.x}</div>
+        <div class="controller-layout-legend-line">Y: ${s.y}</div>
+        <div class="controller-layout-legend-line">W: ${wLegend}</div>
+        <div class="controller-layout-legend-line">H: ${hLegend}</div>
+      </div>
+    `;
+  }).join("");
+  if (!legendNode._controllerLegendBound) {
+    const getIndexFromTarget = target => {
+      const card = target && target.closest ? target.closest(".controller-layout-legend-card[data-index]") : null;
+      if (!card) return -1;
+      return normLegendIndex(card.getAttribute("data-index"));
     };
-    const cards = [];
-    for (let i = 0; i < layoutScreens.length; i++) {
-      const s = layoutScreens[i];
-      const mode = getControllerLayoutScreenMode(String(s && s.key || ""));
-      const fwDimsMap = (st && st.controllerLayoutLegendFwDimsByKey && typeof st.controllerLayoutLegendFwDimsByKey === "object")
-        ? st.controllerLayoutLegendFwDimsByKey
-        : {};
-      const fwDims = fwDimsMap[String(s && s.key || "")];
-      const wLegend = (fwDims && Number.isFinite(Number(fwDims.w)))
-        ? Math.max(1, Math.round(Number(fwDims.w)))
-        : s.w;
-      const hLegend = (fwDims && Number.isFinite(Number(fwDims.h)))
-        ? Math.max(1, Math.round(Number(fwDims.h)))
-        : s.h;
-      const lines = [
-        { text: `Экран ${i + 1}`, fs: titleFs, bold: true, dx: 0 },
-        { text: `X: ${s.x}`, fs: lineFs, bold: false, dx: indent },
-        { text: `Y: ${s.y}`, fs: lineFs, bold: false, dx: indent },
-        { text: `W: ${wLegend}`, fs: lineFs, bold: false, dx: indent },
-        { text: `H: ${hLegend}`, fs: lineFs, bold: false, dx: indent }
-      ];
-      let w = 0;
-      for (const ln of lines) {
-        c.font = `${ln.bold ? 700 : 500} ${ln.fs}px sans-serif`;
-        w = Math.max(w, ln.dx + c.measureText(ln.text).width);
+    legendNode.addEventListener("click", e => {
+      const screens = Array.isArray(st.controllerLayoutLegendScreens) ? st.controllerLayoutLegendScreens : [];
+      const t = e.target;
+      const toggle = t && t.closest ? t.closest(".controller-layout-legend-toggle[data-action='toggle-mode']") : null;
+      const idx = toggle ? normLegendIndex(toggle.getAttribute("data-index")) : getIndexFromTarget(t);
+      if (idx < 0 || idx >= screens.length) return;
+      if (toggle) {
+        const screen = screens[idx] || {};
+        const skey = String(screen.key || "");
+        const nextMode = getControllerLayoutScreenMode(skey) === "firmware" ? "normal" : "firmware";
+        setControllerLayoutScreenMode(skey, nextMode);
+        // Keep DOM hot-state in sync with canvas highlight after mode toggle.
+        st.controllerLayoutLegendHoverIndex = idx;
+        st.controllerLayoutLegendHoverBox = screen
+          ? { minX: screen.minX, minY: screen.minY, maxX: screen.maxX, maxY: screen.maxY }
+          : null;
+        st.controllerLayoutLegendPinnedIndex = idx;
+        st.controllerLayoutLegendPinnedBox = screen
+          ? { minX: screen.minX, minY: screen.minY, maxX: screen.maxX, maxY: screen.maxY }
+          : null;
+        syncLegendHotClasses();
+        render();
+        return;
       }
-      w += 64;
-      cards.push({
-        index: i, lines, w: Math.ceil(w + cardPadX * 2), h: Math.ceil(lines.length * rowH + cardPadY * 2), screen: s, mode
-      });
-    }
-    let panelW = 0;
-    let panelH = panelPad * 2;
-    for (const card of cards) { panelW = Math.max(panelW, card.w); panelH += card.h; }
-    if (cards.length > 1) panelH += (cards.length - 1) * cardGap;
-    panelW += panelPad * 2;
-    const unifiedCardW = Math.max(1, panelW - panelPad * 2);
-    roundRectPath(legendX, legendY, panelW, panelH, 8);
-    c.fillStyle = "rgba(14, 18, 24, .88)";
-    c.shadowColor = "rgba(0,0,0,.24)";
-    c.shadowBlur = 12;
-    c.fill();
-    c.shadowColor = "transparent";
-    c.strokeStyle = "rgba(255,255,255,.22)";
-    c.lineWidth = 1;
-    c.stroke();
-    let y = legendY + panelPad;
-    c.textBaseline = "top";
-    for (const card of cards) {
-      const isHot = (card.index === hi);
-      const x = legendX + panelPad;
-      c.fillStyle = isHot ? "rgba(34, 46, 61, .82)" : "rgba(20, 28, 38, .56)";
-      c.fillRect(x, y, unifiedCardW, card.h);
-      c.strokeStyle = isHot ? "rgba(255,255,255,.30)" : "rgba(255,255,255,.16)";
-      c.lineWidth = 1;
-      c.strokeRect(x, y, unifiedCardW, card.h);
-      const toggleW = 54;
-      const toggleH = 18;
-      const toggleX = x + unifiedCardW - toggleW - 6;
-      const toggleY = y + 6;
-      c.fillStyle = card.mode === "firmware" ? "rgba(56, 189, 248, .95)" : "rgba(71, 85, 105, .95)";
-      c.fillRect(toggleX, toggleY, toggleW, toggleH);
-      c.fillStyle = "rgba(255,255,255,.98)";
-      c.font = `700 10px sans-serif`;
-      c.textAlign = "center";
-      c.textBaseline = "middle";
-      c.fillText(card.mode === "firmware" ? "FW" : "STD", toggleX + toggleW * 0.5, toggleY + toggleH * 0.5);
-      c.textAlign = "left";
-      c.textBaseline = "top";
-      let lineY = y + cardPadY;
-      for (const ln of card.lines) {
-        c.font = `${ln.bold ? 700 : 500} ${ln.fs}px sans-serif`;
-        c.fillStyle = "rgba(255,255,255,.96)";
-        c.fillText(ln.text, x + cardPadX + ln.dx, lineY);
-        lineY += rowH;
+      const currentPinned = normLegendIndex(st.controllerLayoutLegendPinnedIndex);
+      const nextPinned = (currentPinned === idx) ? -1 : idx;
+      st.controllerLayoutLegendPinnedIndex = nextPinned;
+      if (nextPinned >= 0) {
+        const s = screens[nextPinned];
+        st.controllerLayoutLegendPinnedBox = s ? { minX: s.minX, minY: s.minY, maxX: s.maxX, maxY: s.maxY } : null;
+        st.controllerLayoutLegendHoverIndex = s ? nextPinned : -1;
+        st.controllerLayoutLegendHoverBox = s ? { minX: s.minX, minY: s.minY, maxX: s.maxX, maxY: s.maxY } : null;
+      } else {
+        st.controllerLayoutLegendPinnedBox = null;
+        clearHot();
       }
-      st.controllerLayoutLegendItems.push({
-        sx: x, sy: y, sw: unifiedCardW, sh: card.h, index: card.index, screen: card.screen,
-        toggle: { sx: toggleX, sy: toggleY, sw: toggleW, sh: toggleH }
-      });
-      y += card.h + cardGap;
-    }
-    c.restore();
-  } catch { /* noop */ }
+      syncLegendHotClasses();
+      render();
+    });
+    legendNode.addEventListener("mousemove", e => {
+      if (normLegendIndex(st.controllerLayoutLegendPinnedIndex) >= 0) return;
+      const screens = Array.isArray(st.controllerLayoutLegendScreens) ? st.controllerLayoutLegendScreens : [];
+      const idx = getIndexFromTarget(e.target);
+      const i = normLegendIndex(idx);
+      const s = (i >= 0 && i < screens.length) ? screens[i] : null;
+      st.controllerLayoutLegendHoverIndex = s ? i : -1;
+      st.controllerLayoutLegendHoverBox = s ? { minX: s.minX, minY: s.minY, maxX: s.maxX, maxY: s.maxY } : null;
+      syncLegendHotClasses();
+      renderOverlay();
+    });
+    legendNode.addEventListener("mouseleave", () => {
+      if (normLegendIndex(st.controllerLayoutLegendPinnedIndex) >= 0) return;
+      clearHot();
+      syncLegendHotClasses();
+      renderOverlay();
+    });
+    legendNode._controllerLegendBound = true;
+  }
+  syncLegendHotClasses();
+  return;
 }
 function drawControllerLayoutHeaderOverlay(c, z) {
   if (!isControllerLayoutModeActive()) return;
@@ -5197,7 +5144,6 @@ const inputWiringServices = {
     return Object.keys(map).length > 0;
   },
   enterControllerLayoutReadOnly: rect => enterControllerLayoutMode(rect, { readOnly: true }),
-  hitControllerLayoutLegendAtScreen: (sx, sy, opts = null) => hitControllerLayoutLegendAtScreen(sx, sy, opts),
   bindEvent, bindWindowEvent, zoomAt
 };
 setupInputController({ ...inputWiringServices });

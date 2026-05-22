@@ -1,16 +1,1 @@
-/* build:1779222473 */
-export const createDebounced = (fn, delayMs = 0) => {
-  let timer = null;
-  const cancel = () => {
-    if (timer) clearTimeout(timer);
-    timer = null;
-  };
-  const schedule = (...args) => {
-    cancel();
-    timer = setTimeout(() => {
-      timer = null;
-      fn(...args);
-    }, Math.max(0, Math.round(Number(delayMs) || 0)));
-  };
-  return { schedule, cancel };
-};
+export const createDebounced=(e,t=0)=>{let l=null;const u=()=>{l&&clearTimeout(l),l=null};return{schedule:(...n)=>{u(),l=setTimeout(()=>{l=null,e(...n)},Math.max(0,Math.round(Number(t)||0)))},cancel:u}};
